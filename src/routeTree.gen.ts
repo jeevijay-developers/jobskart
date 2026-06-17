@@ -15,9 +15,11 @@ import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as USlugRouteImport } from './routes/u.$slug'
 import { Route as SignupEmployerRouteImport } from './routes/signup.employer'
 import { Route as SignupCandidateRouteImport } from './routes/signup.candidate'
 import { Route as JobsJobIdRouteImport } from './routes/jobs.$jobId'
+import { Route as AuthenticatedOnboardingCandidateRouteImport } from './routes/_authenticated/onboarding/candidate'
 import { Route as AuthenticatedEmployerDashboardRouteImport } from './routes/_authenticated/employer/dashboard'
 import { Route as AuthenticatedCandidateSavedRouteImport } from './routes/_authenticated/candidate/saved'
 import { Route as AuthenticatedCandidateProfileRouteImport } from './routes/_authenticated/candidate/profile'
@@ -53,6 +55,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const USlugRoute = USlugRouteImport.update({
+  id: '/u/$slug',
+  path: '/u/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SignupEmployerRoute = SignupEmployerRouteImport.update({
   id: '/signup/employer',
   path: '/signup/employer',
@@ -68,6 +75,12 @@ const JobsJobIdRoute = JobsJobIdRouteImport.update({
   path: '/$jobId',
   getParentRoute: () => JobsRoute,
 } as any)
+const AuthenticatedOnboardingCandidateRoute =
+  AuthenticatedOnboardingCandidateRouteImport.update({
+    id: '/onboarding/candidate',
+    path: '/onboarding/candidate',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedEmployerDashboardRoute =
   AuthenticatedEmployerDashboardRouteImport.update({
     id: '/employer/dashboard',
@@ -108,11 +121,13 @@ export interface FileRoutesByFullPath {
   '/jobs/$jobId': typeof JobsJobIdRoute
   '/signup/candidate': typeof SignupCandidateRoute
   '/signup/employer': typeof SignupEmployerRoute
+  '/u/$slug': typeof USlugRoute
   '/candidate/applications': typeof AuthenticatedCandidateApplicationsRoute
   '/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
   '/candidate/profile': typeof AuthenticatedCandidateProfileRoute
   '/candidate/saved': typeof AuthenticatedCandidateSavedRoute
   '/employer/dashboard': typeof AuthenticatedEmployerDashboardRoute
+  '/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -123,11 +138,13 @@ export interface FileRoutesByTo {
   '/jobs/$jobId': typeof JobsJobIdRoute
   '/signup/candidate': typeof SignupCandidateRoute
   '/signup/employer': typeof SignupEmployerRoute
+  '/u/$slug': typeof USlugRoute
   '/candidate/applications': typeof AuthenticatedCandidateApplicationsRoute
   '/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
   '/candidate/profile': typeof AuthenticatedCandidateProfileRoute
   '/candidate/saved': typeof AuthenticatedCandidateSavedRoute
   '/employer/dashboard': typeof AuthenticatedEmployerDashboardRoute
+  '/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -140,11 +157,13 @@ export interface FileRoutesById {
   '/jobs/$jobId': typeof JobsJobIdRoute
   '/signup/candidate': typeof SignupCandidateRoute
   '/signup/employer': typeof SignupEmployerRoute
+  '/u/$slug': typeof USlugRoute
   '/_authenticated/candidate/applications': typeof AuthenticatedCandidateApplicationsRoute
   '/_authenticated/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
   '/_authenticated/candidate/profile': typeof AuthenticatedCandidateProfileRoute
   '/_authenticated/candidate/saved': typeof AuthenticatedCandidateSavedRoute
   '/_authenticated/employer/dashboard': typeof AuthenticatedEmployerDashboardRoute
+  '/_authenticated/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -157,11 +176,13 @@ export interface FileRouteTypes {
     | '/jobs/$jobId'
     | '/signup/candidate'
     | '/signup/employer'
+    | '/u/$slug'
     | '/candidate/applications'
     | '/candidate/dashboard'
     | '/candidate/profile'
     | '/candidate/saved'
     | '/employer/dashboard'
+    | '/onboarding/candidate'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -172,11 +193,13 @@ export interface FileRouteTypes {
     | '/jobs/$jobId'
     | '/signup/candidate'
     | '/signup/employer'
+    | '/u/$slug'
     | '/candidate/applications'
     | '/candidate/dashboard'
     | '/candidate/profile'
     | '/candidate/saved'
     | '/employer/dashboard'
+    | '/onboarding/candidate'
   id:
     | '__root__'
     | '/'
@@ -188,11 +211,13 @@ export interface FileRouteTypes {
     | '/jobs/$jobId'
     | '/signup/candidate'
     | '/signup/employer'
+    | '/u/$slug'
     | '/_authenticated/candidate/applications'
     | '/_authenticated/candidate/dashboard'
     | '/_authenticated/candidate/profile'
     | '/_authenticated/candidate/saved'
     | '/_authenticated/employer/dashboard'
+    | '/_authenticated/onboarding/candidate'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -204,6 +229,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignupCandidateRoute: typeof SignupCandidateRoute
   SignupEmployerRoute: typeof SignupEmployerRoute
+  USlugRoute: typeof USlugRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -250,6 +276,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/u/$slug': {
+      id: '/u/$slug'
+      path: '/u/$slug'
+      fullPath: '/u/$slug'
+      preLoaderRoute: typeof USlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/signup/employer': {
       id: '/signup/employer'
       path: '/signup/employer'
@@ -270,6 +303,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/jobs/$jobId'
       preLoaderRoute: typeof JobsJobIdRouteImport
       parentRoute: typeof JobsRoute
+    }
+    '/_authenticated/onboarding/candidate': {
+      id: '/_authenticated/onboarding/candidate'
+      path: '/onboarding/candidate'
+      fullPath: '/onboarding/candidate'
+      preLoaderRoute: typeof AuthenticatedOnboardingCandidateRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/employer/dashboard': {
       id: '/_authenticated/employer/dashboard'
@@ -315,6 +355,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCandidateProfileRoute: typeof AuthenticatedCandidateProfileRoute
   AuthenticatedCandidateSavedRoute: typeof AuthenticatedCandidateSavedRoute
   AuthenticatedEmployerDashboardRoute: typeof AuthenticatedEmployerDashboardRoute
+  AuthenticatedOnboardingCandidateRoute: typeof AuthenticatedOnboardingCandidateRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -324,6 +365,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCandidateProfileRoute: AuthenticatedCandidateProfileRoute,
   AuthenticatedCandidateSavedRoute: AuthenticatedCandidateSavedRoute,
   AuthenticatedEmployerDashboardRoute: AuthenticatedEmployerDashboardRoute,
+  AuthenticatedOnboardingCandidateRoute: AuthenticatedOnboardingCandidateRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
@@ -348,17 +390,8 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   SignupCandidateRoute: SignupCandidateRoute,
   SignupEmployerRoute: SignupEmployerRoute,
+  USlugRoute: USlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

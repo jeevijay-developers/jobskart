@@ -1,55 +1,72 @@
-# JobsKart — Phased Build Plan
+# Phase 4 — Candidate Onboarding, Profile & Dashboard (Full)
 
-A full Apna.co-style blue/grey-collar hiring portal. The spec spans 8 phases. I'll build them sequentially, shipping a working slice each phase so you can review before the next one starts.
+The basic signup, profile and dashboard scaffolding from Phase 3 will be upgraded into a complete, production-grade candidate experience modeled on Apna.co.
 
-## Phase 1 — Design System + Landing Page (this PR)
+## What gets built
 
-**Design tokens** (wired into `src/styles.css` as semantic CSS variables, used via Tailwind):
-- Primary `#1A55BD`, Primary Dark `#1340A0`, Primary Light `#EEF3FF`
-- Light BG `#F5F7FA`, Border `#E5E7EB`, Dark Text `#1A1A2E`, Muted `#6B7280`
-- Success `#16A34A`, Amber `#D97706`, Red `#DC2626`
-- Card radius 12px, button radius 8px, pill 24px
-- Card shadow `0 2px 12px rgba(26,85,189,0.08)`
-- Font: Inter (loaded via `<link>` in `__root.tsx`)
+### 1. Database additions (one migration)
+Add structured sub-tables so a profile is no longer just text fields:
+- `candidate_experiences` — job_title, company_name, start_date, end_date, is_current, description
+- `candidate_education` — level (10th / 12th / Diploma / Graduate / Post-graduate), board_or_university, institute, year, marks
+- `candidate_languages` — language, proficiency (basic/conversational/fluent), can_read, can_write
+- `candidate_documents` — type (resume / id_proof / certificate), file_url, file_name, size
+- Extend `candidate_profiles` with: `date_of_birth`, `gender`, `marital_status`, `current_salary`, `expected_salary`, `notice_period_days`, `preferred_cities text[]`, `preferred_work_mode`, `assets text[]` (own bike/laptop/etc.), `government_id_type`, `government_id_last4`, `kyc_status` (stub: pending/verified/rejected)
+- Storage bucket `candidate-docs` (private) with RLS so a user can only read their own folder `{uid}/...`
+- RLS + GRANTs on every new table (owner-only); helper trigger to recompute `profile_strength` on update
 
-**Logo**: uploaded JobsKart logo registered as a Lovable asset (`src/assets/jobskart-logo.png.asset.json`) and used in navbar/footer.
+### 2. First-time onboarding wizard (`/onboarding/candidate`)
+Triggered automatically after signup or first login when `profile_strength < 60`. 6 steps with a progress rail, skip-for-now, autosave per step:
+1. **Basics** — DOB, gender, city, preferred cities, profile photo
+2. **Work status** — fresher / experienced / student → conditional fields
+3. **Experience** — repeating cards (add / edit / delete entries)
+4. **Education** — at least 10th class; add Diploma/Graduate as needed
+5. **Skills, languages & assets** — chip pickers with suggestions
+6. **Preferences & resume** — job types, work mode, expected salary, notice period, resume upload (PDF/DOC, ≤ 5 MB)
+Final screen: profile strength meter + "Go to dashboard" / "Browse jobs".
 
-**Landing page sections** (all on `/`, semantic HTML, SEO meta in route `head()`):
-1. Sticky white **Navbar** — logo, center links (Jobs / For Employers / Candidates / Resources), Employer Login (outlined) + Candidate Login (solid), mobile hamburger drawer.
-2. **Hero** — gradient bg (white → `#EEF3FF`) with soft purple→green blob on right, eyebrow tag, H1 "Your job search ends here", subtext, 3-field pill search bar (title / experience / location + Search button), popular tag chips, hero image placeholder of professional with phone.
-3. **Trust** — "Proud to Support" gov logos + "Trusted by 1000+ Enterprises…" company logo strip (placeholders).
-4. **Popular Searches** — light-gray bg, left heading + right 3×2 trending category cards.
-5. **Browse by Category** — horizontal scroll of icon+label chips (Security, Driver, Delivery, Sales, Telecaller, Warehouse, Housekeeping, Cook, Retail, Field Agent, Nurse, Teacher).
-6. **How It Works** — two columns (Candidates / Employers), 3 numbered steps each, blue→green gradient bg.
-7. **Stats Banner** — dark blue bg, 4 stats (10L+ Jobs, 50L+ Candidates, 1000+ Employers, 500+ Cities).
-8. **Testimonials** — 3 cards, avatar/name/role/stars/quote.
-9. **App Download** — gradient bg, Play/App Store badge placeholders, phone mockup placeholder.
-10. **Footer** — dark `#1A1A2E`, logo+tagline, 4 link columns, bottom legal row.
+### 3. Profile page rebuild (`/candidate/profile`)
+Replace the single long form with a sectioned layout (Apna-style):
+- Sticky left summary card (avatar, name, headline, city, strength meter, "Share profile" link)
+- Right side sections, each independently editable via inline drawer/dialog:
+  Personal • Career preferences • Experience (list with add/edit/delete) • Education • Skills • Languages • Resume & documents • Government ID (KYC stub button → marks `kyc_status='verified'` in dev)
+- "Preview public profile" button that opens `/u/$slug` (read-only public view, indexable, with og tags)
 
-Fully responsive (320 / 375 / 768 / 1024 / 1440), hover lift on cards, Indian-context copy (no Lorem ipsum), currency in ₹, numbers in lakh/crore format.
+### 4. Dashboard upgrade (`/candidate/dashboard`)
+- Top hero: greeting + profile strength ring + "Complete profile" CTA when < 80
+- Stat cards: Applications, Shortlisted, Interviews, Saved, Profile views (profile_views counter incremented on public profile visit)
+- "Continue your profile" checklist (only items still missing)
+- Recommended jobs (matched by skills overlap + city + job type, fall back to recent)
+- Recent activity feed (applied / shortlisted / saved events from `applications` + `saved_jobs`)
+- Mobile: bottom tab bar replaces the desktop sidebar
 
-## Phases 2–8 (subsequent PRs, in order)
+### 5. Shared UX polish
+- `CandidateShell` gets a mobile bottom-nav and a top breadcrumb
+- Reusable `<SectionCard>`, `<EditableSection>`, `<ChipInput>`, `<FileDropzone>` primitives
+- Toast feedback + optimistic updates on every save
+- All forms validated; phone/email/dates checked; resume mime-type + size guarded
+- After every save, recompute and persist `profile_strength`
 
-Each will be its own approval cycle so we can adjust before building.
+### 6. Public candidate profile (`/u/$slug`)
+- SSR-friendly read-only page using a `public_candidate_view` (only non-sensitive columns; anon SELECT policy)
+- `head()` with name + headline + city for SEO/sharing
+- "Recruiters only" CTA to contact (gated to employer role later in Phase 5)
 
-- **Phase 2** — Auth: `/login` (tabbed), `/signup/candidate` (3-step wizard with profile-strength meter), `/signup/employer` (single-page with company details), `/forgot-password` (OTP). Mobile OTP + email/password + Google. Inline validation, toasts.
-- **Phase 3** — Candidate area: sidebar dashboard, `/jobs` search with filters, `/jobs/:id` detail with tabs, `/candidate/applications` (status tabs), `/candidate/profile` (editable sections, strength meter).
-- **Phase 4** — Employer dashboard + **smart 4-step Post-a-Job** flow: live title suggestions, AI skill suggestions, market-salary insight, AI description templates, **Job Quality Score** donut with checklist, Classic / Classic+ / Trending selection, My Jobs table with Boost modal.
-- **Phase 5** — Candidate DB Access (job-gated search, locked PII until Unlock, 25/job quota) + Job Responses (Applied tab + AI Recommended tab with rotating insight messages and never-empty "similar profiles" fallback) + candidate detail modal.
-- **Phase 6** — Company Profile + Verification (GST / CIN / Aadhaar tabs), Team Management (Super Admin / HR Admin / Recruiter), Activity Tracker, Role Permissions Matrix.
-- **Phase 7** — Plans (Basic / Pro / Unlimited cards, monthly/quarterly/annual toggle), add-on credits, billing history, Analytics dashboard (4 charts + team performance + AI recs insight).
-- **Phase 8** — Notifications (bell dropdown + `/notifications` page), email-pref toggles, mobile polish (bottom tab nav, swipe actions), micro-interactions (animated score, skeleton loaders, toasts), Settings page, role-based 403, SEO pass.
+## Technical notes
+- Storage uploads go through the browser client with RLS path `{auth.uid()}/resume-<ts>.<ext>`
+- KYC stays a stub: clicking "Verify" simulates a 1.5 s call then flips `kyc_status` to `verified` — real provider plugs in later via a server function
+- Profile strength formula centralized in `src/lib/profileStrength.ts` and reused by trigger + UI
+- Onboarding wizard state kept in component state + per-step `upsert` (no global store needed)
+- Recommendation query: `jobs` filtered by `array_overlap(skills, candidate.skills)` then ordered by created_at; SQL-side, limit 6
 
-## Technical Notes
+## Files (high level)
+- `supabase/migrations/<ts>_candidate_full.sql` (tables, bucket, RLS, GRANTs, view, trigger)
+- `src/lib/profileStrength.ts`
+- `src/routes/_authenticated/onboarding/candidate.tsx` (+ step components in `src/components/onboarding/`)
+- `src/routes/_authenticated/candidate/profile.tsx` (rebuilt) + section components in `src/components/candidate/sections/`
+- `src/routes/_authenticated/candidate/dashboard.tsx` (rebuilt)
+- `src/routes/u.$slug.tsx` (public profile)
+- `src/components/candidate/CandidateShell.tsx` (mobile nav)
+- `src/components/ui/*` reuses: dialog, drawer, sheet, progress (all already present)
 
-- Stack: TanStack Start (existing) — file-based routes under `src/routes/`, route-level `head()` for SEO, semantic tokens only (no hardcoded colors in components).
-- Backend (Lovable Cloud) is **not** enabled in Phase 1 — the landing page is pure presentation. I'll propose enabling it at the start of Phase 2 (auth) since we'll need users, profiles, roles, jobs, applications, unlocks, plans, credits, activity logs, and notifications.
-- Logo asset uploaded via `lovable-assets` from `/mnt/user-uploads/images_1.png` so it lives on CDN, not in the repo.
-
-## Open Questions Before Phase 2
-
-1. Use **Lovable Cloud** for the full backend (recommended — auth, DB, storage, edge functions in one place)?
-2. For Indian mobile OTP, use a real SMS provider (MSG91 / Twilio — needs API key + credits) or stub it during dev?
-3. GST / CIN / Aadhaar verification — connect a real KYC API (Karza, Surepass, etc.) or build the UI now and stub responses until you've picked a provider?
-
-**Approving this plan ships Phase 1 only.** I'll come back with a Phase 2 plan right after.
+## Out of scope (later phases)
+- Real KYC API, SMS OTP, employer-side search of candidates, messaging, notifications center, settings page — all deferred to their dedicated phases.
