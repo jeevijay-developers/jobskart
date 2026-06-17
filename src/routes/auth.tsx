@@ -34,7 +34,7 @@ function AuthPage() {
 
   const onSuccess = async () => {
     if (search.redirect) {
-      navigate({ to: search.redirect });
+      window.location.assign(search.redirect);
     } else {
       navigate({ to: tab === "employer" ? "/employer/dashboard" : "/candidate/dashboard" });
     }
