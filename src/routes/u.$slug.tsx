@@ -39,7 +39,7 @@ type PublicCandidate = {
 };
 
 function PublicProfile() {
-  const c = Route.useLoaderData();
+  const c = Route.useLoaderData() as PublicCandidate;
   useEffect(() => { supabase.rpc("increment_profile_views", { _slug: c.profile_slug }); }, [c.profile_slug]);
   const initials = c.full_name.split(" ").map((x) => x[0]).slice(0, 2).join("").toUpperCase();
 

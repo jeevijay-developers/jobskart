@@ -15,6 +15,7 @@ import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as USlugRouteImport } from './routes/u.$slug'
 import { Route as SignupEmployerRouteImport } from './routes/signup.employer'
 import { Route as SignupCandidateRouteImport } from './routes/signup.candidate'
 import { Route as JobsJobIdRouteImport } from './routes/jobs.$jobId'
@@ -52,6 +53,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const USlugRoute = USlugRouteImport.update({
+  id: '/u/$slug',
+  path: '/u/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SignupEmployerRoute = SignupEmployerRouteImport.update({
@@ -115,6 +121,7 @@ export interface FileRoutesByFullPath {
   '/jobs/$jobId': typeof JobsJobIdRoute
   '/signup/candidate': typeof SignupCandidateRoute
   '/signup/employer': typeof SignupEmployerRoute
+  '/u/$slug': typeof USlugRoute
   '/candidate/applications': typeof AuthenticatedCandidateApplicationsRoute
   '/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
   '/candidate/profile': typeof AuthenticatedCandidateProfileRoute
@@ -131,6 +138,7 @@ export interface FileRoutesByTo {
   '/jobs/$jobId': typeof JobsJobIdRoute
   '/signup/candidate': typeof SignupCandidateRoute
   '/signup/employer': typeof SignupEmployerRoute
+  '/u/$slug': typeof USlugRoute
   '/candidate/applications': typeof AuthenticatedCandidateApplicationsRoute
   '/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
   '/candidate/profile': typeof AuthenticatedCandidateProfileRoute
@@ -149,6 +157,7 @@ export interface FileRoutesById {
   '/jobs/$jobId': typeof JobsJobIdRoute
   '/signup/candidate': typeof SignupCandidateRoute
   '/signup/employer': typeof SignupEmployerRoute
+  '/u/$slug': typeof USlugRoute
   '/_authenticated/candidate/applications': typeof AuthenticatedCandidateApplicationsRoute
   '/_authenticated/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
   '/_authenticated/candidate/profile': typeof AuthenticatedCandidateProfileRoute
@@ -167,6 +176,7 @@ export interface FileRouteTypes {
     | '/jobs/$jobId'
     | '/signup/candidate'
     | '/signup/employer'
+    | '/u/$slug'
     | '/candidate/applications'
     | '/candidate/dashboard'
     | '/candidate/profile'
@@ -183,6 +193,7 @@ export interface FileRouteTypes {
     | '/jobs/$jobId'
     | '/signup/candidate'
     | '/signup/employer'
+    | '/u/$slug'
     | '/candidate/applications'
     | '/candidate/dashboard'
     | '/candidate/profile'
@@ -200,6 +211,7 @@ export interface FileRouteTypes {
     | '/jobs/$jobId'
     | '/signup/candidate'
     | '/signup/employer'
+    | '/u/$slug'
     | '/_authenticated/candidate/applications'
     | '/_authenticated/candidate/dashboard'
     | '/_authenticated/candidate/profile'
@@ -217,6 +229,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignupCandidateRoute: typeof SignupCandidateRoute
   SignupEmployerRoute: typeof SignupEmployerRoute
+  USlugRoute: typeof USlugRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -261,6 +274,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/u/$slug': {
+      id: '/u/$slug'
+      path: '/u/$slug'
+      fullPath: '/u/$slug'
+      preLoaderRoute: typeof USlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/signup/employer': {
@@ -370,6 +390,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   SignupCandidateRoute: SignupCandidateRoute,
   SignupEmployerRoute: SignupEmployerRoute,
+  USlugRoute: USlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
