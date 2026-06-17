@@ -23,8 +23,8 @@ function CandidateDashboard() {
       if (!uid) return;
 
       const [{ data: profile }, { data: cand }, { count: appCount }, { count: savedCount }, { data: jobs }] = await Promise.all([
-        supabase.from("profiles").select("full_name").eq("id", uid).maybeSingle(),
-        supabase.from("candidate_profiles").select("headline, skills, city, experience_years").eq("user_id", uid).maybeSingle(),
+        supabase.from("profiles").select("full_name, city, mobile, avatar_url").eq("id", uid).maybeSingle(),
+        supabase.from("candidate_profiles").select("last_role, skills, years_experience, bio").eq("user_id", uid).maybeSingle(),
         supabase.from("applications").select("id", { count: "exact", head: true }).eq("candidate_id", uid),
         supabase.from("saved_jobs").select("id", { count: "exact", head: true }).eq("user_id", uid),
         supabase
@@ -41,13 +41,16 @@ function CandidateDashboard() {
       setCounts({ applied: appCount || 0, saved: savedCount || 0 });
       setRecommended((jobs as unknown as JobCardData[]) || []);
 
-      let s = 30;
+      let s = 25;
       if (profile?.full_name) s += 10;
-      if (cand?.headline) s += 15;
-      if (cand?.city) s += 15;
+      if (profile?.mobile) s += 10;
+      if (profile?.city) s += 10;
+      if (cand?.last_role) s += 15;
       if ((cand?.skills?.length || 0) > 0) s += 20;
-      if (cand?.experience_years != null) s += 10;
+      if (cand?.years_experience != null) s += 5;
+      if (cand?.bio) s += 5;
       setStrength(Math.min(s, 100));
+
     })();
   }, []);
 
