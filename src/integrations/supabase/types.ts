@@ -613,6 +613,26 @@ export type Database = {
       }
     }
     Functions: {
+      get_public_candidate: {
+        Args: { _slug: string }
+        Returns: {
+          avatar_url: string
+          bio: string
+          city: string
+          experience_status: string
+          full_name: string
+          headline: string
+          kyc_status: string
+          last_role: string
+          preferred_cities: string[]
+          preferred_job_types: string[]
+          profile_slug: string
+          profile_strength: number
+          skills: string[]
+          user_id: string
+          years_experience: number
+        }[]
+      }
       has_company_membership: {
         Args: { _company_id: string; _user_id: string }
         Returns: boolean
@@ -625,6 +645,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_profile_views: { Args: { _slug: string }; Returns: undefined }
       user_companies: { Args: { _user_id: string }; Returns: string[] }
     }
     Enums: {
