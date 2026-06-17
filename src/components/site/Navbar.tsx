@@ -8,7 +8,7 @@ import type { Session } from "@supabase/supabase-js";
 import { signOut } from "@/lib/auth";
 
 const navLinks = [
-  { label: "Jobs", to: "/" },
+  { label: "Jobs", to: "/jobs" },
   { label: "For Employers", to: "/signup/employer" },
   { label: "Candidates", to: "/signup/candidate" },
   { label: "Resources", to: "/" },
