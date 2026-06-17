@@ -74,38 +74,227 @@ export type Database = {
           },
         ]
       }
+      candidate_documents: {
+        Row: {
+          created_at: string
+          doc_type: string
+          file_name: string
+          file_path: string
+          id: string
+          size_bytes: number | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          doc_type: string
+          file_name: string
+          file_path: string
+          id?: string
+          size_bytes?: number | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          doc_type?: string
+          file_name?: string
+          file_path?: string
+          id?: string
+          size_bytes?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      candidate_education: {
+        Row: {
+          board_or_university: string | null
+          created_at: string
+          id: string
+          institute: string | null
+          level: string
+          marks: string | null
+          updated_at: string
+          user_id: string
+          year_of_passing: number | null
+        }
+        Insert: {
+          board_or_university?: string | null
+          created_at?: string
+          id?: string
+          institute?: string | null
+          level: string
+          marks?: string | null
+          updated_at?: string
+          user_id: string
+          year_of_passing?: number | null
+        }
+        Update: {
+          board_or_university?: string | null
+          created_at?: string
+          id?: string
+          institute?: string | null
+          level?: string
+          marks?: string | null
+          updated_at?: string
+          user_id?: string
+          year_of_passing?: number | null
+        }
+        Relationships: []
+      }
+      candidate_experiences: {
+        Row: {
+          company_name: string
+          created_at: string
+          description: string | null
+          end_date: string | null
+          id: string
+          is_current: boolean
+          job_title: string
+          start_date: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          company_name: string
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          is_current?: boolean
+          job_title: string
+          start_date?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          company_name?: string
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          is_current?: boolean
+          job_title?: string
+          start_date?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      candidate_languages: {
+        Row: {
+          can_read: boolean
+          can_write: boolean
+          created_at: string
+          id: string
+          language: string
+          proficiency: string
+          user_id: string
+        }
+        Insert: {
+          can_read?: boolean
+          can_write?: boolean
+          created_at?: string
+          id?: string
+          language: string
+          proficiency: string
+          user_id: string
+        }
+        Update: {
+          can_read?: boolean
+          can_write?: boolean
+          created_at?: string
+          id?: string
+          language?: string
+          proficiency?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       candidate_profiles: {
         Row: {
+          assets: string[]
           bio: string | null
           created_at: string
+          current_salary: number | null
+          date_of_birth: string | null
+          expected_salary: number | null
           experience_status: Database["public"]["Enums"]["experience_status"]
+          gender: string | null
+          government_id_last4: string | null
+          government_id_type: string | null
+          headline: string | null
+          kyc_status: string
           last_role: string | null
+          marital_status: string | null
+          notice_period_days: number | null
+          onboarding_completed: boolean
+          preferred_cities: string[]
           preferred_job_types: string[]
+          preferred_work_mode: string | null
+          profile_slug: string | null
           profile_strength: number
+          profile_views: number
+          resume_name: string | null
+          resume_url: string | null
           skills: string[]
           updated_at: string
           user_id: string
           years_experience: number
         }
         Insert: {
+          assets?: string[]
           bio?: string | null
           created_at?: string
+          current_salary?: number | null
+          date_of_birth?: string | null
+          expected_salary?: number | null
           experience_status?: Database["public"]["Enums"]["experience_status"]
+          gender?: string | null
+          government_id_last4?: string | null
+          government_id_type?: string | null
+          headline?: string | null
+          kyc_status?: string
           last_role?: string | null
+          marital_status?: string | null
+          notice_period_days?: number | null
+          onboarding_completed?: boolean
+          preferred_cities?: string[]
           preferred_job_types?: string[]
+          preferred_work_mode?: string | null
+          profile_slug?: string | null
           profile_strength?: number
+          profile_views?: number
+          resume_name?: string | null
+          resume_url?: string | null
           skills?: string[]
           updated_at?: string
           user_id: string
           years_experience?: number
         }
         Update: {
+          assets?: string[]
           bio?: string | null
           created_at?: string
+          current_salary?: number | null
+          date_of_birth?: string | null
+          expected_salary?: number | null
           experience_status?: Database["public"]["Enums"]["experience_status"]
+          gender?: string | null
+          government_id_last4?: string | null
+          government_id_type?: string | null
+          headline?: string | null
+          kyc_status?: string
           last_role?: string | null
+          marital_status?: string | null
+          notice_period_days?: number | null
+          onboarding_completed?: boolean
+          preferred_cities?: string[]
           preferred_job_types?: string[]
+          preferred_work_mode?: string | null
+          profile_slug?: string | null
           profile_strength?: number
+          profile_views?: number
+          resume_name?: string | null
+          resume_url?: string | null
           skills?: string[]
           updated_at?: string
           user_id?: string
@@ -400,7 +589,28 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      public_candidate_view: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          city: string | null
+          experience_status:
+            | Database["public"]["Enums"]["experience_status"]
+            | null
+          full_name: string | null
+          headline: string | null
+          kyc_status: string | null
+          last_role: string | null
+          preferred_cities: string[] | null
+          preferred_job_types: string[] | null
+          profile_slug: string | null
+          profile_strength: number | null
+          skills: string[] | null
+          user_id: string | null
+          years_experience: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       has_company_membership: {
