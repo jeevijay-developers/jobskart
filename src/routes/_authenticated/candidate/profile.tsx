@@ -29,7 +29,7 @@ type Edu = { id?: string; level: string; board_or_university: string; institute:
 type Lang = { id?: string; language: string; proficiency: "basic" | "conversational" | "fluent" | "native"; can_read: boolean; can_write: boolean };
 
 function ProfilePage() {
-  const navigate = useNavigate();
+  const [uid, setUid] = useState<string | null>(null);
   const [uid, setUid] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [p, setP] = useState<Profile | null>(null);
