@@ -98,7 +98,7 @@ function CandidateSignupPage() {
       const res = await signInWithGoogle("candidate");
       if (!res.redirected) {
         toast.success("Account created with Google!");
-        navigate({ to: "/candidate/dashboard" });
+        navigate({ to: "/onboarding/candidate" });
       }
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Google sign-in failed.");
@@ -118,7 +118,7 @@ function CandidateSignupPage() {
         city,
       });
       toast.success("Account created! Redirecting…");
-      navigate({ to: "/candidate/dashboard" });
+      navigate({ to: "/onboarding/candidate" });
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Signup failed.");
     } finally {
