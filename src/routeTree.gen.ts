@@ -20,6 +20,7 @@ import { Route as SignupCandidateRouteImport } from './routes/signup.candidate'
 import { Route as JobsJobIdRouteImport } from './routes/jobs.$jobId'
 import { Route as AuthenticatedEmployerDashboardRouteImport } from './routes/_authenticated/employer/dashboard'
 import { Route as AuthenticatedCandidateSavedRouteImport } from './routes/_authenticated/candidate/saved'
+import { Route as AuthenticatedCandidateProfileRouteImport } from './routes/_authenticated/candidate/profile'
 import { Route as AuthenticatedCandidateDashboardRouteImport } from './routes/_authenticated/candidate/dashboard'
 import { Route as AuthenticatedCandidateApplicationsRouteImport } from './routes/_authenticated/candidate/applications'
 
@@ -79,6 +80,12 @@ const AuthenticatedCandidateSavedRoute =
     path: '/candidate/saved',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedCandidateProfileRoute =
+  AuthenticatedCandidateProfileRouteImport.update({
+    id: '/candidate/profile',
+    path: '/candidate/profile',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedCandidateDashboardRoute =
   AuthenticatedCandidateDashboardRouteImport.update({
     id: '/candidate/dashboard',
@@ -103,6 +110,7 @@ export interface FileRoutesByFullPath {
   '/signup/employer': typeof SignupEmployerRoute
   '/candidate/applications': typeof AuthenticatedCandidateApplicationsRoute
   '/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
+  '/candidate/profile': typeof AuthenticatedCandidateProfileRoute
   '/candidate/saved': typeof AuthenticatedCandidateSavedRoute
   '/employer/dashboard': typeof AuthenticatedEmployerDashboardRoute
 }
@@ -117,6 +125,7 @@ export interface FileRoutesByTo {
   '/signup/employer': typeof SignupEmployerRoute
   '/candidate/applications': typeof AuthenticatedCandidateApplicationsRoute
   '/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
+  '/candidate/profile': typeof AuthenticatedCandidateProfileRoute
   '/candidate/saved': typeof AuthenticatedCandidateSavedRoute
   '/employer/dashboard': typeof AuthenticatedEmployerDashboardRoute
 }
@@ -133,6 +142,7 @@ export interface FileRoutesById {
   '/signup/employer': typeof SignupEmployerRoute
   '/_authenticated/candidate/applications': typeof AuthenticatedCandidateApplicationsRoute
   '/_authenticated/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
+  '/_authenticated/candidate/profile': typeof AuthenticatedCandidateProfileRoute
   '/_authenticated/candidate/saved': typeof AuthenticatedCandidateSavedRoute
   '/_authenticated/employer/dashboard': typeof AuthenticatedEmployerDashboardRoute
 }
@@ -149,6 +159,7 @@ export interface FileRouteTypes {
     | '/signup/employer'
     | '/candidate/applications'
     | '/candidate/dashboard'
+    | '/candidate/profile'
     | '/candidate/saved'
     | '/employer/dashboard'
   fileRoutesByTo: FileRoutesByTo
@@ -163,6 +174,7 @@ export interface FileRouteTypes {
     | '/signup/employer'
     | '/candidate/applications'
     | '/candidate/dashboard'
+    | '/candidate/profile'
     | '/candidate/saved'
     | '/employer/dashboard'
   id:
@@ -178,6 +190,7 @@ export interface FileRouteTypes {
     | '/signup/employer'
     | '/_authenticated/candidate/applications'
     | '/_authenticated/candidate/dashboard'
+    | '/_authenticated/candidate/profile'
     | '/_authenticated/candidate/saved'
     | '/_authenticated/employer/dashboard'
   fileRoutesById: FileRoutesById
@@ -272,6 +285,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCandidateSavedRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/candidate/profile': {
+      id: '/_authenticated/candidate/profile'
+      path: '/candidate/profile'
+      fullPath: '/candidate/profile'
+      preLoaderRoute: typeof AuthenticatedCandidateProfileRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/candidate/dashboard': {
       id: '/_authenticated/candidate/dashboard'
       path: '/candidate/dashboard'
@@ -292,6 +312,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedCandidateApplicationsRoute: typeof AuthenticatedCandidateApplicationsRoute
   AuthenticatedCandidateDashboardRoute: typeof AuthenticatedCandidateDashboardRoute
+  AuthenticatedCandidateProfileRoute: typeof AuthenticatedCandidateProfileRoute
   AuthenticatedCandidateSavedRoute: typeof AuthenticatedCandidateSavedRoute
   AuthenticatedEmployerDashboardRoute: typeof AuthenticatedEmployerDashboardRoute
 }
@@ -300,6 +321,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCandidateApplicationsRoute:
     AuthenticatedCandidateApplicationsRoute,
   AuthenticatedCandidateDashboardRoute: AuthenticatedCandidateDashboardRoute,
+  AuthenticatedCandidateProfileRoute: AuthenticatedCandidateProfileRoute,
   AuthenticatedCandidateSavedRoute: AuthenticatedCandidateSavedRoute,
   AuthenticatedEmployerDashboardRoute: AuthenticatedEmployerDashboardRoute,
 }

@@ -10,7 +10,9 @@ export const Route = createFileRoute("/_authenticated/candidate/profile")({
   component: ProfilePage,
 });
 
-const EXPERIENCE_STATUSES = ["fresher", "experienced"] as const;
+const EXPERIENCE_STATUSES = ["fresher", "experienced", "student"] as const;
+type ExperienceStatus = (typeof EXPERIENCE_STATUSES)[number];
+
 const JOB_TYPE_OPTIONS = ["full_time", "part_time", "contract", "internship", "temporary"] as const;
 const JOB_TYPE_LABEL: Record<string, string> = {
   full_time: "Full-time",
@@ -29,7 +31,7 @@ function ProfilePage() {
   const [mobile, setMobile] = useState("");
   const [city, setCity] = useState("");
 
-  const [experienceStatus, setExperienceStatus] = useState<"fresher" | "experienced">("fresher");
+  const [experienceStatus, setExperienceStatus] = useState<ExperienceStatus>("fresher");
   const [yearsExperience, setYearsExperience] = useState<number>(0);
   const [lastRole, setLastRole] = useState("");
   const [bio, setBio] = useState("");
