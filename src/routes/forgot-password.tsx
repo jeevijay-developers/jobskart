@@ -3,7 +3,7 @@ import { useState } from "react";
 import { ArrowLeft, Loader2, MailCheck } from "lucide-react";
 import { toast } from "sonner";
 import { AuthShell } from "@/components/site/AuthShell";
-import { Field } from "./auth";
+import { Field } from "@/components/site/AuthFields";
 import { sendPasswordReset } from "@/lib/auth";
 
 export const Route = createFileRoute("/forgot-password")({

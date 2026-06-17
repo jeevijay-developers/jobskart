@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { AuthShell } from "@/components/site/AuthShell";
-import { Field } from "./auth";
+import { Field } from "@/components/site/AuthFields";
 import { updatePassword } from "@/lib/auth";
 
 export const Route = createFileRoute("/reset-password")({

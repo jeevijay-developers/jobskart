@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Eye, EyeOff, Loader2, ShieldCheck, Sparkles, Users, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { AuthShell } from "@/components/site/AuthShell";
-import { Field, GoogleIcon } from "./auth";
+import { Field, GoogleIcon } from "@/components/site/AuthFields";
 import { signInWithGoogle, signUpEmployer } from "@/lib/auth";
 
 export const Route = createFileRoute("/signup/employer")({

@@ -4,6 +4,7 @@ import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { AuthShell } from "@/components/site/AuthShell";
+import { Field, GoogleIcon } from "@/components/site/AuthFields";
 import {
   signInWithEmail,
   signInWithGoogle,
