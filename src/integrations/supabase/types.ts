@@ -14,6 +14,66 @@ export type Database = {
   }
   public: {
     Tables: {
+      applications: {
+        Row: {
+          available_from: string | null
+          candidate_id: string
+          company_id: string
+          cover_note: string | null
+          created_at: string
+          employer_notes: string | null
+          expected_salary: number | null
+          id: string
+          job_id: string
+          status: Database["public"]["Enums"]["application_status"]
+          updated_at: string
+          viewed_by_employer_at: string | null
+        }
+        Insert: {
+          available_from?: string | null
+          candidate_id: string
+          company_id: string
+          cover_note?: string | null
+          created_at?: string
+          employer_notes?: string | null
+          expected_salary?: number | null
+          id?: string
+          job_id: string
+          status?: Database["public"]["Enums"]["application_status"]
+          updated_at?: string
+          viewed_by_employer_at?: string | null
+        }
+        Update: {
+          available_from?: string | null
+          candidate_id?: string
+          company_id?: string
+          cover_note?: string | null
+          created_at?: string
+          employer_notes?: string | null
+          expected_salary?: number | null
+          id?: string
+          job_id?: string
+          status?: Database["public"]["Enums"]["application_status"]
+          updated_at?: string
+          viewed_by_employer_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "applications_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "applications_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidate_profiles: {
         Row: {
           bio: string | null
@@ -57,7 +117,7 @@ export type Database = {
         Row: {
           company_type: Database["public"]["Enums"]["company_type"] | null
           created_at: string
-          created_by: string
+          created_by: string | null
           description: string | null
           id: string
           industry: string | null
@@ -73,7 +133,7 @@ export type Database = {
         Insert: {
           company_type?: Database["public"]["Enums"]["company_type"] | null
           created_at?: string
-          created_by: string
+          created_by?: string | null
           description?: string | null
           id?: string
           industry?: string | null
@@ -89,7 +149,7 @@ export type Database = {
         Update: {
           company_type?: Database["public"]["Enums"]["company_type"] | null
           created_at?: string
-          created_by?: string
+          created_by?: string | null
           description?: string | null
           id?: string
           industry?: string | null
@@ -136,6 +196,143 @@ export type Database = {
           },
         ]
       }
+      jobs: {
+        Row: {
+          age_max: number | null
+          age_min: number | null
+          applications_count: number | null
+          boosted_until: string | null
+          category: string | null
+          city: string | null
+          company_id: string
+          contact_pref: string | null
+          created_at: string
+          description: string
+          education: string | null
+          english_level: string | null
+          expires_at: string | null
+          fixed_pay: boolean | null
+          gender_pref: string | null
+          id: string
+          incentives_text: string | null
+          job_type: Database["public"]["Enums"]["job_type"]
+          locality: string | null
+          max_experience_years: number | null
+          max_salary: number | null
+          min_experience_years: number | null
+          min_salary: number | null
+          openings: number | null
+          perks: string[] | null
+          pincode: string | null
+          posted_by: string | null
+          quality_score: number | null
+          role_type: string | null
+          salary_period: string | null
+          shift: Database["public"]["Enums"]["job_shift"] | null
+          skills: string[] | null
+          state: string | null
+          status: Database["public"]["Enums"]["job_status"]
+          title: string
+          updated_at: string
+          views_count: number | null
+          walkin: boolean | null
+          walkin_details: string | null
+          work_mode: Database["public"]["Enums"]["work_mode"]
+        }
+        Insert: {
+          age_max?: number | null
+          age_min?: number | null
+          applications_count?: number | null
+          boosted_until?: string | null
+          category?: string | null
+          city?: string | null
+          company_id: string
+          contact_pref?: string | null
+          created_at?: string
+          description?: string
+          education?: string | null
+          english_level?: string | null
+          expires_at?: string | null
+          fixed_pay?: boolean | null
+          gender_pref?: string | null
+          id?: string
+          incentives_text?: string | null
+          job_type?: Database["public"]["Enums"]["job_type"]
+          locality?: string | null
+          max_experience_years?: number | null
+          max_salary?: number | null
+          min_experience_years?: number | null
+          min_salary?: number | null
+          openings?: number | null
+          perks?: string[] | null
+          pincode?: string | null
+          posted_by?: string | null
+          quality_score?: number | null
+          role_type?: string | null
+          salary_period?: string | null
+          shift?: Database["public"]["Enums"]["job_shift"] | null
+          skills?: string[] | null
+          state?: string | null
+          status?: Database["public"]["Enums"]["job_status"]
+          title: string
+          updated_at?: string
+          views_count?: number | null
+          walkin?: boolean | null
+          walkin_details?: string | null
+          work_mode?: Database["public"]["Enums"]["work_mode"]
+        }
+        Update: {
+          age_max?: number | null
+          age_min?: number | null
+          applications_count?: number | null
+          boosted_until?: string | null
+          category?: string | null
+          city?: string | null
+          company_id?: string
+          contact_pref?: string | null
+          created_at?: string
+          description?: string
+          education?: string | null
+          english_level?: string | null
+          expires_at?: string | null
+          fixed_pay?: boolean | null
+          gender_pref?: string | null
+          id?: string
+          incentives_text?: string | null
+          job_type?: Database["public"]["Enums"]["job_type"]
+          locality?: string | null
+          max_experience_years?: number | null
+          max_salary?: number | null
+          min_experience_years?: number | null
+          min_salary?: number | null
+          openings?: number | null
+          perks?: string[] | null
+          pincode?: string | null
+          posted_by?: string | null
+          quality_score?: number | null
+          role_type?: string | null
+          salary_period?: string | null
+          shift?: Database["public"]["Enums"]["job_shift"] | null
+          skills?: string[] | null
+          state?: string | null
+          status?: Database["public"]["Enums"]["job_status"]
+          title?: string
+          updated_at?: string
+          views_count?: number | null
+          walkin?: boolean | null
+          walkin_details?: string | null
+          work_mode?: Database["public"]["Enums"]["work_mode"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jobs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -172,6 +369,35 @@ export type Database = {
         }
         Relationships: []
       }
+      saved_jobs: {
+        Row: {
+          created_at: string
+          id: string
+          job_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          job_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          job_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_jobs_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -192,6 +418,13 @@ export type Database = {
       user_companies: { Args: { _user_id: string }; Returns: string[] }
     }
     Enums: {
+      application_status:
+        | "applied"
+        | "shortlisted"
+        | "interview"
+        | "hired"
+        | "rejected"
+        | "withdrawn"
       company_size: "1-10" | "11-50" | "51-200" | "201-500" | "500+"
       company_type:
         | "proprietorship"
@@ -202,7 +435,16 @@ export type Database = {
         | "government"
       employer_role: "super_admin" | "hr_admin" | "recruiter"
       experience_status: "fresher" | "experienced" | "student"
+      job_shift: "day" | "night" | "rotational" | "flexible"
+      job_status: "draft" | "active" | "paused" | "closed" | "expired"
+      job_type:
+        | "full_time"
+        | "part_time"
+        | "contract"
+        | "internship"
+        | "temporary"
       user_type: "candidate" | "employer"
+      work_mode: "onsite" | "remote" | "hybrid" | "field"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -330,6 +572,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      application_status: [
+        "applied",
+        "shortlisted",
+        "interview",
+        "hired",
+        "rejected",
+        "withdrawn",
+      ],
       company_size: ["1-10", "11-50", "51-200", "201-500", "500+"],
       company_type: [
         "proprietorship",
@@ -341,7 +591,17 @@ export const Constants = {
       ],
       employer_role: ["super_admin", "hr_admin", "recruiter"],
       experience_status: ["fresher", "experienced", "student"],
+      job_shift: ["day", "night", "rotational", "flexible"],
+      job_status: ["draft", "active", "paused", "closed", "expired"],
+      job_type: [
+        "full_time",
+        "part_time",
+        "contract",
+        "internship",
+        "temporary",
+      ],
       user_type: ["candidate", "employer"],
+      work_mode: ["onsite", "remote", "hybrid", "field"],
     },
   },
 } as const
