@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Briefcase, CheckCircle2, ExternalLink, FileText, GraduationCap, Languages as LangIcon, Loader2, Pencil, Plus, ShieldCheck, Sparkles, Trash2, Upload, UserRound } from "lucide-react";
 import { toast } from "sonner";
