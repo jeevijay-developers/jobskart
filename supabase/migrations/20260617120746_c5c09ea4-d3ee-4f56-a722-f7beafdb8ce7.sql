@@ -1,0 +1,1 @@
+ALTER VIEW public.public_candidate_view SET (security_invoker = true);
