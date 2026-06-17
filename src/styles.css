@@ -166,3 +166,29 @@
     font-family: var(--font-sans);
   }
 }
+
+@layer components {
+  .form-input {
+    display: block;
+    width: 100%;
+    border-radius: 0.5rem;
+    border: 1px solid var(--color-border);
+    background-color: var(--color-card);
+    padding: 0.625rem 0.875rem;
+    font-size: 0.875rem;
+    color: var(--color-foreground);
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .form-input::placeholder {
+    color: var(--color-muted-foreground);
+  }
+  .form-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-primary) 18%, transparent);
+  }
+  .form-input:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
