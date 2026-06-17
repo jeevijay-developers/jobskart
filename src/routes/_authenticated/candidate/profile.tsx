@@ -30,7 +30,6 @@ type Lang = { id?: string; language: string; proficiency: "basic" | "conversatio
 
 function ProfilePage() {
   const [uid, setUid] = useState<string | null>(null);
-  const [uid, setUid] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [p, setP] = useState<Profile | null>(null);
   const [c, setC] = useState<Candidate | null>(null);
