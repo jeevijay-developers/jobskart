@@ -18,6 +18,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as SignupEmployerRouteImport } from './routes/signup.employer'
 import { Route as SignupCandidateRouteImport } from './routes/signup.candidate'
 import { Route as JobsJobIdRouteImport } from './routes/jobs.$jobId'
+import { Route as AuthenticatedOnboardingCandidateRouteImport } from './routes/_authenticated/onboarding/candidate'
 import { Route as AuthenticatedEmployerDashboardRouteImport } from './routes/_authenticated/employer/dashboard'
 import { Route as AuthenticatedCandidateSavedRouteImport } from './routes/_authenticated/candidate/saved'
 import { Route as AuthenticatedCandidateProfileRouteImport } from './routes/_authenticated/candidate/profile'
@@ -68,6 +69,12 @@ const JobsJobIdRoute = JobsJobIdRouteImport.update({
   path: '/$jobId',
   getParentRoute: () => JobsRoute,
 } as any)
+const AuthenticatedOnboardingCandidateRoute =
+  AuthenticatedOnboardingCandidateRouteImport.update({
+    id: '/onboarding/candidate',
+    path: '/onboarding/candidate',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedEmployerDashboardRoute =
   AuthenticatedEmployerDashboardRouteImport.update({
     id: '/employer/dashboard',
@@ -113,6 +120,7 @@ export interface FileRoutesByFullPath {
   '/candidate/profile': typeof AuthenticatedCandidateProfileRoute
   '/candidate/saved': typeof AuthenticatedCandidateSavedRoute
   '/employer/dashboard': typeof AuthenticatedEmployerDashboardRoute
+  '/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -128,6 +136,7 @@ export interface FileRoutesByTo {
   '/candidate/profile': typeof AuthenticatedCandidateProfileRoute
   '/candidate/saved': typeof AuthenticatedCandidateSavedRoute
   '/employer/dashboard': typeof AuthenticatedEmployerDashboardRoute
+  '/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -145,6 +154,7 @@ export interface FileRoutesById {
   '/_authenticated/candidate/profile': typeof AuthenticatedCandidateProfileRoute
   '/_authenticated/candidate/saved': typeof AuthenticatedCandidateSavedRoute
   '/_authenticated/employer/dashboard': typeof AuthenticatedEmployerDashboardRoute
+  '/_authenticated/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -162,6 +172,7 @@ export interface FileRouteTypes {
     | '/candidate/profile'
     | '/candidate/saved'
     | '/employer/dashboard'
+    | '/onboarding/candidate'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -177,6 +188,7 @@ export interface FileRouteTypes {
     | '/candidate/profile'
     | '/candidate/saved'
     | '/employer/dashboard'
+    | '/onboarding/candidate'
   id:
     | '__root__'
     | '/'
@@ -193,6 +205,7 @@ export interface FileRouteTypes {
     | '/_authenticated/candidate/profile'
     | '/_authenticated/candidate/saved'
     | '/_authenticated/employer/dashboard'
+    | '/_authenticated/onboarding/candidate'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -271,6 +284,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof JobsJobIdRouteImport
       parentRoute: typeof JobsRoute
     }
+    '/_authenticated/onboarding/candidate': {
+      id: '/_authenticated/onboarding/candidate'
+      path: '/onboarding/candidate'
+      fullPath: '/onboarding/candidate'
+      preLoaderRoute: typeof AuthenticatedOnboardingCandidateRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/employer/dashboard': {
       id: '/_authenticated/employer/dashboard'
       path: '/employer/dashboard'
@@ -315,6 +335,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCandidateProfileRoute: typeof AuthenticatedCandidateProfileRoute
   AuthenticatedCandidateSavedRoute: typeof AuthenticatedCandidateSavedRoute
   AuthenticatedEmployerDashboardRoute: typeof AuthenticatedEmployerDashboardRoute
+  AuthenticatedOnboardingCandidateRoute: typeof AuthenticatedOnboardingCandidateRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -324,6 +345,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCandidateProfileRoute: AuthenticatedCandidateProfileRoute,
   AuthenticatedCandidateSavedRoute: AuthenticatedCandidateSavedRoute,
   AuthenticatedEmployerDashboardRoute: AuthenticatedEmployerDashboardRoute,
+  AuthenticatedOnboardingCandidateRoute: AuthenticatedOnboardingCandidateRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
