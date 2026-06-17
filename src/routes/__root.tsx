@@ -93,6 +93,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "JobsKart — India's #1 Blue Collar Hiring Platform" },
+      { name: "description", content: "JobsKart Connect is an Indian job portal connecting blue-collar and grey-collar workers with employers." },
+      { property: "og:description", content: "JobsKart Connect is an Indian job portal connecting blue-collar and grey-collar workers with employers." },
+      { name: "twitter:description", content: "JobsKart Connect is an Indian job portal connecting blue-collar and grey-collar workers with employers." },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/jniP1INDbGeWUnFtlV1iyCqRoJV2/social-images/social-1781697729157-images_(1).webp" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/jniP1INDbGeWUnFtlV1iyCqRoJV2/social-images/social-1781697729157-images_(1).webp" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
