@@ -18,16 +18,16 @@ export const getPlatformStats = createServerFn({ method: "GET" }).handler(
     );
 
     const [jobsRes, companiesRes, candidatesRes] = await Promise.all([
-      supabase.from("jobs").select("id", { count: "exact", head: true }).eq("status", "published"),
+      supabase.from("jobs").select("id", { count: "exact", head: true }).eq("status", "active"),
       supabase.from("companies").select("id", { count: "exact", head: true }),
       supabase.from("profiles").select("id", { count: "exact", head: true }).eq("user_type", "candidate"),
     ]);
 
-    // Cities — best-effort distinct count from jobs.location_city (skip if RLS blocks)
+    // Cities — best-effort distinct count from jobs.city
     let cities = 0;
     try {
-      const { data } = await supabase.from("jobs").select("location_city").eq("status", "published").limit(1000);
-      cities = new Set((data ?? []).map((r) => r.location_city).filter(Boolean)).size;
+      const { data } = await supabase.from("jobs").select("city").eq("status", "active").limit(1000);
+      cities = new Set((data ?? []).map((r) => r.city).filter(Boolean)).size;
     } catch {
       cities = 0;
     }
