@@ -465,6 +465,8 @@ function OnboardingPage() {
             </SectionCard>
           </div>
         )}
+          </motion.div>
+        </AnimatePresence>
 
         {/* Footer nav */}
         <div className="sticky bottom-0 mt-6 flex items-center justify-between rounded-xl border border-border bg-card/95 p-3 shadow-[var(--shadow-card)] backdrop-blur sm:p-4">
