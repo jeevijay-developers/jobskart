@@ -163,6 +163,8 @@ function Hero() {
             {popularTags.map((t) => (
               <button
                 key={t}
+                type="button"
+                onClick={() => navigate({ to: "/jobs", search: { q: t } })}
                 className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground/80 transition-colors hover:border-primary hover:bg-primary-light hover:text-primary"
               >
                 {t}
