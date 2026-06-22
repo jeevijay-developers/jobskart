@@ -75,6 +75,9 @@ function LandingPage() {
 /* ---------------------------------------------------------------- */
 
 function Hero() {
+  const [q, setQ] = useState("");
+  const [city, setCity] = useState("");
+  const navigate = useNavigate();
   const popularTags = [
     "Work from Home",
     "Fresher Jobs",
@@ -83,6 +86,18 @@ function Hero() {
     "Security Guard",
     "Delivery Boy",
   ];
+  const submit = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    navigate({ to: "/jobs" });
+    // params persisted in jobs page when implemented
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams();
+      if (q) params.set("q", q);
+      if (city) params.set("city", city);
+      const search = params.toString();
+      if (search) window.history.replaceState({}, "", `/jobs?${search}`);
+    }
+  };
 
   return (
     <section className="relative overflow-hidden bg-gradient-to-b from-background via-background to-primary-light">
