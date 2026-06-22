@@ -14,6 +14,73 @@ export type Database = {
   }
   public: {
     Tables: {
+      application_notes: {
+        Row: {
+          application_id: string
+          author_id: string
+          body: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          application_id: string
+          author_id: string
+          body: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          application_id?: string
+          author_id?: string
+          body?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "application_notes_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      application_status_history: {
+        Row: {
+          application_id: string
+          changed_by: string | null
+          created_at: string
+          from_status: string | null
+          id: string
+          to_status: string
+        }
+        Insert: {
+          application_id: string
+          changed_by?: string | null
+          created_at?: string
+          from_status?: string | null
+          id?: string
+          to_status: string
+        }
+        Update: {
+          application_id?: string
+          changed_by?: string | null
+          created_at?: string
+          from_status?: string | null
+          id?: string
+          to_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "application_status_history_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       applications: {
         Row: {
           available_from: string | null
@@ -304,54 +371,205 @@ export type Database = {
       }
       companies: {
         Row: {
+          about: string | null
           company_type: Database["public"]["Enums"]["company_type"] | null
+          cover_url: string | null
           created_at: string
           created_by: string | null
           description: string | null
+          founded_year: number | null
+          gst_number: string | null
+          hq_city: string | null
           id: string
           industry: string | null
           is_verified: boolean
           logo_url: string | null
           name: string
+          onboarding_completed: boolean
+          pan_number: string | null
           pincode: string | null
           primary_city: string | null
           size: Database["public"]["Enums"]["company_size"] | null
+          slug: string | null
+          social_links: Json
           updated_at: string
+          verification_notes: string | null
+          verification_status: string
           website: string | null
         }
         Insert: {
+          about?: string | null
           company_type?: Database["public"]["Enums"]["company_type"] | null
+          cover_url?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
+          founded_year?: number | null
+          gst_number?: string | null
+          hq_city?: string | null
           id?: string
           industry?: string | null
           is_verified?: boolean
           logo_url?: string | null
           name: string
+          onboarding_completed?: boolean
+          pan_number?: string | null
           pincode?: string | null
           primary_city?: string | null
           size?: Database["public"]["Enums"]["company_size"] | null
+          slug?: string | null
+          social_links?: Json
           updated_at?: string
+          verification_notes?: string | null
+          verification_status?: string
           website?: string | null
         }
         Update: {
+          about?: string | null
           company_type?: Database["public"]["Enums"]["company_type"] | null
+          cover_url?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
+          founded_year?: number | null
+          gst_number?: string | null
+          hq_city?: string | null
           id?: string
           industry?: string | null
           is_verified?: boolean
           logo_url?: string | null
           name?: string
+          onboarding_completed?: boolean
+          pan_number?: string | null
           pincode?: string | null
           primary_city?: string | null
           size?: Database["public"]["Enums"]["company_size"] | null
+          slug?: string | null
+          social_links?: Json
           updated_at?: string
+          verification_notes?: string | null
+          verification_status?: string
           website?: string | null
         }
         Relationships: []
+      }
+      company_documents: {
+        Row: {
+          company_id: string
+          created_at: string
+          doc_type: string
+          file_name: string | null
+          file_path: string
+          id: string
+          notes: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          doc_type: string
+          file_name?: string | null
+          file_path: string
+          id?: string
+          notes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          doc_type?: string
+          file_name?: string | null
+          file_path?: string
+          id?: string
+          notes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_documents_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contact_messages: {
+        Row: {
+          body: string
+          created_at: string
+          email: string
+          id: string
+          name: string
+          subject: string | null
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          email: string
+          id?: string
+          name: string
+          subject?: string | null
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          subject?: string | null
+        }
+        Relationships: []
+      }
+      employer_invites: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          company_id: string
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string
+          role: Database["public"]["Enums"]["employer_role"]
+          token: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          company_id: string
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          invited_by: string
+          role?: Database["public"]["Enums"]["employer_role"]
+          token?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          company_id?: string
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string
+          role?: Database["public"]["Enums"]["employer_role"]
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employer_invites_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       employer_members: {
         Row: {
@@ -404,6 +622,7 @@ export type Database = {
           gender_pref: string | null
           id: string
           incentives_text: string | null
+          is_featured: boolean
           job_type: Database["public"]["Enums"]["job_type"]
           locality: string | null
           max_experience_years: number | null
@@ -417,8 +636,10 @@ export type Database = {
           quality_score: number | null
           role_type: string | null
           salary_period: string | null
+          screening_questions: Json
           shift: Database["public"]["Enums"]["job_shift"] | null
           skills: string[] | null
+          slug: string | null
           state: string | null
           status: Database["public"]["Enums"]["job_status"]
           title: string
@@ -446,6 +667,7 @@ export type Database = {
           gender_pref?: string | null
           id?: string
           incentives_text?: string | null
+          is_featured?: boolean
           job_type?: Database["public"]["Enums"]["job_type"]
           locality?: string | null
           max_experience_years?: number | null
@@ -459,8 +681,10 @@ export type Database = {
           quality_score?: number | null
           role_type?: string | null
           salary_period?: string | null
+          screening_questions?: Json
           shift?: Database["public"]["Enums"]["job_shift"] | null
           skills?: string[] | null
+          slug?: string | null
           state?: string | null
           status?: Database["public"]["Enums"]["job_status"]
           title: string
@@ -488,6 +712,7 @@ export type Database = {
           gender_pref?: string | null
           id?: string
           incentives_text?: string | null
+          is_featured?: boolean
           job_type?: Database["public"]["Enums"]["job_type"]
           locality?: string | null
           max_experience_years?: number | null
@@ -501,8 +726,10 @@ export type Database = {
           quality_score?: number | null
           role_type?: string | null
           salary_period?: string | null
+          screening_questions?: Json
           shift?: Database["public"]["Enums"]["job_shift"] | null
           skills?: string[] | null
+          slug?: string | null
           state?: string | null
           status?: Database["public"]["Enums"]["job_status"]
           title?: string
@@ -521,6 +748,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          id: string
+          link: string | null
+          read_at: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          link?: string | null
+          read_at?: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          link?: string | null
+          read_at?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -613,6 +873,19 @@ export type Database = {
       }
     }
     Functions: {
+      accept_invite: { Args: { _token: string }; Returns: string }
+      get_invite_by_token: {
+        Args: { _token: string }
+        Returns: {
+          accepted_at: string
+          company_id: string
+          company_name: string
+          email: string
+          expires_at: string
+          id: string
+          role: Database["public"]["Enums"]["employer_role"]
+        }[]
+      }
       get_public_candidate: {
         Args: { _slug: string }
         Returns: {
@@ -633,6 +906,24 @@ export type Database = {
           years_experience: number
         }[]
       }
+      get_public_company: {
+        Args: { _slug: string }
+        Returns: {
+          about: string
+          cover_url: string
+          founded_year: number
+          hq_city: string
+          id: string
+          industry: string
+          logo_url: string
+          name: string
+          size: Database["public"]["Enums"]["company_size"]
+          slug: string
+          social_links: Json
+          verification_status: string
+          website: string
+        }[]
+      }
       has_company_membership: {
         Args: { _company_id: string; _user_id: string }
         Returns: boolean
@@ -646,6 +937,7 @@ export type Database = {
         Returns: boolean
       }
       increment_profile_views: { Args: { _slug: string }; Returns: undefined }
+      slugify: { Args: { _text: string }; Returns: string }
       user_companies: { Args: { _user_id: string }; Returns: string[] }
     }
     Enums: {
