@@ -78,7 +78,10 @@ function JobsPage() {
   const navigate = useNavigate({ from: "/jobs" });
   const [filters, setFilters] = useState<Filters>(() => filtersFromSearch(urlSearch));
   const [draft, setDraft] = useState<Filters>(() => filtersFromSearch(urlSearch));
+  const sort: SortKey = urlSearch.sort ?? "newest";
+  const page = Math.max(1, urlSearch.page ?? 1);
   const [jobs, setJobs] = useState<JobCardData[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [mobileFilters, setMobileFilters] = useState(false);
 
@@ -97,10 +100,14 @@ function JobsPage() {
         .from("jobs")
         .select(
           "id, title, city, state, locality, min_salary, max_salary, salary_period, job_type, work_mode, min_experience_years, max_experience_years, education, skills, created_at, companies (name, is_verified)",
+          { count: "exact" },
         )
-        .eq("status", "active")
-        .order("created_at", { ascending: false })
-        .limit(50);
+        .eq("status", "active");
+
+      if (sort === "newest") q = q.order("created_at", { ascending: false });
+      else if (sort === "oldest") q = q.order("created_at", { ascending: true });
+      else if (sort === "salary_high") q = q.order("max_salary", { ascending: false, nullsFirst: false });
+      else if (sort === "salary_low") q = q.order("min_salary", { ascending: true, nullsFirst: false });
 
       if (filters.q) q = q.ilike("title", `%${filters.q}%`);
       if (filters.city) q = q.ilike("city", `%${filters.city}%`);
@@ -109,40 +116,47 @@ function JobsPage() {
       if (filters.workMode) q = q.eq("work_mode", filters.workMode as never);
       if (filters.minSalary) q = q.gte("min_salary", Number(filters.minSalary));
 
-      const { data, error } = await q;
+      const from = (page - 1) * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      q = q.range(from, to);
+
+      const { data, count, error } = await q;
       if (!cancelled) {
         if (error) console.error(error);
         setJobs((data as unknown as JobCardData[]) || []);
+        setTotal(count ?? 0);
         setLoading(false);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [filters]);
+  }, [filters, sort, page]);
 
   const apply = () => {
     setFilters(draft);
     setMobileFilters(false);
-    navigate({
-      search: {
-        ...(draft.q ? { q: draft.q } : {}),
-        ...(draft.city ? { city: draft.city } : {}),
-        ...(draft.category ? { category: draft.category } : {}),
-        ...(draft.jobType ? { jobType: draft.jobType } : {}),
-        ...(draft.workMode ? { workMode: draft.workMode } : {}),
-        ...(draft.minSalary ? { minSalary: draft.minSalary } : {}),
-      },
-      replace: true,
-    });
+    // Filter change resets to page 1, preserves sort.
+    navigate({ search: buildSearch(draft, { sort }), replace: true });
   };
   const reset = () => {
     setDraft(empty);
     setFilters(empty);
     navigate({ search: {}, replace: true });
   };
+  const setSort = (next: SortKey) => {
+    navigate({ search: buildSearch(filters, { sort: next }), replace: true });
+  };
+  const setPage = (next: number) => {
+    navigate({ search: buildSearch(filters, { sort, page: next }) });
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
-  const activeCount = useMemo(() => Object.values(filters).filter(Boolean).length, [filters]);
+  const activeCount = useMemo(
+    () => Object.values(filters).filter(Boolean).length,
+    [filters],
+  );
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <div className="flex min-h-screen flex-col bg-surface">
@@ -187,16 +201,32 @@ function JobsPage() {
       </section>
 
       <div className="mx-auto flex w-full max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:px-8">
-        {/* Sidebar filters */}
         <aside className="hidden w-64 shrink-0 lg:block">
           <FilterPanel draft={draft} setDraft={setDraft} apply={apply} reset={reset} />
         </aside>
 
         <main className="min-w-0 flex-1">
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-muted-foreground">
-              {loading ? "Loading…" : `${jobs.length} job${jobs.length === 1 ? "" : "s"} found`}
+              {loading
+                ? "Loading…"
+                : total === 0
+                  ? "No jobs found"
+                  : `${total.toLocaleString("en-IN")} job${total === 1 ? "" : "s"} · page ${page} of ${totalPages}`}
             </p>
+            <label className="flex items-center gap-2 text-sm">
+              <span className="text-muted-foreground">Sort by</span>
+              <select
+                className="form-input h-9 w-auto"
+                value={sort}
+                onChange={(e) => setSort(e.target.value as SortKey)}
+              >
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+                <option value="salary_high">Salary: high to low</option>
+                <option value="salary_low">Salary: low to high</option>
+              </select>
+            </label>
           </div>
 
           {loading ? (
@@ -216,16 +246,20 @@ function JobsPage() {
               </button>
             </div>
           ) : (
-            <div className="grid gap-4">
-              {jobs.map((j) => (
-                <JobCard key={j.id} job={j} />
-              ))}
-            </div>
+            <>
+              <div className="grid gap-4">
+                {jobs.map((j) => (
+                  <JobCard key={j.id} job={j} />
+                ))}
+              </div>
+              {totalPages > 1 && (
+                <Pagination page={page} totalPages={totalPages} onChange={setPage} />
+              )}
+            </>
           )}
         </main>
       </div>
 
-      {/* Mobile filter drawer */}
       {mobileFilters && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-foreground/40" onClick={() => setMobileFilters(false)} />
@@ -243,6 +277,75 @@ function JobsPage() {
 
       <Footer />
     </div>
+  );
+}
+
+function Pagination({
+  page,
+  totalPages,
+  onChange,
+}: {
+  page: number;
+  totalPages: number;
+  onChange: (p: number) => void;
+}) {
+  const windowSize = 5;
+  const start = Math.max(1, Math.min(page - 2, totalPages - windowSize + 1));
+  const end = Math.min(totalPages, start + windowSize - 1);
+  const pages: number[] = [];
+  for (let p = start; p <= end; p++) pages.push(p);
+
+  return (
+    <nav className="mt-8 flex flex-wrap items-center justify-center gap-1" aria-label="Pagination">
+      <button
+        type="button"
+        onClick={() => onChange(page - 1)}
+        disabled={page <= 1}
+        className="inline-flex h-9 items-center gap-1 rounded-lg border border-border bg-card px-3 text-sm font-medium text-foreground hover:bg-surface disabled:opacity-50"
+      >
+        <ChevronLeft className="h-4 w-4" /> Prev
+      </button>
+      {start > 1 && (
+        <>
+          <PageBtn n={1} active={page === 1} onClick={onChange} />
+          {start > 2 && <span className="px-2 text-muted-foreground">…</span>}
+        </>
+      )}
+      {pages.map((p) => (
+        <PageBtn key={p} n={p} active={p === page} onClick={onChange} />
+      ))}
+      {end < totalPages && (
+        <>
+          {end < totalPages - 1 && <span className="px-2 text-muted-foreground">…</span>}
+          <PageBtn n={totalPages} active={page === totalPages} onClick={onChange} />
+        </>
+      )}
+      <button
+        type="button"
+        onClick={() => onChange(page + 1)}
+        disabled={page >= totalPages}
+        className="inline-flex h-9 items-center gap-1 rounded-lg border border-border bg-card px-3 text-sm font-medium text-foreground hover:bg-surface disabled:opacity-50"
+      >
+        Next <ChevronRight className="h-4 w-4" />
+      </button>
+    </nav>
+  );
+}
+
+function PageBtn({ n, active, onClick }: { n: number; active: boolean; onClick: (p: number) => void }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onClick(n)}
+      aria-current={active ? "page" : undefined}
+      className={`inline-flex h-9 min-w-9 items-center justify-center rounded-lg border px-3 text-sm font-medium ${
+        active
+          ? "border-primary bg-primary text-primary-foreground"
+          : "border-border bg-card text-foreground hover:bg-surface"
+      }`}
+    >
+      {n}
+    </button>
   );
 }
 
