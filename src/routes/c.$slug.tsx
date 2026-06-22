@@ -66,13 +66,10 @@ export const Route = createFileRoute("/c/$slug")({
 });
 
 function CompanyPublicPage() {
-  const { company, jobs } = Route.useLoaderData() as LoaderShape & { company: Company };
-  const verified = company.verification_status === "verified";
-
-
-function CompanyPublicPage() {
   const { company, jobs } = Route.useLoaderData() as { company: Company; jobs: JobCardData[] };
   const verified = company.verification_status === "verified";
+
+
 
   return (
     <div className="min-h-screen bg-background">
