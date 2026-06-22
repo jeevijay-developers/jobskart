@@ -1,11 +1,15 @@
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Briefcase, Filter, Loader2, Search, X } from "lucide-react";
+import { Briefcase, ChevronLeft, ChevronRight, Filter, Loader2, Search, X } from "lucide-react";
 import { z } from "zod";
 import { Navbar } from "@/components/site/Navbar";
 import { Footer } from "@/components/site/Footer";
 import { JobCard, type JobCardData } from "@/components/site/JobCard";
 import { supabase } from "@/integrations/supabase/client";
+
+const PAGE_SIZE = 20;
+const SORT_OPTIONS = ["newest", "oldest", "salary_high", "salary_low"] as const;
+type SortKey = (typeof SORT_OPTIONS)[number];
 
 const jobsSearchSchema = z.object({
   q: z.string().optional(),
@@ -14,7 +18,11 @@ const jobsSearchSchema = z.object({
   jobType: z.string().optional(),
   workMode: z.string().optional(),
   minSalary: z.string().optional(),
+  sort: z.enum(SORT_OPTIONS).optional(),
+  page: z.coerce.number().int().min(1).optional(),
 });
+
+type JobsSearch = z.infer<typeof jobsSearchSchema>;
 
 export const Route = createFileRoute("/jobs")({
   validateSearch: jobsSearchSchema,
@@ -40,7 +48,7 @@ type Filters = {
 
 const empty: Filters = { q: "", city: "", category: "", jobType: "", workMode: "", minSalary: "" };
 
-function filtersFromSearch(s: z.infer<typeof jobsSearchSchema>): Filters {
+function filtersFromSearch(s: JobsSearch): Filters {
   return {
     q: s.q ?? "",
     city: s.city ?? "",
@@ -48,6 +56,20 @@ function filtersFromSearch(s: z.infer<typeof jobsSearchSchema>): Filters {
     jobType: s.jobType ?? "",
     workMode: s.workMode ?? "",
     minSalary: s.minSalary ?? "",
+  };
+}
+
+// Build a non-empty search payload, preserving sort/page when requested.
+function buildSearch(f: Filters, extras: { sort?: SortKey; page?: number } = {}): JobsSearch {
+  return {
+    ...(f.q ? { q: f.q } : {}),
+    ...(f.city ? { city: f.city } : {}),
+    ...(f.category ? { category: f.category } : {}),
+    ...(f.jobType ? { jobType: f.jobType } : {}),
+    ...(f.workMode ? { workMode: f.workMode } : {}),
+    ...(f.minSalary ? { minSalary: f.minSalary } : {}),
+    ...(extras.sort && extras.sort !== "newest" ? { sort: extras.sort } : {}),
+    ...(extras.page && extras.page > 1 ? { page: extras.page } : {}),
   };
 }
 
