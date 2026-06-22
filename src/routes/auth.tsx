@@ -1,10 +1,20 @@
 import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Briefcase,
+  Building2,
+  Loader2,
+  Lock,
+  ShieldCheck,
+  Smartphone,
+  UserRound,
+} from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { AuthShell } from "@/components/site/AuthShell";
-import { BigInput, OtpInput } from "@/components/wizard/Questionnaire";
+import { OtpInput } from "@/components/wizard/Questionnaire";
 import { supabase } from "@/integrations/supabase/client";
 import { loginWithMobileOtp } from "@/lib/auth-mobile.functions";
 import type { SignupUserType } from "@/lib/auth";
