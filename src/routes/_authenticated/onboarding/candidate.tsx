@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, Check, Loader2, Plus, Trash2, Upload, FileText, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Loader2, Plus, Trash2, Upload, FileText, Compass } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "sonner";
 import { Navbar } from "@/components/site/Navbar";
@@ -220,7 +220,7 @@ function OnboardingPage() {
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-300 ring-1 ring-emerald-400/30">
-                <Sparkles className="h-3 w-3" /> Step {step + 1} of {STEPS.length}
+                <Compass className="h-3 w-3" /> Step {step + 1} of {STEPS.length}
               </p>
               <h1 className="mt-3 text-2xl font-bold leading-tight sm:text-3xl">{STEPS[step]}</h1>
               <p className="mt-1 text-sm text-white/60">A few quick details — you can edit anytime.</p>

@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Briefcase, CheckCircle2, ExternalLink, FileText, GraduationCap, Languages as LangIcon, Loader2, Pencil, Plus, ShieldCheck, Sparkles, Trash2, Upload, UserRound } from "lucide-react";
+import { Briefcase, CheckCircle2, Eye, ExternalLink, FileText, GraduationCap, Languages as LangIcon, Loader2, Pencil, Plus, ShieldCheck, Trash2, Upload, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { CandidateShell } from "@/components/candidate/CandidateShell";
 import { SectionCard, EmptyHint, Chip, ChipInput, Field } from "@/components/candidate/primitives";
@@ -121,7 +121,7 @@ function ProfilePage() {
               <p className="mt-1 text-xs text-muted-foreground">{sLabel.label}</p>
             </div>
             <div className="mt-4 flex items-center gap-2 rounded-lg bg-surface px-3 py-2 text-xs text-muted-foreground">
-              <Sparkles className="h-3.5 w-3.5 text-primary" /> {c.profile_views} profile views
+              <Eye className="h-3.5 w-3.5 text-primary" /> {c.profile_views} profile views
             </div>
             {c.kyc_status === "verified" ? (
               <div className="mt-2 flex items-center gap-2 rounded-lg bg-success/10 px-3 py-2 text-xs font-medium text-success">
