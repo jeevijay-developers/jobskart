@@ -1,15 +1,13 @@
 import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useState } from "react";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { AuthShell } from "@/components/site/AuthShell";
-import { Field, GoogleIcon } from "@/components/site/AuthFields";
-import {
-  signInWithEmail,
-  signInWithGoogle,
-  type SignupUserType,
-} from "@/lib/auth";
+import { BigInput, OtpInput } from "@/components/wizard/Questionnaire";
+import { supabase } from "@/integrations/supabase/client";
+import { loginWithMobileOtp } from "@/lib/auth-mobile.functions";
+import type { SignupUserType } from "@/lib/auth";
 
 const searchSchema = z.object({
   tab: z.enum(["candidate", "employer"]).optional(),
@@ -21,7 +19,10 @@ export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
       { title: "Log in · JobsKart" },
-      { name: "description", content: "Log in to JobsKart as a candidate or employer." },
+      {
+        name: "description",
+        content: "Log in to JobsKart with your mobile number and a one-time code.",
+      },
     ],
   }),
   component: AuthPage,
@@ -36,7 +37,9 @@ function AuthPage() {
     if (search.redirect) {
       window.location.assign(search.redirect);
     } else {
-      navigate({ to: tab === "employer" ? "/employer/dashboard" : "/candidate/dashboard" });
+      navigate({
+        to: tab === "employer" ? "/employer/dashboard" : "/candidate/dashboard",
+      });
     }
   };
 
@@ -45,7 +48,7 @@ function AuthPage() {
       <div>
         <h1 className="text-2xl font-bold text-foreground">Welcome back</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Log in to continue to your JobsKart account.
+          Log in with your mobile number — we&apos;ll send you a one-time code.
         </p>
 
         {/* Tabs */}
@@ -61,12 +64,12 @@ function AuthPage() {
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              I'm a {t === "candidate" ? "Candidate" : "Employer"}
+              I&apos;m a {t === "candidate" ? "Candidate" : "Employer"}
             </button>
           ))}
         </div>
 
-        <LoginForm key={tab} userType={tab} onSuccess={onSuccess} />
+        <MobileLoginForm key={tab} userType={tab} onSuccess={onSuccess} />
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
           New to JobsKart?{" "}
@@ -82,30 +85,49 @@ function AuthPage() {
   );
 }
 
-function LoginForm({
+function MobileLoginForm({
   userType,
   onSuccess,
 }: {
   userType: SignupUserType;
   onSuccess: () => Promise<void> | void;
 }) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPw, setShowPw] = useState(false);
+  const [step, setStep] = useState<"mobile" | "otp">("mobile");
+  const [mobile, setMobile] = useState("");
+  const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!email || !password) {
-      setError("Please enter your email and password.");
+    if (!/^[6-9]\d{9}$/.test(mobile)) {
+      setError("Enter a valid 10-digit Indian mobile number.");
+      return;
+    }
+    setLoading(true);
+    // Stub: pretend to send an SMS.
+    await new Promise((r) => setTimeout(r, 400));
+    setLoading(false);
+    setStep("otp");
+    toast.success(`OTP sent to +91 ${mobile} (demo: any 6 digits work)`);
+  };
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (otp.length !== 6) {
+      setError("Enter the full 6-digit code.");
       return;
     }
     setLoading(true);
     try {
-      await signInWithEmail(email.trim(), password);
+      const res = await loginWithMobileOtp({ data: { mobile, otp, userType } });
+      const { error: verifyErr } = await supabase.auth.verifyOtp({
+        token_hash: res.tokenHash,
+        type: "magiclink",
+      });
+      if (verifyErr) throw verifyErr;
       toast.success("Welcome back!");
       await onSuccess();
     } catch (err: unknown) {
@@ -117,65 +139,64 @@ function LoginForm({
     }
   };
 
-  const handleGoogle = async () => {
-    setGoogleLoading(true);
-    try {
-      const res = await signInWithGoogle(userType);
-      if (!res.redirected) {
-        toast.success("Signed in with Google!");
-        await onSuccess();
-      }
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Google sign-in failed.");
-    } finally {
-      setGoogleLoading(false);
-    }
-  };
+  if (step === "mobile") {
+    return (
+      <form onSubmit={handleSendOtp} className="mt-6 space-y-4">
+        <label className="block text-sm font-semibold text-foreground">
+          Mobile number
+        </label>
+        <div className="flex items-end gap-3">
+          <span className="pb-3 text-2xl font-medium text-muted-foreground">+91</span>
+          <BigInput
+            inputMode="numeric"
+            maxLength={10}
+            value={mobile}
+            onChange={(e) => setMobile(e.target.value.replace(/\D/g, ""))}
+            placeholder="98XXXXXXXX"
+          />
+        </div>
+
+        {error && (
+          <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {error}
+          </p>
+        )}
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-dark disabled:opacity-60"
+        >
+          {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+          Send OTP
+        </button>
+      </form>
+    );
+  }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-      <Field label="Email" required>
-        <input
-          type="email"
-          autoComplete="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="you@example.com"
-          className="form-input"
-        />
-      </Field>
-
-      <Field label="Password" required>
-        <div className="relative">
-          <input
-            type={showPw ? "text" : "password"}
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            className="form-input pr-11"
-          />
+    <form onSubmit={handleVerify} className="mt-6 space-y-4">
+      <div>
+        <label className="block text-sm font-semibold text-foreground">
+          Enter the 6-digit code
+        </label>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Sent to <span className="font-semibold text-foreground">+91 {mobile}</span>
           <button
             type="button"
-            aria-label={showPw ? "Hide password" : "Show password"}
-            onClick={() => setShowPw((v) => !v)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            onClick={() => {
+              setStep("mobile");
+              setOtp("");
+              setError(null);
+            }}
+            className="ml-2 font-semibold text-primary hover:underline"
           >
-            {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            Change
           </button>
-        </div>
-      </Field>
-
-      <div className="flex items-center justify-between text-sm">
-        <Link
-          to="/forgot-password"
-          className="font-medium text-primary hover:text-primary-dark"
-        >
-          Forgot password?
-        </Link>
+        </p>
       </div>
+
+      <OtpInput value={otp} onChange={setOtp} />
 
       {error && (
         <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -189,25 +210,12 @@ function LoginForm({
         className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-dark disabled:opacity-60"
       >
         {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-        Log in
+        Verify &amp; log in
       </button>
 
-      <div className="relative py-2 text-center text-xs text-muted-foreground">
-        <span className="absolute left-0 top-1/2 h-px w-[42%] bg-border" />
-        <span className="bg-background px-2">OR</span>
-        <span className="absolute right-0 top-1/2 h-px w-[42%] bg-border" />
-      </div>
-
-      <button
-        type="button"
-        onClick={handleGoogle}
-        disabled={googleLoading}
-        className="inline-flex h-11 w-full items-center justify-center gap-3 rounded-lg border border-border bg-card text-sm font-semibold text-foreground transition-colors hover:bg-surface disabled:opacity-60"
-      >
-        {googleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleIcon />}
-        Continue with Google
-      </button>
+      <p className="text-center text-xs text-muted-foreground">
+        Demo mode — any 6 digits work for now.
+      </p>
     </form>
   );
 }
-
