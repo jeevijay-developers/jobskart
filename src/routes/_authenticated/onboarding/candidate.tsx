@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, Check, Loader2, Plus, Trash2, Upload, FileText } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Loader2, Plus, Trash2, Upload, FileText, Sparkles } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "sonner";
 import { Navbar } from "@/components/site/Navbar";
 import { ChipInput, Field, SectionCard } from "@/components/candidate/primitives";
