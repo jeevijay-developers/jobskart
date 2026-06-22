@@ -1,72 +1,101 @@
-# Phase 4 — Candidate Onboarding, Profile & Dashboard (Full)
+# Plan: Complete JobsKart end‑to‑end
 
-The basic signup, profile and dashboard scaffolding from Phase 3 will be upgraded into a complete, production-grade candidate experience modeled on Apna.co.
+The candidate side has onboarding, profile, dashboard, applications and public profile. Major gaps remain on the **employer side**, **auth UX**, **home/marketing pages**, and **shared platform features** (notifications, settings, search/SEO). This plan ships them in four phases.
 
-## What gets built
+---
 
-### 1. Database additions (one migration)
-Add structured sub-tables so a profile is no longer just text fields:
-- `candidate_experiences` — job_title, company_name, start_date, end_date, is_current, description
-- `candidate_education` — level (10th / 12th / Diploma / Graduate / Post-graduate), board_or_university, institute, year, marks
-- `candidate_languages` — language, proficiency (basic/conversational/fluent), can_read, can_write
-- `candidate_documents` — type (resume / id_proof / certificate), file_url, file_name, size
-- Extend `candidate_profiles` with: `date_of_birth`, `gender`, `marital_status`, `current_salary`, `expected_salary`, `notice_period_days`, `preferred_cities text[]`, `preferred_work_mode`, `assets text[]` (own bike/laptop/etc.), `government_id_type`, `government_id_last4`, `kyc_status` (stub: pending/verified/rejected)
-- Storage bucket `candidate-docs` (private) with RLS so a user can only read their own folder `{uid}/...`
-- RLS + GRANTs on every new table (owner-only); helper trigger to recompute `profile_strength` on update
+## Phase 5 — Employer onboarding, company & team
 
-### 2. First-time onboarding wizard (`/onboarding/candidate`)
-Triggered automatically after signup or first login when `profile_strength < 60`. 6 steps with a progress rail, skip-for-now, autosave per step:
-1. **Basics** — DOB, gender, city, preferred cities, profile photo
-2. **Work status** — fresher / experienced / student → conditional fields
-3. **Experience** — repeating cards (add / edit / delete entries)
-4. **Education** — at least 10th class; add Diploma/Graduate as needed
-5. **Skills, languages & assets** — chip pickers with suggestions
-6. **Preferences & resume** — job types, work mode, expected salary, notice period, resume upload (PDF/DOC, ≤ 5 MB)
-Final screen: profile strength meter + "Go to dashboard" / "Browse jobs".
+**Goal:** an employer can sign up, create a verified company, invite teammates, and land on a real dashboard.
 
-### 3. Profile page rebuild (`/candidate/profile`)
-Replace the single long form with a sectioned layout (Apna-style):
-- Sticky left summary card (avatar, name, headline, city, strength meter, "Share profile" link)
-- Right side sections, each independently editable via inline drawer/dialog:
-  Personal • Career preferences • Experience (list with add/edit/delete) • Education • Skills • Languages • Resume & documents • Government ID (KYC stub button → marks `kyc_status='verified'` in dev)
-- "Preview public profile" button that opens `/u/$slug` (read-only public view, indexable, with og tags)
+**Database**
+- Extend `companies`: `logo_url`, `cover_url`, `website`, `about`, `industry`, `size_band`, `founded_year`, `hq_city`, `gst_number`, `verification_status` (pending/verified/rejected), `verification_notes`.
+- New `company_documents` (gst/pan/incorporation, file_path, status) + private storage bucket `company-docs`.
+- Public storage bucket `company-logos`.
+- New `employer_invites` (company_id, email, role, token, expires_at, accepted_at).
+- RLS: owners/admins manage company + members + invites; recruiters read; public can read `verified` companies' public fields via a `get_public_company(slug)` SECURITY DEFINER fn.
 
-### 4. Dashboard upgrade (`/candidate/dashboard`)
-- Top hero: greeting + profile strength ring + "Complete profile" CTA when < 80
-- Stat cards: Applications, Shortlisted, Interviews, Saved, Profile views (profile_views counter incremented on public profile visit)
-- "Continue your profile" checklist (only items still missing)
-- Recommended jobs (matched by skills overlap + city + job type, fall back to recent)
-- Recent activity feed (applied / shortlisted / saved events from `applications` + `saved_jobs`)
-- Mobile: bottom tab bar replaces the desktop sidebar
+**Routes / UI**
+- `/signup/employer` (already exists) → on first login route to `/onboarding/employer` wizard:
+  1. Company basics (name, industry, size, website, city, logo)
+  2. About + cover image
+  3. KYC stub (GST/PAN upload, verification_status='pending' → auto‑mark 'verified' after 2s stub)
+  4. Invite teammates (email + role)
+  5. Done → `/employer/dashboard`
+- `/_authenticated/employer/company` — edit company profile, manage documents, see verification badge.
+- `/_authenticated/employer/team` — list members, pending invites, role changes, remove.
+- `/invite/$token` public page → accept invite (signs in/up, joins company).
+- Rebuilt `/_authenticated/employer/dashboard`: stat cards (active jobs, total applicants, new this week, interviews scheduled), recent applicants feed, jobs needing attention, quick "Post a job" CTA, company strength meter.
+- New `EmployerShell` (sidebar + mobile bottom nav, breadcrumb) mirroring `CandidateShell`.
 
-### 5. Shared UX polish
-- `CandidateShell` gets a mobile bottom-nav and a top breadcrumb
-- Reusable `<SectionCard>`, `<EditableSection>`, `<ChipInput>`, `<FileDropzone>` primitives
-- Toast feedback + optimistic updates on every save
-- All forms validated; phone/email/dates checked; resume mime-type + size guarded
-- After every save, recompute and persist `profile_strength`
+## Phase 6 — Job posting, applicant management, search
 
-### 6. Public candidate profile (`/u/$slug`)
-- SSR-friendly read-only page using a `public_candidate_view` (only non-sensitive columns; anon SELECT policy)
-- `head()` with name + headline + city for SEO/sharing
-- "Recruiters only" CTA to contact (gated to employer role later in Phase 5)
+**Goal:** employers post jobs and manage the pipeline; candidates get a richer marketplace.
+
+**Database**
+- Add to `jobs`: `status` (draft/active/paused/closed/expired), `expires_at`, `views_count`, `applications_count`, `screening_questions` (jsonb), `is_featured`, `slug`.
+- New `application_notes` (application_id, author_id, body) and `application_status_history`.
+- Trigger: increment `applications_count` on application insert; decrement on withdraw.
+- RLS: employer members of `company_id` manage their jobs/applications.
+
+**Routes / UI**
+- `/_authenticated/employer/jobs` — list with status filter, search, duplicate, pause/close.
+- `/_authenticated/employer/jobs/new` — 4‑step wizard: Basics (title, category, type, mode) → Details (description, responsibilities, requirements rich text) → Compensation & location → Screening questions + publish.
+- `/_authenticated/employer/jobs/$jobId` — overview + applicants tab.
+- `/_authenticated/employer/jobs/$jobId/applicants` — kanban (Applied / Shortlisted / Interview / Offered / Hired / Rejected), drag‑to‑update status, candidate side panel with resume preview, notes, status history.
+- Candidate marketplace polish:
+  - Better filters (sort: relevance/newest/salary, multi‑select category, salary range slider).
+  - Pagination + empty/skeleton states.
+  - Job detail: similar jobs, "Apply with screening questions" modal, share buttons.
+  - Public company page `/c/$slug` with active jobs and about.
+
+## Phase 7 — Auth UX, notifications, settings
+
+**Goal:** production‑quality account surface.
+
+- `/auth` redesign: split tabs Sign in / Sign up, role chooser at signup, Google + email/password, "forgot password" link, friendly error toasts, redirect‑back via `?redirect=`.
+- `/forgot-password` and `/reset-password`: real form, validation, success states.
+- Enable HIBP password check via `configure_auth`.
+- New `notifications` table (user_id, type, title, body, link, read_at) + RLS. Triggers on: new application (employer), status change (candidate), new message (future), invite accepted.
+- `<NotificationBell />` in both shells with realtime subscription.
+- `/_authenticated/settings` (shared) with subroutes:
+  - `account` — name, email, mobile, password change, delete account.
+  - `notifications` — toggle email/in‑app per event.
+  - `privacy` (candidate) — searchable by recruiters, hide current employer.
+  - `billing` (employer, placeholder) — current plan card.
+
+## Phase 8 — Home / marketing / SEO
+
+**Goal:** the public site looks like a real product, not a template.
+
+- `/` (home) full redesign sections: hero with search (keyword + city) that deep‑links to `/jobs`, category grid (Logistics, Security, Retail, Driving, …), featured jobs (live from DB), "for candidates" vs "for employers" split CTAs, trust band (verified companies count, jobs count, candidates count from DB), testimonials, FAQ accordion, final CTA.
+- `/employers` landing page — pricing tiers (Free/Growth/Enterprise placeholder), feature comparison, "Post a job" CTA.
+- `/about`, `/contact` (form → stored in `contact_messages` table), `/privacy`, `/terms`.
+- Per‑route `head()` with unique title/description/OG; OG image at leaf routes only.
+- Sitemap server route `/api/public/sitemap.xml` listing active jobs + public company/candidate slugs. `robots.txt` in `public/`.
+- JSON‑LD `JobPosting` schema on `/jobs/$jobId`, `Organization` on `/c/$slug`.
+- Navbar: add Browse jobs, For employers, Sign in, Post a job; sticky, mobile drawer.
+- Footer: link columns + socials.
+
+---
 
 ## Technical notes
-- Storage uploads go through the browser client with RLS path `{auth.uid()}/resume-<ts>.<ext>`
-- KYC stays a stub: clicking "Verify" simulates a 1.5 s call then flips `kyc_status` to `verified` — real provider plugs in later via a server function
-- Profile strength formula centralized in `src/lib/profileStrength.ts` and reused by trigger + UI
-- Onboarding wizard state kept in component state + per-step `upsert` (no global store needed)
-- Recommendation query: `jobs` filtered by `array_overlap(skills, candidate.skills)` then ordered by created_at; SQL-side, limit 6
 
-## Files (high level)
-- `supabase/migrations/<ts>_candidate_full.sql` (tables, bucket, RLS, GRANTs, view, trigger)
-- `src/lib/profileStrength.ts`
-- `src/routes/_authenticated/onboarding/candidate.tsx` (+ step components in `src/components/onboarding/`)
-- `src/routes/_authenticated/candidate/profile.tsx` (rebuilt) + section components in `src/components/candidate/sections/`
-- `src/routes/_authenticated/candidate/dashboard.tsx` (rebuilt)
-- `src/routes/u.$slug.tsx` (public profile)
-- `src/components/candidate/CandidateShell.tsx` (mobile nav)
-- `src/components/ui/*` reuses: dialog, drawer, sheet, progress (all already present)
+- All new tables follow the GRANT → RLS → POLICY pattern; SECURITY DEFINER fns for public reads (`get_public_company`, sitemap query).
+- Server logic via `createServerFn`; only sitemap/webhooks under `src/routes/api/public/`.
+- Storage: `company-logos` (public), `company-docs` (private), reuse `avatars`/`candidate-docs`.
+- Reusable primitives extracted: `Wizard`, `KanbanBoard`, `StatCard`, `FileDropzone`, `RichTextEditor` (tiptap), `EmptyState`.
+- Realtime: subscribe to `notifications` and `applications` (employer kanban) via browser client.
+- KYC (company + candidate) stays stubbed — UI + auto‑verify after delay.
+- No SMS OTP, no payments, no messaging (deferred).
 
-## Out of scope (later phases)
-- Real KYC API, SMS OTP, employer-side search of candidates, messaging, notifications center, settings page — all deferred to their dedicated phases.
+---
+
+## Suggested build order
+
+1. Phase 5 (employer onboarding + company + team) — unblocks everything employer‑side.
+2. Phase 6 (job posting + applicant pipeline + marketplace polish).
+3. Phase 7 (auth UX + notifications + settings).
+4. Phase 8 (home redesign + marketing pages + SEO).
+
+Reply **"go"** to start Phase 5, or tell me which phase/items to drop or reorder.
