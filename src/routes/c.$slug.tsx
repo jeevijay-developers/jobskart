@@ -65,11 +65,10 @@ export const Route = createFileRoute("/c/$slug")({
   component: CompanyPublicPage,
 });
 
-type Company = {
-  id: string; slug: string; name: string; about: string | null; industry: string | null;
-  size: string | null; website: string | null; logo_url: string | null; cover_url: string | null;
-  hq_city: string | null; founded_year: number | null; verification_status: string;
-};
+function CompanyPublicPage() {
+  const { company, jobs } = Route.useLoaderData() as LoaderShape & { company: Company };
+  const verified = company.verification_status === "verified";
+
 
 function CompanyPublicPage() {
   const { company, jobs } = Route.useLoaderData() as { company: Company; jobs: JobCardData[] };
