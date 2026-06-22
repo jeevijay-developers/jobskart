@@ -83,7 +83,7 @@ function CandidateSignupPage() {
             <button
               type="button"
               onClick={() => setIndex(0)}
-              className="ml-2 font-semibold text-emerald-600 hover:underline"
+              className="ml-2 font-semibold text-primary hover:underline"
             >
               Change
             </button>
@@ -156,7 +156,7 @@ function CandidateSignupPage() {
                       ? "bg-destructive"
                       : pwStrength === 2
                         ? "bg-amber-500"
-                        : "bg-emerald-500"
+                        : "bg-primary"
                     : "bg-border"
                 }`}
               />
