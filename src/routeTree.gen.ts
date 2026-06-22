@@ -20,6 +20,7 @@ import { Route as SignupEmployerRouteImport } from './routes/signup.employer'
 import { Route as SignupCandidateRouteImport } from './routes/signup.candidate'
 import { Route as JobsJobIdRouteImport } from './routes/jobs.$jobId'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
+import { Route as EmployerLoginRouteImport } from './routes/employer.login'
 import { Route as CSlugRouteImport } from './routes/c.$slug'
 import { Route as AuthenticatedOnboardingCandidateRouteImport } from './routes/_authenticated/onboarding/candidate'
 import { Route as AuthenticatedEmployerTeamRouteImport } from './routes/_authenticated/employer/team'
@@ -85,6 +86,11 @@ const JobsJobIdRoute = JobsJobIdRouteImport.update({
 const InviteTokenRoute = InviteTokenRouteImport.update({
   id: '/invite/$token',
   path: '/invite/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EmployerLoginRoute = EmployerLoginRouteImport.update({
+  id: '/employer/login',
+  path: '/employer/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CSlugRoute = CSlugRouteImport.update({
@@ -166,6 +172,7 @@ export interface FileRoutesByFullPath {
   '/jobs': typeof JobsRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
   '/c/$slug': typeof CSlugRoute
+  '/employer/login': typeof EmployerLoginRoute
   '/invite/$token': typeof InviteTokenRoute
   '/jobs/$jobId': typeof JobsJobIdRoute
   '/signup/candidate': typeof SignupCandidateRoute
@@ -190,6 +197,7 @@ export interface FileRoutesByTo {
   '/jobs': typeof JobsRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
   '/c/$slug': typeof CSlugRoute
+  '/employer/login': typeof EmployerLoginRoute
   '/invite/$token': typeof InviteTokenRoute
   '/jobs/$jobId': typeof JobsJobIdRoute
   '/signup/candidate': typeof SignupCandidateRoute
@@ -216,6 +224,7 @@ export interface FileRoutesById {
   '/jobs': typeof JobsRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
   '/c/$slug': typeof CSlugRoute
+  '/employer/login': typeof EmployerLoginRoute
   '/invite/$token': typeof InviteTokenRoute
   '/jobs/$jobId': typeof JobsJobIdRoute
   '/signup/candidate': typeof SignupCandidateRoute
@@ -242,6 +251,7 @@ export interface FileRouteTypes {
     | '/jobs'
     | '/reset-password'
     | '/c/$slug'
+    | '/employer/login'
     | '/invite/$token'
     | '/jobs/$jobId'
     | '/signup/candidate'
@@ -266,6 +276,7 @@ export interface FileRouteTypes {
     | '/jobs'
     | '/reset-password'
     | '/c/$slug'
+    | '/employer/login'
     | '/invite/$token'
     | '/jobs/$jobId'
     | '/signup/candidate'
@@ -291,6 +302,7 @@ export interface FileRouteTypes {
     | '/jobs'
     | '/reset-password'
     | '/c/$slug'
+    | '/employer/login'
     | '/invite/$token'
     | '/jobs/$jobId'
     | '/signup/candidate'
@@ -317,6 +329,7 @@ export interface RootRouteChildren {
   JobsRoute: typeof JobsRouteWithChildren
   ResetPasswordRoute: typeof ResetPasswordRoute
   CSlugRoute: typeof CSlugRoute
+  EmployerLoginRoute: typeof EmployerLoginRoute
   InviteTokenRoute: typeof InviteTokenRoute
   SignupCandidateRoute: typeof SignupCandidateRoute
   SignupEmployerRoute: typeof SignupEmployerRoute
@@ -400,6 +413,13 @@ declare module '@tanstack/react-router' {
       path: '/invite/$token'
       fullPath: '/invite/$token'
       preLoaderRoute: typeof InviteTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/employer/login': {
+      id: '/employer/login'
+      path: '/employer/login'
+      fullPath: '/employer/login'
+      preLoaderRoute: typeof EmployerLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/c/$slug': {
@@ -552,6 +572,7 @@ const rootRouteChildren: RootRouteChildren = {
   JobsRoute: JobsRouteWithChildren,
   ResetPasswordRoute: ResetPasswordRoute,
   CSlugRoute: CSlugRoute,
+  EmployerLoginRoute: EmployerLoginRoute,
   InviteTokenRoute: InviteTokenRoute,
   SignupCandidateRoute: SignupCandidateRoute,
   SignupEmployerRoute: SignupEmployerRoute,
