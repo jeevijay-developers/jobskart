@@ -1,101 +1,91 @@
-# Plan: Complete JobsKart end‑to‑end
+## Goal
 
-The candidate side has onboarding, profile, dashboard, applications and public profile. Major gaps remain on the **employer side**, **auth UX**, **home/marketing pages**, and **shared platform features** (notifications, settings, search/SEO). This plan ships them in four phases.
-
----
-
-## Phase 5 — Employer onboarding, company & team
-
-**Goal:** an employer can sign up, create a verified company, invite teammates, and land on a real dashboard.
-
-**Database**
-- Extend `companies`: `logo_url`, `cover_url`, `website`, `about`, `industry`, `size_band`, `founded_year`, `hq_city`, `gst_number`, `verification_status` (pending/verified/rejected), `verification_notes`.
-- New `company_documents` (gst/pan/incorporation, file_path, status) + private storage bucket `company-docs`.
-- Public storage bucket `company-logos`.
-- New `employer_invites` (company_id, email, role, token, expires_at, accepted_at).
-- RLS: owners/admins manage company + members + invites; recruiters read; public can read `verified` companies' public fields via a `get_public_company(slug)` SECURITY DEFINER fn.
-
-**Routes / UI**
-- `/signup/employer` (already exists) → on first login route to `/onboarding/employer` wizard:
-  1. Company basics (name, industry, size, website, city, logo)
-  2. About + cover image
-  3. KYC stub (GST/PAN upload, verification_status='pending' → auto‑mark 'verified' after 2s stub)
-  4. Invite teammates (email + role)
-  5. Done → `/employer/dashboard`
-- `/_authenticated/employer/company` — edit company profile, manage documents, see verification badge.
-- `/_authenticated/employer/team` — list members, pending invites, role changes, remove.
-- `/invite/$token` public page → accept invite (signs in/up, joins company).
-- Rebuilt `/_authenticated/employer/dashboard`: stat cards (active jobs, total applicants, new this week, interviews scheduled), recent applicants feed, jobs needing attention, quick "Post a job" CTA, company strength meter.
-- New `EmployerShell` (sidebar + mobile bottom nav, breadcrumb) mirroring `CandidateShell`.
-
-## Phase 6 — Job posting, applicant management, search
-
-**Goal:** employers post jobs and manage the pipeline; candidates get a richer marketplace.
-
-**Database**
-- Add to `jobs`: `status` (draft/active/paused/closed/expired), `expires_at`, `views_count`, `applications_count`, `screening_questions` (jsonb), `is_featured`, `slug`.
-- New `application_notes` (application_id, author_id, body) and `application_status_history`.
-- Trigger: increment `applications_count` on application insert; decrement on withdraw.
-- RLS: employer members of `company_id` manage their jobs/applications.
-
-**Routes / UI**
-- `/_authenticated/employer/jobs` — list with status filter, search, duplicate, pause/close.
-- `/_authenticated/employer/jobs/new` — 4‑step wizard: Basics (title, category, type, mode) → Details (description, responsibilities, requirements rich text) → Compensation & location → Screening questions + publish.
-- `/_authenticated/employer/jobs/$jobId` — overview + applicants tab.
-- `/_authenticated/employer/jobs/$jobId/applicants` — kanban (Applied / Shortlisted / Interview / Offered / Hired / Rejected), drag‑to‑update status, candidate side panel with resume preview, notes, status history.
-- Candidate marketplace polish:
-  - Better filters (sort: relevance/newest/salary, multi‑select category, salary range slider).
-  - Pagination + empty/skeleton states.
-  - Job detail: similar jobs, "Apply with screening questions" modal, share buttons.
-  - Public company page `/c/$slug` with active jobs and about.
-
-## Phase 7 — Auth UX, notifications, settings
-
-**Goal:** production‑quality account surface.
-
-- `/auth` redesign: split tabs Sign in / Sign up, role chooser at signup, Google + email/password, "forgot password" link, friendly error toasts, redirect‑back via `?redirect=`.
-- `/forgot-password` and `/reset-password`: real form, validation, success states.
-- Enable HIBP password check via `configure_auth`.
-- New `notifications` table (user_id, type, title, body, link, read_at) + RLS. Triggers on: new application (employer), status change (candidate), new message (future), invite accepted.
-- `<NotificationBell />` in both shells with realtime subscription.
-- `/_authenticated/settings` (shared) with subroutes:
-  - `account` — name, email, mobile, password change, delete account.
-  - `notifications` — toggle email/in‑app per event.
-  - `privacy` (candidate) — searchable by recruiters, hide current employer.
-  - `billing` (employer, placeholder) — current plan card.
-
-## Phase 8 — Home / marketing / SEO
-
-**Goal:** the public site looks like a real product, not a template.
-
-- `/` (home) full redesign sections: hero with search (keyword + city) that deep‑links to `/jobs`, category grid (Logistics, Security, Retail, Driving, …), featured jobs (live from DB), "for candidates" vs "for employers" split CTAs, trust band (verified companies count, jobs count, candidates count from DB), testimonials, FAQ accordion, final CTA.
-- `/employers` landing page — pricing tiers (Free/Growth/Enterprise placeholder), feature comparison, "Post a job" CTA.
-- `/about`, `/contact` (form → stored in `contact_messages` table), `/privacy`, `/terms`.
-- Per‑route `head()` with unique title/description/OG; OG image at leaf routes only.
-- Sitemap server route `/api/public/sitemap.xml` listing active jobs + public company/candidate slugs. `robots.txt` in `public/`.
-- JSON‑LD `JobPosting` schema on `/jobs/$jobId`, `Organization` on `/c/$slug`.
-- Navbar: add Browse jobs, For employers, Sign in, Post a job; sticky, mobile drawer.
-- Footer: link columns + socials.
+Kill the boring stacked forms. Replace candidate signup, employer signup, and the 6-step onboarding with a conversational, one-question-at-a-time wizard that opens with mobile number. Rebuild the homepage as a high-conviction marketing surface in a Trust Navy + Emerald palette with a real hero, working search, and live stats.
 
 ---
 
-## Technical notes
+## 1. Conversational Auth Wizard (mobile-first)
 
-- All new tables follow the GRANT → RLS → POLICY pattern; SECURITY DEFINER fns for public reads (`get_public_company`, sitemap query).
-- Server logic via `createServerFn`; only sitemap/webhooks under `src/routes/api/public/`.
-- Storage: `company-logos` (public), `company-docs` (private), reuse `avatars`/`candidate-docs`.
-- Reusable primitives extracted: `Wizard`, `KanbanBoard`, `StatCard`, `FileDropzone`, `RichTextEditor` (tiptap), `EmptyState`.
-- Realtime: subscribe to `notifications` and `applications` (employer kanban) via browser client.
-- KYC (company + candidate) stays stubbed — UI + auto‑verify after delay.
-- No SMS OTP, no payments, no messaging (deferred).
+New shared component: `src/components/wizard/Questionnaire.tsx`
+- Full-bleed split layout. Left = animated brand panel (navy gradient, emerald accent, rotating social-proof line). Right = a single question card at a time with large input, progress dots, Back / Continue, Enter-to-advance.
+- Framer-motion slide+fade between steps. Auto-focus next field. Inline validation. Keyboard first.
+
+### `/signup/candidate` — rewritten
+Step order:
+1. Mobile number (+91 prefix, 10-digit validate)
+2. OTP — 6-digit input. **Stub**: any 6 digits accepted; show "Demo mode" hint. Persist `mobile_verified=true` on profile.
+3. Full name
+4. Email
+5. Password (with strength meter)
+6. "What brings you here?" chip select → routes to `/onboarding/candidate` (fresher / experienced / switching)
+
+On submit: `supabase.auth.signUp` with email+password, `raw_user_meta_data` includes `mobile`, `full_name`, `user_type='candidate'`, intent. Existing `handle_new_user` trigger already seeds profile + candidate_profiles.
+
+### `/signup/employer` — same shell, employer copy
+Steps: Mobile → OTP → Your name → Work email → Password → Company name → Company size chip. Post-signup creates company + employer_members row, redirects to `/employer/dashboard`.
+
+### `/onboarding/candidate` — convert existing 6-step wizard to same Questionnaire shell
+Same 6 buckets currently saved (basics, experience, skills, education, preferences, resume), but rendered one prompt per screen with the same animated layout. Each answer auto-saves via existing `saveStep`. Final screen = celebratory "Profile X% complete" with CTA to dashboard.
+
+### Schema touch (single migration)
+- Add `profiles.mobile_verified boolean default false`
+- Add `profiles.signup_intent text` (nullable)
+No RLS changes (existing policies cover it).
 
 ---
 
-## Suggested build order
+## 2. Homepage rebuild (`src/routes/index.tsx`)
 
-1. Phase 5 (employer onboarding + company + team) — unblocks everything employer‑side.
-2. Phase 6 (job posting + applicant pipeline + marketplace polish).
-3. Phase 7 (auth UX + notifications + settings).
-4. Phase 8 (home redesign + marketing pages + SEO).
+Trust Navy + Emerald palette tokens added to `src/styles.css`:
+- `--background` paper `#f5f0e0`-tinted off-white
+- `--primary` emerald `#10b981`
+- `--brand-navy` `#0f1b3d`, `--brand-navy-2` `#1e3a5f`
+- `--gradient-hero` navy → navy-2 radial with emerald glow
+- `--shadow-elegant` emerald-tinted
 
-Reply **"go"** to start Phase 5, or tell me which phase/items to drop or reorder.
+Sections (in order):
+1. **Sticky transparent navbar** that solidifies to navy on scroll. CTAs: "Find Jobs", "For Employers", "Login".
+2. **Hero** — navy gradient bg, large display headline ("Find the job. Skip the noise."), subhead, prominent search card (keyword + city + Search button) that deep-links to `/jobs?q=&city=`. Right side: floating job-card mockups with subtle motion.
+3. **Live stats counter strip** — animated count-up for: active jobs, verified companies, candidates hired, cities. Pulled live from `jobs`, `companies`, `profiles` via a single `createServerFn` (`getPlatformStats`) using the server publishable client with narrow anon SELECTs.
+4. **Trending searches / popular roles** — emerald chips deep-linking into `/jobs` with preset filters.
+5. **Final CTA band** — split: candidate CTA (emerald) + employer CTA (navy outline) → `/signup/candidate` / `/signup/employer`.
+
+SEO: route `head()` with title, description, og:title, og:description, og:image (existing logo asset).
+
+---
+
+## 3. Technical details
+
+- Stub OTP lives entirely client-side for now; mobile is stored on profile but no real SMS sent. Clear "Demo mode" badge so it's obviously a stub. Easy swap-in later for Supabase phone auth or Twilio/MSG91.
+- Questionnaire state held locally with `useReducer`; navigation guarded so refresh doesn't lose progress (sessionStorage backup keyed by flow id).
+- Animations: `framer-motion` (already in deps if present; otherwise `bun add framer-motion`).
+- All colors via tokens — no hardcoded hex in components.
+- Public stats query: new `src/lib/stats.functions.ts` server fn returning `{ jobs, companies, candidates, cities }`. Loader uses `ensureQueryData`; component uses `useSuspenseQuery`.
+
+---
+
+## 4. Files
+
+Create:
+- `src/components/wizard/Questionnaire.tsx`
+- `src/components/wizard/steps/*` (MobileStep, OtpStep, TextStep, PasswordStep, ChipStep)
+- `src/lib/stats.functions.ts`
+- `src/components/home/Hero.tsx`, `StatsStrip.tsx`, `TrendingRoles.tsx`, `DualCTA.tsx`
+
+Edit:
+- `src/routes/signup.candidate.tsx` — replace body with Questionnaire
+- `src/routes/signup.employer.tsx` — replace body with Questionnaire
+- `src/routes/_authenticated/onboarding/candidate.tsx` — wrap existing steps in Questionnaire
+- `src/routes/index.tsx` — new hero + sections
+- `src/styles.css` — Trust Navy + Emerald tokens
+- `src/components/site/Navbar.tsx` — transparent→solid on scroll
+
+Migration:
+- `profiles.mobile_verified`, `profiles.signup_intent`
+
+---
+
+## Out of scope (ask separately if wanted)
+- Real SMS OTP (needs SMS provider secret)
+- Featured companies carousel / How-it-works / Testimonials sections (you only picked Hero + search + stats)
+- Employer onboarding wizard beyond signup
