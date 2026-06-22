@@ -102,10 +102,22 @@ function JobsPage() {
   const apply = () => {
     setFilters(draft);
     setMobileFilters(false);
+    navigate({
+      search: {
+        ...(draft.q ? { q: draft.q } : {}),
+        ...(draft.city ? { city: draft.city } : {}),
+        ...(draft.category ? { category: draft.category } : {}),
+        ...(draft.jobType ? { jobType: draft.jobType } : {}),
+        ...(draft.workMode ? { workMode: draft.workMode } : {}),
+        ...(draft.minSalary ? { minSalary: draft.minSalary } : {}),
+      },
+      replace: true,
+    });
   };
   const reset = () => {
     setDraft(empty);
     setFilters(empty);
+    navigate({ search: {}, replace: true });
   };
 
   const activeCount = useMemo(() => Object.values(filters).filter(Boolean).length, [filters]);
