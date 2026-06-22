@@ -7,6 +7,14 @@ import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 
+type Company = {
+  id: string; slug: string; name: string; about: string | null; industry: string | null;
+  size: string | null; website: string | null; logo_url: string | null; cover_url: string | null;
+  hq_city: string | null; founded_year: number | null; verification_status: string;
+};
+
+type LoaderShape = { company: Company | null; jobs: JobCardData[] };
+
 const publicClient = () =>
   createClient<Database>(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
     auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
@@ -14,15 +22,15 @@ const publicClient = () =>
 
 const fetchCompany = createServerFn({ method: "GET" })
   .inputValidator((d: { slug: string }) => d)
-  .handler(async ({ data }) => {
+  .handler(async ({ data }): Promise<LoaderShape> => {
     const sb = publicClient();
     const { data: row } = await sb.rpc("get_public_company", { _slug: data.slug });
-    const company = (row as unknown as Array<Record<string, unknown>> | null)?.[0] ?? null;
-    if (!company) return { company: null, jobs: [] as JobCardData[] };
+    const company = ((row as unknown as Company[] | null)?.[0] ?? null);
+    if (!company) return { company: null, jobs: [] };
     const { data: jobs } = await sb
       .from("jobs")
       .select("id, title, city, state, locality, min_salary, max_salary, salary_period, job_type, work_mode, min_experience_years, max_experience_years, education, skills, created_at, companies (name, is_verified)")
-      .eq("company_id", company.id as string)
+      .eq("company_id", company.id)
       .eq("status", "active" as never)
       .order("created_at", { ascending: false })
       .limit(20);
