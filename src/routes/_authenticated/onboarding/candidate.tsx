@@ -209,24 +209,47 @@ function OnboardingPage() {
     <div className="min-h-screen bg-surface">
       <Navbar />
       <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6">
-        {/* Progress rail */}
-        <div className="mb-8 rounded-2xl border border-border bg-card p-4 sm:p-6 shadow-[var(--shadow-card)]">
-          <div className="mb-4 flex items-center justify-between">
+        {/* Hero progress card */}
+        <div
+          className="mb-8 overflow-hidden rounded-3xl p-6 text-white shadow-[0_20px_60px_-20px_rgba(15,27,61,0.4)] sm:p-8"
+          style={{
+            background:
+              "radial-gradient(circle at 10% 10%, rgba(16,185,129,0.30), transparent 55%), linear-gradient(135deg,#0f1b3d 0%,#1e3a5f 100%)",
+          }}
+        >
+          <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Step {step + 1} of {STEPS.length}</p>
-              <h1 className="text-xl font-bold text-foreground sm:text-2xl">{STEPS[step]}</h1>
+              <p className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-300 ring-1 ring-emerald-400/30">
+                <Sparkles className="h-3 w-3" /> Step {step + 1} of {STEPS.length}
+              </p>
+              <h1 className="mt-3 text-2xl font-bold leading-tight sm:text-3xl">{STEPS[step]}</h1>
+              <p className="mt-1 text-sm text-white/60">A few quick details — you can edit anytime.</p>
             </div>
             <div className="text-right">
-              <p className="text-xs text-muted-foreground">Profile strength</p>
-              <p className="text-lg font-bold text-primary">{strength}%</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-white/60">Profile</p>
+              <p className="text-3xl font-bold text-emerald-300">{strength}%</p>
             </div>
           </div>
-          <div className="flex gap-1.5">
+          <div className="mt-6 flex gap-1.5">
             {STEPS.map((_, i) => (
-              <div key={i} className={`h-1.5 flex-1 rounded-full ${i <= step ? "bg-primary" : "bg-border"}`} />
+              <div
+                key={i}
+                className={`h-1.5 flex-1 rounded-full transition-all ${
+                  i < step ? "bg-emerald-400" : i === step ? "bg-white" : "bg-white/15"
+                }`}
+              />
             ))}
           </div>
         </div>
+
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={step}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.22, ease: "easeOut" }}
+          >
 
         {step === 0 && (
           <SectionCard title="Tell us about yourself">
