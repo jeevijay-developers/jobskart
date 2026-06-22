@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
 import {
   Search,
   MapPin,
@@ -75,6 +76,9 @@ function LandingPage() {
 /* ---------------------------------------------------------------- */
 
 function Hero() {
+  const [q, setQ] = useState("");
+  const [city, setCity] = useState("");
+  const navigate = useNavigate();
   const popularTags = [
     "Work from Home",
     "Fresher Jobs",
@@ -83,6 +87,18 @@ function Hero() {
     "Security Guard",
     "Delivery Boy",
   ];
+  const submit = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    navigate({ to: "/jobs" });
+    // params persisted in jobs page when implemented
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams();
+      if (q) params.set("q", q);
+      if (city) params.set("city", city);
+      const search = params.toString();
+      if (search) window.history.replaceState({}, "", `/jobs?${search}`);
+    }
+  };
 
   return (
     <section className="relative overflow-hidden bg-gradient-to-b from-background via-background to-primary-light">
@@ -115,44 +131,37 @@ function Hero() {
           </p>
 
           {/* Search bar */}
-          <div className="mt-8 rounded-2xl border border-border bg-card p-2 shadow-[var(--shadow-card)] sm:rounded-full">
+          <form onSubmit={submit} className="mt-8 rounded-2xl border border-border bg-card p-2 shadow-[var(--shadow-card)] sm:rounded-full">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <label className="flex flex-1 items-center gap-2 rounded-xl px-4 py-3 sm:rounded-full">
                 <Search className="h-5 w-5 shrink-0 text-muted-foreground" />
                 <input
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
                   className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
                   placeholder="Search jobs by title, skill..."
                 />
               </label>
               <div className="hidden h-8 w-px bg-border sm:block" />
-              <label className="flex items-center gap-2 px-4 py-3 sm:px-3">
-                <Briefcase className="h-5 w-5 shrink-0 text-muted-foreground" />
-                <select className="w-full bg-transparent text-sm outline-none">
-                  <option>Your Experience</option>
-                  <option>Fresher</option>
-                  <option>0 - 1 year</option>
-                  <option>1 - 3 years</option>
-                  <option>3 - 5 years</option>
-                  <option>5+ years</option>
-                </select>
-              </label>
-              <div className="hidden h-8 w-px bg-border sm:block" />
               <label className="flex flex-1 items-center gap-2 px-4 py-3 sm:px-3">
                 <MapPin className="h-5 w-5 shrink-0 text-muted-foreground" />
                 <input
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
                   className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
                   placeholder="Search for an area, city..."
                 />
               </label>
-              <button className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-dark sm:rounded-full">
+              <button type="submit" className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-dark sm:rounded-full">
                 <Search className="h-4 w-4" />
                 Search Jobs
               </button>
             </div>
-          </div>
+          </form>
 
           <div className="mt-6 flex flex-wrap items-center gap-2">
             <span className="text-sm font-medium text-muted-foreground">Popular:</span>
+
             {popularTags.map((t) => (
               <button
                 key={t}

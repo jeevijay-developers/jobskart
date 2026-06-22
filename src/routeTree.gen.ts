@@ -19,12 +19,19 @@ import { Route as USlugRouteImport } from './routes/u.$slug'
 import { Route as SignupEmployerRouteImport } from './routes/signup.employer'
 import { Route as SignupCandidateRouteImport } from './routes/signup.candidate'
 import { Route as JobsJobIdRouteImport } from './routes/jobs.$jobId'
+import { Route as InviteTokenRouteImport } from './routes/invite.$token'
+import { Route as CSlugRouteImport } from './routes/c.$slug'
 import { Route as AuthenticatedOnboardingCandidateRouteImport } from './routes/_authenticated/onboarding/candidate'
+import { Route as AuthenticatedEmployerTeamRouteImport } from './routes/_authenticated/employer/team'
+import { Route as AuthenticatedEmployerJobsRouteImport } from './routes/_authenticated/employer/jobs'
 import { Route as AuthenticatedEmployerDashboardRouteImport } from './routes/_authenticated/employer/dashboard'
+import { Route as AuthenticatedEmployerCompanyRouteImport } from './routes/_authenticated/employer/company'
 import { Route as AuthenticatedCandidateSavedRouteImport } from './routes/_authenticated/candidate/saved'
 import { Route as AuthenticatedCandidateProfileRouteImport } from './routes/_authenticated/candidate/profile'
 import { Route as AuthenticatedCandidateDashboardRouteImport } from './routes/_authenticated/candidate/dashboard'
 import { Route as AuthenticatedCandidateApplicationsRouteImport } from './routes/_authenticated/candidate/applications'
+import { Route as AuthenticatedEmployerJobsNewRouteImport } from './routes/_authenticated/employer/jobs.new'
+import { Route as AuthenticatedEmployerJobsJobIdApplicantsRouteImport } from './routes/_authenticated/employer/jobs.$jobId.applicants'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
@@ -75,16 +82,44 @@ const JobsJobIdRoute = JobsJobIdRouteImport.update({
   path: '/$jobId',
   getParentRoute: () => JobsRoute,
 } as any)
+const InviteTokenRoute = InviteTokenRouteImport.update({
+  id: '/invite/$token',
+  path: '/invite/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CSlugRoute = CSlugRouteImport.update({
+  id: '/c/$slug',
+  path: '/c/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedOnboardingCandidateRoute =
   AuthenticatedOnboardingCandidateRouteImport.update({
     id: '/onboarding/candidate',
     path: '/onboarding/candidate',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedEmployerTeamRoute =
+  AuthenticatedEmployerTeamRouteImport.update({
+    id: '/employer/team',
+    path: '/employer/team',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedEmployerJobsRoute =
+  AuthenticatedEmployerJobsRouteImport.update({
+    id: '/employer/jobs',
+    path: '/employer/jobs',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedEmployerDashboardRoute =
   AuthenticatedEmployerDashboardRouteImport.update({
     id: '/employer/dashboard',
     path: '/employer/dashboard',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedEmployerCompanyRoute =
+  AuthenticatedEmployerCompanyRouteImport.update({
+    id: '/employer/company',
+    path: '/employer/company',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedCandidateSavedRoute =
@@ -111,6 +146,18 @@ const AuthenticatedCandidateApplicationsRoute =
     path: '/candidate/applications',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedEmployerJobsNewRoute =
+  AuthenticatedEmployerJobsNewRouteImport.update({
+    id: '/new',
+    path: '/new',
+    getParentRoute: () => AuthenticatedEmployerJobsRoute,
+  } as any)
+const AuthenticatedEmployerJobsJobIdApplicantsRoute =
+  AuthenticatedEmployerJobsJobIdApplicantsRouteImport.update({
+    id: '/$jobId/applicants',
+    path: '/$jobId/applicants',
+    getParentRoute: () => AuthenticatedEmployerJobsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -118,6 +165,8 @@ export interface FileRoutesByFullPath {
   '/forgot-password': typeof ForgotPasswordRoute
   '/jobs': typeof JobsRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
+  '/c/$slug': typeof CSlugRoute
+  '/invite/$token': typeof InviteTokenRoute
   '/jobs/$jobId': typeof JobsJobIdRoute
   '/signup/candidate': typeof SignupCandidateRoute
   '/signup/employer': typeof SignupEmployerRoute
@@ -126,8 +175,13 @@ export interface FileRoutesByFullPath {
   '/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
   '/candidate/profile': typeof AuthenticatedCandidateProfileRoute
   '/candidate/saved': typeof AuthenticatedCandidateSavedRoute
+  '/employer/company': typeof AuthenticatedEmployerCompanyRoute
   '/employer/dashboard': typeof AuthenticatedEmployerDashboardRoute
+  '/employer/jobs': typeof AuthenticatedEmployerJobsRouteWithChildren
+  '/employer/team': typeof AuthenticatedEmployerTeamRoute
   '/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
+  '/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
+  '/employer/jobs/$jobId/applicants': typeof AuthenticatedEmployerJobsJobIdApplicantsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -135,6 +189,8 @@ export interface FileRoutesByTo {
   '/forgot-password': typeof ForgotPasswordRoute
   '/jobs': typeof JobsRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
+  '/c/$slug': typeof CSlugRoute
+  '/invite/$token': typeof InviteTokenRoute
   '/jobs/$jobId': typeof JobsJobIdRoute
   '/signup/candidate': typeof SignupCandidateRoute
   '/signup/employer': typeof SignupEmployerRoute
@@ -143,8 +199,13 @@ export interface FileRoutesByTo {
   '/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
   '/candidate/profile': typeof AuthenticatedCandidateProfileRoute
   '/candidate/saved': typeof AuthenticatedCandidateSavedRoute
+  '/employer/company': typeof AuthenticatedEmployerCompanyRoute
   '/employer/dashboard': typeof AuthenticatedEmployerDashboardRoute
+  '/employer/jobs': typeof AuthenticatedEmployerJobsRouteWithChildren
+  '/employer/team': typeof AuthenticatedEmployerTeamRoute
   '/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
+  '/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
+  '/employer/jobs/$jobId/applicants': typeof AuthenticatedEmployerJobsJobIdApplicantsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -154,6 +215,8 @@ export interface FileRoutesById {
   '/forgot-password': typeof ForgotPasswordRoute
   '/jobs': typeof JobsRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
+  '/c/$slug': typeof CSlugRoute
+  '/invite/$token': typeof InviteTokenRoute
   '/jobs/$jobId': typeof JobsJobIdRoute
   '/signup/candidate': typeof SignupCandidateRoute
   '/signup/employer': typeof SignupEmployerRoute
@@ -162,8 +225,13 @@ export interface FileRoutesById {
   '/_authenticated/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
   '/_authenticated/candidate/profile': typeof AuthenticatedCandidateProfileRoute
   '/_authenticated/candidate/saved': typeof AuthenticatedCandidateSavedRoute
+  '/_authenticated/employer/company': typeof AuthenticatedEmployerCompanyRoute
   '/_authenticated/employer/dashboard': typeof AuthenticatedEmployerDashboardRoute
+  '/_authenticated/employer/jobs': typeof AuthenticatedEmployerJobsRouteWithChildren
+  '/_authenticated/employer/team': typeof AuthenticatedEmployerTeamRoute
   '/_authenticated/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
+  '/_authenticated/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
+  '/_authenticated/employer/jobs/$jobId/applicants': typeof AuthenticatedEmployerJobsJobIdApplicantsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -173,6 +241,8 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/jobs'
     | '/reset-password'
+    | '/c/$slug'
+    | '/invite/$token'
     | '/jobs/$jobId'
     | '/signup/candidate'
     | '/signup/employer'
@@ -181,8 +251,13 @@ export interface FileRouteTypes {
     | '/candidate/dashboard'
     | '/candidate/profile'
     | '/candidate/saved'
+    | '/employer/company'
     | '/employer/dashboard'
+    | '/employer/jobs'
+    | '/employer/team'
     | '/onboarding/candidate'
+    | '/employer/jobs/new'
+    | '/employer/jobs/$jobId/applicants'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -190,6 +265,8 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/jobs'
     | '/reset-password'
+    | '/c/$slug'
+    | '/invite/$token'
     | '/jobs/$jobId'
     | '/signup/candidate'
     | '/signup/employer'
@@ -198,8 +275,13 @@ export interface FileRouteTypes {
     | '/candidate/dashboard'
     | '/candidate/profile'
     | '/candidate/saved'
+    | '/employer/company'
     | '/employer/dashboard'
+    | '/employer/jobs'
+    | '/employer/team'
     | '/onboarding/candidate'
+    | '/employer/jobs/new'
+    | '/employer/jobs/$jobId/applicants'
   id:
     | '__root__'
     | '/'
@@ -208,6 +290,8 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/jobs'
     | '/reset-password'
+    | '/c/$slug'
+    | '/invite/$token'
     | '/jobs/$jobId'
     | '/signup/candidate'
     | '/signup/employer'
@@ -216,8 +300,13 @@ export interface FileRouteTypes {
     | '/_authenticated/candidate/dashboard'
     | '/_authenticated/candidate/profile'
     | '/_authenticated/candidate/saved'
+    | '/_authenticated/employer/company'
     | '/_authenticated/employer/dashboard'
+    | '/_authenticated/employer/jobs'
+    | '/_authenticated/employer/team'
     | '/_authenticated/onboarding/candidate'
+    | '/_authenticated/employer/jobs/new'
+    | '/_authenticated/employer/jobs/$jobId/applicants'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -227,6 +316,8 @@ export interface RootRouteChildren {
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   JobsRoute: typeof JobsRouteWithChildren
   ResetPasswordRoute: typeof ResetPasswordRoute
+  CSlugRoute: typeof CSlugRoute
+  InviteTokenRoute: typeof InviteTokenRoute
   SignupCandidateRoute: typeof SignupCandidateRoute
   SignupEmployerRoute: typeof SignupEmployerRoute
   USlugRoute: typeof USlugRoute
@@ -304,6 +395,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof JobsJobIdRouteImport
       parentRoute: typeof JobsRoute
     }
+    '/invite/$token': {
+      id: '/invite/$token'
+      path: '/invite/$token'
+      fullPath: '/invite/$token'
+      preLoaderRoute: typeof InviteTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/c/$slug': {
+      id: '/c/$slug'
+      path: '/c/$slug'
+      fullPath: '/c/$slug'
+      preLoaderRoute: typeof CSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/onboarding/candidate': {
       id: '/_authenticated/onboarding/candidate'
       path: '/onboarding/candidate'
@@ -311,11 +416,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedOnboardingCandidateRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/employer/team': {
+      id: '/_authenticated/employer/team'
+      path: '/employer/team'
+      fullPath: '/employer/team'
+      preLoaderRoute: typeof AuthenticatedEmployerTeamRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/employer/jobs': {
+      id: '/_authenticated/employer/jobs'
+      path: '/employer/jobs'
+      fullPath: '/employer/jobs'
+      preLoaderRoute: typeof AuthenticatedEmployerJobsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/employer/dashboard': {
       id: '/_authenticated/employer/dashboard'
       path: '/employer/dashboard'
       fullPath: '/employer/dashboard'
       preLoaderRoute: typeof AuthenticatedEmployerDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/employer/company': {
+      id: '/_authenticated/employer/company'
+      path: '/employer/company'
+      fullPath: '/employer/company'
+      preLoaderRoute: typeof AuthenticatedEmployerCompanyRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/candidate/saved': {
@@ -346,15 +472,49 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCandidateApplicationsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/employer/jobs/new': {
+      id: '/_authenticated/employer/jobs/new'
+      path: '/new'
+      fullPath: '/employer/jobs/new'
+      preLoaderRoute: typeof AuthenticatedEmployerJobsNewRouteImport
+      parentRoute: typeof AuthenticatedEmployerJobsRoute
+    }
+    '/_authenticated/employer/jobs/$jobId/applicants': {
+      id: '/_authenticated/employer/jobs/$jobId/applicants'
+      path: '/$jobId/applicants'
+      fullPath: '/employer/jobs/$jobId/applicants'
+      preLoaderRoute: typeof AuthenticatedEmployerJobsJobIdApplicantsRouteImport
+      parentRoute: typeof AuthenticatedEmployerJobsRoute
+    }
   }
 }
+
+interface AuthenticatedEmployerJobsRouteChildren {
+  AuthenticatedEmployerJobsNewRoute: typeof AuthenticatedEmployerJobsNewRoute
+  AuthenticatedEmployerJobsJobIdApplicantsRoute: typeof AuthenticatedEmployerJobsJobIdApplicantsRoute
+}
+
+const AuthenticatedEmployerJobsRouteChildren: AuthenticatedEmployerJobsRouteChildren =
+  {
+    AuthenticatedEmployerJobsNewRoute: AuthenticatedEmployerJobsNewRoute,
+    AuthenticatedEmployerJobsJobIdApplicantsRoute:
+      AuthenticatedEmployerJobsJobIdApplicantsRoute,
+  }
+
+const AuthenticatedEmployerJobsRouteWithChildren =
+  AuthenticatedEmployerJobsRoute._addFileChildren(
+    AuthenticatedEmployerJobsRouteChildren,
+  )
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedCandidateApplicationsRoute: typeof AuthenticatedCandidateApplicationsRoute
   AuthenticatedCandidateDashboardRoute: typeof AuthenticatedCandidateDashboardRoute
   AuthenticatedCandidateProfileRoute: typeof AuthenticatedCandidateProfileRoute
   AuthenticatedCandidateSavedRoute: typeof AuthenticatedCandidateSavedRoute
+  AuthenticatedEmployerCompanyRoute: typeof AuthenticatedEmployerCompanyRoute
   AuthenticatedEmployerDashboardRoute: typeof AuthenticatedEmployerDashboardRoute
+  AuthenticatedEmployerJobsRoute: typeof AuthenticatedEmployerJobsRouteWithChildren
+  AuthenticatedEmployerTeamRoute: typeof AuthenticatedEmployerTeamRoute
   AuthenticatedOnboardingCandidateRoute: typeof AuthenticatedOnboardingCandidateRoute
 }
 
@@ -364,7 +524,10 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCandidateDashboardRoute: AuthenticatedCandidateDashboardRoute,
   AuthenticatedCandidateProfileRoute: AuthenticatedCandidateProfileRoute,
   AuthenticatedCandidateSavedRoute: AuthenticatedCandidateSavedRoute,
+  AuthenticatedEmployerCompanyRoute: AuthenticatedEmployerCompanyRoute,
   AuthenticatedEmployerDashboardRoute: AuthenticatedEmployerDashboardRoute,
+  AuthenticatedEmployerJobsRoute: AuthenticatedEmployerJobsRouteWithChildren,
+  AuthenticatedEmployerTeamRoute: AuthenticatedEmployerTeamRoute,
   AuthenticatedOnboardingCandidateRoute: AuthenticatedOnboardingCandidateRoute,
 }
 
@@ -388,6 +551,8 @@ const rootRouteChildren: RootRouteChildren = {
   ForgotPasswordRoute: ForgotPasswordRoute,
   JobsRoute: JobsRouteWithChildren,
   ResetPasswordRoute: ResetPasswordRoute,
+  CSlugRoute: CSlugRoute,
+  InviteTokenRoute: InviteTokenRoute,
   SignupCandidateRoute: SignupCandidateRoute,
   SignupEmployerRoute: SignupEmployerRoute,
   USlugRoute: USlugRoute,
@@ -395,13 +560,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
