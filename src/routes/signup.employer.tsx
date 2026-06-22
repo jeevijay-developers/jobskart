@@ -81,7 +81,7 @@ function EmployerSignupPage() {
             <button
               type="button"
               onClick={() => setIndex(0)}
-              className="ml-2 font-semibold text-emerald-600 hover:underline"
+              className="ml-2 font-semibold text-primary hover:underline"
             >
               Change
             </button>

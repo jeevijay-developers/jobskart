@@ -55,6 +55,8 @@
   --color-sidebar-ring: var(--sidebar-ring);
   --shadow-card: 0 2px 12px rgba(26, 85, 189, 0.08);
   --shadow-card-hover: 0 8px 28px rgba(26, 85, 189, 0.14);
+  --shadow-elegant: 0 24px 60px -24px color-mix(in oklab, var(--primary) 45%, transparent);
+  --shadow-soft: 0 20px 50px -24px rgba(15, 23, 42, 0.25);
 }
 
 :root {

@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, Loader2, ShieldCheck, Sparkles, Zap } from "lucide-react";
+import { ArrowLeft, ArrowRight, Briefcase, Loader2, ShieldCheck, Target } from "lucide-react";
 import { type ReactNode, useEffect, useRef } from "react";
 import logoAsset from "@/assets/jobskart-logo.png.asset.json";
 import { Link } from "@tanstack/react-router";
@@ -27,9 +27,9 @@ interface Props {
 }
 
 const proofPoints = [
-  { icon: Sparkles, t: "AI-recommended matches" },
+  { icon: Target, t: "Smart matches by role & city" },
   { icon: ShieldCheck, t: "Verified employers only" },
-  { icon: Zap, t: "Apply in one tap" },
+  { icon: Briefcase, t: "Apply in one tap" },
 ];
 
 export function Questionnaire({
@@ -44,7 +44,7 @@ export function Questionnaire({
   brandKicker = "JobsKart for everyone",
   brandLines = [
     "Join 50 lakh+ Indians who hire & get hired here.",
-    "Skip the boring forms — answer one question at a time.",
+    "One question at a time — no boring forms.",
   ],
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -52,7 +52,6 @@ export function Questionnaire({
   const current = steps[index];
   const isLast = index === total - 1;
 
-  // Focus first input on step change
   useEffect(() => {
     const t = setTimeout(() => {
       const el = containerRef.current?.querySelector<HTMLElement>(
@@ -86,33 +85,26 @@ export function Questionnaire({
   return (
     <div className="grid min-h-screen lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
       {/* Brand panel */}
-      <aside
-        className="relative hidden overflow-hidden p-10 lg:flex lg:flex-col lg:justify-between"
-        style={{
-          background:
-            "radial-gradient(circle at 20% 10%, rgba(16,185,129,0.30), transparent 55%), linear-gradient(160deg, #0f1b3d 0%, #1e3a5f 100%)",
-          color: "rgba(245,240,224,0.95)",
-        }}
-      >
+      <aside className="relative hidden overflow-hidden bg-gradient-to-br from-primary via-primary to-primary-dark p-10 text-primary-foreground lg:flex lg:flex-col lg:justify-between">
         <Link to="/" className="inline-flex items-center gap-2 w-fit">
           <img src={logoAsset.url} alt="JobsKart" className="h-9 w-auto brightness-0 invert" />
         </Link>
 
         <div className="relative z-10 max-w-md">
-          <span className="inline-flex items-center rounded-full bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-emerald-300 ring-1 ring-emerald-400/30">
+          <span className="inline-flex items-center rounded-full bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-white ring-1 ring-white/25">
             {brandKicker}
           </span>
           <h2 className="mt-6 text-4xl font-bold leading-tight">
             {side === "employer" ? "Hire faster. Hire smarter." : "Find work that fits your life."}
           </h2>
-          <p className="mt-4 text-base text-white/70">{brandLines[0]}</p>
-          <p className="mt-1 text-sm text-white/50">{brandLines[1]}</p>
+          <p className="mt-4 text-base text-white/80">{brandLines[0]}</p>
+          <p className="mt-1 text-sm text-white/60">{brandLines[1]}</p>
 
           <ul className="mt-10 space-y-4">
             {proofPoints.map((p) => (
-              <li key={p.t} className="flex items-center gap-3 text-sm text-white/85">
-                <span className="grid h-9 w-9 place-items-center rounded-full bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-400/30">
-                  <p.icon className="h-4 w-4" />
+              <li key={p.t} className="flex items-center gap-3 text-sm text-white/90">
+                <span className="grid h-9 w-9 place-items-center rounded-full bg-white/12 text-white ring-1 ring-white/25">
+                  <p.icon className="h-4 w-4" strokeWidth={2.25} />
                 </span>
                 {p.t}
               </li>
@@ -120,21 +112,28 @@ export function Questionnaire({
           </ul>
         </div>
 
-        <div className="relative z-10 text-xs text-white/40">
+        <div className="relative z-10 text-xs text-white/50">
           © {new Date().getFullYear()} JobsKart · Made in India
         </div>
 
-        {/* Decorative orbs */}
+        {/* subtle overlay grid */}
         <div
           aria-hidden
-          className="pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full opacity-40 blur-3xl"
-          style={{ background: "radial-gradient(closest-side, #10b981, transparent)" }}
+          className="pointer-events-none absolute inset-0 opacity-[0.06]"
+          style={{
+            backgroundImage:
+              "linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px)",
+            backgroundSize: "44px 44px",
+          }}
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-white/10 blur-3xl"
         />
       </aside>
 
       {/* Question panel */}
       <main className="flex flex-col bg-background">
-        {/* Top bar */}
         <div className="flex items-center justify-between border-b border-border px-6 py-4 lg:px-10">
           <Link to="/" className="flex items-center gap-2 lg:hidden">
             <img src={logoAsset.url} alt="JobsKart" className="h-7 w-auto" />
@@ -146,7 +145,7 @@ export function Questionnaire({
             <Link
               to={loginHref.to}
               search={loginHref.search}
-              className="text-sm font-semibold text-primary hover:text-primary/80"
+              className="text-sm font-semibold text-primary hover:text-primary-dark"
             >
               Already have an account? Log in
             </Link>
@@ -155,7 +154,6 @@ export function Questionnaire({
           )}
         </div>
 
-        {/* Progress dots */}
         <div className="px-6 pt-6 lg:px-10">
           <div className="flex gap-1.5">
             {steps.map((s, i) => (
@@ -166,7 +164,7 @@ export function Questionnaire({
                 disabled={i > index}
                 className={`h-1.5 flex-1 rounded-full transition-all ${
                   i < index
-                    ? "bg-emerald-500 cursor-pointer"
+                    ? "bg-primary cursor-pointer"
                     : i === index
                       ? "bg-foreground"
                       : "bg-border"
@@ -180,7 +178,6 @@ export function Questionnaire({
           </p>
         </div>
 
-        {/* The question */}
         <div
           ref={containerRef}
           className="flex flex-1 items-start justify-center px-6 py-10 lg:px-10 lg:py-16"
@@ -212,7 +209,6 @@ export function Questionnaire({
           </div>
         </div>
 
-        {/* Footer actions */}
         <div className="sticky bottom-0 border-t border-border bg-background/95 px-6 py-4 backdrop-blur lg:px-10">
           <div className="mx-auto flex w-full max-w-xl items-center justify-between gap-3">
             <button
@@ -227,11 +223,7 @@ export function Questionnaire({
               type="button"
               onClick={goNext}
               disabled={submitting}
-              className="inline-flex h-12 items-center gap-2 rounded-xl px-6 text-sm font-semibold shadow-[0_8px_24px_-8px_rgba(16,185,129,0.6)] transition-all hover:translate-y-[-1px]"
-              style={{
-                background: "linear-gradient(135deg,#10b981 0%, #059669 100%)",
-                color: "#fff",
-              }}
+              className="inline-flex h-12 items-center gap-2 rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] transition-all hover:translate-y-[-1px] hover:bg-primary-dark disabled:opacity-60"
             >
               {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
               {isLast ? submitLabel : "Continue"}
@@ -253,7 +245,7 @@ export function BigInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      className={`w-full border-0 border-b-2 border-border bg-transparent px-1 py-3 text-2xl font-medium text-foreground placeholder:text-muted-foreground/50 focus:border-emerald-500 focus:outline-none focus:ring-0 ${props.className ?? ""}`}
+      className={`w-full border-0 border-b-2 border-border bg-transparent px-1 py-3 text-2xl font-medium text-foreground placeholder:text-muted-foreground/50 focus:border-primary focus:outline-none focus:ring-0 ${props.className ?? ""}`}
     />
   );
 }
@@ -262,7 +254,7 @@ export function BigTextarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElem
   return (
     <textarea
       {...props}
-      className={`w-full resize-none border-0 border-b-2 border-border bg-transparent px-1 py-3 text-lg text-foreground placeholder:text-muted-foreground/50 focus:border-emerald-500 focus:outline-none focus:ring-0 ${props.className ?? ""}`}
+      className={`w-full resize-none border-0 border-b-2 border-border bg-transparent px-1 py-3 text-lg text-foreground placeholder:text-muted-foreground/50 focus:border-primary focus:outline-none focus:ring-0 ${props.className ?? ""}`}
     />
   );
 }
@@ -297,7 +289,7 @@ export function ChipChoice<T extends string>({
             onClick={() => toggle(o.value)}
             className={`group rounded-xl border-2 p-4 text-left transition-all ${
               on
-                ? "border-emerald-500 bg-emerald-500/5 shadow-[0_4px_16px_-8px_rgba(16,185,129,0.4)]"
+                ? "border-primary bg-primary/5 shadow-[0_4px_16px_-8px_rgba(26,85,189,0.4)]"
                 : "border-border bg-card hover:border-foreground/30"
             }`}
           >
@@ -342,7 +334,7 @@ export function OtpInput({
               sibling?.focus();
             }
           }}
-          className="h-14 w-12 rounded-xl border-2 border-border bg-card text-center text-xl font-bold text-foreground focus:border-emerald-500 focus:outline-none"
+          className="h-14 w-12 rounded-xl border-2 border-border bg-card text-center text-xl font-bold text-foreground focus:border-primary focus:outline-none"
         />
       ))}
     </div>

@@ -1,6 +1,6 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Briefcase, MapPin, ShieldCheck, Sparkles } from "lucide-react";
+import { Briefcase, Compass, MapPin, ShieldCheck } from "lucide-react";
 import { Navbar } from "@/components/site/Navbar";
 import { Footer } from "@/components/site/Footer";
 import { Chip } from "@/components/candidate/primitives";
@@ -70,7 +70,7 @@ function PublicProfile() {
               <p className="text-sm text-foreground/90 capitalize">{c.experience_status}{c.years_experience ? ` · ${c.years_experience} yrs` : ""}</p>
               {c.last_role && <p className="text-xs text-muted-foreground">Last role: {c.last_role}</p>}
             </Section>
-            <Section title="Looking for" icon={Sparkles}>
+            <Section title="Looking for" icon={Compass}>
               <p className="text-sm text-foreground/90">{c.preferred_job_types?.join(", ") || "—"}</p>
               {c.preferred_cities?.length ? <p className="text-xs text-muted-foreground">Cities: {c.preferred_cities.join(", ")}</p> : null}
             </Section>

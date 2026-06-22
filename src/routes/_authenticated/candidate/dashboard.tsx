@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowRight, Bookmark, Briefcase, Calendar, CheckCircle2, FileText, Sparkles, TrendingUp } from "lucide-react";
+import { ArrowRight, Bookmark, Briefcase, Calendar, CheckCircle2, FileText, ListChecks, TrendingUp } from "lucide-react";
 import { CandidateShell } from "@/components/candidate/CandidateShell";
 import { JobCard, type JobCardData } from "@/components/site/JobCard";
 import { supabase } from "@/integrations/supabase/client";
@@ -127,7 +127,7 @@ function CandidateDashboard() {
         <div className="space-y-6">
           {missing.length > 0 && (
             <div className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
-              <div className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" /><h3 className="text-sm font-semibold text-foreground">Finish your profile</h3></div>
+              <div className="flex items-center gap-2"><ListChecks className="h-4 w-4 text-primary" /><h3 className="text-sm font-semibold text-foreground">Finish your profile</h3></div>
               <ul className="mt-3 space-y-2">
                 {missing.map((m) => (
                   <li key={m} className="flex items-center gap-2 text-sm text-foreground/80">
