@@ -89,15 +89,13 @@ function Hero() {
   ];
   const submit = (e?: React.FormEvent) => {
     e?.preventDefault();
-    navigate({ to: "/jobs" });
-    // params persisted in jobs page when implemented
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams();
-      if (q) params.set("q", q);
-      if (city) params.set("city", city);
-      const search = params.toString();
-      if (search) window.history.replaceState({}, "", `/jobs?${search}`);
-    }
+    navigate({
+      to: "/jobs",
+      search: {
+        ...(q.trim() ? { q: q.trim() } : {}),
+        ...(city.trim() ? { city: city.trim() } : {}),
+      },
+    });
   };
 
   return (
@@ -165,6 +163,8 @@ function Hero() {
             {popularTags.map((t) => (
               <button
                 key={t}
+                type="button"
+                onClick={() => navigate({ to: "/jobs", search: { q: t } })}
                 className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground/80 transition-colors hover:border-primary hover:bg-primary-light hover:text-primary"
               >
                 {t}

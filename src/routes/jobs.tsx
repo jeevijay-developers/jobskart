@@ -1,12 +1,23 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Briefcase, Filter, Loader2, Search, X } from "lucide-react";
+import { z } from "zod";
 import { Navbar } from "@/components/site/Navbar";
 import { Footer } from "@/components/site/Footer";
 import { JobCard, type JobCardData } from "@/components/site/JobCard";
 import { supabase } from "@/integrations/supabase/client";
 
+const jobsSearchSchema = z.object({
+  q: z.string().optional(),
+  city: z.string().optional(),
+  category: z.string().optional(),
+  jobType: z.string().optional(),
+  workMode: z.string().optional(),
+  minSalary: z.string().optional(),
+});
+
 export const Route = createFileRoute("/jobs")({
+  validateSearch: jobsSearchSchema,
   head: () => ({
     meta: [
       { title: "Browse Jobs · JobsKart" },
@@ -29,12 +40,32 @@ type Filters = {
 
 const empty: Filters = { q: "", city: "", category: "", jobType: "", workMode: "", minSalary: "" };
 
+function filtersFromSearch(s: z.infer<typeof jobsSearchSchema>): Filters {
+  return {
+    q: s.q ?? "",
+    city: s.city ?? "",
+    category: s.category ?? "",
+    jobType: s.jobType ?? "",
+    workMode: s.workMode ?? "",
+    minSalary: s.minSalary ?? "",
+  };
+}
+
 function JobsPage() {
-  const [filters, setFilters] = useState<Filters>(empty);
-  const [draft, setDraft] = useState<Filters>(empty);
+  const urlSearch = useSearch({ from: "/jobs" });
+  const navigate = useNavigate({ from: "/jobs" });
+  const [filters, setFilters] = useState<Filters>(() => filtersFromSearch(urlSearch));
+  const [draft, setDraft] = useState<Filters>(() => filtersFromSearch(urlSearch));
   const [jobs, setJobs] = useState<JobCardData[]>([]);
   const [loading, setLoading] = useState(true);
   const [mobileFilters, setMobileFilters] = useState(false);
+
+  // Keep state in sync when the URL changes (e.g. navigating from Home).
+  useEffect(() => {
+    const next = filtersFromSearch(urlSearch);
+    setFilters(next);
+    setDraft(next);
+  }, [urlSearch.q, urlSearch.city, urlSearch.category, urlSearch.jobType, urlSearch.workMode, urlSearch.minSalary]);
 
   useEffect(() => {
     let cancelled = false;
@@ -71,10 +102,22 @@ function JobsPage() {
   const apply = () => {
     setFilters(draft);
     setMobileFilters(false);
+    navigate({
+      search: {
+        ...(draft.q ? { q: draft.q } : {}),
+        ...(draft.city ? { city: draft.city } : {}),
+        ...(draft.category ? { category: draft.category } : {}),
+        ...(draft.jobType ? { jobType: draft.jobType } : {}),
+        ...(draft.workMode ? { workMode: draft.workMode } : {}),
+        ...(draft.minSalary ? { minSalary: draft.minSalary } : {}),
+      },
+      replace: true,
+    });
   };
   const reset = () => {
     setDraft(empty);
     setFilters(empty);
+    navigate({ search: {}, replace: true });
   };
 
   const activeCount = useMemo(() => Object.values(filters).filter(Boolean).length, [filters]);
