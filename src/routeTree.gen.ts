@@ -25,6 +25,7 @@ import { Route as CandidateLoginRouteImport } from './routes/candidate.login'
 import { Route as CSlugRouteImport } from './routes/c.$slug'
 import { Route as AuthenticatedOnboardingCandidateRouteImport } from './routes/_authenticated/onboarding/candidate'
 import { Route as AuthenticatedEmployerTeamRouteImport } from './routes/_authenticated/employer/team'
+import { Route as AuthenticatedEmployerReportsRouteImport } from './routes/_authenticated/employer/reports'
 import { Route as AuthenticatedEmployerJobsRouteImport } from './routes/_authenticated/employer/jobs'
 import { Route as AuthenticatedEmployerDatabaseRouteImport } from './routes/_authenticated/employer/database'
 import { Route as AuthenticatedEmployerDashboardRouteImport } from './routes/_authenticated/employer/dashboard'
@@ -117,6 +118,12 @@ const AuthenticatedEmployerTeamRoute =
   AuthenticatedEmployerTeamRouteImport.update({
     id: '/employer/team',
     path: '/employer/team',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedEmployerReportsRoute =
+  AuthenticatedEmployerReportsRouteImport.update({
+    id: '/employer/reports',
+    path: '/employer/reports',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedEmployerJobsRoute =
@@ -215,6 +222,7 @@ export interface FileRoutesByFullPath {
   '/employer/dashboard': typeof AuthenticatedEmployerDashboardRoute
   '/employer/database': typeof AuthenticatedEmployerDatabaseRoute
   '/employer/jobs': typeof AuthenticatedEmployerJobsRouteWithChildren
+  '/employer/reports': typeof AuthenticatedEmployerReportsRoute
   '/employer/team': typeof AuthenticatedEmployerTeamRoute
   '/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
   '/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
@@ -244,6 +252,7 @@ export interface FileRoutesByTo {
   '/employer/dashboard': typeof AuthenticatedEmployerDashboardRoute
   '/employer/database': typeof AuthenticatedEmployerDatabaseRoute
   '/employer/jobs': typeof AuthenticatedEmployerJobsRouteWithChildren
+  '/employer/reports': typeof AuthenticatedEmployerReportsRoute
   '/employer/team': typeof AuthenticatedEmployerTeamRoute
   '/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
   '/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
@@ -275,6 +284,7 @@ export interface FileRoutesById {
   '/_authenticated/employer/dashboard': typeof AuthenticatedEmployerDashboardRoute
   '/_authenticated/employer/database': typeof AuthenticatedEmployerDatabaseRoute
   '/_authenticated/employer/jobs': typeof AuthenticatedEmployerJobsRouteWithChildren
+  '/_authenticated/employer/reports': typeof AuthenticatedEmployerReportsRoute
   '/_authenticated/employer/team': typeof AuthenticatedEmployerTeamRoute
   '/_authenticated/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
   '/_authenticated/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
@@ -306,6 +316,7 @@ export interface FileRouteTypes {
     | '/employer/dashboard'
     | '/employer/database'
     | '/employer/jobs'
+    | '/employer/reports'
     | '/employer/team'
     | '/onboarding/candidate'
     | '/employer/jobs/new'
@@ -335,6 +346,7 @@ export interface FileRouteTypes {
     | '/employer/dashboard'
     | '/employer/database'
     | '/employer/jobs'
+    | '/employer/reports'
     | '/employer/team'
     | '/onboarding/candidate'
     | '/employer/jobs/new'
@@ -365,6 +377,7 @@ export interface FileRouteTypes {
     | '/_authenticated/employer/dashboard'
     | '/_authenticated/employer/database'
     | '/_authenticated/employer/jobs'
+    | '/_authenticated/employer/reports'
     | '/_authenticated/employer/team'
     | '/_authenticated/onboarding/candidate'
     | '/_authenticated/employer/jobs/new'
@@ -503,6 +516,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedEmployerTeamRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/employer/reports': {
+      id: '/_authenticated/employer/reports'
+      path: '/employer/reports'
+      fullPath: '/employer/reports'
+      preLoaderRoute: typeof AuthenticatedEmployerReportsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/employer/jobs': {
       id: '/_authenticated/employer/jobs'
       path: '/employer/jobs'
@@ -617,6 +637,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedEmployerDashboardRoute: typeof AuthenticatedEmployerDashboardRoute
   AuthenticatedEmployerDatabaseRoute: typeof AuthenticatedEmployerDatabaseRoute
   AuthenticatedEmployerJobsRoute: typeof AuthenticatedEmployerJobsRouteWithChildren
+  AuthenticatedEmployerReportsRoute: typeof AuthenticatedEmployerReportsRoute
   AuthenticatedEmployerTeamRoute: typeof AuthenticatedEmployerTeamRoute
   AuthenticatedOnboardingCandidateRoute: typeof AuthenticatedOnboardingCandidateRoute
 }
@@ -632,6 +653,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedEmployerDashboardRoute: AuthenticatedEmployerDashboardRoute,
   AuthenticatedEmployerDatabaseRoute: AuthenticatedEmployerDatabaseRoute,
   AuthenticatedEmployerJobsRoute: AuthenticatedEmployerJobsRouteWithChildren,
+  AuthenticatedEmployerReportsRoute: AuthenticatedEmployerReportsRoute,
   AuthenticatedEmployerTeamRoute: AuthenticatedEmployerTeamRoute,
   AuthenticatedOnboardingCandidateRoute: AuthenticatedOnboardingCandidateRoute,
 }

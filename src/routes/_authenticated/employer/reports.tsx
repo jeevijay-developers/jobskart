@@ -32,19 +32,19 @@ function ReportsPage() {
         const jobIds = (jobs || []).map((j) => j.id);
         const safeIds = jobIds.length ? jobIds : ["00000000-0000-0000-0000-000000000000"];
         const [
-          { count: submitted },
-          { count: reviewed },
+          { count: applied },
           { count: shortlisted },
           { count: interview },
           { count: hired },
           { count: rejected },
+          { count: withdrawn },
         ] = await Promise.all([
-          supabase.from("applications").select("id", { count: "exact", head: true }).in("job_id", safeIds).eq("status", "submitted"),
-          supabase.from("applications").select("id", { count: "exact", head: true }).in("job_id", safeIds).eq("status", "reviewed"),
+          supabase.from("applications").select("id", { count: "exact", head: true }).in("job_id", safeIds).eq("status", "applied"),
           supabase.from("applications").select("id", { count: "exact", head: true }).in("job_id", safeIds).eq("status", "shortlisted"),
           supabase.from("applications").select("id", { count: "exact", head: true }).in("job_id", safeIds).eq("status", "interview"),
           supabase.from("applications").select("id", { count: "exact", head: true }).in("job_id", safeIds).eq("status", "hired"),
           supabase.from("applications").select("id", { count: "exact", head: true }).in("job_id", safeIds).eq("status", "rejected"),
+          supabase.from("applications").select("id", { count: "exact", head: true }).in("job_id", safeIds).eq("status", "withdrawn"),
         ]);
         setStats({
           jobs: (jobs || []).length,
@@ -53,12 +53,12 @@ function ReportsPage() {
           hired: hired || 0,
         });
         setFunnel({
-          submitted: submitted || 0,
-          reviewed: reviewed || 0,
+          submitted: applied || 0,
+          reviewed: 0,
           shortlisted: shortlisted || 0,
           interview: interview || 0,
           hired: hired || 0,
-          rejected: rejected || 0,
+          rejected: (rejected || 0) + (withdrawn || 0),
         });
       }
       setLoading(false);
