@@ -418,7 +418,8 @@ function DualCTA() {
               Build your profile in 60 seconds and start applying to verified jobs across India.
             </p>
             <Link
-              to="/signup/candidate"
+              to="/auth"
+              search={{ tab: "candidate" }}
               className="mt-8 inline-flex h-12 items-center gap-2 rounded-xl bg-background px-6 text-sm font-bold text-primary shadow-lg transition-transform hover:translate-y-[-1px]"
             >
               Find jobs <ArrowRight className="h-4 w-4" />
