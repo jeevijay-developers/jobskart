@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { FileText, Loader2, Sparkles as Wand2, Upload, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { parseResume, type ParsedResumePayload } from "@/lib/resume.functions";
+import { RESUME_ACCEPT, validateResumeFile } from "@/lib/validators";
 
 type Props = {
   onParsed: (data: ParsedResumePayload, file: File) => void;
@@ -18,13 +19,16 @@ export function ResumeUpload({ onParsed }: Props) {
   const handleFile = async (file: File) => {
     setError(null);
     setDone(null);
-    if (file.size > 10 * 1024 * 1024) {
-      setError("File too large. Max 10 MB.");
+    const fileErr = validateResumeFile(file);
+    if (fileErr) {
+      setError(fileErr);
       return;
     }
-    const allowed = ["application/pdf"];
-    if (!allowed.includes(file.type)) {
-      setError("Please upload a PDF (DOCX support coming soon).");
+    if (file.type !== "application/pdf") {
+      // Non-PDF uploads are accepted, but AI parsing only works on PDFs today.
+      onParsed({ skills: [], experiences: [], education: [] }, file);
+      setDone(file.name);
+      toast.success("Resume uploaded. PDF is needed for auto-fill.");
       return;
     }
     setLoading(true);
@@ -73,7 +77,7 @@ export function ResumeUpload({ onParsed }: Props) {
                 {done}
               </span>
             )}
-            <span className="text-xs text-muted-foreground">PDF · max 10 MB</span>
+            <span className="text-xs text-muted-foreground">PDF / DOC / DOCX / PNG / JPG · max 5 MB</span>
           </div>
 
           {error && (
@@ -87,7 +91,7 @@ export function ResumeUpload({ onParsed }: Props) {
       <input
         ref={inputRef}
         type="file"
-        accept="application/pdf"
+        accept={RESUME_ACCEPT}
         className="hidden"
         onChange={(e) => {
           const f = e.target.files?.[0];
