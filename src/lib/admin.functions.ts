@@ -175,8 +175,8 @@ export const adminListResumes = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: docs, error } = await supabaseAdmin
       .from("candidate_documents")
-      .select("id, user_id, file_name, file_path, created_at, kind, profiles:user_id(full_name, mobile, email)")
-      .eq("kind", "resume")
+      .select("id, user_id, file_name, file_path, created_at, doc_type, profiles:user_id(full_name, mobile, email)")
+      .eq("doc_type", "resume")
       .order("created_at", { ascending: false })
       .limit(200);
     if (error) throw new Error(error.message);
