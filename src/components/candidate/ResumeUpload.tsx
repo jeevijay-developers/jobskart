@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { FileText, Loader2, Sparkles as Wand2, Upload, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { parseResume, type ParsedResumePayload } from "@/lib/resume.functions";
+import { RESUME_ACCEPT, validateResumeFile } from "@/lib/validators";
 
 type Props = {
   onParsed: (data: ParsedResumePayload, file: File) => void;
