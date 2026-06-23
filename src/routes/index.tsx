@@ -411,7 +411,7 @@ function DualCTA() {
             <p className="text-xs font-bold uppercase tracking-wider text-white/70">
               For job seekers
             </p>
-            <h3 className="mt-3 text-3xl font-bold leading-tight sm:text-4xl">
+            <h3 className="mt-3 text-2xl font-bold leading-tight sm:text-4xl">
               Your next job is one tap away.
             </h3>
             <p className="mt-4 text-white/80">
