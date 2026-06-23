@@ -91,7 +91,7 @@ export function ResumeUpload({ onParsed }: Props) {
       <input
         ref={inputRef}
         type="file"
-        accept="application/pdf"
+        accept={RESUME_ACCEPT}
         className="hidden"
         onChange={(e) => {
           const f = e.target.files?.[0];
