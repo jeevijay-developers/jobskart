@@ -326,7 +326,7 @@ function TrendingRoles() {
             <p className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary">
               <TrendingUp className="h-3.5 w-3.5" strokeWidth={2.5} /> Trending this week
             </p>
-            <h2 className="mt-2 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+            <h2 className="mt-2 text-2xl font-bold tracking-tight text-foreground sm:text-4xl">
               What India is searching for
             </h2>
           </div>
