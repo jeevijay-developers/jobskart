@@ -16,7 +16,7 @@ import { z } from "zod";
 import { AuthShell } from "@/components/site/AuthShell";
 import { OtpInput } from "@/components/wizard/Questionnaire";
 import { supabase } from "@/integrations/supabase/client";
-import { loginWithMobileOtp } from "@/lib/auth-mobile.functions";
+import { loginOrCreateWithMobile } from "@/lib/auth-mobile.functions";
 import type { SignupUserType } from "@/lib/auth";
 
 const searchSchema = z.object({
