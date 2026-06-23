@@ -166,7 +166,7 @@ function MobileLoginForm({
   onSuccess,
 }: {
   userType: SignupUserType;
-  onSuccess: () => Promise<void> | void;
+  onSuccess: (isNew: boolean) => Promise<void> | void;
 }) {
   const [step, setStep] = useState<"mobile" | "otp">("mobile");
   const [mobile, setMobile] = useState("");
@@ -197,14 +197,14 @@ function MobileLoginForm({
     }
     setLoading(true);
     try {
-      const res = await loginWithMobileOtp({ data: { mobile, otp, userType } });
+      const res = await loginOrCreateWithMobile({ data: { mobile, otp, userType } });
       const { error: verifyErr } = await supabase.auth.verifyOtp({
         token_hash: res.tokenHash,
         type: "magiclink",
       });
       if (verifyErr) throw verifyErr;
-      toast.success("Welcome back!");
-      await onSuccess();
+      toast.success(res.isNew ? "Welcome to JobsKart!" : "Welcome back!");
+      await onSuccess(res.isNew);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Could not log in.";
       setError(msg);
