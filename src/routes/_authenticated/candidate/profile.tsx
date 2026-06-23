@@ -508,9 +508,9 @@ function ResumeDialog({ open, onClose, uid, current, onSaved }: { open: boolean;
             if (parsed.full_name) profPatch.full_name = parsed.full_name;
             if (parsed.city) profPatch.city = parsed.city;
 
-            await supabase.from("candidate_profiles").update(candPatch).eq("user_id", uid);
+            await supabase.from("candidate_profiles").update(candPatch as never).eq("user_id", uid);
             if (Object.keys(profPatch).length) {
-              await supabase.from("profiles").update(profPatch).eq("id", uid);
+              await supabase.from("profiles").update(profPatch as never).eq("id", uid);
             }
             if (parsed.experiences?.length) {
               const rows = parsed.experiences
