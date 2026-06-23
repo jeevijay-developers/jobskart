@@ -23,15 +23,20 @@ import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as EmployerLoginRouteImport } from './routes/employer.login'
 import { Route as CandidateLoginRouteImport } from './routes/candidate.login'
 import { Route as CSlugRouteImport } from './routes/c.$slug'
+import { Route as AuthenticatedOnboardingEmployerRouteImport } from './routes/_authenticated/onboarding/employer'
 import { Route as AuthenticatedOnboardingCandidateRouteImport } from './routes/_authenticated/onboarding/candidate'
 import { Route as AuthenticatedEmployerTeamRouteImport } from './routes/_authenticated/employer/team'
+import { Route as AuthenticatedEmployerReportsRouteImport } from './routes/_authenticated/employer/reports'
 import { Route as AuthenticatedEmployerJobsRouteImport } from './routes/_authenticated/employer/jobs'
+import { Route as AuthenticatedEmployerDatabaseRouteImport } from './routes/_authenticated/employer/database'
 import { Route as AuthenticatedEmployerDashboardRouteImport } from './routes/_authenticated/employer/dashboard'
+import { Route as AuthenticatedEmployerCreditsRouteImport } from './routes/_authenticated/employer/credits'
 import { Route as AuthenticatedEmployerCompanyRouteImport } from './routes/_authenticated/employer/company'
 import { Route as AuthenticatedCandidateSavedRouteImport } from './routes/_authenticated/candidate/saved'
 import { Route as AuthenticatedCandidateProfileRouteImport } from './routes/_authenticated/candidate/profile'
 import { Route as AuthenticatedCandidateDashboardRouteImport } from './routes/_authenticated/candidate/dashboard'
 import { Route as AuthenticatedCandidateApplicationsRouteImport } from './routes/_authenticated/candidate/applications'
+import { Route as ApiPublicWebhooksRazorpayRouteImport } from './routes/api/public/webhooks/razorpay'
 import { Route as AuthenticatedEmployerJobsNewRouteImport } from './routes/_authenticated/employer/jobs.new'
 import { Route as AuthenticatedEmployerJobsJobIdApplicantsRouteImport } from './routes/_authenticated/employer/jobs.$jobId.applicants'
 
@@ -104,6 +109,12 @@ const CSlugRoute = CSlugRouteImport.update({
   path: '/c/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedOnboardingEmployerRoute =
+  AuthenticatedOnboardingEmployerRouteImport.update({
+    id: '/onboarding/employer',
+    path: '/onboarding/employer',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedOnboardingCandidateRoute =
   AuthenticatedOnboardingCandidateRouteImport.update({
     id: '/onboarding/candidate',
@@ -116,16 +127,34 @@ const AuthenticatedEmployerTeamRoute =
     path: '/employer/team',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedEmployerReportsRoute =
+  AuthenticatedEmployerReportsRouteImport.update({
+    id: '/employer/reports',
+    path: '/employer/reports',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedEmployerJobsRoute =
   AuthenticatedEmployerJobsRouteImport.update({
     id: '/employer/jobs',
     path: '/employer/jobs',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedEmployerDatabaseRoute =
+  AuthenticatedEmployerDatabaseRouteImport.update({
+    id: '/employer/database',
+    path: '/employer/database',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedEmployerDashboardRoute =
   AuthenticatedEmployerDashboardRouteImport.update({
     id: '/employer/dashboard',
     path: '/employer/dashboard',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedEmployerCreditsRoute =
+  AuthenticatedEmployerCreditsRouteImport.update({
+    id: '/employer/credits',
+    path: '/employer/credits',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedEmployerCompanyRoute =
@@ -157,6 +186,12 @@ const AuthenticatedCandidateApplicationsRoute =
     id: '/candidate/applications',
     path: '/candidate/applications',
     getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const ApiPublicWebhooksRazorpayRoute =
+  ApiPublicWebhooksRazorpayRouteImport.update({
+    id: '/api/public/webhooks/razorpay',
+    path: '/api/public/webhooks/razorpay',
+    getParentRoute: () => rootRouteImport,
   } as any)
 const AuthenticatedEmployerJobsNewRoute =
   AuthenticatedEmployerJobsNewRouteImport.update({
@@ -190,11 +225,16 @@ export interface FileRoutesByFullPath {
   '/candidate/profile': typeof AuthenticatedCandidateProfileRoute
   '/candidate/saved': typeof AuthenticatedCandidateSavedRoute
   '/employer/company': typeof AuthenticatedEmployerCompanyRoute
+  '/employer/credits': typeof AuthenticatedEmployerCreditsRoute
   '/employer/dashboard': typeof AuthenticatedEmployerDashboardRoute
+  '/employer/database': typeof AuthenticatedEmployerDatabaseRoute
   '/employer/jobs': typeof AuthenticatedEmployerJobsRouteWithChildren
+  '/employer/reports': typeof AuthenticatedEmployerReportsRoute
   '/employer/team': typeof AuthenticatedEmployerTeamRoute
   '/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
+  '/onboarding/employer': typeof AuthenticatedOnboardingEmployerRoute
   '/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
+  '/api/public/webhooks/razorpay': typeof ApiPublicWebhooksRazorpayRoute
   '/employer/jobs/$jobId/applicants': typeof AuthenticatedEmployerJobsJobIdApplicantsRoute
 }
 export interface FileRoutesByTo {
@@ -216,11 +256,16 @@ export interface FileRoutesByTo {
   '/candidate/profile': typeof AuthenticatedCandidateProfileRoute
   '/candidate/saved': typeof AuthenticatedCandidateSavedRoute
   '/employer/company': typeof AuthenticatedEmployerCompanyRoute
+  '/employer/credits': typeof AuthenticatedEmployerCreditsRoute
   '/employer/dashboard': typeof AuthenticatedEmployerDashboardRoute
+  '/employer/database': typeof AuthenticatedEmployerDatabaseRoute
   '/employer/jobs': typeof AuthenticatedEmployerJobsRouteWithChildren
+  '/employer/reports': typeof AuthenticatedEmployerReportsRoute
   '/employer/team': typeof AuthenticatedEmployerTeamRoute
   '/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
+  '/onboarding/employer': typeof AuthenticatedOnboardingEmployerRoute
   '/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
+  '/api/public/webhooks/razorpay': typeof ApiPublicWebhooksRazorpayRoute
   '/employer/jobs/$jobId/applicants': typeof AuthenticatedEmployerJobsJobIdApplicantsRoute
 }
 export interface FileRoutesById {
@@ -244,11 +289,16 @@ export interface FileRoutesById {
   '/_authenticated/candidate/profile': typeof AuthenticatedCandidateProfileRoute
   '/_authenticated/candidate/saved': typeof AuthenticatedCandidateSavedRoute
   '/_authenticated/employer/company': typeof AuthenticatedEmployerCompanyRoute
+  '/_authenticated/employer/credits': typeof AuthenticatedEmployerCreditsRoute
   '/_authenticated/employer/dashboard': typeof AuthenticatedEmployerDashboardRoute
+  '/_authenticated/employer/database': typeof AuthenticatedEmployerDatabaseRoute
   '/_authenticated/employer/jobs': typeof AuthenticatedEmployerJobsRouteWithChildren
+  '/_authenticated/employer/reports': typeof AuthenticatedEmployerReportsRoute
   '/_authenticated/employer/team': typeof AuthenticatedEmployerTeamRoute
   '/_authenticated/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
+  '/_authenticated/onboarding/employer': typeof AuthenticatedOnboardingEmployerRoute
   '/_authenticated/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
+  '/api/public/webhooks/razorpay': typeof ApiPublicWebhooksRazorpayRoute
   '/_authenticated/employer/jobs/$jobId/applicants': typeof AuthenticatedEmployerJobsJobIdApplicantsRoute
 }
 export interface FileRouteTypes {
@@ -272,11 +322,16 @@ export interface FileRouteTypes {
     | '/candidate/profile'
     | '/candidate/saved'
     | '/employer/company'
+    | '/employer/credits'
     | '/employer/dashboard'
+    | '/employer/database'
     | '/employer/jobs'
+    | '/employer/reports'
     | '/employer/team'
     | '/onboarding/candidate'
+    | '/onboarding/employer'
     | '/employer/jobs/new'
+    | '/api/public/webhooks/razorpay'
     | '/employer/jobs/$jobId/applicants'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -298,11 +353,16 @@ export interface FileRouteTypes {
     | '/candidate/profile'
     | '/candidate/saved'
     | '/employer/company'
+    | '/employer/credits'
     | '/employer/dashboard'
+    | '/employer/database'
     | '/employer/jobs'
+    | '/employer/reports'
     | '/employer/team'
     | '/onboarding/candidate'
+    | '/onboarding/employer'
     | '/employer/jobs/new'
+    | '/api/public/webhooks/razorpay'
     | '/employer/jobs/$jobId/applicants'
   id:
     | '__root__'
@@ -325,11 +385,16 @@ export interface FileRouteTypes {
     | '/_authenticated/candidate/profile'
     | '/_authenticated/candidate/saved'
     | '/_authenticated/employer/company'
+    | '/_authenticated/employer/credits'
     | '/_authenticated/employer/dashboard'
+    | '/_authenticated/employer/database'
     | '/_authenticated/employer/jobs'
+    | '/_authenticated/employer/reports'
     | '/_authenticated/employer/team'
     | '/_authenticated/onboarding/candidate'
+    | '/_authenticated/onboarding/employer'
     | '/_authenticated/employer/jobs/new'
+    | '/api/public/webhooks/razorpay'
     | '/_authenticated/employer/jobs/$jobId/applicants'
   fileRoutesById: FileRoutesById
 }
@@ -347,6 +412,7 @@ export interface RootRouteChildren {
   SignupCandidateRoute: typeof SignupCandidateRoute
   SignupEmployerRoute: typeof SignupEmployerRoute
   USlugRoute: typeof USlugRoute
+  ApiPublicWebhooksRazorpayRoute: typeof ApiPublicWebhooksRazorpayRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -449,6 +515,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/onboarding/employer': {
+      id: '/_authenticated/onboarding/employer'
+      path: '/onboarding/employer'
+      fullPath: '/onboarding/employer'
+      preLoaderRoute: typeof AuthenticatedOnboardingEmployerRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/onboarding/candidate': {
       id: '/_authenticated/onboarding/candidate'
       path: '/onboarding/candidate'
@@ -463,6 +536,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedEmployerTeamRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/employer/reports': {
+      id: '/_authenticated/employer/reports'
+      path: '/employer/reports'
+      fullPath: '/employer/reports'
+      preLoaderRoute: typeof AuthenticatedEmployerReportsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/employer/jobs': {
       id: '/_authenticated/employer/jobs'
       path: '/employer/jobs'
@@ -470,11 +550,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedEmployerJobsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/employer/database': {
+      id: '/_authenticated/employer/database'
+      path: '/employer/database'
+      fullPath: '/employer/database'
+      preLoaderRoute: typeof AuthenticatedEmployerDatabaseRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/employer/dashboard': {
       id: '/_authenticated/employer/dashboard'
       path: '/employer/dashboard'
       fullPath: '/employer/dashboard'
       preLoaderRoute: typeof AuthenticatedEmployerDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/employer/credits': {
+      id: '/_authenticated/employer/credits'
+      path: '/employer/credits'
+      fullPath: '/employer/credits'
+      preLoaderRoute: typeof AuthenticatedEmployerCreditsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/employer/company': {
@@ -511,6 +605,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/candidate/applications'
       preLoaderRoute: typeof AuthenticatedCandidateApplicationsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/api/public/webhooks/razorpay': {
+      id: '/api/public/webhooks/razorpay'
+      path: '/api/public/webhooks/razorpay'
+      fullPath: '/api/public/webhooks/razorpay'
+      preLoaderRoute: typeof ApiPublicWebhooksRazorpayRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/employer/jobs/new': {
       id: '/_authenticated/employer/jobs/new'
@@ -552,10 +653,14 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCandidateProfileRoute: typeof AuthenticatedCandidateProfileRoute
   AuthenticatedCandidateSavedRoute: typeof AuthenticatedCandidateSavedRoute
   AuthenticatedEmployerCompanyRoute: typeof AuthenticatedEmployerCompanyRoute
+  AuthenticatedEmployerCreditsRoute: typeof AuthenticatedEmployerCreditsRoute
   AuthenticatedEmployerDashboardRoute: typeof AuthenticatedEmployerDashboardRoute
+  AuthenticatedEmployerDatabaseRoute: typeof AuthenticatedEmployerDatabaseRoute
   AuthenticatedEmployerJobsRoute: typeof AuthenticatedEmployerJobsRouteWithChildren
+  AuthenticatedEmployerReportsRoute: typeof AuthenticatedEmployerReportsRoute
   AuthenticatedEmployerTeamRoute: typeof AuthenticatedEmployerTeamRoute
   AuthenticatedOnboardingCandidateRoute: typeof AuthenticatedOnboardingCandidateRoute
+  AuthenticatedOnboardingEmployerRoute: typeof AuthenticatedOnboardingEmployerRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -565,10 +670,14 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCandidateProfileRoute: AuthenticatedCandidateProfileRoute,
   AuthenticatedCandidateSavedRoute: AuthenticatedCandidateSavedRoute,
   AuthenticatedEmployerCompanyRoute: AuthenticatedEmployerCompanyRoute,
+  AuthenticatedEmployerCreditsRoute: AuthenticatedEmployerCreditsRoute,
   AuthenticatedEmployerDashboardRoute: AuthenticatedEmployerDashboardRoute,
+  AuthenticatedEmployerDatabaseRoute: AuthenticatedEmployerDatabaseRoute,
   AuthenticatedEmployerJobsRoute: AuthenticatedEmployerJobsRouteWithChildren,
+  AuthenticatedEmployerReportsRoute: AuthenticatedEmployerReportsRoute,
   AuthenticatedEmployerTeamRoute: AuthenticatedEmployerTeamRoute,
   AuthenticatedOnboardingCandidateRoute: AuthenticatedOnboardingCandidateRoute,
+  AuthenticatedOnboardingEmployerRoute: AuthenticatedOnboardingEmployerRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
@@ -598,17 +707,8 @@ const rootRouteChildren: RootRouteChildren = {
   SignupCandidateRoute: SignupCandidateRoute,
   SignupEmployerRoute: SignupEmployerRoute,
   USlugRoute: USlugRoute,
+  ApiPublicWebhooksRazorpayRoute: ApiPublicWebhooksRazorpayRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

@@ -8,6 +8,8 @@ import { ChipInput, Field, SectionCard } from "@/components/candidate/primitives
 import { supabase } from "@/integrations/supabase/client";
 import { INDIAN_CITIES, SUGGESTED_SKILLS, SUGGESTED_LANGUAGES, ASSETS, JOB_TYPE_OPTIONS, WORK_MODES, EDUCATION_LEVELS } from "@/lib/options";
 import { computeProfileStrength } from "@/lib/profileStrength";
+import { ResumeUpload } from "@/components/candidate/ResumeUpload";
+import type { ParsedResumePayload } from "@/lib/resume.functions";
 
 export const Route = createFileRoute("/_authenticated/onboarding/candidate")({
   head: () => ({ meta: [{ title: "Complete your profile · JobsKart" }] }),
@@ -252,30 +254,69 @@ function OnboardingPage() {
           >
 
         {step === 0 && (
-          <SectionCard title="Tell us about yourself">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Full name" required><input className="form-input" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Your full name" /></Field>
-              <Field label="Mobile number" required hint="10-digit Indian number">
-                <input className="form-input" value={mobile} onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 10))} placeholder="98xxxxxxxx" />
-              </Field>
-              <Field label="Headline" hint="One-line summary about you">
-                <input className="form-input" value={headline} onChange={(e) => setHeadline(e.target.value)} placeholder="e.g. Delivery executive with 2 years exp" />
-              </Field>
-              <Field label="City" required>
-                <select className="form-input" value={city} onChange={(e) => setCity(e.target.value)}>
-                  <option value="">Select city</option>
-                  {INDIAN_CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </Field>
-              <Field label="Date of birth"><input type="date" className="form-input" value={dob} onChange={(e) => setDob(e.target.value)} /></Field>
-              <Field label="Gender">
-                <select className="form-input" value={gender} onChange={(e) => setGender(e.target.value as typeof gender)}>
-                  <option value="">Prefer not to say</option>
-                  <option value="male">Male</option><option value="female">Female</option><option value="other">Other</option>
-                </select>
-              </Field>
-            </div>
-          </SectionCard>
+          <div className="space-y-5">
+            <ResumeUpload
+              onParsed={(d: ParsedResumePayload) => {
+                if (d.full_name && !fullName) setFullName(d.full_name);
+                if (d.mobile && !mobile) setMobile(d.mobile.replace(/\D/g, "").slice(-10));
+                if (d.city && !city) setCity(d.city);
+                if (d.headline) setHeadline(d.headline);
+                if (typeof d.years_experience === "number") {
+                  setYears(d.years_experience);
+                  setExpStatus(d.years_experience > 0 ? "experienced" : "fresher");
+                }
+                if (d.skills?.length) setSkills(Array.from(new Set([...skills, ...d.skills])).slice(0, 25));
+                if (d.experiences?.length) {
+                  setExperiences(
+                    (d.experiences ?? []).map((e: NonNullable<ParsedResumePayload["experiences"]>[number]) => ({
+                      job_title: e.job_title || "",
+                      company_name: e.company_name || "",
+                      start_date: e.start_date || "",
+                      end_date: e.end_date || "",
+                      is_current: !!e.is_current,
+                      description: e.description || "",
+                    })),
+                  );
+                  if (d.experiences[0]?.job_title) setLastRole(d.experiences[0].job_title);
+                }
+                if (d.education?.length) {
+                  setEducations(
+                    (d.education ?? []).map((ed: NonNullable<ParsedResumePayload["education"]>[number]) => ({
+                      level: ed.level || "Graduate",
+                      board_or_university: ed.board_or_university || "",
+                      institute: ed.institute || "",
+                      year_of_passing: ed.year_of_passing ?? "",
+                      marks: ed.marks || "",
+                    })),
+                  );
+                }
+              }}
+            />
+            <SectionCard title="Tell us about yourself">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Full name" required><input className="form-input" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Your full name" /></Field>
+                <Field label="Mobile number" required hint="10-digit Indian number">
+                  <input className="form-input" value={mobile} onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 10))} placeholder="98xxxxxxxx" />
+                </Field>
+                <Field label="Headline" hint="One-line summary about you">
+                  <input className="form-input" value={headline} onChange={(e) => setHeadline(e.target.value)} placeholder="e.g. Delivery executive with 2 years exp" />
+                </Field>
+                <Field label="City" required>
+                  <select className="form-input" value={city} onChange={(e) => setCity(e.target.value)}>
+                    <option value="">Select city</option>
+                    {INDIAN_CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </Field>
+                <Field label="Date of birth"><input type="date" className="form-input" value={dob} onChange={(e) => setDob(e.target.value)} /></Field>
+                <Field label="Gender">
+                  <select className="form-input" value={gender} onChange={(e) => setGender(e.target.value as typeof gender)}>
+                    <option value="">Prefer not to say</option>
+                    <option value="male">Male</option><option value="female">Female</option><option value="other">Other</option>
+                  </select>
+                </Field>
+              </div>
+            </SectionCard>
+          </div>
         )}
 
         {step === 1 && (

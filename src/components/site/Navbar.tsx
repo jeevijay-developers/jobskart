@@ -9,9 +9,8 @@ import { signOut } from "@/lib/auth";
 
 const navLinks = [
   { label: "Jobs", to: "/jobs" },
-  { label: "For Employers", to: "/signup/employer" },
-  { label: "Candidates", to: "/signup/candidate" },
-  { label: "Resources", to: "/" },
+  { label: "For Employers", to: "/auth?tab=employer" },
+  { label: "Candidates", to: "/auth?tab=candidate" },
 ];
 
 export function Navbar() {

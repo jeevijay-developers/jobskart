@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useState } from "react";
 import {
   ArrowLeft,
@@ -16,7 +16,7 @@ import { z } from "zod";
 import { AuthShell } from "@/components/site/AuthShell";
 import { OtpInput } from "@/components/wizard/Questionnaire";
 import { supabase } from "@/integrations/supabase/client";
-import { loginWithMobileOtp } from "@/lib/auth-mobile.functions";
+import { loginOrCreateWithMobile } from "@/lib/auth-mobile.functions";
 import type { SignupUserType } from "@/lib/auth";
 
 const searchSchema = z.object({
@@ -56,14 +56,20 @@ function AuthPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<SignupUserType>(search.tab ?? "candidate");
 
-  const onSuccess = async () => {
+  const onSuccess = async (isNew: boolean) => {
     if (search.redirect) {
       window.location.assign(search.redirect);
-    } else {
-      navigate({
-        to: tab === "employer" ? "/employer/dashboard" : "/candidate/dashboard",
-      });
+      return;
     }
+    if (isNew) {
+      navigate({
+        to: tab === "employer" ? "/onboarding/employer" : "/onboarding/candidate",
+      });
+      return;
+    }
+    navigate({
+      to: tab === "employer" ? "/employer/dashboard" : "/candidate/dashboard",
+    });
   };
 
   return (
@@ -75,10 +81,10 @@ function AuthPage() {
         </div>
 
         <h1 className="mt-4 text-3xl font-bold tracking-tight text-foreground">
-          Welcome back
+          Log in or sign up
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Log in with your mobile number — we&apos;ll send a one-time code to verify it&apos;s you.
+          Enter your mobile number — we&apos;ll send a one-time code. New here? We&apos;ll set up your account automatically.
         </p>
 
         {/* Segmented role switcher */}
@@ -141,14 +147,8 @@ function AuthPage() {
           <span>Trusted by 50L+ users</span>
         </div>
 
-        <p className="mt-6 text-center text-sm text-muted-foreground">
-          New to JobsKart?{" "}
-          <Link
-            to={tab === "employer" ? "/signup/employer" : "/signup/candidate"}
-            className="font-semibold text-primary hover:text-primary-dark"
-          >
-            Create {tab === "employer" ? "an employer account" : "a candidate account"}
-          </Link>
+        <p className="mt-6 text-center text-xs text-muted-foreground">
+          By continuing you agree to JobsKart&apos;s Terms and Privacy Policy.
         </p>
       </div>
     </AuthShell>
@@ -160,7 +160,7 @@ function MobileLoginForm({
   onSuccess,
 }: {
   userType: SignupUserType;
-  onSuccess: () => Promise<void> | void;
+  onSuccess: (isNew: boolean) => Promise<void> | void;
 }) {
   const [step, setStep] = useState<"mobile" | "otp">("mobile");
   const [mobile, setMobile] = useState("");
@@ -191,14 +191,14 @@ function MobileLoginForm({
     }
     setLoading(true);
     try {
-      const res = await loginWithMobileOtp({ data: { mobile, otp, userType } });
+      const res = await loginOrCreateWithMobile({ data: { mobile, otp, userType } });
       const { error: verifyErr } = await supabase.auth.verifyOtp({
         token_hash: res.tokenHash,
         type: "magiclink",
       });
       if (verifyErr) throw verifyErr;
-      toast.success("Welcome back!");
-      await onSuccess();
+      toast.success(res.isNew ? "Welcome to JobsKart!" : "Welcome back!");
+      await onSuccess(res.isNew);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Could not log in.";
       setError(msg);

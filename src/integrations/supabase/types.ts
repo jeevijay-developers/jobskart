@@ -369,6 +369,41 @@ export type Database = {
         }
         Relationships: []
       }
+      candidate_unlocks: {
+        Row: {
+          candidate_user_id: string
+          company_id: string
+          created_at: string
+          credits_spent: number
+          id: string
+          unlocked_by: string | null
+        }
+        Insert: {
+          candidate_user_id: string
+          company_id: string
+          created_at?: string
+          credits_spent?: number
+          id?: string
+          unlocked_by?: string | null
+        }
+        Update: {
+          candidate_user_id?: string
+          company_id?: string
+          created_at?: string
+          credits_spent?: number
+          id?: string
+          unlocked_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_unlocks_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           about: string | null
@@ -523,6 +558,106 @@ export type Database = {
           subject?: string | null
         }
         Relationships: []
+      }
+      credit_packs: {
+        Row: {
+          active: boolean
+          badge: string | null
+          created_at: string
+          credits: number
+          id: string
+          name: string
+          price_inr: number
+          sort: number
+        }
+        Insert: {
+          active?: boolean
+          badge?: string | null
+          created_at?: string
+          credits: number
+          id?: string
+          name: string
+          price_inr: number
+          sort?: number
+        }
+        Update: {
+          active?: boolean
+          badge?: string | null
+          created_at?: string
+          credits?: number
+          id?: string
+          name?: string
+          price_inr?: number
+          sort?: number
+        }
+        Relationships: []
+      }
+      credit_transactions: {
+        Row: {
+          balance_after: number
+          company_id: string
+          created_at: string
+          created_by: string | null
+          delta: number
+          id: string
+          kind: Database["public"]["Enums"]["credit_txn_kind"]
+          reference: Json | null
+        }
+        Insert: {
+          balance_after: number
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          delta: number
+          id?: string
+          kind: Database["public"]["Enums"]["credit_txn_kind"]
+          reference?: Json | null
+        }
+        Update: {
+          balance_after?: number
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          delta?: number
+          id?: string
+          kind?: Database["public"]["Enums"]["credit_txn_kind"]
+          reference?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_transactions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employer_credit_wallets: {
+        Row: {
+          balance: number
+          company_id: string
+          updated_at: string
+        }
+        Insert: {
+          balance?: number
+          company_id: string
+          updated_at?: string
+        }
+        Update: {
+          balance?: number
+          company_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employer_credit_wallets_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       employer_invites: {
         Row: {
@@ -824,6 +959,63 @@ export type Database = {
         }
         Relationships: []
       }
+      razorpay_orders: {
+        Row: {
+          amount_inr: number
+          company_id: string
+          created_at: string
+          created_by: string | null
+          credits: number
+          id: string
+          pack_id: string
+          razorpay_order_id: string | null
+          razorpay_payment_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount_inr: number
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          credits: number
+          id?: string
+          pack_id: string
+          razorpay_order_id?: string | null
+          razorpay_payment_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount_inr?: number
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          credits?: number
+          id?: string
+          pack_id?: string
+          razorpay_order_id?: string | null
+          razorpay_payment_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "razorpay_orders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "razorpay_orders_pack_id_fkey"
+            columns: ["pack_id"]
+            isOneToOne: false
+            referencedRelation: "credit_packs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       saved_jobs: {
         Row: {
           created_at: string
@@ -880,6 +1072,16 @@ export type Database = {
     }
     Functions: {
       accept_invite: { Args: { _token: string }; Returns: string }
+      apply_credit_delta: {
+        Args: {
+          _actor?: string
+          _company_id: string
+          _delta: number
+          _kind: Database["public"]["Enums"]["credit_txn_kind"]
+          _reference?: Json
+        }
+        Returns: number
+      }
       get_invite_by_token: {
         Args: { _token: string }
         Returns: {
@@ -944,6 +1146,17 @@ export type Database = {
       }
       increment_profile_views: { Args: { _slug: string }; Returns: undefined }
       slugify: { Args: { _text: string }; Returns: string }
+      unlock_candidate: {
+        Args: {
+          _actor?: string
+          _candidate_user_id: string
+          _company_id: string
+        }
+        Returns: {
+          already_unlocked: boolean
+          balance_after: number
+        }[]
+      }
       user_companies: { Args: { _user_id: string }; Returns: string[] }
     }
     Enums: {
@@ -962,6 +1175,7 @@ export type Database = {
         | "public_ltd"
         | "ngo"
         | "government"
+      credit_txn_kind: "purchase" | "unlock" | "refund" | "bonus" | "adjustment"
       employer_role: "super_admin" | "hr_admin" | "recruiter"
       experience_status: "fresher" | "experienced" | "student"
       job_shift: "day" | "night" | "rotational" | "flexible"
@@ -1118,6 +1332,7 @@ export const Constants = {
         "ngo",
         "government",
       ],
+      credit_txn_kind: ["purchase", "unlock", "refund", "bonus", "adjustment"],
       employer_role: ["super_admin", "hr_admin", "recruiter"],
       experience_status: ["fresher", "experienced", "student"],
       job_shift: ["day", "night", "rotational", "flexible"],

@@ -1,5 +1,15 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Building2, Briefcase, LayoutDashboard, Plus, Users, Settings } from "lucide-react";
+import {
+  Building2,
+  Briefcase,
+  LayoutDashboard,
+  Plus,
+  Users,
+  Settings,
+  Database,
+  BarChart3,
+  Coins,
+} from "lucide-react";
 import type { ReactNode } from "react";
 import { Navbar } from "@/components/site/Navbar";
 import { NotificationBell } from "@/components/site/NotificationBell";
@@ -7,6 +17,9 @@ import { NotificationBell } from "@/components/site/NotificationBell";
 const nav = [
   { to: "/employer/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/employer/jobs", label: "Jobs", icon: Briefcase },
+  { to: "/employer/database", label: "Database", icon: Database },
+  { to: "/employer/credits", label: "Credits", icon: Coins },
+  { to: "/employer/reports", label: "Reports", icon: BarChart3 },
   { to: "/employer/company", label: "Company", icon: Building2 },
   { to: "/employer/team", label: "Team", icon: Users },
 ] as const;
@@ -69,7 +82,7 @@ export function EmployerShell({
       </div>
 
       <nav className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-5 border-t border-border bg-card/95 backdrop-blur lg:hidden">
-        {nav.map((item) => {
+        {nav.slice(0, 4).map((item) => {
           const active = pathname === item.to || pathname.startsWith(item.to + "/");
           const Icon = item.icon;
           return (

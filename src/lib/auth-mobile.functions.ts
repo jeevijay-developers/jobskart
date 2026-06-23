@@ -8,60 +8,91 @@ const inputSchema = z.object({
 });
 
 /**
- * STUB mobile + OTP login.
- * Accepts any 6-digit OTP (or "123456"). In production replace with a real
- * SMS provider + signInWithOtp({ phone }).
+ * Mobile + OTP login that auto-creates the account on first sign-in.
  *
- * Looks up the account by mobile in profiles, then mints a one-time
- * magic-link token using the admin API which the client verifies to
- * establish a session.
+ * Demo: accepts any 6-digit OTP. Replace with a real SMS provider in production.
+ *
+ * Behavior:
+ *  - profile exists & user_type matches → mint magic link, return as existing user
+ *  - profile exists but user_type differs → error
+ *  - no profile → create auth user + profile (via handle_new_user trigger) with the
+ *    selected role, then mint magic link and return as new user
  */
-export const loginWithMobileOtp = createServerFn({ method: "POST" })
+export const loginOrCreateWithMobile = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => inputSchema.parse(data))
   .handler(async ({ data }) => {
     const { mobile, otp, userType } = data;
 
-    // Stub OTP gate. Accept 123456 always, or any other 6 digits.
     if (!/^\d{6}$/.test(otp)) {
       throw new Error("Invalid OTP.");
     }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
     const phoneWithCode = `+91${mobile}`;
 
-    // Find profile by mobile (with or without +91 prefix).
+    // 1. Look up existing profile
     const { data: profiles, error: profileErr } = await supabaseAdmin
       .from("profiles")
       .select("id, email, user_type, mobile")
       .or(`mobile.eq.${phoneWithCode},mobile.eq.${mobile}`)
       .limit(1);
-
     if (profileErr) throw new Error(profileErr.message);
-    const profile = profiles?.[0];
-    if (!profile) {
-      throw new Error("No account found for this mobile number. Please sign up first.");
+
+    let profile = profiles?.[0];
+    let isNew = false;
+
+    if (profile && profile.user_type !== userType) {
+      throw new Error(
+        `This number is already registered as a ${profile.user_type}. Switch the role and try again.`,
+      );
     }
 
-    if (profile.user_type !== userType) {
-      throw new Error(
-        `This number is registered as a ${profile.user_type}. Switch the tab and try again.`,
-      );
+    // 2. If no profile, create the auth user (trigger handle_new_user creates the profile row)
+    if (!profile) {
+      isNew = true;
+      const syntheticEmail = `m${mobile}@jobskart.app`;
+      const { data: created, error: createErr } =
+        await supabaseAdmin.auth.admin.createUser({
+          email: syntheticEmail,
+          email_confirm: true,
+          phone: phoneWithCode,
+          user_metadata: {
+            mobile: phoneWithCode,
+            user_type: userType,
+            full_name: "",
+          },
+        });
+      if (createErr || !created.user) {
+        throw new Error(createErr?.message ?? "Could not create account.");
+      }
+      profile = {
+        id: created.user.id,
+        email: syntheticEmail,
+        user_type: userType,
+        mobile: phoneWithCode,
+      };
     }
 
     if (!profile.email) {
       throw new Error("Account is missing an email on file. Contact support.");
     }
 
-    // Mint a magic link the client can verify to obtain a session.
+    // 3. Mint a magic link for the client to verify
     const { data: link, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
       type: "magiclink",
       email: profile.email,
     });
     if (linkErr) throw new Error(linkErr.message);
-
     const tokenHash = link?.properties?.hashed_token;
     if (!tokenHash) throw new Error("Could not issue session token.");
 
-    return { email: profile.email, tokenHash, userType: profile.user_type };
+    return {
+      email: profile.email,
+      tokenHash,
+      userType: profile.user_type,
+      isNew,
+    };
   });
+
+// Backwards-compat alias for existing callers
+export const loginWithMobileOtp = loginOrCreateWithMobile;
