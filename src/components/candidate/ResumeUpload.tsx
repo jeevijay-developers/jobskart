@@ -19,13 +19,16 @@ export function ResumeUpload({ onParsed }: Props) {
   const handleFile = async (file: File) => {
     setError(null);
     setDone(null);
-    if (file.size > 10 * 1024 * 1024) {
-      setError("File too large. Max 10 MB.");
+    const fileErr = validateResumeFile(file);
+    if (fileErr) {
+      setError(fileErr);
       return;
     }
-    const allowed = ["application/pdf"];
-    if (!allowed.includes(file.type)) {
-      setError("Please upload a PDF (DOCX support coming soon).");
+    if (file.type !== "application/pdf") {
+      // Non-PDF uploads are accepted, but AI parsing only works on PDFs today.
+      onParsed({ skills: [], experiences: [], education: [] }, file);
+      setDone(file.name);
+      toast.success("Resume uploaded. PDF is needed for auto-fill.");
       return;
     }
     setLoading(true);
