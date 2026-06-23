@@ -61,12 +61,12 @@ function AuthPage() {
       window.location.assign(search.redirect);
       return;
     }
-    if (isNew) {
-      navigate({
-        to: tab === "employer" ? "/onboarding/employer" : "/onboarding/candidate",
-      });
+    if (isNew && tab === "candidate") {
+      navigate({ to: "/onboarding/candidate" });
       return;
     }
+    // Employers (new or returning) go straight to the dashboard; the dashboard
+    // surfaces a "set up your company" CTA when no company exists yet.
     navigate({
       to: tab === "employer" ? "/employer/dashboard" : "/candidate/dashboard",
     });
