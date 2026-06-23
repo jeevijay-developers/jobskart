@@ -162,6 +162,39 @@ export type Database = {
           },
         ]
       }
+      candidate_assets_master: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          is_active: boolean
+          label: string
+          slug: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label: string
+          slug: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       candidate_documents: {
         Row: {
           created_at: string
@@ -297,6 +330,33 @@ export type Database = {
         }
         Relationships: []
       }
+      candidate_nudges: {
+        Row: {
+          created_at: string
+          dismissed_at: string | null
+          id: string
+          kind: string
+          last_shown_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dismissed_at?: string | null
+          id?: string
+          kind: string
+          last_shown_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dismissed_at?: string | null
+          id?: string
+          kind?: string
+          last_shown_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       candidate_profiles: {
         Row: {
           assets: string[]
@@ -310,6 +370,8 @@ export type Database = {
           government_id_last4: string | null
           government_id_type: string | null
           headline: string | null
+          highest_qualification: string | null
+          interested_roles: string[]
           kyc_status: string
           last_role: string | null
           marital_status: string | null
@@ -326,6 +388,8 @@ export type Database = {
           skills: string[]
           updated_at: string
           user_id: string
+          whatsapp_number: string | null
+          whatsapp_opt_in: boolean
           years_experience: number
         }
         Insert: {
@@ -340,6 +404,8 @@ export type Database = {
           government_id_last4?: string | null
           government_id_type?: string | null
           headline?: string | null
+          highest_qualification?: string | null
+          interested_roles?: string[]
           kyc_status?: string
           last_role?: string | null
           marital_status?: string | null
@@ -356,6 +422,8 @@ export type Database = {
           skills?: string[]
           updated_at?: string
           user_id: string
+          whatsapp_number?: string | null
+          whatsapp_opt_in?: boolean
           years_experience?: number
         }
         Update: {
@@ -370,6 +438,8 @@ export type Database = {
           government_id_last4?: string | null
           government_id_type?: string | null
           headline?: string | null
+          highest_qualification?: string | null
+          interested_roles?: string[]
           kyc_status?: string
           last_role?: string | null
           marital_status?: string | null
@@ -386,6 +456,8 @@ export type Database = {
           skills?: string[]
           updated_at?: string
           user_id?: string
+          whatsapp_number?: string | null
+          whatsapp_opt_in?: boolean
           years_experience?: number
         }
         Relationships: []
@@ -843,6 +915,33 @@ export type Database = {
         }
         Relationships: []
       }
+      job_titles_master: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          is_custom: boolean
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_custom?: boolean
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_custom?: boolean
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       jobs: {
         Row: {
           age_max: number | null
@@ -988,6 +1087,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      languages_master: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       learning_resources: {
         Row: {
