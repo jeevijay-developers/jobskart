@@ -77,7 +77,7 @@ export function ResumeUpload({ onParsed }: Props) {
                 {done}
               </span>
             )}
-            <span className="text-xs text-muted-foreground">PDF · max 10 MB</span>
+            <span className="text-xs text-muted-foreground">PDF / DOC / DOCX / PNG / JPG · max 5 MB</span>
           </div>
 
           {error && (
