@@ -403,10 +403,10 @@ function ValueProps() {
 
 function DualCTA() {
   return (
-    <section className="py-20">
+    <section className="py-14 sm:py-20">
       <div className="mx-auto grid max-w-7xl gap-6 px-4 sm:px-6 lg:grid-cols-2 lg:px-8">
         {/* Candidate */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary to-primary-dark p-10 text-primary-foreground">
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary to-primary-dark p-6 text-primary-foreground sm:p-10">
           <div className="relative z-10 max-w-md">
             <p className="text-xs font-bold uppercase tracking-wider text-white/70">
               For job seekers
