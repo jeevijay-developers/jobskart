@@ -56,14 +56,20 @@ function AuthPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<SignupUserType>(search.tab ?? "candidate");
 
-  const onSuccess = async () => {
+  const onSuccess = async (isNew: boolean) => {
     if (search.redirect) {
       window.location.assign(search.redirect);
-    } else {
-      navigate({
-        to: tab === "employer" ? "/employer/dashboard" : "/candidate/dashboard",
-      });
+      return;
     }
+    if (isNew) {
+      navigate({
+        to: tab === "employer" ? "/onboarding/employer" : "/onboarding/candidate",
+      });
+      return;
+    }
+    navigate({
+      to: tab === "employer" ? "/employer/dashboard" : "/candidate/dashboard",
+    });
   };
 
   return (
