@@ -268,7 +268,7 @@ function OnboardingPage() {
                 if (d.skills?.length) setSkills(Array.from(new Set([...skills, ...d.skills])).slice(0, 25));
                 if (d.experiences?.length) {
                   setExperiences(
-                    d.experiences.map((e) => ({
+                    (d.experiences ?? []).map((e: NonNullable<ParsedResumePayload["experiences"]>[number]) => ({
                       job_title: e.job_title || "",
                       company_name: e.company_name || "",
                       start_date: e.start_date || "",
