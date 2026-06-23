@@ -124,7 +124,7 @@ function Hero() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.15 }}
-            className="mt-6 max-w-xl text-lg text-white/75"
+            className="mt-4 max-w-xl text-base text-white/75 sm:mt-6 sm:text-lg"
           >
             10 lakh+ verified jobs across 500+ Indian cities. From driver to designer — apply in one tap,
             speak directly with the HR.
