@@ -147,14 +147,8 @@ function AuthPage() {
           <span>Trusted by 50L+ users</span>
         </div>
 
-        <p className="mt-6 text-center text-sm text-muted-foreground">
-          New to JobsKart?{" "}
-          <Link
-            to={tab === "employer" ? "/signup/employer" : "/signup/candidate"}
-            className="font-semibold text-primary hover:text-primary-dark"
-          >
-            Create {tab === "employer" ? "an employer account" : "a candidate account"}
-          </Link>
+        <p className="mt-6 text-center text-xs text-muted-foreground">
+          By continuing you agree to JobsKart&apos;s Terms and Privacy Policy.
         </p>
       </div>
     </AuthShell>
