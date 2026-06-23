@@ -1,129 +1,75 @@
-# JobsKart: Apna-style Mobile-First Flow + Resume AI + Employer Credits
+# Super Admin Portal
 
-## 1. Unified mobile-first auth (no separate signup forms)
+A new `/admin` portal gated by a `platform_role = 'super_admin'` role, seeded by a mobile/email list. Mobile-responsive, matches the existing dark Jobskart aesthetic.
 
-New flow on `/auth?role=candidate|employer`:
+## 1. Access control
 
-1. **Role chip** (Candidate / Employer) — picked first, stored in URL.
-2. **Mobile entry** → `+91 XXXXXXXXXX` → "Send OTP".
-3. **OTP screen** → any 6-digit code accepted (demo).
-4. After verify, server fn `resolveMobileAccount` decides:
-   - If a `profiles` row exists for that mobile AND its `user_type` matches selected role → sign in → go to that role's `/dashboard`.
-   - If profile exists but role differs → error "This number is registered as <other role>".
-   - If no profile → auto-create `auth.users` + `profiles` row with `user_type = role`, sign in, redirect to onboarding.
-5. Delete the legacy `/signup.candidate` and `/signup.employer` routes; redirect both to `/auth`.
+New table `platform_roles(user_id, role)` with `app_platform_role` enum (`super_admin`).
+- Security-definer `has_platform_role(_uid, _role)` (no recursion on RLS).
+- Trigger on `auth.users` insert: if `email` or `phone` matches a row in `admin_seed(identifier)`, auto-insert `super_admin`.
+- Seed list (`admin_seed`) populated via migration; the user can add more rows later. I'll ask for the initial mobile/email before running the migration.
+- Route guard `/admin/*` (pathless layout under `_authenticated/admin/`) calls `has_platform_role`; non-admins get redirected to their normal dashboard.
 
-Implementation: extend `auth-mobile.functions.ts` with `loginOrCreateWithMobile({ mobile, role })` using `supabaseAdmin.auth.admin.createUser` when missing, then mint magic link as today.
+## 2. Admin shell
 
-## 2. Candidate onboarding — Resume-first
+`src/components/admin/AdminShell.tsx` — sidebar (collapsible to drawer on mobile) with sections:
+- Dashboard (platform KPIs: users, jobs, applications, revenue from credit_transactions)
+- Users
+- Companies & Jobs
+- Master Data
+- Banners (Campaigns)
+- Learning
+- Credits & Payments
+- Resumes
 
-New first step in `/onboarding/candidate`: **"Upload resume, we'll fill the rest"**.
+## 3. Modules
 
-- Drag/drop PDF or DOCX → uploads to `candidate-docs` bucket (already exists).
-- New server fn `parseResume` (`src/lib/resume.functions.ts`):
-  - Loads the file, sends to Lovable AI Gateway (`google/gemini-3-flash-preview`) as multimodal `file` part with structured-output schema (Zod): `full_name, email, headline, years_experience, skills[], experiences[], education[], city`.
-  - Returns parsed JSON; client pre-fills the 6-step Questionnaire.
-- "Skip & fill manually" link preserves current flow.
-- Show parsing progress (Lucide `Loader2`, `FileText`, `Wand2`).
+**Users** (`/admin/users`)
+- Tabs: Candidates / Employers. Search by name/mobile/email, filter by status.
+- Row actions: view profile, suspend (`profiles.status='suspended'` — new column), delete (cascades), reset onboarding, copy mobile.
+- Detail drawer: full profile + applications/companies.
 
-## 3. Employer side: Apna-style portal
+**Companies & Jobs** (`/admin/companies`, `/admin/jobs`)
+- Approve/reject companies (`verification_status`), feature/unfeature jobs (`is_featured`), force-close jobs, edit any job, view applicants. Reuses existing job form.
 
-Redesign `/employer/*` to match the reference shot's information density and clarity (left rail + main panel), but using our JobsKart blue brand:
+**Master Data** (`/admin/masters`)
+- CRUD tabs: Cities, Skills, Industries, Job Categories. New tables `cities`, `skills_master`, `industries`, `job_categories` (slug, name, is_active). Existing free-text fields keep working; admin lists feed autocompletes going forward (non-breaking).
 
-- **Left rail** (sticky, collapsible on mobile): company switcher, nav (Jobs, Database, Reports, Credits & Usage, Billing, Help), credit status card with "Buy credits" CTA.
-- **Jobs page** (`/employer/jobs`): list with `Applied to job` and `Database Matches` counters per row, Expired/Active chips, "Repost now" action, three-dot menu (Edit, Pause, Close, Share).
-- **Database** (new route `/employer/database`): searchable candidate list (filter by city, skills, experience, work mode). Each candidate row shows masked contact + "Unlock" button that deducts 1 credit.
-- **Reports** (stub charts: applications/day, sources, funnel).
-- **Credits & usage** (`/employer/credits`): balance card, packs grid (e.g. 100/500/2000 credits), recent transactions table.
-- **Post a job** wizard: cleaner 3-step (Basics → Requirements → Preview & Publish).
+**Banners** (`/admin/banners`)
+- New table `promo_banners` (title, image_url, cta_label, cta_url, audience `candidate|employer|both`, starts_at, ends_at, is_active, sort).
+- Surfaced on candidate & employer dashboards (carousel).
 
-## 4. Database credits + Razorpay full integration
+**Learning** (`/admin/learning`) — Basic CRUD
+- New table `learning_resources` (title, description, cover_url, content_url, kind `video|article`, category, is_published).
+- Candidate-side `/candidate/learning` grid + detail.
 
-### Schema (migration)
-```
-credit_packs(id, name, credits, price_inr, badge, sort, active)
-employer_credit_wallets(company_id PK, balance int, updated_at)
-credit_transactions(id, company_id, kind enum[purchase,unlock,refund,bonus],
-  delta int, balance_after int, reference jsonb, created_at)
-candidate_unlocks(id, company_id, candidate_user_id, unlocked_by, credits_spent,
-  created_at, UNIQUE(company_id, candidate_user_id))
-razorpay_orders(id, company_id, pack_id, amount_inr, razorpay_order_id,
-  razorpay_payment_id, status, created_at)
-```
-All with GRANTs + RLS scoped via `has_company_membership(auth.uid(), company_id)`.
+**Credits & Payments** (`/admin/credits`)
+- Read-only views: `credit_packs` CRUD, `razorpay_orders` list, `credit_transactions` ledger across companies, manual credit grant action (uses existing `apply_credit_delta`).
 
-Seed 4 packs (Starter 100 / Growth 500 / Pro 2000 / Enterprise 10000).
+**Resumes** (`/admin/resumes`)
+- List `candidate_documents` of kind `resume`, signed-URL download, view linked candidate.
 
-### Server functions (`src/lib/credits.functions.ts`)
-- `getWallet(companyId)`
-- `listPacks()`
-- `createRazorpayOrder({ companyId, packId })` → calls Razorpay Orders API with `RAZORPAY_KEY_ID` + `RAZORPAY_KEY_SECRET`, persists pending row, returns `{ orderId, amount, keyId }`.
-- `verifyRazorpayPayment({ orderId, paymentId, signature })` → HMAC-SHA256 verify with secret, on success: credit wallet, insert `credit_transactions`, mark order paid. Atomic via `plpgsql` function.
-- `unlockCandidate({ companyId, candidateUserId })` → check balance ≥ 1, decrement, insert unlock row, return contact (mobile/email).
+## 4. Database changes
 
-### Webhook
-`/api/public/webhooks/razorpay.ts` server route: verify `X-Razorpay-Signature` with `RAZORPAY_WEBHOOK_SECRET`, idempotent credit on `payment.captured`.
+New tables (all with GRANTs + RLS scoped to `has_platform_role(auth.uid(),'super_admin')`):
+- `platform_roles`, `admin_seed`
+- `cities`, `skills_master`, `industries`, `job_categories`
+- `promo_banners` (public SELECT for active rows)
+- `learning_resources` (public SELECT for published)
 
-### Client checkout
-- Load Razorpay checkout script via `<script>` tag in `__root.tsx` head.
-- Buy button → `createRazorpayOrder` → open `Razorpay({ key, order_id, … handler })` → on success call `verifyRazorpayPayment` → toast + refresh wallet.
+Column adds:
+- `profiles.status` (`active|suspended`), checked in auth attacher to block suspended users.
 
-### Secrets needed
-`RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` (will request via add_secret after plan approval).
+## 5. UI/UX
 
-## 5. Candidate dashboard
+- Dark theme reuse, sidebar with `lucide` icons, sticky topbar with global search.
+- Mobile: sidebar → `Sheet` drawer, tables → card list under `sm`.
+- Empty states + skeletons for every list.
 
-- Hero card: profile strength, resume status, "Edit profile" + "Upload new resume".
-- **Recommended jobs** grid: pulled from `jobs` filtered by candidate skills/city.
-- Saved jobs row, recent applications timeline with status pills.
-- Browse jobs (`/jobs`) gets filter chips: role, city, work mode, salary, freshness.
+## 6. Out of scope this turn
 
-## 6. Design polish (all screens, mobile-first)
+Email/SMS broadcast campaigns, full LMS (lessons/progress/certs), employer hiring campaigns, impersonation, audit log UI (we'll still write `admin_audit` rows for destructive actions, UI later).
 
-- Stick to JobsKart blue `#1A55BD` primary + emerald success accent, neutrals from existing tokens.
-- Lucide-only icons; remove any remaining sparkle/star UI.
-- Responsive grid: `grid-cols-[minmax(0,1fr)_auto]` headers per the responsive-layout rule.
-- Reuse `Questionnaire` primitives, `BigInput`, `OtpInput`, `card`/`badge`/`tabs` from shadcn.
-- Empty states with illustration + concrete next action.
+---
 
-## 7. Routes touched / added
-
-```
-Added:
-  src/routes/_authenticated/employer/database.tsx
-  src/routes/_authenticated/employer/credits.tsx
-  src/routes/_authenticated/employer/reports.tsx
-  src/routes/api/public/webhooks/razorpay.ts
-  src/lib/resume.functions.ts
-  src/lib/credits.functions.ts
-  src/components/employer/SideRail.tsx
-  src/components/employer/CreditWidget.tsx
-  src/components/candidate/ResumeUpload.tsx
-
-Rewritten:
-  src/routes/auth.tsx                 (mobile-first, auto signup)
-  src/lib/auth-mobile.functions.ts    (loginOrCreateWithMobile)
-  src/routes/_authenticated/onboarding/candidate.tsx (resume-first)
-  src/routes/_authenticated/employer/dashboard.tsx
-  src/routes/_authenticated/employer/jobs.tsx
-  src/routes/_authenticated/employer/jobs.new.tsx
-  src/routes/_authenticated/candidate/dashboard.tsx
-
-Removed (redirect to /auth):
-  src/routes/signup.candidate.tsx
-  src/routes/signup.employer.tsx
-```
-
-## Acceptance
-
-- One mobile number → one role → no signup form anywhere.
-- Resume upload pre-fills onboarding via Gemini.
-- Employer can buy credits via real Razorpay test-mode checkout and unlock candidate contacts; balance + transactions visible.
-- All dashboards & onboarding usable on 360px width with Lucide icons and brand palette.
-
-## Technical notes
-
-- Resume parsing uses `google/gemini-3-flash-preview` with `Output.object` Zod schema; PDFs sent as `{type:"file", file:{filename, file_data:"data:application/pdf;base64,..."}}`.
-- Razorpay verify uses `crypto.createHmac('sha256', secret).update(orderId+'|'+paymentId).digest('hex')` with `timingSafeEqual`.
-- Wallet updates wrapped in a `security definer` SQL function `apply_credit_delta(company_id, delta, kind, reference)` to avoid races.
-- All new tables receive `GRANT SELECT,INSERT,UPDATE,DELETE ... TO authenticated` + `service_role`; RLS uses `has_company_membership`.
+**Before I implement, I need one input:** the initial super-admin mobile number(s) and/or email(s) to seed. Reply with the list and I'll start.
