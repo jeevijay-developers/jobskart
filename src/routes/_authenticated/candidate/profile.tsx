@@ -8,6 +8,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { computeProfileStrength, strengthLabel } from "@/lib/profileStrength";
 import { INDIAN_CITIES, SUGGESTED_SKILLS, SUGGESTED_LANGUAGES, JOB_TYPE_OPTIONS, WORK_MODES, ID_TYPES, EDUCATION_LEVELS } from "@/lib/options";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { ResumeUpload } from "@/components/candidate/ResumeUpload";
+import type { ParsedResumePayload } from "@/lib/resume.functions";
 
 export const Route = createFileRoute("/_authenticated/candidate/profile")({
   head: () => ({ meta: [{ title: "My Profile · JobsKart" }] }),
