@@ -51,7 +51,7 @@ export const Route = createFileRoute("/api/public/webhooks/razorpay")({
           _delta: order.credits,
           _kind: "purchase",
           _reference: { order_id: order.id, razorpay_payment_id: paymentId, via: "webhook" },
-          _actor: null,
+          _actor: undefined,
         });
 
         await supabaseAdmin
