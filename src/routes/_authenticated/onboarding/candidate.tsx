@@ -8,6 +8,8 @@ import { ChipInput, Field, SectionCard } from "@/components/candidate/primitives
 import { supabase } from "@/integrations/supabase/client";
 import { INDIAN_CITIES, SUGGESTED_SKILLS, SUGGESTED_LANGUAGES, ASSETS, JOB_TYPE_OPTIONS, WORK_MODES, EDUCATION_LEVELS } from "@/lib/options";
 import { computeProfileStrength } from "@/lib/profileStrength";
+import { ResumeUpload } from "@/components/candidate/ResumeUpload";
+import type { ParsedResumePayload } from "@/lib/resume.functions";
 
 export const Route = createFileRoute("/_authenticated/onboarding/candidate")({
   head: () => ({ meta: [{ title: "Complete your profile · JobsKart" }] }),
