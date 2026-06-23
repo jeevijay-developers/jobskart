@@ -16,13 +16,13 @@ function getRazorpayKeys() {
   return { keyId, secret };
 }
 
-async function assertCompanyMember(
-  supabase: Awaited<ReturnType<typeof requireSupabaseAuth>> extends never
-    ? never
-    : ReturnType<typeof getCtxSupabase>,
-  userId: string,
-  companyId: string,
-) {
+type CtxSupabase = Parameters<Parameters<typeof requireSupabaseAuth>[0]>[0] extends never
+  ? never
+  : never;
+
+// Use a loose type — context.supabase is the standard supabase-js client with our Database typing.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function assertCompanyMember(supabase: any, userId: string, companyId: string) {
   const { data, error } = await supabase
     .from("employer_members")
     .select("user_id")
@@ -32,11 +32,8 @@ async function assertCompanyMember(
   if (error) throw new Error(error.message);
   if (!data) throw new Error("You don't have access to this company.");
 }
-
-// Tiny helper to satisfy the strict generic above
-function getCtxSupabase(): import("@supabase/supabase-js").SupabaseClient {
-  return null as never;
-}
+// suppress unused
+type _CtxSupabase = CtxSupabase;
 
 // ---------------- listPacks ----------------
 export const listCreditPacks = createServerFn({ method: "GET" }).handler(async () => {
