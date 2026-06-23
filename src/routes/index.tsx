@@ -98,7 +98,7 @@ function Hero() {
         className="pointer-events-none absolute -top-40 -left-40 h-[480px] w-[480px] rounded-full bg-white/10 blur-3xl"
       />
 
-      <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 py-20 sm:px-6 lg:grid-cols-12 lg:gap-10 lg:py-28 lg:px-8">
+      <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-4 py-12 sm:gap-12 sm:px-6 sm:py-20 lg:grid-cols-12 lg:gap-10 lg:py-28 lg:px-8">
         <div className="lg:col-span-7">
           <motion.span
             initial={{ opacity: 0, y: 10 }}
@@ -113,7 +113,7 @@ function Hero() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.05 }}
-            className="mt-6 text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl"
+            className="mt-5 text-[2rem] font-extrabold leading-[1.05] tracking-tight sm:mt-6 sm:text-5xl lg:text-6xl"
           >
             Find the job.
             <br />
@@ -124,7 +124,7 @@ function Hero() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.15 }}
-            className="mt-6 max-w-xl text-lg text-white/75"
+            className="mt-4 max-w-xl text-base text-white/75 sm:mt-6 sm:text-lg"
           >
             10 lakh+ verified jobs across 500+ Indian cities. From driver to designer — apply in one tap,
             speak directly with the HR.
@@ -136,7 +136,7 @@ function Hero() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.25 }}
             onSubmit={submit}
-            className="mt-10 rounded-2xl border border-white/10 bg-background p-2 shadow-[var(--shadow-soft)]"
+            className="mt-6 rounded-2xl border border-white/10 bg-background p-2 shadow-[var(--shadow-soft)] sm:mt-10"
           >
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <label className="flex flex-1 items-center gap-3 rounded-xl px-4 py-3">
@@ -160,7 +160,7 @@ function Hero() {
               </label>
               <button
                 type="submit"
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-6 text-sm font-bold text-primary-foreground shadow-[var(--shadow-elegant)] transition-transform hover:translate-y-[-1px] hover:bg-primary-dark"
+                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 text-sm font-bold text-primary-foreground shadow-[var(--shadow-elegant)] transition-transform hover:translate-y-[-1px] hover:bg-primary-dark sm:w-auto"
               >
                 Search jobs <ArrowRight className="h-4 w-4" />
               </button>
@@ -319,14 +319,14 @@ function CountUp({ end, fallback }: { end: number; fallback: string }) {
 function TrendingRoles() {
   const navigate = useNavigate();
   return (
-    <section className="py-20">
+    <section className="py-14 sm:py-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex items-end justify-between gap-6">
+        <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end sm:gap-6">
           <div>
             <p className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary">
               <TrendingUp className="h-3.5 w-3.5" strokeWidth={2.5} /> Trending this week
             </p>
-            <h2 className="mt-2 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+            <h2 className="mt-2 text-2xl font-bold tracking-tight text-foreground sm:text-4xl">
               What India is searching for
             </h2>
           </div>
@@ -377,7 +377,7 @@ function ValueProps() {
     },
   ];
   return (
-    <section className="bg-surface py-20">
+    <section className="bg-surface py-14 sm:py-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="grid gap-6 sm:grid-cols-3">
           {items.map((i) => (
@@ -403,15 +403,15 @@ function ValueProps() {
 
 function DualCTA() {
   return (
-    <section className="py-20">
+    <section className="py-14 sm:py-20">
       <div className="mx-auto grid max-w-7xl gap-6 px-4 sm:px-6 lg:grid-cols-2 lg:px-8">
         {/* Candidate */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary to-primary-dark p-10 text-primary-foreground">
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary to-primary-dark p-6 text-primary-foreground sm:p-10">
           <div className="relative z-10 max-w-md">
             <p className="text-xs font-bold uppercase tracking-wider text-white/70">
               For job seekers
             </p>
-            <h3 className="mt-3 text-3xl font-bold leading-tight sm:text-4xl">
+            <h3 className="mt-3 text-2xl font-bold leading-tight sm:text-4xl">
               Your next job is one tap away.
             </h3>
             <p className="mt-4 text-white/80">
@@ -432,12 +432,12 @@ function DualCTA() {
         </div>
 
         {/* Employer */}
-        <div className="relative overflow-hidden rounded-3xl border border-border bg-foreground p-10 text-background">
+        <div className="relative overflow-hidden rounded-3xl border border-border bg-foreground p-6 text-background sm:p-10">
           <div className="relative z-10 max-w-md">
             <p className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary">
               <Building2 className="h-3.5 w-3.5" strokeWidth={2.5} /> For employers
             </p>
-            <h3 className="mt-3 text-3xl font-bold leading-tight sm:text-4xl">
+            <h3 className="mt-3 text-2xl font-bold leading-tight sm:text-4xl">
               Hire from India's largest blue-collar pool.
             </h3>
             <p className="mt-4 text-background/70">
