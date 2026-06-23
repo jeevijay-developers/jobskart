@@ -281,7 +281,7 @@ function OnboardingPage() {
                 }
                 if (d.education?.length) {
                   setEducations(
-                    d.education.map((ed) => ({
+                    (d.education ?? []).map((ed: NonNullable<ParsedResumePayload["education"]>[number]) => ({
                       level: ed.level || "Graduate",
                       board_or_university: ed.board_or_university || "",
                       institute: ed.institute || "",
