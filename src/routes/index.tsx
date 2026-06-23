@@ -377,7 +377,7 @@ function ValueProps() {
     },
   ];
   return (
-    <section className="bg-surface py-20">
+    <section className="bg-surface py-14 sm:py-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="grid gap-6 sm:grid-cols-3">
           {items.map((i) => (
