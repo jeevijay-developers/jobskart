@@ -81,10 +81,10 @@ function AuthPage() {
         </div>
 
         <h1 className="mt-4 text-3xl font-bold tracking-tight text-foreground">
-          Welcome back
+          Log in or sign up
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Log in with your mobile number — we&apos;ll send a one-time code to verify it&apos;s you.
+          Enter your mobile number — we&apos;ll send a one-time code. New here? We&apos;ll set up your account automatically.
         </p>
 
         {/* Segmented role switcher */}
