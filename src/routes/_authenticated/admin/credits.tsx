@@ -35,12 +35,12 @@ function Page() {
   });
 
   const addPack = useMutation({
-    mutationFn: async () => { const { error } = await supabase.from("credit_packs").insert({ ...pack, is_active: true }); if (error) throw error; },
+    mutationFn: async () => { const { error } = await supabase.from("credit_packs").insert({ ...pack, active: true }); if (error) throw error; },
     onSuccess: () => { toast.success("Pack added"); setPack({ name: "", credits: 100, price_inr: 999 }); qc.invalidateQueries({ queryKey: ["credit-packs"] }); },
     onError: (e: any) => toast.error(e.message),
   });
   const togPack = useMutation({
-    mutationFn: async (row: any) => { const { error } = await supabase.from("credit_packs").update({ is_active: !row.is_active }).eq("id", row.id); if (error) throw error; },
+    mutationFn: async (row: any) => { const { error } = await supabase.from("credit_packs").update({ active: !row.active }).eq("id", row.id); if (error) throw error; },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["credit-packs"] }),
   });
   const doGrant = useMutation({
@@ -66,7 +66,7 @@ function Page() {
                 <p className="text-sm font-medium">{p.name} — {p.credits} credits</p>
                 <p className="text-xs text-muted-foreground">₹{p.price_inr}</p>
               </div>
-              <Switch checked={p.is_active} onCheckedChange={() => togPack.mutate(p)} />
+              <Switch checked={p.active} onCheckedChange={() => togPack.mutate(p)} />
             </div>
           ))}
         </div>

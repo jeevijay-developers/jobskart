@@ -23,6 +23,8 @@ import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as EmployerLoginRouteImport } from './routes/employer.login'
 import { Route as CandidateLoginRouteImport } from './routes/candidate.login'
 import { Route as CSlugRouteImport } from './routes/c.$slug'
+import { Route as AdminLoginRouteImport } from './routes/admin.login'
+import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/admin/route'
 import { Route as AuthenticatedOnboardingEmployerRouteImport } from './routes/_authenticated/onboarding/employer'
 import { Route as AuthenticatedOnboardingCandidateRouteImport } from './routes/_authenticated/onboarding/candidate'
 import { Route as AuthenticatedEmployerTeamRouteImport } from './routes/_authenticated/employer/team'
@@ -36,6 +38,15 @@ import { Route as AuthenticatedCandidateSavedRouteImport } from './routes/_authe
 import { Route as AuthenticatedCandidateProfileRouteImport } from './routes/_authenticated/candidate/profile'
 import { Route as AuthenticatedCandidateDashboardRouteImport } from './routes/_authenticated/candidate/dashboard'
 import { Route as AuthenticatedCandidateApplicationsRouteImport } from './routes/_authenticated/candidate/applications'
+import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin/users'
+import { Route as AuthenticatedAdminResumesRouteImport } from './routes/_authenticated/admin/resumes'
+import { Route as AuthenticatedAdminMastersRouteImport } from './routes/_authenticated/admin/masters'
+import { Route as AuthenticatedAdminLearningRouteImport } from './routes/_authenticated/admin/learning'
+import { Route as AuthenticatedAdminJobsRouteImport } from './routes/_authenticated/admin/jobs'
+import { Route as AuthenticatedAdminDashboardRouteImport } from './routes/_authenticated/admin/dashboard'
+import { Route as AuthenticatedAdminCreditsRouteImport } from './routes/_authenticated/admin/credits'
+import { Route as AuthenticatedAdminCompaniesRouteImport } from './routes/_authenticated/admin/companies'
+import { Route as AuthenticatedAdminBannersRouteImport } from './routes/_authenticated/admin/banners'
 import { Route as ApiPublicWebhooksRazorpayRouteImport } from './routes/api/public/webhooks/razorpay'
 import { Route as AuthenticatedEmployerJobsNewRouteImport } from './routes/_authenticated/employer/jobs.new'
 import { Route as AuthenticatedEmployerJobsJobIdApplicantsRouteImport } from './routes/_authenticated/employer/jobs.$jobId.applicants'
@@ -108,6 +119,16 @@ const CSlugRoute = CSlugRouteImport.update({
   id: '/c/$slug',
   path: '/c/$slug',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AdminLoginRoute = AdminLoginRouteImport.update({
+  id: '/admin/login',
+  path: '/admin/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedAdminRouteRoute = AuthenticatedAdminRouteRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedOnboardingEmployerRoute =
   AuthenticatedOnboardingEmployerRouteImport.update({
@@ -187,6 +208,58 @@ const AuthenticatedCandidateApplicationsRoute =
     path: '/candidate/applications',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAdminUsersRoute = AuthenticatedAdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AuthenticatedAdminRouteRoute,
+} as any)
+const AuthenticatedAdminResumesRoute =
+  AuthenticatedAdminResumesRouteImport.update({
+    id: '/resumes',
+    path: '/resumes',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
+const AuthenticatedAdminMastersRoute =
+  AuthenticatedAdminMastersRouteImport.update({
+    id: '/masters',
+    path: '/masters',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
+const AuthenticatedAdminLearningRoute =
+  AuthenticatedAdminLearningRouteImport.update({
+    id: '/learning',
+    path: '/learning',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
+const AuthenticatedAdminJobsRoute = AuthenticatedAdminJobsRouteImport.update({
+  id: '/jobs',
+  path: '/jobs',
+  getParentRoute: () => AuthenticatedAdminRouteRoute,
+} as any)
+const AuthenticatedAdminDashboardRoute =
+  AuthenticatedAdminDashboardRouteImport.update({
+    id: '/dashboard',
+    path: '/dashboard',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
+const AuthenticatedAdminCreditsRoute =
+  AuthenticatedAdminCreditsRouteImport.update({
+    id: '/credits',
+    path: '/credits',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
+const AuthenticatedAdminCompaniesRoute =
+  AuthenticatedAdminCompaniesRouteImport.update({
+    id: '/companies',
+    path: '/companies',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
+const AuthenticatedAdminBannersRoute =
+  AuthenticatedAdminBannersRouteImport.update({
+    id: '/banners',
+    path: '/banners',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 const ApiPublicWebhooksRazorpayRoute =
   ApiPublicWebhooksRazorpayRouteImport.update({
     id: '/api/public/webhooks/razorpay',
@@ -212,6 +285,8 @@ export interface FileRoutesByFullPath {
   '/forgot-password': typeof ForgotPasswordRoute
   '/jobs': typeof JobsRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
+  '/admin': typeof AuthenticatedAdminRouteRouteWithChildren
+  '/admin/login': typeof AdminLoginRoute
   '/c/$slug': typeof CSlugRoute
   '/candidate/login': typeof CandidateLoginRoute
   '/employer/login': typeof EmployerLoginRoute
@@ -220,6 +295,15 @@ export interface FileRoutesByFullPath {
   '/signup/candidate': typeof SignupCandidateRoute
   '/signup/employer': typeof SignupEmployerRoute
   '/u/$slug': typeof USlugRoute
+  '/admin/banners': typeof AuthenticatedAdminBannersRoute
+  '/admin/companies': typeof AuthenticatedAdminCompaniesRoute
+  '/admin/credits': typeof AuthenticatedAdminCreditsRoute
+  '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
+  '/admin/jobs': typeof AuthenticatedAdminJobsRoute
+  '/admin/learning': typeof AuthenticatedAdminLearningRoute
+  '/admin/masters': typeof AuthenticatedAdminMastersRoute
+  '/admin/resumes': typeof AuthenticatedAdminResumesRoute
+  '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/candidate/applications': typeof AuthenticatedCandidateApplicationsRoute
   '/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
   '/candidate/profile': typeof AuthenticatedCandidateProfileRoute
@@ -243,6 +327,8 @@ export interface FileRoutesByTo {
   '/forgot-password': typeof ForgotPasswordRoute
   '/jobs': typeof JobsRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
+  '/admin': typeof AuthenticatedAdminRouteRouteWithChildren
+  '/admin/login': typeof AdminLoginRoute
   '/c/$slug': typeof CSlugRoute
   '/candidate/login': typeof CandidateLoginRoute
   '/employer/login': typeof EmployerLoginRoute
@@ -251,6 +337,15 @@ export interface FileRoutesByTo {
   '/signup/candidate': typeof SignupCandidateRoute
   '/signup/employer': typeof SignupEmployerRoute
   '/u/$slug': typeof USlugRoute
+  '/admin/banners': typeof AuthenticatedAdminBannersRoute
+  '/admin/companies': typeof AuthenticatedAdminCompaniesRoute
+  '/admin/credits': typeof AuthenticatedAdminCreditsRoute
+  '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
+  '/admin/jobs': typeof AuthenticatedAdminJobsRoute
+  '/admin/learning': typeof AuthenticatedAdminLearningRoute
+  '/admin/masters': typeof AuthenticatedAdminMastersRoute
+  '/admin/resumes': typeof AuthenticatedAdminResumesRoute
+  '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/candidate/applications': typeof AuthenticatedCandidateApplicationsRoute
   '/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
   '/candidate/profile': typeof AuthenticatedCandidateProfileRoute
@@ -276,6 +371,8 @@ export interface FileRoutesById {
   '/forgot-password': typeof ForgotPasswordRoute
   '/jobs': typeof JobsRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
+  '/_authenticated/admin': typeof AuthenticatedAdminRouteRouteWithChildren
+  '/admin/login': typeof AdminLoginRoute
   '/c/$slug': typeof CSlugRoute
   '/candidate/login': typeof CandidateLoginRoute
   '/employer/login': typeof EmployerLoginRoute
@@ -284,6 +381,15 @@ export interface FileRoutesById {
   '/signup/candidate': typeof SignupCandidateRoute
   '/signup/employer': typeof SignupEmployerRoute
   '/u/$slug': typeof USlugRoute
+  '/_authenticated/admin/banners': typeof AuthenticatedAdminBannersRoute
+  '/_authenticated/admin/companies': typeof AuthenticatedAdminCompaniesRoute
+  '/_authenticated/admin/credits': typeof AuthenticatedAdminCreditsRoute
+  '/_authenticated/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
+  '/_authenticated/admin/jobs': typeof AuthenticatedAdminJobsRoute
+  '/_authenticated/admin/learning': typeof AuthenticatedAdminLearningRoute
+  '/_authenticated/admin/masters': typeof AuthenticatedAdminMastersRoute
+  '/_authenticated/admin/resumes': typeof AuthenticatedAdminResumesRoute
+  '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
   '/_authenticated/candidate/applications': typeof AuthenticatedCandidateApplicationsRoute
   '/_authenticated/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
   '/_authenticated/candidate/profile': typeof AuthenticatedCandidateProfileRoute
@@ -309,6 +415,8 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/jobs'
     | '/reset-password'
+    | '/admin'
+    | '/admin/login'
     | '/c/$slug'
     | '/candidate/login'
     | '/employer/login'
@@ -317,6 +425,15 @@ export interface FileRouteTypes {
     | '/signup/candidate'
     | '/signup/employer'
     | '/u/$slug'
+    | '/admin/banners'
+    | '/admin/companies'
+    | '/admin/credits'
+    | '/admin/dashboard'
+    | '/admin/jobs'
+    | '/admin/learning'
+    | '/admin/masters'
+    | '/admin/resumes'
+    | '/admin/users'
     | '/candidate/applications'
     | '/candidate/dashboard'
     | '/candidate/profile'
@@ -340,6 +457,8 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/jobs'
     | '/reset-password'
+    | '/admin'
+    | '/admin/login'
     | '/c/$slug'
     | '/candidate/login'
     | '/employer/login'
@@ -348,6 +467,15 @@ export interface FileRouteTypes {
     | '/signup/candidate'
     | '/signup/employer'
     | '/u/$slug'
+    | '/admin/banners'
+    | '/admin/companies'
+    | '/admin/credits'
+    | '/admin/dashboard'
+    | '/admin/jobs'
+    | '/admin/learning'
+    | '/admin/masters'
+    | '/admin/resumes'
+    | '/admin/users'
     | '/candidate/applications'
     | '/candidate/dashboard'
     | '/candidate/profile'
@@ -372,6 +500,8 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/jobs'
     | '/reset-password'
+    | '/_authenticated/admin'
+    | '/admin/login'
     | '/c/$slug'
     | '/candidate/login'
     | '/employer/login'
@@ -380,6 +510,15 @@ export interface FileRouteTypes {
     | '/signup/candidate'
     | '/signup/employer'
     | '/u/$slug'
+    | '/_authenticated/admin/banners'
+    | '/_authenticated/admin/companies'
+    | '/_authenticated/admin/credits'
+    | '/_authenticated/admin/dashboard'
+    | '/_authenticated/admin/jobs'
+    | '/_authenticated/admin/learning'
+    | '/_authenticated/admin/masters'
+    | '/_authenticated/admin/resumes'
+    | '/_authenticated/admin/users'
     | '/_authenticated/candidate/applications'
     | '/_authenticated/candidate/dashboard'
     | '/_authenticated/candidate/profile'
@@ -405,6 +544,7 @@ export interface RootRouteChildren {
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   JobsRoute: typeof JobsRouteWithChildren
   ResetPasswordRoute: typeof ResetPasswordRoute
+  AdminLoginRoute: typeof AdminLoginRoute
   CSlugRoute: typeof CSlugRoute
   CandidateLoginRoute: typeof CandidateLoginRoute
   EmployerLoginRoute: typeof EmployerLoginRoute
@@ -515,6 +655,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/login': {
+      id: '/admin/login'
+      path: '/admin/login'
+      fullPath: '/admin/login'
+      preLoaderRoute: typeof AdminLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/onboarding/employer': {
       id: '/_authenticated/onboarding/employer'
       path: '/onboarding/employer'
@@ -606,6 +760,69 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCandidateApplicationsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/users': {
+      id: '/_authenticated/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AuthenticatedAdminUsersRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/admin/resumes': {
+      id: '/_authenticated/admin/resumes'
+      path: '/resumes'
+      fullPath: '/admin/resumes'
+      preLoaderRoute: typeof AuthenticatedAdminResumesRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/admin/masters': {
+      id: '/_authenticated/admin/masters'
+      path: '/masters'
+      fullPath: '/admin/masters'
+      preLoaderRoute: typeof AuthenticatedAdminMastersRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/admin/learning': {
+      id: '/_authenticated/admin/learning'
+      path: '/learning'
+      fullPath: '/admin/learning'
+      preLoaderRoute: typeof AuthenticatedAdminLearningRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/admin/jobs': {
+      id: '/_authenticated/admin/jobs'
+      path: '/jobs'
+      fullPath: '/admin/jobs'
+      preLoaderRoute: typeof AuthenticatedAdminJobsRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/admin/dashboard': {
+      id: '/_authenticated/admin/dashboard'
+      path: '/dashboard'
+      fullPath: '/admin/dashboard'
+      preLoaderRoute: typeof AuthenticatedAdminDashboardRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/admin/credits': {
+      id: '/_authenticated/admin/credits'
+      path: '/credits'
+      fullPath: '/admin/credits'
+      preLoaderRoute: typeof AuthenticatedAdminCreditsRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/admin/companies': {
+      id: '/_authenticated/admin/companies'
+      path: '/companies'
+      fullPath: '/admin/companies'
+      preLoaderRoute: typeof AuthenticatedAdminCompaniesRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/admin/banners': {
+      id: '/_authenticated/admin/banners'
+      path: '/banners'
+      fullPath: '/admin/banners'
+      preLoaderRoute: typeof AuthenticatedAdminBannersRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/api/public/webhooks/razorpay': {
       id: '/api/public/webhooks/razorpay'
       path: '/api/public/webhooks/razorpay'
@@ -630,6 +847,36 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthenticatedAdminRouteRouteChildren {
+  AuthenticatedAdminBannersRoute: typeof AuthenticatedAdminBannersRoute
+  AuthenticatedAdminCompaniesRoute: typeof AuthenticatedAdminCompaniesRoute
+  AuthenticatedAdminCreditsRoute: typeof AuthenticatedAdminCreditsRoute
+  AuthenticatedAdminDashboardRoute: typeof AuthenticatedAdminDashboardRoute
+  AuthenticatedAdminJobsRoute: typeof AuthenticatedAdminJobsRoute
+  AuthenticatedAdminLearningRoute: typeof AuthenticatedAdminLearningRoute
+  AuthenticatedAdminMastersRoute: typeof AuthenticatedAdminMastersRoute
+  AuthenticatedAdminResumesRoute: typeof AuthenticatedAdminResumesRoute
+  AuthenticatedAdminUsersRoute: typeof AuthenticatedAdminUsersRoute
+}
+
+const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren =
+  {
+    AuthenticatedAdminBannersRoute: AuthenticatedAdminBannersRoute,
+    AuthenticatedAdminCompaniesRoute: AuthenticatedAdminCompaniesRoute,
+    AuthenticatedAdminCreditsRoute: AuthenticatedAdminCreditsRoute,
+    AuthenticatedAdminDashboardRoute: AuthenticatedAdminDashboardRoute,
+    AuthenticatedAdminJobsRoute: AuthenticatedAdminJobsRoute,
+    AuthenticatedAdminLearningRoute: AuthenticatedAdminLearningRoute,
+    AuthenticatedAdminMastersRoute: AuthenticatedAdminMastersRoute,
+    AuthenticatedAdminResumesRoute: AuthenticatedAdminResumesRoute,
+    AuthenticatedAdminUsersRoute: AuthenticatedAdminUsersRoute,
+  }
+
+const AuthenticatedAdminRouteRouteWithChildren =
+  AuthenticatedAdminRouteRoute._addFileChildren(
+    AuthenticatedAdminRouteRouteChildren,
+  )
+
 interface AuthenticatedEmployerJobsRouteChildren {
   AuthenticatedEmployerJobsNewRoute: typeof AuthenticatedEmployerJobsNewRoute
   AuthenticatedEmployerJobsJobIdApplicantsRoute: typeof AuthenticatedEmployerJobsJobIdApplicantsRoute
@@ -648,6 +895,7 @@ const AuthenticatedEmployerJobsRouteWithChildren =
   )
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAdminRouteRoute: typeof AuthenticatedAdminRouteRouteWithChildren
   AuthenticatedCandidateApplicationsRoute: typeof AuthenticatedCandidateApplicationsRoute
   AuthenticatedCandidateDashboardRoute: typeof AuthenticatedCandidateDashboardRoute
   AuthenticatedCandidateProfileRoute: typeof AuthenticatedCandidateProfileRoute
@@ -664,6 +912,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAdminRouteRoute: AuthenticatedAdminRouteRouteWithChildren,
   AuthenticatedCandidateApplicationsRoute:
     AuthenticatedCandidateApplicationsRoute,
   AuthenticatedCandidateDashboardRoute: AuthenticatedCandidateDashboardRoute,
@@ -700,6 +949,7 @@ const rootRouteChildren: RootRouteChildren = {
   ForgotPasswordRoute: ForgotPasswordRoute,
   JobsRoute: JobsRouteWithChildren,
   ResetPasswordRoute: ResetPasswordRoute,
+  AdminLoginRoute: AdminLoginRoute,
   CSlugRoute: CSlugRoute,
   CandidateLoginRoute: CandidateLoginRoute,
   EmployerLoginRoute: EmployerLoginRoute,
