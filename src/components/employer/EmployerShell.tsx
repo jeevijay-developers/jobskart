@@ -1,5 +1,15 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Building2, Briefcase, LayoutDashboard, Plus, Users, Settings } from "lucide-react";
+import {
+  Building2,
+  Briefcase,
+  LayoutDashboard,
+  Plus,
+  Users,
+  Settings,
+  Database,
+  BarChart3,
+  Coins,
+} from "lucide-react";
 import type { ReactNode } from "react";
 import { Navbar } from "@/components/site/Navbar";
 import { NotificationBell } from "@/components/site/NotificationBell";
@@ -7,6 +17,9 @@ import { NotificationBell } from "@/components/site/NotificationBell";
 const nav = [
   { to: "/employer/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/employer/jobs", label: "Jobs", icon: Briefcase },
+  { to: "/employer/database", label: "Database", icon: Database },
+  { to: "/employer/credits", label: "Credits", icon: Coins },
+  { to: "/employer/reports", label: "Reports", icon: BarChart3 },
   { to: "/employer/company", label: "Company", icon: Building2 },
   { to: "/employer/team", label: "Team", icon: Users },
 ] as const;
