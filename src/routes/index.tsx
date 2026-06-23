@@ -432,7 +432,7 @@ function DualCTA() {
         </div>
 
         {/* Employer */}
-        <div className="relative overflow-hidden rounded-3xl border border-border bg-foreground p-10 text-background">
+        <div className="relative overflow-hidden rounded-3xl border border-border bg-foreground p-6 text-background sm:p-10">
           <div className="relative z-10 max-w-md">
             <p className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary">
               <Building2 className="h-3.5 w-3.5" strokeWidth={2.5} /> For employers
