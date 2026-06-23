@@ -98,7 +98,7 @@ function Hero() {
         className="pointer-events-none absolute -top-40 -left-40 h-[480px] w-[480px] rounded-full bg-white/10 blur-3xl"
       />
 
-      <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 py-20 sm:px-6 lg:grid-cols-12 lg:gap-10 lg:py-28 lg:px-8">
+      <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-4 py-12 sm:gap-12 sm:px-6 sm:py-20 lg:grid-cols-12 lg:gap-10 lg:py-28 lg:px-8">
         <div className="lg:col-span-7">
           <motion.span
             initial={{ opacity: 0, y: 10 }}
