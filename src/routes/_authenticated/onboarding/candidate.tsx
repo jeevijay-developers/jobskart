@@ -256,7 +256,7 @@ function OnboardingPage() {
         {step === 0 && (
           <div className="space-y-5">
             <ResumeUpload
-              onParsed={(d) => {
+              onParsed={(d: ParsedResumePayload) => {
                 if (d.full_name && !fullName) setFullName(d.full_name);
                 if (d.mobile && !mobile) setMobile(d.mobile.replace(/\D/g, "").slice(-10));
                 if (d.city && !city) setCity(d.city);
