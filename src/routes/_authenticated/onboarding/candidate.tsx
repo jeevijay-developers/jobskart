@@ -220,12 +220,12 @@ function OnboardingPage() {
         }
       }
       if (currentLabel === "Education" && highestQualification) {
-        // Save a single row mapped to candidate_education for highest qualification as a placeholder.
-        // Detailed entries are captured in the profile screen.
-        await supabase.from("candidate_education").upsert({
+        // Persist highest qualification as a single education row; detailed entries live on the profile screen.
+        await supabase.from("candidate_education").delete().eq("user_id", uid).eq("level", highestQualification);
+        await supabase.from("candidate_education").insert({
           user_id: uid,
           level: highestQualification,
-        } as never, { onConflict: "user_id,level" } as never).then(() => {}, () => {});
+        });
       }
       if (currentLabel === "Skills & languages") {
         await supabase.from("candidate_languages").delete().eq("user_id", uid);
