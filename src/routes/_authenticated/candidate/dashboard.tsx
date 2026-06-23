@@ -84,6 +84,8 @@ function CandidateDashboard() {
 
   return (
     <CandidateShell title={`Welcome back, ${name.split(" ")[0]} 👋`} subtitle="Track your search, applications and recommendations in one place.">
+      <NudgeBanner strength={strength} missing={missing} />
+
       {/* Hero strength */}
       {strength < 80 && (
         <div className="mb-6 flex flex-wrap items-center gap-4 rounded-2xl border border-primary/20 bg-gradient-to-r from-primary-light via-card to-card p-5 shadow-[var(--shadow-card)]">
