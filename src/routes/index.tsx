@@ -444,7 +444,8 @@ function DualCTA() {
               Post a job in 4 minutes. Get matched candidates plus your applied pool in one inbox.
             </p>
             <Link
-              to="/signup/employer"
+              to="/auth"
+              search={{ tab: "employer" }}
               className="mt-8 inline-flex h-12 items-center gap-2 rounded-xl bg-primary px-6 text-sm font-bold text-primary-foreground shadow-[var(--shadow-elegant)] transition-transform hover:translate-y-[-1px] hover:bg-primary-dark"
             >
               Post a job <ArrowRight className="h-4 w-4" />
