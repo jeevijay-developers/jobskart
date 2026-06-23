@@ -319,9 +319,9 @@ function CountUp({ end, fallback }: { end: number; fallback: string }) {
 function TrendingRoles() {
   const navigate = useNavigate();
   return (
-    <section className="py-20">
+    <section className="py-14 sm:py-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex items-end justify-between gap-6">
+        <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end sm:gap-6">
           <div>
             <p className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary">
               <TrendingUp className="h-3.5 w-3.5" strokeWidth={2.5} /> Trending this week
