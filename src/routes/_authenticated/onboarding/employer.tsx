@@ -17,7 +17,7 @@ function EmployerOnboarding() {
   const [name, setName] = useState("");
   const [fullName, setFullName] = useState("");
   const [industry, setIndustry] = useState("");
-  const [size, setSize] = useState<"1_10" | "11_50" | "51_200" | "201_500" | "501_1000" | "1000_plus">("11_50");
+  const [size, setSize] = useState<"1-10" | "11-50" | "51-200" | "201-500" | "500+">("11-50");
   const [city, setCity] = useState("");
   const [website, setWebsite] = useState("");
   const [saving, setSaving] = useState(false);

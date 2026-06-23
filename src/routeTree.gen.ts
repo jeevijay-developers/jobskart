@@ -23,6 +23,7 @@ import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as EmployerLoginRouteImport } from './routes/employer.login'
 import { Route as CandidateLoginRouteImport } from './routes/candidate.login'
 import { Route as CSlugRouteImport } from './routes/c.$slug'
+import { Route as AuthenticatedOnboardingEmployerRouteImport } from './routes/_authenticated/onboarding/employer'
 import { Route as AuthenticatedOnboardingCandidateRouteImport } from './routes/_authenticated/onboarding/candidate'
 import { Route as AuthenticatedEmployerTeamRouteImport } from './routes/_authenticated/employer/team'
 import { Route as AuthenticatedEmployerReportsRouteImport } from './routes/_authenticated/employer/reports'
@@ -108,6 +109,12 @@ const CSlugRoute = CSlugRouteImport.update({
   path: '/c/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedOnboardingEmployerRoute =
+  AuthenticatedOnboardingEmployerRouteImport.update({
+    id: '/onboarding/employer',
+    path: '/onboarding/employer',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedOnboardingCandidateRoute =
   AuthenticatedOnboardingCandidateRouteImport.update({
     id: '/onboarding/candidate',
@@ -225,6 +232,7 @@ export interface FileRoutesByFullPath {
   '/employer/reports': typeof AuthenticatedEmployerReportsRoute
   '/employer/team': typeof AuthenticatedEmployerTeamRoute
   '/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
+  '/onboarding/employer': typeof AuthenticatedOnboardingEmployerRoute
   '/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
   '/api/public/webhooks/razorpay': typeof ApiPublicWebhooksRazorpayRoute
   '/employer/jobs/$jobId/applicants': typeof AuthenticatedEmployerJobsJobIdApplicantsRoute
@@ -255,6 +263,7 @@ export interface FileRoutesByTo {
   '/employer/reports': typeof AuthenticatedEmployerReportsRoute
   '/employer/team': typeof AuthenticatedEmployerTeamRoute
   '/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
+  '/onboarding/employer': typeof AuthenticatedOnboardingEmployerRoute
   '/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
   '/api/public/webhooks/razorpay': typeof ApiPublicWebhooksRazorpayRoute
   '/employer/jobs/$jobId/applicants': typeof AuthenticatedEmployerJobsJobIdApplicantsRoute
@@ -287,6 +296,7 @@ export interface FileRoutesById {
   '/_authenticated/employer/reports': typeof AuthenticatedEmployerReportsRoute
   '/_authenticated/employer/team': typeof AuthenticatedEmployerTeamRoute
   '/_authenticated/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
+  '/_authenticated/onboarding/employer': typeof AuthenticatedOnboardingEmployerRoute
   '/_authenticated/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
   '/api/public/webhooks/razorpay': typeof ApiPublicWebhooksRazorpayRoute
   '/_authenticated/employer/jobs/$jobId/applicants': typeof AuthenticatedEmployerJobsJobIdApplicantsRoute
@@ -319,6 +329,7 @@ export interface FileRouteTypes {
     | '/employer/reports'
     | '/employer/team'
     | '/onboarding/candidate'
+    | '/onboarding/employer'
     | '/employer/jobs/new'
     | '/api/public/webhooks/razorpay'
     | '/employer/jobs/$jobId/applicants'
@@ -349,6 +360,7 @@ export interface FileRouteTypes {
     | '/employer/reports'
     | '/employer/team'
     | '/onboarding/candidate'
+    | '/onboarding/employer'
     | '/employer/jobs/new'
     | '/api/public/webhooks/razorpay'
     | '/employer/jobs/$jobId/applicants'
@@ -380,6 +392,7 @@ export interface FileRouteTypes {
     | '/_authenticated/employer/reports'
     | '/_authenticated/employer/team'
     | '/_authenticated/onboarding/candidate'
+    | '/_authenticated/onboarding/employer'
     | '/_authenticated/employer/jobs/new'
     | '/api/public/webhooks/razorpay'
     | '/_authenticated/employer/jobs/$jobId/applicants'
@@ -501,6 +514,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/c/$slug'
       preLoaderRoute: typeof CSlugRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/onboarding/employer': {
+      id: '/_authenticated/onboarding/employer'
+      path: '/onboarding/employer'
+      fullPath: '/onboarding/employer'
+      preLoaderRoute: typeof AuthenticatedOnboardingEmployerRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/onboarding/candidate': {
       id: '/_authenticated/onboarding/candidate'
@@ -640,6 +660,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedEmployerReportsRoute: typeof AuthenticatedEmployerReportsRoute
   AuthenticatedEmployerTeamRoute: typeof AuthenticatedEmployerTeamRoute
   AuthenticatedOnboardingCandidateRoute: typeof AuthenticatedOnboardingCandidateRoute
+  AuthenticatedOnboardingEmployerRoute: typeof AuthenticatedOnboardingEmployerRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -656,6 +677,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedEmployerReportsRoute: AuthenticatedEmployerReportsRoute,
   AuthenticatedEmployerTeamRoute: AuthenticatedEmployerTeamRoute,
   AuthenticatedOnboardingCandidateRoute: AuthenticatedOnboardingCandidateRoute,
+  AuthenticatedOnboardingEmployerRoute: AuthenticatedOnboardingEmployerRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
