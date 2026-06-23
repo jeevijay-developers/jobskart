@@ -118,12 +118,11 @@ function EmployerOnboarding() {
                 value={size}
                 onChange={(e) => setSize(e.target.value as typeof size)}
               >
-                <option value="1_10">1–10</option>
-                <option value="11_50">11–50</option>
-                <option value="51_200">51–200</option>
-                <option value="201_500">201–500</option>
-                <option value="501_1000">501–1,000</option>
-                <option value="1000_plus">1,000+</option>
+                <option value="1-10">1–10</option>
+                <option value="11-50">11–50</option>
+                <option value="51-200">51–200</option>
+                <option value="201-500">201–500</option>
+                <option value="500+">500+</option>
               </select>
             </Field>
             <Field label="Headquarters city" required>
