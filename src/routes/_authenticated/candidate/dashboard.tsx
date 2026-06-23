@@ -1,10 +1,11 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowRight, Bookmark, Briefcase, Calendar, CheckCircle2, FileText, ListChecks, TrendingUp } from "lucide-react";
+import { ArrowRight, Bookmark, Briefcase, Calendar, CheckCircle2, FileText, ListChecks, Sparkles, TrendingUp, X } from "lucide-react";
 import { CandidateShell } from "@/components/candidate/CandidateShell";
 import { JobCard, type JobCardData } from "@/components/site/JobCard";
 import { supabase } from "@/integrations/supabase/client";
 import { strengthLabel } from "@/lib/profileStrength";
+import { upsertNudgeShown } from "@/lib/candidate.functions";
 
 export const Route = createFileRoute("/_authenticated/candidate/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard · JobsKart" }] }),
