@@ -480,25 +480,74 @@ function LanguagesDialog({ open, onClose, uid, items, onSaved }: { open: boolean
 }
 
 function ResumeDialog({ open, onClose, uid, current, onSaved }: { open: boolean; onClose: () => void; uid: string; current: string | null; onSaved: () => void }) {
-  const [uploading, setUploading] = useState(false);
-  const upload = async (file: File) => {
-    if (file.size > 5 * 1024 * 1024) return toast.error("Resume must be under 5 MB.");
-    if (!/pdf|word|officedocument/i.test(file.type)) return toast.error("Upload a PDF or DOC file.");
-    setUploading(true);
-    const path = `${uid}/resume-${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
-    const { error } = await supabase.storage.from("candidate-docs").upload(path, file, { upsert: true });
-    if (error) { setUploading(false); return toast.error(error.message); }
-    await supabase.from("candidate_profiles").update({ resume_url: path, resume_name: file.name }).eq("user_id", uid);
-    await supabase.from("candidate_documents").insert({ user_id: uid, doc_type: "resume", file_path: path, file_name: file.name, size_bytes: file.size });
-    setUploading(false); toast.success("Resume uploaded"); onSaved(); onClose();
-  };
   return (
     <DlgShell open={open} onClose={onClose} title="Upload resume">
-      <label className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed border-border bg-surface p-8 text-center hover:border-primary">
-        <input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
-        {uploading ? <Loader2 className="h-6 w-6 animate-spin text-primary" /> : <Upload className="h-7 w-7 text-muted-foreground" />}
-        <p className="text-sm font-medium text-foreground">{current ? `Current: ${current} — click to replace` : "Click to upload (PDF / DOC, ≤ 5 MB)"}</p>
-      </label>
+      {current && (
+        <p className="mb-3 text-xs text-muted-foreground">
+          Current: <span className="font-medium text-foreground">{current}</span> — uploading a new file will replace it.
+        </p>
+      )}
+      <ResumeUpload
+        onParsed={async (parsed, file) => {
+          try {
+            const path = `${uid}/resume-${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
+            const up = await supabase.storage.from("candidate-docs").upload(path, file, { upsert: true });
+            if (up.error) throw up.error;
+
+            // Build the patch from parsed fields (only update empty/missing fields)
+            const candPatch: Record<string, unknown> = { resume_url: path, resume_name: file.name };
+            const profPatch: Record<string, unknown> = {};
+            if (parsed.headline) candPatch.headline = parsed.headline;
+            if (typeof parsed.years_experience === "number") {
+              candPatch.years_experience = parsed.years_experience;
+              candPatch.experience_status = parsed.years_experience > 0 ? "experienced" : "fresher";
+            }
+            if (parsed.skills?.length) candPatch.skills = parsed.skills.slice(0, 25);
+            if (parsed.full_name) profPatch.full_name = parsed.full_name;
+            if (parsed.city) profPatch.city = parsed.city;
+
+            await supabase.from("candidate_profiles").update(candPatch).eq("user_id", uid);
+            if (Object.keys(profPatch).length) {
+              await supabase.from("profiles").update(profPatch).eq("id", uid);
+            }
+            if (parsed.experiences?.length) {
+              const rows = parsed.experiences
+                .filter((e) => e.job_title || e.company_name)
+                .map((e) => ({
+                  user_id: uid,
+                  job_title: e.job_title || "",
+                  company_name: e.company_name || "",
+                  start_date: e.start_date || null,
+                  end_date: e.end_date || null,
+                  is_current: !!e.is_current,
+                  description: e.description || "",
+                }));
+              if (rows.length) await supabase.from("candidate_experiences").insert(rows);
+            }
+            if (parsed.education?.length) {
+              const rows = parsed.education
+                .filter((e) => e.level || e.institute)
+                .map((e) => ({
+                  user_id: uid,
+                  level: e.level || "",
+                  board_or_university: e.board_or_university || "",
+                  institute: e.institute || "",
+                  year_of_passing: e.year_of_passing ?? null,
+                  marks: e.marks || "",
+                }));
+              if (rows.length) await supabase.from("candidate_education").insert(rows);
+            }
+            await supabase.from("candidate_documents").insert({
+              user_id: uid, doc_type: "resume", file_path: path, file_name: file.name, size_bytes: file.size,
+            });
+            toast.success("Resume saved — review the auto-filled fields below.");
+            onSaved();
+            onClose();
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Could not save resume.");
+          }
+        }}
+      />
     </DlgShell>
   );
 }
