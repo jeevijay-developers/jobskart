@@ -136,7 +136,7 @@ function Hero() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.25 }}
             onSubmit={submit}
-            className="mt-10 rounded-2xl border border-white/10 bg-background p-2 shadow-[var(--shadow-soft)]"
+            className="mt-6 rounded-2xl border border-white/10 bg-background p-2 shadow-[var(--shadow-soft)] sm:mt-10"
           >
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <label className="flex flex-1 items-center gap-3 rounded-xl px-4 py-3">
