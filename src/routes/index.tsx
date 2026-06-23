@@ -437,7 +437,7 @@ function DualCTA() {
             <p className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary">
               <Building2 className="h-3.5 w-3.5" strokeWidth={2.5} /> For employers
             </p>
-            <h3 className="mt-3 text-3xl font-bold leading-tight sm:text-4xl">
+            <h3 className="mt-3 text-2xl font-bold leading-tight sm:text-4xl">
               Hire from India's largest blue-collar pool.
             </h3>
             <p className="mt-4 text-background/70">
