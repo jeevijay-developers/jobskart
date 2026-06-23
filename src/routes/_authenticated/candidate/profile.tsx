@@ -481,75 +481,227 @@ function LanguagesDialog({ open, onClose, uid, items, onSaved }: { open: boolean
   );
 }
 
+type ReviewState = {
+  parsed: ParsedResumePayload;
+  file: File;
+  full_name: string;
+  city: string;
+  headline: string;
+  years_experience: string;
+  skills: string[];
+  experiences: NonNullable<ParsedResumePayload["experiences"]>;
+  education: NonNullable<ParsedResumePayload["education"]>;
+};
+
 function ResumeDialog({ open, onClose, uid, current, onSaved }: { open: boolean; onClose: () => void; uid: string; current: string | null; onSaved: () => void }) {
+  const [review, setReview] = useState<ReviewState | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  // Reset when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setReview(null);
+      setSaving(false);
+    }
+  }, [open]);
+
+  const onParsed = (parsed: ParsedResumePayload, file: File) => {
+    setReview({
+      parsed,
+      file,
+      full_name: parsed.full_name ?? "",
+      city: parsed.city ?? "",
+      headline: parsed.headline ?? "",
+      years_experience: typeof parsed.years_experience === "number" ? String(parsed.years_experience) : "",
+      skills: parsed.skills ?? [],
+      experiences: parsed.experiences ?? [],
+      education: parsed.education ?? [],
+    });
+  };
+
+  const save = async () => {
+    if (!review) return;
+    setSaving(true);
+    try {
+      const { file } = review;
+      const path = `${uid}/resume-${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
+      const up = await supabase.storage.from("candidate-docs").upload(path, file, { upsert: true });
+      if (up.error) throw up.error;
+
+      const candPatch: Record<string, unknown> = { resume_url: path, resume_name: file.name };
+      const profPatch: Record<string, unknown> = {};
+      if (review.headline.trim()) candPatch.headline = review.headline.trim();
+      const yrs = review.years_experience === "" ? null : Number(review.years_experience);
+      if (yrs !== null && !Number.isNaN(yrs)) {
+        candPatch.years_experience = yrs;
+        candPatch.experience_status = yrs > 0 ? "experienced" : "fresher";
+      }
+      if (review.skills.length) candPatch.skills = review.skills.slice(0, 25);
+      if (review.full_name.trim()) profPatch.full_name = review.full_name.trim();
+      if (review.city.trim()) profPatch.city = review.city.trim();
+
+      await supabase.from("candidate_profiles").update(candPatch as never).eq("user_id", uid);
+      if (Object.keys(profPatch).length) {
+        await supabase.from("profiles").update(profPatch as never).eq("id", uid);
+      }
+      const expRows = review.experiences
+        .filter((e) => (e.job_title || e.company_name)?.trim())
+        .map((e) => ({
+          user_id: uid,
+          job_title: e.job_title || "",
+          company_name: e.company_name || "",
+          start_date: e.start_date || null,
+          end_date: e.end_date || null,
+          is_current: !!e.is_current,
+          description: e.description || "",
+        }));
+      if (expRows.length) await supabase.from("candidate_experiences").insert(expRows);
+
+      const eduRows = review.education
+        .filter((e) => (e.level || e.institute)?.trim())
+        .map((e) => ({
+          user_id: uid,
+          level: e.level || "",
+          board_or_university: e.board_or_university || "",
+          institute: e.institute || "",
+          year_of_passing: e.year_of_passing ?? null,
+          marks: e.marks || "",
+        }));
+      if (eduRows.length) await supabase.from("candidate_education").insert(eduRows);
+
+      await supabase.from("candidate_documents").insert({
+        user_id: uid, doc_type: "resume", file_path: path, file_name: file.name, size_bytes: file.size,
+      });
+      toast.success("Resume saved with your reviewed details.");
+      onSaved();
+      onClose();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not save resume.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
-    <DlgShell open={open} onClose={onClose} title="Upload resume">
-      {current && (
-        <p className="mb-3 text-xs text-muted-foreground">
-          Current: <span className="font-medium text-foreground">{current}</span> — uploading a new file will replace it.
-        </p>
+    <DlgShell open={open} onClose={onClose} title={review ? "Review auto-filled details" : "Upload resume"}>
+      {!review && (
+        <>
+          {current && (
+            <p className="mb-3 text-xs text-muted-foreground">
+              Current: <span className="font-medium text-foreground">{current}</span> — uploading a new file will replace it.
+            </p>
+          )}
+          <ResumeUpload onParsed={onParsed} />
+        </>
       )}
-      <ResumeUpload
-        onParsed={async (parsed, file) => {
-          try {
-            const path = `${uid}/resume-${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
-            const up = await supabase.storage.from("candidate-docs").upload(path, file, { upsert: true });
-            if (up.error) throw up.error;
 
-            // Build the patch from parsed fields (only update empty/missing fields)
-            const candPatch: Record<string, unknown> = { resume_url: path, resume_name: file.name };
-            const profPatch: Record<string, unknown> = {};
-            if (parsed.headline) candPatch.headline = parsed.headline;
-            if (typeof parsed.years_experience === "number") {
-              candPatch.years_experience = parsed.years_experience;
-              candPatch.experience_status = parsed.years_experience > 0 ? "experienced" : "fresher";
-            }
-            if (parsed.skills?.length) candPatch.skills = parsed.skills.slice(0, 25);
-            if (parsed.full_name) profPatch.full_name = parsed.full_name;
-            if (parsed.city) profPatch.city = parsed.city;
+      {review && (
+        <div className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            We pulled the following from <span className="font-medium text-foreground">{review.file.name}</span>. Edit anything that looks off, then save.
+          </p>
 
-            await supabase.from("candidate_profiles").update(candPatch as never).eq("user_id", uid);
-            if (Object.keys(profPatch).length) {
-              await supabase.from("profiles").update(profPatch as never).eq("id", uid);
-            }
-            if (parsed.experiences?.length) {
-              const rows = parsed.experiences
-                .filter((e) => e.job_title || e.company_name)
-                .map((e) => ({
-                  user_id: uid,
-                  job_title: e.job_title || "",
-                  company_name: e.company_name || "",
-                  start_date: e.start_date || null,
-                  end_date: e.end_date || null,
-                  is_current: !!e.is_current,
-                  description: e.description || "",
-                }));
-              if (rows.length) await supabase.from("candidate_experiences").insert(rows);
-            }
-            if (parsed.education?.length) {
-              const rows = parsed.education
-                .filter((e) => e.level || e.institute)
-                .map((e) => ({
-                  user_id: uid,
-                  level: e.level || "",
-                  board_or_university: e.board_or_university || "",
-                  institute: e.institute || "",
-                  year_of_passing: e.year_of_passing ?? null,
-                  marks: e.marks || "",
-                }));
-              if (rows.length) await supabase.from("candidate_education").insert(rows);
-            }
-            await supabase.from("candidate_documents").insert({
-              user_id: uid, doc_type: "resume", file_path: path, file_name: file.name, size_bytes: file.size,
-            });
-            toast.success("Resume saved — review the auto-filled fields below.");
-            onSaved();
-            onClose();
-          } catch (err) {
-            toast.error(err instanceof Error ? err.message : "Could not save resume.");
-          }
-        }}
-      />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Full name">
+              <input className="form-input" value={review.full_name} onChange={(e) => setReview({ ...review, full_name: e.target.value })} />
+            </Field>
+            <Field label="City">
+              <input className="form-input" value={review.city} onChange={(e) => setReview({ ...review, city: e.target.value })} />
+            </Field>
+            <Field label="Headline">
+              <input className="form-input" value={review.headline} onChange={(e) => setReview({ ...review, headline: e.target.value })} maxLength={120} />
+            </Field>
+            <Field label="Years of experience">
+              <input className="form-input" type="number" min={0} max={60} value={review.years_experience} onChange={(e) => setReview({ ...review, years_experience: e.target.value })} />
+            </Field>
+          </div>
+
+          <Field label="Skills (comma separated)">
+            <textarea
+              className="form-input min-h-[64px]"
+              value={review.skills.join(", ")}
+              onChange={(e) => setReview({ ...review, skills: e.target.value.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 25) })}
+            />
+          </Field>
+
+          {review.experiences.length > 0 && (
+            <div>
+              <h4 className="mb-2 text-sm font-semibold text-foreground">Experience ({review.experiences.length})</h4>
+              <div className="space-y-3">
+                {review.experiences.map((exp, i) => (
+                  <div key={i} className="rounded-lg border border-border p-3">
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <input className="form-input" placeholder="Job title" value={exp.job_title} onChange={(e) => {
+                        const next = [...review.experiences]; next[i] = { ...exp, job_title: e.target.value }; setReview({ ...review, experiences: next });
+                      }} />
+                      <input className="form-input" placeholder="Company" value={exp.company_name} onChange={(e) => {
+                        const next = [...review.experiences]; next[i] = { ...exp, company_name: e.target.value }; setReview({ ...review, experiences: next });
+                      }} />
+                      <input className="form-input" type="date" value={exp.start_date ?? ""} onChange={(e) => {
+                        const next = [...review.experiences]; next[i] = { ...exp, start_date: e.target.value }; setReview({ ...review, experiences: next });
+                      }} />
+                      <input className="form-input" type="date" value={exp.end_date ?? ""} disabled={exp.is_current} onChange={(e) => {
+                        const next = [...review.experiences]; next[i] = { ...exp, end_date: e.target.value }; setReview({ ...review, experiences: next });
+                      }} />
+                    </div>
+                    <label className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                      <input type="checkbox" checked={exp.is_current} onChange={(e) => {
+                        const next = [...review.experiences]; next[i] = { ...exp, is_current: e.target.checked }; setReview({ ...review, experiences: next });
+                      }} /> Currently working here
+                    </label>
+                    <button
+                      type="button"
+                      className="mt-2 text-xs font-semibold text-destructive hover:underline"
+                      onClick={() => setReview({ ...review, experiences: review.experiences.filter((_, idx) => idx !== i) })}
+                    >Remove</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {review.education.length > 0 && (
+            <div>
+              <h4 className="mb-2 text-sm font-semibold text-foreground">Education ({review.education.length})</h4>
+              <div className="space-y-3">
+                {review.education.map((edu, i) => (
+                  <div key={i} className="rounded-lg border border-border p-3">
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <input className="form-input" placeholder="Level" value={edu.level} onChange={(e) => {
+                        const next = [...review.education]; next[i] = { ...edu, level: e.target.value }; setReview({ ...review, education: next });
+                      }} />
+                      <input className="form-input" placeholder="Institute" value={edu.institute} onChange={(e) => {
+                        const next = [...review.education]; next[i] = { ...edu, institute: e.target.value }; setReview({ ...review, education: next });
+                      }} />
+                      <input className="form-input" placeholder="Board / University" value={edu.board_or_university} onChange={(e) => {
+                        const next = [...review.education]; next[i] = { ...edu, board_or_university: e.target.value }; setReview({ ...review, education: next });
+                      }} />
+                      <input className="form-input" type="number" placeholder="Year" value={edu.year_of_passing ?? ""} onChange={(e) => {
+                        const v = e.target.value === "" ? null : Number(e.target.value);
+                        const next = [...review.education]; next[i] = { ...edu, year_of_passing: v }; setReview({ ...review, education: next });
+                      }} />
+                    </div>
+                    <button
+                      type="button"
+                      className="mt-2 text-xs font-semibold text-destructive hover:underline"
+                      onClick={() => setReview({ ...review, education: review.education.filter((_, idx) => idx !== i) })}
+                    >Remove</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2 pt-2">
+            <button type="button" onClick={() => setReview(null)} className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-surface">
+              Upload different file
+            </button>
+            <button type="button" onClick={save} disabled={saving} className="inline-flex items-center gap-1 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-50">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} Confirm & save
+            </button>
+          </div>
+        </div>
+      )}
     </DlgShell>
   );
 }
