@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_seed: {
+        Row: {
+          created_at: string
+          id: string
+          identifier: string
+          note: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          identifier: string
+          note?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          identifier?: string
+          note?: string | null
+        }
+        Relationships: []
+      }
       application_notes: {
         Row: {
           application_id: string
@@ -404,6 +425,36 @@ export type Database = {
           },
         ]
       }
+      cities: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          slug: string
+          state: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          slug: string
+          state?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          slug?: string
+          state?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       companies: {
         Row: {
           about: string | null
@@ -738,6 +789,60 @@ export type Database = {
           },
         ]
       }
+      industries: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      job_categories: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       jobs: {
         Row: {
           age_max: number | null
@@ -884,6 +989,48 @@ export type Database = {
           },
         ]
       }
+      learning_resources: {
+        Row: {
+          category: string | null
+          content_url: string
+          cover_url: string | null
+          created_at: string
+          description: string | null
+          id: string
+          is_published: boolean
+          kind: string
+          slug: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          content_url: string
+          cover_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_published?: boolean
+          kind?: string
+          slug: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          content_url?: string
+          cover_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_published?: boolean
+          kind?: string
+          slug?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           body: string | null
@@ -917,6 +1064,27 @@ export type Database = {
         }
         Relationships: []
       }
+      platform_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_platform_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_platform_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_platform_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -928,6 +1096,7 @@ export type Database = {
           mobile: string | null
           mobile_verified: boolean
           signup_intent: string | null
+          status: string
           updated_at: string
           user_type: Database["public"]["Enums"]["user_type"]
         }
@@ -941,6 +1110,7 @@ export type Database = {
           mobile?: string | null
           mobile_verified?: boolean
           signup_intent?: string | null
+          status?: string
           updated_at?: string
           user_type?: Database["public"]["Enums"]["user_type"]
         }
@@ -954,8 +1124,57 @@ export type Database = {
           mobile?: string | null
           mobile_verified?: boolean
           signup_intent?: string | null
+          status?: string
           updated_at?: string
           user_type?: Database["public"]["Enums"]["user_type"]
+        }
+        Relationships: []
+      }
+      promo_banners: {
+        Row: {
+          audience: string
+          created_at: string
+          cta_label: string | null
+          cta_url: string | null
+          ends_at: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean
+          sort: number
+          starts_at: string | null
+          subtitle: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          audience?: string
+          created_at?: string
+          cta_label?: string | null
+          cta_url?: string | null
+          ends_at?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          sort?: number
+          starts_at?: string | null
+          subtitle?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          audience?: string
+          created_at?: string
+          cta_label?: string | null
+          cta_url?: string | null
+          ends_at?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          sort?: number
+          starts_at?: string | null
+          subtitle?: string | null
+          title?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -1044,6 +1263,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      skills_master: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
     }
     Views: {
@@ -1144,6 +1390,13 @@ export type Database = {
         }
         Returns: boolean
       }
+      has_platform_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_platform_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       increment_profile_views: { Args: { _slug: string }; Returns: undefined }
       slugify: { Args: { _text: string }; Returns: string }
       unlock_candidate: {
@@ -1160,6 +1413,7 @@ export type Database = {
       user_companies: { Args: { _user_id: string }; Returns: string[] }
     }
     Enums: {
+      app_platform_role: "super_admin"
       application_status:
         | "applied"
         | "shortlisted"
@@ -1315,6 +1569,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_platform_role: ["super_admin"],
       application_status: [
         "applied",
         "shortlisted",
