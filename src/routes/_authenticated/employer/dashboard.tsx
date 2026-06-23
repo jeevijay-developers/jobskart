@@ -80,12 +80,12 @@ function EmployerDashboard() {
 
   if (!active) {
     return (
-      <EmployerShell title="Welcome">
+      <EmployerShell title="Welcome to JobsKart">
         <div className="rounded-2xl border border-border bg-card p-8 text-center">
-          <h2 className="text-lg font-bold">No company found</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Register a company to start posting jobs.</p>
-          <Link to="/signup/employer" className="mt-4 inline-flex h-10 items-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground">
-            Register your company
+          <h2 className="text-lg font-bold">Let's set up your company</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Add your company details to start posting jobs and receiving applications.</p>
+          <Link to="/onboarding/employer" className="mt-4 inline-flex h-10 items-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary-dark">
+            Set up company
           </Link>
         </div>
       </EmployerShell>

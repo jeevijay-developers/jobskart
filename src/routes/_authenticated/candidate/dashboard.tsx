@@ -1,10 +1,11 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowRight, Bookmark, Briefcase, Calendar, CheckCircle2, FileText, ListChecks, TrendingUp } from "lucide-react";
+import { ArrowRight, Bookmark, Briefcase, Calendar, CheckCircle2, FileText, ListChecks, Sparkles, TrendingUp, X } from "lucide-react";
 import { CandidateShell } from "@/components/candidate/CandidateShell";
 import { JobCard, type JobCardData } from "@/components/site/JobCard";
 import { supabase } from "@/integrations/supabase/client";
 import { strengthLabel } from "@/lib/profileStrength";
+import { upsertNudgeShown } from "@/lib/candidate.functions";
 
 export const Route = createFileRoute("/_authenticated/candidate/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard · JobsKart" }] }),
@@ -83,6 +84,8 @@ function CandidateDashboard() {
 
   return (
     <CandidateShell title={`Welcome back, ${name.split(" ")[0]} 👋`} subtitle="Track your search, applications and recommendations in one place.">
+      <NudgeBanner strength={strength} missing={missing} />
+
       {/* Hero strength */}
       {strength < 80 && (
         <div className="mb-6 flex flex-wrap items-center gap-4 rounded-2xl border border-primary/20 bg-gradient-to-r from-primary-light via-card to-card p-5 shadow-[var(--shadow-card)]">
@@ -191,3 +194,82 @@ function Ring({ value }: { value: number }) {
     </div>
   );
 }
+
+type NudgeKind = "profile_completion" | "verification_awareness" | "digilocker";
+const DISMISS_KEY = "jk_nudge_dismissed";
+
+function NudgeBanner({ strength, missing }: { strength: number; missing: string[] }) {
+  const [hidden, setHidden] = useState(true);
+  const [kind, setKind] = useState<NudgeKind | null>(null);
+
+  useEffect(() => {
+    // Pick the most relevant nudge based on profile state
+    let next: NudgeKind | null = null;
+    if (strength < 70 && missing.length > 0) next = "profile_completion";
+    else if (missing.includes("Verify your identity")) next = "verification_awareness";
+    else if (strength >= 70) next = "digilocker";
+
+    if (!next) return;
+
+    const dismissed = typeof window !== "undefined" ? window.localStorage.getItem(`${DISMISS_KEY}_${next}`) : null;
+    if (dismissed) return;
+
+    setKind(next);
+    setHidden(false);
+
+    // Log the nudge impression (best-effort)
+    upsertNudgeShown({ data: { kind: next } }).catch(() => undefined);
+  }, [strength, missing]);
+
+  if (hidden || !kind) return null;
+
+  const copy: Record<NudgeKind, { title: string; body: string; cta: string; to: string }> = {
+    profile_completion: {
+      title: "Stand out to recruiters",
+      body: "Profiles above 70% completion get 3× more recruiter views. Finish a few quick fields now.",
+      cta: "Complete profile",
+      to: "/candidate/profile",
+    },
+    verification_awareness: {
+      title: "Get verified — boost employer trust",
+      body: "Verified candidates are shortlisted 2× more often. It only takes a minute.",
+      cta: "Verify identity",
+      to: "/candidate/profile",
+    },
+    digilocker: {
+      title: "Add verified documents",
+      body: "Coming soon: link DigiLocker to auto-share verified IDs and certificates with employers.",
+      cta: "Learn more",
+      to: "/candidate/profile",
+    },
+  };
+
+  const c = copy[kind];
+
+  return (
+    <div className="mb-6 flex items-start gap-4 rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-4 shadow-[var(--shadow-card)]">
+      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary">
+        <Sparkles className="h-5 w-5" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-foreground">{c.title}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">{c.body}</p>
+      </div>
+      <Link to={c.to} className="hidden shrink-0 sm:inline-flex h-9 items-center gap-1 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary-dark">
+        {c.cta} <ArrowRight className="h-3.5 w-3.5" />
+      </Link>
+      <button
+        type="button"
+        onClick={() => {
+          setHidden(true);
+          try { window.localStorage.setItem(`${DISMISS_KEY}_${kind}`, "1"); } catch { /* ignore */ }
+        }}
+        className="shrink-0 rounded-md p-1 text-muted-foreground hover:bg-surface hover:text-foreground"
+        aria-label="Dismiss"
+      >
+        <X className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
+
