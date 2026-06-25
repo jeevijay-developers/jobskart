@@ -609,7 +609,7 @@ function ResumeDialog({ open, onClose, uid, current, onSaved }: { open: boolean;
               <input className="form-input" value={review.city} onChange={(e) => setReview({ ...review, city: e.target.value })} />
             </Field>
             <Field label="Headline">
-              <input className="form-input" value={review.headline} onChange={(e) => setReview({ ...review, headline: e.target.value })} maxLength={120} />
+              <input className="form-input" value={review.headline} onChange={(e) => setReview({ ...review, headline: e.target.value })} maxLength={200} />
             </Field>
             <Field label="Years of experience">
               <input className="form-input" type="number" min={0} max={60} value={review.years_experience} onChange={(e) => setReview({ ...review, years_experience: e.target.value })} />

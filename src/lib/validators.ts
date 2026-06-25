@@ -38,7 +38,7 @@ export const mobileSchema = z
 export const headlineSchema = z
   .string()
   .transform(sanitizeText)
-  .pipe(z.string().max(80, "Headline must be under 80 characters"))
+  .pipe(z.string().max(200, "Headline must be under 200 characters"))
   .optional()
   .or(z.literal(""));
 

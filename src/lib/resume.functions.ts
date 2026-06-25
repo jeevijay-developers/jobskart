@@ -9,38 +9,64 @@ const inputSchema = z.object({
   mimeType: z.string().min(3),
 });
 
+// Coerce nullable/missing strings to "" so the parser tolerates partial AI output.
+const nstr = z
+  .union([z.string(), z.null(), z.undefined()])
+  .transform((v) => (v ?? "").toString());
+const nstrOpt = z
+  .union([z.string(), z.null(), z.undefined()])
+  .transform((v) => (v == null || v === "" ? null : String(v)));
+const nyear = z
+  .union([z.number(), z.string(), z.null(), z.undefined()])
+  .transform((v) => {
+    if (v == null || v === "") return null;
+    const n = typeof v === "number" ? v : parseInt(String(v).replace(/\D/g, ""), 10);
+    return Number.isFinite(n) && n >= 1950 && n <= 2099 ? n : null;
+  });
+const nbool = z
+  .union([z.boolean(), z.string(), z.null(), z.undefined()])
+  .transform((v) => v === true || v === "true");
+
 const ParsedResume = z.object({
-  full_name: z.string().nullable().optional(),
-  email: z.string().nullable().optional(),
-  mobile: z.string().nullable().optional(),
-  headline: z.string().nullable().optional(),
-  city: z.string().nullable().optional(),
-  years_experience: z.number().int().min(0).max(60).nullable().optional(),
-  skills: z.array(z.string()).max(40).default([]),
+  full_name: nstrOpt,
+  email: nstrOpt,
+  mobile: nstrOpt,
+  headline: nstrOpt,
+  city: nstrOpt,
+  years_experience: z
+    .union([z.number(), z.string(), z.null(), z.undefined()])
+    .transform((v) => {
+      if (v == null || v === "") return null;
+      const n = typeof v === "number" ? v : parseInt(String(v), 10);
+      return Number.isFinite(n) && n >= 0 && n <= 60 ? n : null;
+    }),
+  skills: z.array(z.string()).max(40).catch([]).default([]),
   experiences: z
     .array(
       z.object({
-        job_title: z.string().default(""),
-        company_name: z.string().default(""),
-        start_date: z.string().nullable().optional(),
-        end_date: z.string().nullable().optional(),
-        is_current: z.boolean().default(false),
-        description: z.string().default(""),
+        job_title: nstr,
+        company_name: nstr,
+        start_date: nstrOpt,
+        end_date: nstrOpt,
+        is_current: nbool,
+        description: nstr,
       }),
     )
     .max(20)
+    .catch([])
     .default([]),
   education: z
     .array(
       z.object({
-        level: z.string().default(""),
-        board_or_university: z.string().default(""),
-        institute: z.string().default(""),
-        year_of_passing: z.number().int().min(1950).max(2099).nullable().optional(),
-        marks: z.string().default(""),
+        level: nstr,
+        board_or_university: nstr,
+        institute: nstr,
+        year_of_passing: nyear,
+        marks: nstr,
       }),
     )
     .max(10)
+    .catch([])
     .default([]),
 });
 
@@ -76,18 +102,20 @@ export const parseResume = createServerFn({ method: "POST" })
 
     const dataUrl = `data:${data.mimeType};base64,${data.base64}`;
 
+    const isImage = data.mimeType.startsWith("image/");
+    const filePart = isImage
+      ? { type: "image_url" as const, image_url: { url: dataUrl } }
+      : { type: "file" as const, file: { filename: data.fileName, file_data: dataUrl } };
+
     const body = {
-      model: "google/gemini-3-flash-preview",
+      model: "google/gemini-2.5-flash",
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         {
           role: "user",
           content: [
             { type: "text", text: "Parse this resume and return the JSON." },
-            {
-              type: "file",
-              file: { filename: data.fileName, file_data: dataUrl },
-            },
+            filePart,
           ],
         },
       ],
