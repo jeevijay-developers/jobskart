@@ -29,8 +29,9 @@ export const loginOrCreateWithMobile = createServerFn({ method: "POST" })
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const phoneWithCode = `+91${mobile}`;
+    const syntheticEmail = `m${mobile}@jobskart.app`;
 
-    // 1. Look up existing profile
+    // 1. Look up existing profile (by either stored mobile shape)
     const { data: profiles, error: profileErr } = await supabaseAdmin
       .from("profiles")
       .select("id, email, user_type, mobile")
@@ -38,7 +39,7 @@ export const loginOrCreateWithMobile = createServerFn({ method: "POST" })
       .limit(1);
     if (profileErr) throw new Error(profileErr.message);
 
-    let profile = profiles?.[0];
+    let profile = profiles?.[0] ?? null;
     let isNew = false;
 
     if (profile && profile.user_type !== userType) {
@@ -47,30 +48,63 @@ export const loginOrCreateWithMobile = createServerFn({ method: "POST" })
       );
     }
 
-    // 2. If no profile, create the auth user (trigger handle_new_user creates the profile row)
+    // 2. If no profile, check whether an auth user already exists for this number
+    //    (e.g. seeded admin) before creating a new one.
     if (!profile) {
-      isNew = true;
-      const syntheticEmail = `m${mobile}@jobskart.app`;
-      const { data: created, error: createErr } =
-        await supabaseAdmin.auth.admin.createUser({
-          email: syntheticEmail,
-          email_confirm: true,
-          phone: phoneWithCode,
-          user_metadata: {
+      // List by phone (Supabase admin supports filtering by phone via listUsers + filter)
+      const { data: list, error: listErr } = await supabaseAdmin.auth.admin.listUsers({
+        page: 1,
+        perPage: 200,
+      });
+      if (listErr) throw new Error(listErr.message);
+      const existingAuthUser = list.users.find(
+        (u) =>
+          u.phone === phoneWithCode ||
+          u.phone === mobile ||
+          u.email === syntheticEmail,
+      );
+
+      if (existingAuthUser) {
+        // Auth user exists but no profile row — backfill profile and continue.
+        const emailForLink = existingAuthUser.email || syntheticEmail;
+        await supabaseAdmin
+          .from("profiles")
+          .upsert({
+            id: existingAuthUser.id,
+            email: emailForLink,
             mobile: phoneWithCode,
             user_type: userType,
-            full_name: "",
-          },
-        });
-      if (createErr || !created.user) {
-        throw new Error(createErr?.message ?? "Could not create account.");
+            full_name: existingAuthUser.user_metadata?.full_name || "",
+          });
+        profile = {
+          id: existingAuthUser.id,
+          email: emailForLink,
+          user_type: userType,
+          mobile: phoneWithCode,
+        };
+      } else {
+        isNew = true;
+        const { data: created, error: createErr } =
+          await supabaseAdmin.auth.admin.createUser({
+            email: syntheticEmail,
+            email_confirm: true,
+            phone: phoneWithCode,
+            user_metadata: {
+              mobile: phoneWithCode,
+              user_type: userType,
+              full_name: "",
+            },
+          });
+        if (createErr || !created.user) {
+          throw new Error(createErr?.message ?? "Could not create account.");
+        }
+        profile = {
+          id: created.user.id,
+          email: syntheticEmail,
+          user_type: userType,
+          mobile: phoneWithCode,
+        };
       }
-      profile = {
-        id: created.user.id,
-        email: syntheticEmail,
-        user_type: userType,
-        mobile: phoneWithCode,
-      };
     }
 
     if (!profile.email) {
