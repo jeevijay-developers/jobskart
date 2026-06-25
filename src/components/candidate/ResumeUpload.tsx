@@ -24,11 +24,19 @@ export function ResumeUpload({ onParsed }: Props) {
       setError(fileErr);
       return;
     }
-    if (file.type !== "application/pdf") {
-      // Non-PDF uploads are accepted, but AI parsing only works on PDFs today.
-      onParsed({ skills: [], experiences: [], education: [] }, file);
+    const isPdf = file.type === "application/pdf";
+    const isImage = file.type === "image/png" || file.type === "image/jpeg";
+    if (!isPdf && !isImage) {
+      // DOC / DOCX — AI parsing isn't reliable yet; accept upload but skip auto-fill.
+      onParsed(
+        {
+          full_name: null, email: null, mobile: null, headline: null, city: null,
+          years_experience: null, skills: [], experiences: [], education: [],
+        },
+        file,
+      );
       setDone(file.name);
-      toast.success("Resume uploaded. PDF is needed for auto-fill.");
+      toast.success("Resume uploaded. Auto-fill works best with PDF or image — please review your fields.");
       return;
     }
     setLoading(true);

@@ -78,7 +78,7 @@ function OnboardingPage() {
 
   // Preferences
   const [jobTypes, setJobTypes] = useState<string[]>(["full_time"]);
-  const [workMode, setWorkMode] = useState("on_site");
+  const [workModes, setWorkModes] = useState<string[]>(["on_site"]);
   const [preferredCities, setPreferredCities] = useState<string[]>([]);
   const [expectedSalary, setExpectedSalary] = useState<number | "">("");
   const [noticeDays, setNoticeDays] = useState<number | "">(0);
@@ -108,7 +108,7 @@ function OnboardingPage() {
         setExpStatus(c.experience_status as typeof expStatus); setYears(c.years_experience || 0); setLastRole(c.last_role || "");
         setSkills(c.skills || []); setAssets(c.assets || []);
         setJobTypes(c.preferred_job_types?.length ? c.preferred_job_types : ["full_time"]);
-        setWorkMode(c.preferred_work_mode || "on_site");
+        setWorkModes((c.preferred_work_mode || "on_site").split(",").map((s) => s.trim()).filter(Boolean));
         setPreferredCities(c.preferred_cities || []);
         setExpectedSalary(c.expected_salary || "");
         setNoticeDays(c.notice_period_days ?? 0);
@@ -195,7 +195,7 @@ function OnboardingPage() {
         skills,
         assets,
         preferred_job_types: jobTypes,
-        preferred_work_mode: workMode,
+        preferred_work_mode: workModes.join(","),
         preferred_cities: preferredCities,
         expected_salary: typeof expectedSalary === "number" ? expectedSalary : null,
         notice_period_days: typeof noticeDays === "number" ? noticeDays : null,
@@ -295,7 +295,7 @@ function OnboardingPage() {
       if (expStatus === "student") {
         if (!jobTypes.includes("internship")) setJobTypes(["internship"]);
       } else if (jobTypes.length === 0) return "Choose at least one job type.";
-      if (!workMode) return "Choose a work mode.";
+      if (workModes.length === 0) return "Choose at least one work mode.";
       if (preferredCities.length < 1) return "Add at least 1 preferred city.";
       if (preferredCities.length > 4) return "You can pick up to 4 cities.";
       if (expStatus === "experienced") {
@@ -384,7 +384,9 @@ function OnboardingPage() {
         {currentLabel === "Basics" && (
           <div className="space-y-5">
             <ResumeUpload
-              onParsed={(d: ParsedResumePayload) => {
+              onParsed={(d: ParsedResumePayload, file: File) => {
+                // Upload to storage in the background so the Preferences step still has the file
+                uploadResume(file);
                 if (d.full_name && !fullName) setFullName(titleCase(sanitizeText(d.full_name)));
                 if (d.mobile && !mobile) setMobile(d.mobile.replace(/\D/g, "").slice(-10));
                 if (d.city && !city) setCity(d.city);
@@ -409,6 +411,11 @@ function OnboardingPage() {
                 }
               }}
             />
+            {resume && (
+              <p className="-mt-3 inline-flex items-center gap-1.5 rounded-md bg-success/10 px-2.5 py-1.5 text-xs font-medium text-success">
+                <FileText className="h-3.5 w-3.5" /> Saved: {resume.name}
+              </p>
+            )}
             <SectionCard title="Tell us about yourself">
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Full name" required hint="Letters, spaces and dots only (3–80 chars)">
@@ -441,8 +448,8 @@ function OnboardingPage() {
                     <span>Receive updates, alerts, and notifications on WhatsApp</span>
                   </label>
                 </Field>
-                <Field label="Headline" hint="One-line summary (max 80 chars)">
-                  <input className="form-input" value={headline} maxLength={80} onChange={(e) => setHeadline(e.target.value)} placeholder="e.g. Sales Executive with 2 years exp" />
+                <Field label="Headline" hint="One-line summary (max 200 chars)">
+                  <input className="form-input" value={headline} maxLength={200} onChange={(e) => setHeadline(e.target.value)} placeholder="e.g. Sales Executive with 2 years exp" />
                 </Field>
                 <Field label="City" required>
                   <select className="form-input" value={city} onChange={(e) => setCity(e.target.value)}>
@@ -466,7 +473,7 @@ function OnboardingPage() {
           <SectionCard title="Your work status">
             <div className="grid gap-3 sm:grid-cols-3">
               {(["fresher", "experienced", "student"] as const).map((s) => (
-                <button key={s} type="button" onClick={() => { setExpStatus(s); setStep(0); }}
+                <button key={s} type="button" onClick={() => setExpStatus(s)}
                   className={`rounded-xl border p-4 text-left transition ${expStatus === s ? "border-primary bg-primary-light" : "border-border bg-card hover:border-primary/40"}`}>
                   <p className="font-semibold capitalize text-foreground">{s}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
@@ -490,17 +497,7 @@ function OnboardingPage() {
                 <Field label="Interested job roles" required hint="Pick roles you'd like to be matched to">
                   <ChipInput values={interestedRoles} onChange={setInterestedRoles} placeholder="e.g. Sales Executive" suggestions={["Sales Executive","Telecaller","Customer Support Executive","Delivery Executive","Data Entry Operator","Receptionist","Office Assistant","Beautician","Driver","Cashier"]} />
                 </Field>
-                {aiSkills.length > 0 && (
-                  <div className="mt-3 rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs text-foreground/80">
-                    <p className="mb-1.5 inline-flex items-center gap-1 font-semibold text-primary"><Sparkles className="h-3 w-3" /> AI suggested skills</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {aiSkills.map((s) => (
-                        <button key={s} type="button" onClick={() => !skills.includes(s) && setSkills([...skills, s])}
-                          className="rounded-full border border-primary/30 bg-card px-2.5 py-1 text-xs hover:bg-primary/10">+ {s}</button>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                <p className="mt-2 text-xs text-muted-foreground">We&apos;ll suggest skills based on these on the next steps.</p>
               </div>
             )}
           </SectionCard>
@@ -641,12 +638,15 @@ function OnboardingPage() {
                   </div>
                   {expStatus === "student" && <p className="mt-1 text-xs text-muted-foreground">Students can apply only to Internships.</p>}
                 </Field>
-                <Field label="Work mode" required>
-                  <div className="flex gap-2">
-                    {WORK_MODES.map((w) => (
-                      <button key={w.id} type="button" onClick={() => setWorkMode(w.id)}
-                        className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium ${workMode === w.id ? "border-primary bg-primary-light text-primary" : "border-border bg-card text-foreground/70 hover:border-primary"}`}>{w.label}</button>
-                    ))}
+                <Field label="Work mode" required hint="Select one or more">
+                  <div className="flex flex-wrap gap-2">
+                    {WORK_MODES.map((w) => {
+                      const on = workModes.includes(w.id);
+                      return (
+                        <button key={w.id} type="button" onClick={() => setWorkModes(on ? workModes.filter((x) => x !== w.id) : [...workModes, w.id])}
+                          className={`rounded-full border px-3 py-1.5 text-xs font-medium ${on ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-foreground/70 hover:border-primary"}`}>{w.label}</button>
+                      );
+                    })}
                   </div>
                 </Field>
                 <div className="sm:col-span-2">
@@ -665,15 +665,6 @@ function OnboardingPage() {
                   </Field>
                 )}
               </div>
-            </SectionCard>
-
-            <SectionCard title="Upload resume">
-              <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-surface p-8 text-center hover:border-primary">
-                <input type="file" accept={RESUME_ACCEPT} className="hidden" onChange={(e) => e.target.files?.[0] && uploadResume(e.target.files[0])} />
-                {uploading ? <Loader2 className="h-6 w-6 animate-spin text-primary" /> : resume ? <FileText className="h-7 w-7 text-success" /> : <Upload className="h-7 w-7 text-muted-foreground" />}
-                <p className="text-sm font-medium text-foreground">{resume ? resume.name : "Click to upload (PDF / DOC / DOCX / PNG / JPG, ≤ 5 MB)"}</p>
-                {resume && <p className="text-xs text-success">Uploaded · click to replace</p>}
-              </label>
             </SectionCard>
           </div>
         )}
