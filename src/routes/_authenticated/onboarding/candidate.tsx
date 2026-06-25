@@ -384,7 +384,9 @@ function OnboardingPage() {
         {currentLabel === "Basics" && (
           <div className="space-y-5">
             <ResumeUpload
-              onParsed={(d: ParsedResumePayload) => {
+              onParsed={(d: ParsedResumePayload, file: File) => {
+                // Upload to storage in the background so the Preferences step still has the file
+                uploadResume(file);
                 if (d.full_name && !fullName) setFullName(titleCase(sanitizeText(d.full_name)));
                 if (d.mobile && !mobile) setMobile(d.mobile.replace(/\D/g, "").slice(-10));
                 if (d.city && !city) setCity(d.city);
@@ -409,6 +411,11 @@ function OnboardingPage() {
                 }
               }}
             />
+            {resume && (
+              <p className="-mt-3 inline-flex items-center gap-1.5 rounded-md bg-success/10 px-2.5 py-1.5 text-xs font-medium text-success">
+                <FileText className="h-3.5 w-3.5" /> Saved: {resume.name}
+              </p>
+            )}
             <SectionCard title="Tell us about yourself">
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Full name" required hint="Letters, spaces and dots only (3–80 chars)">
