@@ -139,7 +139,7 @@ function ProfilePage() {
 
         {/* Sections */}
         <div className="space-y-6">
-          <SectionCard title="Personal details" action={<EditBtn onClick={() => setOpen("personal")} />}>
+          <SectionCard id="personal" title="Personal details" action={<EditBtn onClick={() => setOpen("personal")} />}>
             <Grid>
               <Info label="Full name" value={p.full_name} />
               <Info label="Mobile" value={p.mobile} />
@@ -150,7 +150,7 @@ function ProfilePage() {
             </Grid>
           </SectionCard>
 
-          <SectionCard title="Career preferences" action={<EditBtn onClick={() => setOpen("career")} />}>
+          <SectionCard id="career" title="Career preferences" action={<EditBtn onClick={() => setOpen("career")} />}>
             <Grid>
               <Info label="Status" value={c.experience_status} />
               <Info label="Experience" value={c.years_experience ? `${c.years_experience} years` : null} />
@@ -163,7 +163,7 @@ function ProfilePage() {
             </Grid>
           </SectionCard>
 
-          <SectionCard title="Work experience" action={<EditBtn onClick={() => setOpen("experience")} label="Manage" />}>
+          <SectionCard id="experience" title="Work experience" action={<EditBtn onClick={() => setOpen("experience")} label="Manage" />}>
             {experiences.length === 0 ? <EmptyHint>No experience added yet.</EmptyHint> : (
               <ul className="divide-y divide-border">
                 {experiences.map((e) => (
@@ -182,7 +182,7 @@ function ProfilePage() {
             )}
           </SectionCard>
 
-          <SectionCard title="Education" action={<EditBtn onClick={() => setOpen("education")} label="Manage" />}>
+          <SectionCard id="education" title="Education" action={<EditBtn onClick={() => setOpen("education")} label="Manage" />}>
             {educations.length === 0 ? <EmptyHint>Add at least your 10th class.</EmptyHint> : (
               <ul className="divide-y divide-border">
                 {educations.map((e) => (
@@ -198,12 +198,12 @@ function ProfilePage() {
             )}
           </SectionCard>
 
-          <SectionCard title="Skills" action={<EditBtn onClick={() => setOpen("skills")} />}>
+          <SectionCard id="skills" title="Skills" action={<EditBtn onClick={() => setOpen("skills")} />}>
             {c.skills.length === 0 ? <EmptyHint>Add skills to get matched with jobs.</EmptyHint> :
               <div className="flex flex-wrap gap-2">{c.skills.map((s) => <Chip key={s} label={s} />)}</div>}
           </SectionCard>
 
-          <SectionCard title="Languages" action={<EditBtn onClick={() => setOpen("languages")} label="Manage" />}>
+          <SectionCard id="languages" title="Languages" action={<EditBtn onClick={() => setOpen("languages")} label="Manage" />}>
             {languages.length === 0 ? <EmptyHint>Add the languages you speak.</EmptyHint> :
               <ul className="space-y-1.5">
                 {languages.map((l) => (
@@ -218,7 +218,7 @@ function ProfilePage() {
               </ul>}
           </SectionCard>
 
-          <SectionCard title="Resume" action={<EditBtn onClick={() => setOpen("resume")} label={c.resume_url ? "Replace" : "Upload"} />}>
+          <SectionCard id="resume" title="Resume" action={<EditBtn onClick={() => setOpen("resume")} label={c.resume_url ? "Replace" : "Upload"} />}>
             {c.resume_url ? (
               <div className="flex items-center gap-3 rounded-lg border border-border bg-surface p-3">
                 <FileText className="h-5 w-5 text-primary" />
