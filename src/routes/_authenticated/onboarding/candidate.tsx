@@ -339,38 +339,107 @@ function OnboardingPage() {
   return (
     <div className="min-h-screen bg-surface">
       <Navbar />
-      <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6">
-        <div
-          className="mb-8 overflow-hidden rounded-3xl p-6 text-white shadow-[0_20px_60px_-20px_rgba(15,27,61,0.4)] sm:p-8"
-          style={{
-            background:
-              "radial-gradient(circle at 10% 10%, rgba(16,185,129,0.30), transparent 55%), linear-gradient(135deg,#0f1b3d 0%,#1e3a5f 100%)",
-          }}
-        >
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="inline-flex items-center gap-1.5 rounded-full bg-primary/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white ring-1 ring-white/25">
-                <Compass className="h-3 w-3" /> Step {step + 1} of {visibleSteps.length}
+      <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:py-10">
+        <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
+          {/* Side rail (desktop) */}
+          <aside className="hidden lg:block">
+            <div
+              className="sticky top-24 overflow-hidden rounded-3xl p-6 text-white shadow-[0_20px_60px_-20px_rgba(15,27,61,0.4)]"
+              style={{
+                background:
+                  "radial-gradient(circle at 10% 10%, hsl(var(--primary) / 0.35), transparent 55%), linear-gradient(135deg,#0f1b3d 0%,#1e3a5f 100%)",
+              }}
+            >
+              <p className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white ring-1 ring-white/20">
+                <Compass className="h-3 w-3" /> Onboarding
               </p>
-              <h1 className="mt-3 text-2xl font-bold leading-tight sm:text-3xl">{currentLabel}</h1>
-              <p className="mt-1 text-sm text-white/60">Every field matters — you can edit anytime later.</p>
+              <h2 className="mt-3 text-xl font-bold leading-tight">Let's build your profile</h2>
+              <p className="mt-1 text-xs text-white/60">A complete profile gets you hired 3× faster.</p>
+
+              <div className="mt-5 rounded-2xl bg-white/5 p-3 ring-1 ring-white/10">
+                <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-white/70">
+                  <span>Profile strength</span>
+                  <span className="text-white tabular-nums">{strength}%</span>
+                </div>
+                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                  <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${strength}%` }} />
+                </div>
+              </div>
+
+              <ol className="mt-6 space-y-1">
+                {visibleSteps.map((label, i) => {
+                  const done = i < step;
+                  const active = i === step;
+                  return (
+                    <li key={label} className="relative flex items-center gap-3 rounded-xl px-2 py-2">
+                      <span
+                        className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-[11px] font-bold ring-2 ${
+                          done
+                            ? "bg-primary text-primary-foreground ring-primary"
+                            : active
+                            ? "bg-white text-[#0f1b3d] ring-white"
+                            : "bg-white/5 text-white/50 ring-white/15"
+                        }`}
+                      >
+                        {done ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : i + 1}
+                      </span>
+                      <span
+                        className={`text-sm font-semibold ${
+                          active ? "text-white" : done ? "text-white/80" : "text-white/45"
+                        }`}
+                      >
+                        {label}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ol>
             </div>
-            <div className="text-right">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-white/60">Profile</p>
-              <p className="text-3xl font-bold text-white">{strength}%</p>
+          </aside>
+
+          {/* Main content column */}
+          <div>
+            {/* Mobile / tablet header */}
+            <div
+              className="mb-6 overflow-hidden rounded-3xl p-5 text-white shadow-[0_20px_60px_-20px_rgba(15,27,61,0.4)] sm:p-6 lg:hidden"
+              style={{
+                background:
+                  "radial-gradient(circle at 10% 10%, hsl(var(--primary) / 0.35), transparent 55%), linear-gradient(135deg,#0f1b3d 0%,#1e3a5f 100%)",
+              }}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="inline-flex items-center gap-1.5 rounded-full bg-primary/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white ring-1 ring-white/25">
+                    <Compass className="h-3 w-3" /> Step {step + 1} of {visibleSteps.length}
+                  </p>
+                  <h1 className="mt-3 truncate text-2xl font-bold leading-tight">{currentLabel}</h1>
+                  <p className="mt-1 text-xs text-white/60">Every field matters — you can edit anytime later.</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-white/60">Profile</p>
+                  <p className="text-2xl font-bold text-white tabular-nums">{strength}%</p>
+                </div>
+              </div>
+              <div className="mt-5 flex gap-1.5">
+                {visibleSteps.map((_, i) => (
+                  <div
+                    key={i}
+                    className={`h-1.5 flex-1 rounded-full transition-all ${
+                      i < step ? "bg-primary" : i === step ? "bg-white" : "bg-white/15"
+                    }`}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
-          <div className="mt-6 flex gap-1.5">
-            {visibleSteps.map((_, i) => (
-              <div
-                key={i}
-                className={`h-1.5 flex-1 rounded-full transition-all ${
-                  i < step ? "bg-primary" : i === step ? "bg-white" : "bg-white/15"
-                }`}
-              />
-            ))}
-          </div>
-        </div>
+
+            {/* Desktop step title */}
+            <div className="mb-5 hidden lg:block">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-primary">
+                Step {step + 1} of {visibleSteps.length}
+              </p>
+              <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-foreground">{currentLabel}</h1>
+              <p className="mt-1 text-sm text-muted-foreground">Every field matters — you can edit anytime later.</p>
+            </div>
 
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
