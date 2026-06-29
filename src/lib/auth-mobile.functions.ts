@@ -56,13 +56,14 @@ export const loginOrCreateWithMobile = createServerFn({ method: "POST" })
         | { id: string; email: string | null; phone: string | null }
         | null = null;
 
-      const { data: rpcRows, error: rpcErr } = await supabaseAdmin.rpc(
-        // @ts-expect-error rpc name not yet in generated types
-        "find_auth_user_by_phone_or_email",
-        { _phone: phoneWithCode, _email: syntheticEmail },
-      );
+      const { data: rpcRows, error: rpcErr } = await (
+        supabaseAdmin.rpc as unknown as (
+          fn: string,
+          args: Record<string, string>,
+        ) => Promise<{ data: Array<{ id: string; email: string | null; phone: string | null }> | null; error: unknown }>
+      )("find_auth_user_by_phone_or_email", { _phone: phoneWithCode, _email: syntheticEmail });
       if (!rpcErr && Array.isArray(rpcRows) && rpcRows.length) {
-        existingAuthUser = rpcRows[0] as typeof existingAuthUser;
+        existingAuthUser = rpcRows[0];
       } else {
         // Fallback: scan the first page of auth users if the RPC is unavailable.
         const { data: list } = await supabaseAdmin.auth.admin.listUsers({
