@@ -40,34 +40,47 @@ const ParsedResume = z.object({
       const n = typeof v === "number" ? v : parseInt(String(v), 10);
       return Number.isFinite(n) && n >= 0 && n <= 60 ? n : null;
     }),
-  skills: z.array(z.string()).max(40).catch([]).default([]),
+  skills: z
+    .union([z.array(z.string()), z.null(), z.undefined()])
+    .transform((v) => (Array.isArray(v) ? v.filter((s) => typeof s === "string" && s.trim()) : []))
+    .pipe(z.array(z.string()).max(40)),
   experiences: z
-    .array(
-      z.object({
-        job_title: nstr,
-        company_name: nstr,
-        start_date: nstrOpt,
-        end_date: nstrOpt,
-        is_current: nbool,
-        description: nstr,
-      }),
-    )
-    .max(20)
-    .catch([])
-    .default([]),
+    .union([
+      z.array(
+        z
+          .object({
+            job_title: nstr,
+            company_name: nstr,
+            start_date: nstrOpt,
+            end_date: nstrOpt,
+            is_current: nbool,
+            description: nstr,
+          })
+          .catch(() => null as never),
+      ),
+      z.null(),
+      z.undefined(),
+    ])
+    .transform((v) => (Array.isArray(v) ? v.filter(Boolean) : []))
+    .pipe(z.array(z.any()).max(20)),
   education: z
-    .array(
-      z.object({
-        level: nstr,
-        board_or_university: nstr,
-        institute: nstr,
-        year_of_passing: nyear,
-        marks: nstr,
-      }),
-    )
-    .max(10)
-    .catch([])
-    .default([]),
+    .union([
+      z.array(
+        z
+          .object({
+            level: nstr,
+            board_or_university: nstr,
+            institute: nstr,
+            year_of_passing: nyear,
+            marks: nstr,
+          })
+          .catch(() => null as never),
+      ),
+      z.null(),
+      z.undefined(),
+    ])
+    .transform((v) => (Array.isArray(v) ? v.filter(Boolean) : []))
+    .pipe(z.array(z.any()).max(10)),
 });
 
 export type ParsedResumePayload = z.infer<typeof ParsedResume>;

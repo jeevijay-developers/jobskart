@@ -51,18 +51,33 @@ export const loginOrCreateWithMobile = createServerFn({ method: "POST" })
     // 2. If no profile, check whether an auth user already exists for this number
     //    (e.g. seeded admin) before creating a new one.
     if (!profile) {
-      // List by phone (Supabase admin supports filtering by phone via listUsers + filter)
-      const { data: list, error: listErr } = await supabaseAdmin.auth.admin.listUsers({
-        page: 1,
-        perPage: 200,
-      });
-      if (listErr) throw new Error(listErr.message);
-      const existingAuthUser = list.users.find(
-        (u) =>
-          u.phone === phoneWithCode ||
-          u.phone === mobile ||
-          u.email === syntheticEmail,
-      );
+      // Direct lookup against auth.users via SECURITY DEFINER RPC — scales beyond 200 users.
+      let existingAuthUser:
+        | { id: string; email: string | null; phone: string | null }
+        | null = null;
+
+      const { data: rpcRows, error: rpcErr } = await (
+        supabaseAdmin.rpc as unknown as (
+          fn: string,
+          args: Record<string, string>,
+        ) => Promise<{ data: Array<{ id: string; email: string | null; phone: string | null }> | null; error: unknown }>
+      )("find_auth_user_by_phone_or_email", { _phone: phoneWithCode, _email: syntheticEmail });
+      if (!rpcErr && Array.isArray(rpcRows) && rpcRows.length) {
+        existingAuthUser = rpcRows[0];
+      } else {
+        // Fallback: scan the first page of auth users if the RPC is unavailable.
+        const { data: list } = await supabaseAdmin.auth.admin.listUsers({
+          page: 1,
+          perPage: 200,
+        });
+        const u = list?.users.find(
+          (x) =>
+            x.phone === phoneWithCode ||
+            x.phone === mobile ||
+            x.email === syntheticEmail,
+        );
+        if (u) existingAuthUser = { id: u.id, email: u.email ?? null, phone: u.phone ?? null };
+      }
 
       if (existingAuthUser) {
         // Auth user exists but no profile row — backfill profile and continue.
@@ -74,7 +89,7 @@ export const loginOrCreateWithMobile = createServerFn({ method: "POST" })
             email: emailForLink,
             mobile: phoneWithCode,
             user_type: userType,
-            full_name: existingAuthUser.user_metadata?.full_name || "",
+            full_name: "",
           });
         profile = {
           id: existingAuthUser.id,
