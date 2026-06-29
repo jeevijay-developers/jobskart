@@ -89,7 +89,7 @@ export const loginOrCreateWithMobile = createServerFn({ method: "POST" })
             email: emailForLink,
             mobile: phoneWithCode,
             user_type: userType,
-            full_name: existingAuthUser.user_metadata?.full_name || "",
+            full_name: "",
           });
         profile = {
           id: existingAuthUser.id,
