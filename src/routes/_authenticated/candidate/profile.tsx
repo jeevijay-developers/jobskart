@@ -62,6 +62,23 @@ function ProfilePage() {
 
   useEffect(() => { load(); }, []);
 
+  // Deep-link scroll: /candidate/profile?section=resume
+  useEffect(() => {
+    if (loading) return;
+    const params = new URLSearchParams(window.location.search);
+    const section = params.get("section");
+    if (!section) return;
+    const t = window.setTimeout(() => {
+      const el = document.getElementById(section);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        el.classList.add("ring-2", "ring-primary/40", "rounded-2xl");
+        window.setTimeout(() => el.classList.remove("ring-2", "ring-primary/40", "rounded-2xl"), 1600);
+      }
+    }, 120);
+    return () => window.clearTimeout(t);
+  }, [loading]);
+
   const strength = useMemo(() => {
     if (!p || !c) return 0;
     return computeProfileStrength({
