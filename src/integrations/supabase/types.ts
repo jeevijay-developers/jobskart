@@ -1454,6 +1454,14 @@ export type Database = {
         }
         Returns: number
       }
+      find_auth_user_by_phone_or_email: {
+        Args: { _email: string; _phone: string }
+        Returns: {
+          email: string
+          id: string
+          phone: string
+        }[]
+      }
       get_invite_by_token: {
         Args: { _token: string }
         Returns: {
