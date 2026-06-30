@@ -35,6 +35,54 @@ export type Database = {
         }
         Relationships: []
       }
+      application_ai_scores: {
+        Row: {
+          application_id: string
+          candidate_id: string
+          computed_at: string
+          id: string
+          job_id: string
+          reasons: string[]
+          score: number
+          summary: string | null
+        }
+        Insert: {
+          application_id: string
+          candidate_id: string
+          computed_at?: string
+          id?: string
+          job_id: string
+          reasons?: string[]
+          score: number
+          summary?: string | null
+        }
+        Update: {
+          application_id?: string
+          candidate_id?: string
+          computed_at?: string
+          id?: string
+          job_id?: string
+          reasons?: string[]
+          score?: number
+          summary?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "application_ai_scores_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "application_ai_scores_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       application_notes: {
         Row: {
           application_id: string
@@ -749,6 +797,50 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "credit_transactions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employer_activity: {
+        Row: {
+          actor_id: string | null
+          body: string | null
+          company_id: string
+          created_at: string
+          id: string
+          kind: string
+          link: string | null
+          metadata: Json
+          title: string
+        }
+        Insert: {
+          actor_id?: string | null
+          body?: string | null
+          company_id: string
+          created_at?: string
+          id?: string
+          kind: string
+          link?: string | null
+          metadata?: Json
+          title: string
+        }
+        Update: {
+          actor_id?: string | null
+          body?: string | null
+          company_id?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          link?: string | null
+          metadata?: Json
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employer_activity_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
@@ -1532,6 +1624,22 @@ export type Database = {
         Returns: boolean
       }
       increment_profile_views: { Args: { _slug: string }; Returns: undefined }
+      log_employer_activity: {
+        Args: {
+          _actor: string
+          _body?: string
+          _company_id: string
+          _kind: string
+          _link?: string
+          _metadata?: Json
+          _title: string
+        }
+        Returns: undefined
+      }
+      remove_member: {
+        Args: { _company_id: string; _user_id: string }
+        Returns: undefined
+      }
       slugify: { Args: { _text: string }; Returns: string }
       unlock_candidate: {
         Args: {
@@ -1543,6 +1651,14 @@ export type Database = {
           already_unlocked: boolean
           balance_after: number
         }[]
+      }
+      update_member_role: {
+        Args: {
+          _company_id: string
+          _role: Database["public"]["Enums"]["employer_role"]
+          _user_id: string
+        }
+        Returns: undefined
       }
       user_companies: { Args: { _user_id: string }; Returns: string[] }
     }
