@@ -1,73 +1,35 @@
-## Fix plan for employer onboarding, job posting, candidate apply, database filters, and company documents
+## Fix critical employer + candidate flows
 
-### Root causes found
+### 1. Employer onboarding enforcement
+- `src/routes/auth.tsx`: after login, if user is employer, check `fetchMyCompanies()` → if no company OR `onboarding_completed = false`, redirect to `/onboarding/employer` instead of `/employer`.
+- `src/routes/_authenticated/employer/route.tsx`: add a guard that bounces to `/onboarding/employer` when no company exists for the user.
 
-1. **Employer login redirects too early**
-   - `src/routes/auth.tsx` sends employers directly to `/employer/dashboard` after OTP, even when no company exists or company onboarding is incomplete.
+### 2. Fix "Could not save" on employer onboarding + first job
+- Migration: add missing GRANTs on `employer_credit_wallets` (INSERT/UPDATE for authenticated via owning company) and `notifications` (INSERT for authenticated, needed so the application trigger doesn't fail).
+- Move credit-wallet seeding into a `SECURITY DEFINER` RPC `create_company_with_owner(...)` so onboarding atomically creates company + membership + wallet without hitting RLS edges.
+- `src/routes/_authenticated/onboarding/employer.tsx`: call the new RPC; on success mark `onboarding_completed = true` and redirect to `/employer`.
 
-2. **Job posting/onboarding save failures**
-   - Frontend uses `work_mode = "on_site"` in multiple places, while the database enum is `onsite | remote | hybrid | field`. This can break job insert/update and candidate preference save.
-   - Employer onboarding creates a credit wallet from the browser. That can fail with RLS/permission issues and blocks onboarding.
+### 3. Fix Post-a-Job
+- `src/lib/options.ts`: change `on_site` → `onsite` (DB enum).
+- `src/routes/_authenticated/employer/jobs.new.tsx`: map work_mode correctly, allow draft save with minimal fields, surface server error message instead of generic toast.
+- `src/components/employer/EmployerShell.tsx`: promote "Post a job" to a primary action in the mobile bottom bar (replace overflow placement).
 
-3. **Candidate apply can fail**
-   - The application insert path also triggers notifications/history. If notification insert permissions or trigger grants are missing, apply fails even when the application data is valid.
+### 4. Fix candidate Job Detail + Apply
+- `src/routes/jobs.$jobId.tsx`: ensure public read works (anon SELECT policy on `jobs` where `status='published'`) and that the route doesn't 404 on slug vs id.
+- `src/components/candidate/ApplyDialog.tsx`: ensure insert into `applications` includes `company_id` (required by trigger) and handles notification-trigger permission via the grant added in step 2.
+- Add a clear success state + link to "My Applications".
 
-4. **Employer database location filter is single-city only**
-   - `src/routes/_authenticated/employer/database.tsx` has one city field instead of a multi-location selector.
+### 5. Multi-city database filter (employer)
+- `src/routes/_authenticated/employer/database.tsx`: replace single-city `Select` with a multi-select (chips) backed by `cities` master. Update query to `.in('city', selectedCities)` or `preferred_cities && selectedCities` for candidates with multiple preferences.
 
-5. **Company profile documents need full management**
-   - Existing `company_documents` and `company-docs` bucket support upload/read/delete, but the UI should expose edit details, upload new docs, status, and remove/re-upload actions clearly.
+### 6. Company profile editing + documents
+- `src/routes/_authenticated/employer/company.tsx`:
+  - Editable fields: name, about, industry, size, website, hq_city, founded_year, GSTIN, PAN, social links, logo, cover.
+  - Documents section: upload to `company-docs` bucket, list with status (pending/verified/rejected), delete, re-upload. Uses existing `company_documents` table.
 
-### Build-mode implementation steps
+### Technical details
+- New RPC `public.create_company_with_owner(_name text, _industry text, _size company_size, _hq_city text, _website text, _about text)` returns the new `company_id`; inserts into `companies`, `employer_members` (super_admin), and `employer_credit_wallets` in one transaction.
+- Grants: `GRANT INSERT, UPDATE ON public.employer_credit_wallets TO authenticated;` plus policy `USING (has_company_membership(auth.uid(), company_id))`. `GRANT INSERT ON public.notifications TO authenticated;` (trigger runs as definer already, but explicit grant prevents edge failures).
+- Anon SELECT policy review on `jobs` for public job-detail page.
 
-1. **Enforce employer onboarding before dashboard**
-   - Update `src/routes/auth.tsx` so after employer OTP login:
-     - If no company membership exists → `/onboarding/employer`
-     - If company exists but `companies.onboarding_completed = false` → `/onboarding/employer`
-     - Otherwise → `/employer/dashboard`
-   - Update `fetchMyCompanies` select to include `onboarding_completed`.
-
-2. **Fix enum mismatch everywhere**
-   - Change `WORK_MODES` from `on_site` to `onsite` in `src/lib/options.ts`.
-   - Normalize old `on_site` values to `onsite` in candidate onboarding/profile and employer job form.
-   - Ensure new jobs insert `work_mode: "onsite"` by default.
-
-3. **Make employer onboarding save robust**
-   - In `src/routes/_authenticated/onboarding/employer.tsx`, save company and employer member first.
-   - Mark `onboarding_completed: true` on the company.
-   - Move initial wallet creation to a server-side/admin-safe function or make it non-blocking so onboarding never fails because of wallet RLS.
-   - Keep first-job CTA redirecting to `/employer/jobs/new`.
-
-4. **Make post-job form clickable and save correctly**
-   - Add a prominent mobile-visible “Post a job” action in `EmployerShell` bottom navigation / More menu.
-   - Update `src/routes/_authenticated/employer/jobs.new.tsx` to use valid enum values and friendlier validation.
-   - On successful first job save, redirect to job details/applicants or jobs list with a toast.
-
-5. **Fix candidate job details + apply**
-   - Verify `/jobs/$jobId` loader uses public active job access and handles auth/no-auth gracefully.
-   - Update `ApplyDialog` so the candidate can apply with an existing profile/resume and gets a clear duplicate-application message.
-   - Add a migration/grants if needed for notification/history trigger writes so application insert is not blocked.
-
-6. **Multi-city hiring database filter**
-   - Replace single city filter in `src/routes/_authenticated/employer/database.tsx` with selectable city chips/search.
-   - Query candidates where `profiles.city` or `candidate_profiles.preferred_cities` overlaps any selected city.
-   - Show selected locations as removable filter chips.
-
-7. **Company profile edit + document management**
-   - Expand `src/routes/_authenticated/employer/company.tsx` with editable company fields, logo/cover upload, GST/PAN fields, and document upload/delete.
-   - Show verification status, document type, uploaded date, and verified/rejected notes.
-
-8. **Database migration safety net**
-   - Add a migration for missing grants/columns if required:
-     - `GRANT EXECUTE` on helper functions used by RLS.
-     - `GRANT INSERT`/trigger-safe access for notifications/history where application triggers run.
-     - `employer_credit_wallets.updated_at` if missing.
-
-### Verification checklist
-
-- New employer login → onboarding first → save → dashboard.
-- “Post my first job” and “Post a job” both open the job form on desktop and mobile.
-- Employer can create a valid active/draft job without “Could not save”.
-- Candidate dashboard job card → job detail opens → apply succeeds or shows duplicate message.
-- Employer database supports multiple selected cities/locations.
-- Company page edits save and documents upload/delete correctly.
+No other areas touched.
