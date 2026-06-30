@@ -63,6 +63,9 @@ function NewJob() {
     if (step === 2) {
       if (!form.city) return "Pick a city.";
       if (!form.min_salary) return "Enter min salary.";
+      if (form.max_salary && Number(form.max_salary) < Number(form.min_salary))
+        return "Max salary must be higher than min salary.";
+      if (form.pincode && form.pincode.length !== 6) return "Pincode must be 6 digits.";
     }
     return null;
   };
@@ -73,20 +76,21 @@ function NewJob() {
     if (step < 3) setStep(step + 1);
   };
 
-  const publish = async () => {
+  const publish = async (asDraft = false) => {
     if (!companyId) return toast.error("No active company.");
+    if (!form.title.trim()) return toast.error("Add a job title first.");
     setSaving(true);
     try {
       const { data: user } = await supabase.auth.getUser();
       const { data, error } = await supabase.from("jobs").insert({
         company_id: companyId,
         title: form.title.trim(),
-        category: form.category,
+        category: form.category || null,
         job_type: form.job_type as never,
         work_mode: form.work_mode as never,
         openings: form.openings,
         description: form.description,
-        city: form.city,
+        city: form.city || null,
         locality: form.locality || null,
         pincode: form.pincode || null,
         min_salary: form.min_salary ? Number(form.min_salary) : null,
@@ -97,12 +101,13 @@ function NewJob() {
         max_experience_years: form.max_experience_years ? Number(form.max_experience_years) : null,
         education: form.education || null,
         skills: form.skills,
-        status: "active",
+        status: asDraft ? "draft" : "active",
         posted_by: user.user?.id,
       } as never).select().single();
       if (error) throw error;
-      toast.success("Job published! Candidates can apply now.");
-      nav({ to: "/employer/jobs/$jobId/applicants", params: { jobId: (data as { id: string }).id } });
+      toast.success(asDraft ? "Saved as draft." : "Job published! Candidates can apply now.");
+      if (asDraft) nav({ to: "/employer/jobs" });
+      else nav({ to: "/employer/jobs/$jobId/applicants", params: { jobId: (data as { id: string }).id } });
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Could not publish.");
     } finally { setSaving(false); }
@@ -221,7 +226,7 @@ function NewJob() {
             </div>
           )}
 
-          <div className="mt-6 flex items-center justify-between">
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-2">
             <button
               type="button"
               disabled={step === 0}
@@ -230,15 +235,25 @@ function NewJob() {
             >
               <ArrowLeft className="h-4 w-4" /> Back
             </button>
-            {step < 3 ? (
-              <button onClick={next} className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark">
-                Next <ArrowRight className="h-4 w-4" />
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => publish(true)}
+                disabled={saving || !form.title.trim()}
+                className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-4 text-sm font-semibold text-foreground hover:bg-surface disabled:opacity-50"
+              >
+                Save as draft
               </button>
-            ) : (
-              <button onClick={publish} disabled={saving} className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-60">
-                {saving && <Loader2 className="h-4 w-4 animate-spin" />} Publish job
-              </button>
-            )}
+              {step < 3 ? (
+                <button onClick={next} className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark">
+                  Next <ArrowRight className="h-4 w-4" />
+                </button>
+              ) : (
+                <button onClick={() => publish(false)} disabled={saving} className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-60">
+                  {saving && <Loader2 className="h-4 w-4 animate-spin" />} Publish job
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>

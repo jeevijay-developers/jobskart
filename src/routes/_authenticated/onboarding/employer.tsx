@@ -1,60 +1,102 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Building2, Loader2, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
-import { Navbar } from "@/components/site/Navbar";
 import { supabase } from "@/integrations/supabase/client";
 import { setActiveCompanyId } from "@/lib/employer";
 import { INDIAN_CITIES } from "@/lib/options";
+import {
+  Questionnaire,
+  BigInput,
+  BigTextarea,
+  ChipChoice,
+  type WizardStep,
+} from "@/components/wizard/Questionnaire";
+import { Field } from "@/components/candidate/primitives";
+import { Building2, Upload, Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/onboarding/employer")({
   head: () => ({ meta: [{ title: "Set up your company · JobsKart" }] }),
   component: EmployerOnboarding,
 });
 
+const SIZES = [
+  { value: "1-10", label: "Just starting", hint: "1–10 people" },
+  { value: "11-50", label: "Small team", hint: "11–50 people" },
+  { value: "51-200", label: "Mid-size", hint: "51–200 people" },
+  { value: "201-500", label: "Established", hint: "201–500 people" },
+  { value: "500+", label: "Enterprise", hint: "500+ people" },
+] as const;
+
+const ROLES = [
+  { value: "founder", label: "Founder / Owner" },
+  { value: "hr", label: "HR / Talent Acquisition" },
+  { value: "recruiter", label: "Recruiter / Hiring Manager" },
+  { value: "ops", label: "Operations / Team Lead" },
+] as const;
+
+const TOP_CITIES = [
+  "Mumbai", "Delhi", "Bengaluru", "Hyderabad", "Pune", "Chennai",
+  "Kolkata", "Ahmedabad", "Jaipur", "Lucknow", "Indore", "Chandigarh",
+];
+
+const INDUSTRY_SUGGEST = [
+  "IT / Software", "Logistics & Delivery", "Retail", "Healthcare",
+  "Education", "Finance", "Manufacturing", "Hospitality", "Real Estate",
+  "Construction", "Media", "Other",
+];
+
 function EmployerOnboarding() {
   const navigate = useNavigate();
-  const [name, setName] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [industry, setIndustry] = useState("");
-  const [size, setSize] = useState<"1-10" | "11-50" | "51-200" | "201-500" | "500+">("11-50");
-  const [city, setCity] = useState("");
-  const [website, setWebsite] = useState("");
+  const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim() || !fullName.trim() || !city) {
-      toast.error("Please complete the required fields.");
-      return;
-    }
+  // form state
+  const [fullName, setFullName] = useState("");
+  const [yourRole, setYourRole] = useState<string>("founder");
+  const [designation, setDesignation] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [industry, setIndustry] = useState("");
+  const [size, setSize] = useState<string>("11-50");
+  const [foundedYear, setFoundedYear] = useState<string>("");
+  const [hqCity, setHqCity] = useState("");
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [website, setWebsite] = useState("");
+  const [about, setAbout] = useState("");
+  const [gst, setGst] = useState("");
+  const [postNow, setPostNow] = useState<"yes" | "later">("yes");
+
+  const submit = async () => {
     setSaving(true);
     try {
       const { data: u } = await supabase.auth.getUser();
       const uid = u.user?.id;
       if (!uid) throw new Error("Not signed in.");
 
-      // Update profile name
-      await supabase.from("profiles").update({ full_name: fullName }).eq("id", uid);
+      await supabase
+        .from("profiles")
+        .update({ full_name: fullName })
+        .eq("id", uid);
+      void designation; void yourRole;
 
-      // Create company
       const { data: company, error: cErr } = await supabase
         .from("companies")
         .insert({
-          name: name.trim(),
+          name: companyName.trim(),
           industry: industry || null,
-          size,
-          hq_city: city,
-          primary_city: city,
+          size: size as never,
+          hq_city: hqCity,
+          primary_city: hqCity,
+          founded_year: foundedYear ? Number(foundedYear) : null,
           website: website || null,
+          about: about || null,
+          gst_number: gst || null,
           created_by: uid,
           onboarding_completed: true,
         })
-        .select("id")
+        .select("id, slug")
         .single();
       if (cErr || !company) throw cErr ?? new Error("Could not create company.");
 
-      // Add membership
       const { error: mErr } = await supabase.from("employer_members").insert({
         user_id: uid,
         company_id: company.id,
@@ -62,9 +104,28 @@ function EmployerOnboarding() {
       });
       if (mErr) throw mErr;
 
+      // Logo upload (optional)
+      if (logoFile) {
+        const path = `${company.id}/logo-${Date.now()}-${logoFile.name}`;
+        const up = await supabase.storage.from("company-logos").upload(path, logoFile, { upsert: true });
+        if (!up.error) {
+          const { data: signed } = await supabase.storage
+            .from("company-logos")
+            .createSignedUrl(path, 60 * 60 * 24 * 365);
+          if (signed?.signedUrl) {
+            await supabase.from("companies").update({ logo_url: signed.signedUrl }).eq("id", company.id);
+          }
+        }
+      }
+
+      // Seed wallet so credits page never errors
+      await supabase
+        .from("employer_credit_wallets")
+        .upsert({ company_id: company.id, balance: 0 }, { onConflict: "company_id" });
+
       setActiveCompanyId(company.id);
-      toast.success(`${name} is ready — let's post your first job.`);
-      navigate({ to: "/employer/dashboard" });
+      toast.success(`${companyName} is ready 🎉`);
+      navigate({ to: postNow === "yes" ? "/employer/jobs/new" : "/employer/dashboard" });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not save.");
     } finally {
@@ -72,109 +133,231 @@ function EmployerOnboarding() {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-surface">
-      <Navbar />
-      <main className="mx-auto w-full max-w-2xl px-4 py-10">
-        <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-semibold text-primary">
-          <Building2 className="h-3.5 w-3.5" /> Set up your company
+  const steps: WizardStep[] = [
+    {
+      key: "you",
+      title: "First — who's hiring?",
+      hint: "We use this on invites and to address you across the dashboard.",
+      validate: () => (fullName.trim().length < 2 ? "Tell us your name." : null),
+      render: () => (
+        <div className="space-y-6">
+          <BigInput
+            placeholder="Your full name"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            autoFocus
+          />
+          <div>
+            <p className="mb-3 text-sm font-semibold text-foreground">Your role</p>
+            <ChipChoice
+              value={yourRole}
+              onChange={(v) => setYourRole(v as string)}
+              options={ROLES.map((r) => ({ value: r.value, label: r.label }))}
+            />
+          </div>
+          <Field label="Designation (optional)" hint="e.g. Head of TA, Founder">
+            <input
+              value={designation}
+              onChange={(e) => setDesignation(e.target.value)}
+              className="form-input"
+              placeholder="Optional"
+            />
+          </Field>
         </div>
-        <h1 className="mt-3 text-3xl font-bold tracking-tight text-foreground">
-          Tell us about your business
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          We'll create your hiring workspace — you can edit any of this later.
-        </p>
-
-        <form onSubmit={submit} className="mt-8 space-y-5 rounded-2xl border border-border bg-card p-6 shadow-sm">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Your name" required>
-              <input
-                className="form-input"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="Vikas Sharma"
-              />
-            </Field>
-            <Field label="Company name" required>
-              <input
-                className="form-input"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Acme Logistics Pvt Ltd"
-              />
-            </Field>
-            <Field label="Industry">
-              <input
-                className="form-input"
-                value={industry}
-                onChange={(e) => setIndustry(e.target.value)}
-                placeholder="Logistics, IT, Retail…"
-              />
-            </Field>
-            <Field label="Company size">
-              <select
-                className="form-input"
+      ),
+    },
+    {
+      key: "company",
+      title: "What's your company called?",
+      hint: "Use your registered or commonly known brand name.",
+      validate: () => {
+        if (companyName.trim().length < 2) return "Add your company name.";
+        if (!industry) return "Pick an industry to continue.";
+        return null;
+      },
+      render: () => (
+        <div className="space-y-6">
+          <BigInput
+            placeholder="Acme Logistics Pvt Ltd"
+            value={companyName}
+            onChange={(e) => setCompanyName(e.target.value)}
+          />
+          <div>
+            <p className="mb-3 text-sm font-semibold text-foreground">Industry</p>
+            <div className="flex flex-wrap gap-2">
+              {INDUSTRY_SUGGEST.map((i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setIndustry(i)}
+                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${
+                    industry === i
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-card text-foreground/80 hover:border-foreground/30"
+                  }`}
+                >
+                  {i}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Team size">
+              <ChipChoice
                 value={size}
-                onChange={(e) => setSize(e.target.value as typeof size)}
-              >
-                <option value="1-10">1–10</option>
-                <option value="11-50">11–50</option>
-                <option value="51-200">51–200</option>
-                <option value="201-500">201–500</option>
-                <option value="500+">500+</option>
-              </select>
+                onChange={(v) => setSize(v as string)}
+                options={SIZES.map((s) => ({ value: s.value, label: s.label, hint: s.hint }))}
+              />
             </Field>
-            <Field label="Headquarters city" required>
-              <select className="form-input" value={city} onChange={(e) => setCity(e.target.value)}>
-                <option value="">Select city</option>
-                {INDIAN_CITIES.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Website">
+            <Field label="Founded year (optional)">
               <input
+                type="number"
+                value={foundedYear}
+                onChange={(e) => setFoundedYear(e.target.value)}
                 className="form-input"
-                type="url"
-                value={website}
-                onChange={(e) => setWebsite(e.target.value)}
-                placeholder="https://"
+                placeholder="2018"
+                min={1900}
+                max={new Date().getFullYear()}
               />
             </Field>
           </div>
+        </div>
+      ),
+    },
+    {
+      key: "city",
+      title: "Where do you hire from?",
+      hint: "Pick your HQ. You can add more locations later when posting jobs.",
+      validate: () => (!hqCity ? "Pick your headquarters." : null),
+      render: () => (
+        <div className="space-y-5">
+          <div className="flex flex-wrap gap-2">
+            {TOP_CITIES.map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setHqCity(c)}
+                className={`rounded-xl border-2 px-4 py-2.5 text-sm font-semibold ${
+                  hqCity === c
+                    ? "border-primary bg-primary/5 text-primary"
+                    : "border-border bg-card text-foreground/80 hover:border-foreground/30"
+                }`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+          <Field label="Other city">
+            <select
+              value={TOP_CITIES.includes(hqCity) ? "" : hqCity}
+              onChange={(e) => setHqCity(e.target.value)}
+              className="form-input"
+            >
+              <option value="">Pick another city…</option>
+              {INDIAN_CITIES.filter((c) => !TOP_CITIES.includes(c)).map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </Field>
+        </div>
+      ),
+    },
+    {
+      key: "brand",
+      title: "Add your brand & proof",
+      hint: "Verified, branded employers get 4× more applications. All optional — you can complete later.",
+      render: () => (
+        <div className="space-y-5">
+          <Field label="Company logo">
+            <label className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-dashed border-border bg-surface p-4 hover:border-primary/40">
+              <div className="grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-primary-light text-primary">
+                {logoFile ? (
+                  <img
+                    src={URL.createObjectURL(logoFile)}
+                    alt="logo"
+                    className="h-14 w-14 rounded-xl object-cover"
+                  />
+                ) : (
+                  <Building2 className="h-6 w-6" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-foreground">
+                  {logoFile ? logoFile.name : "Drop or click to upload"}
+                </p>
+                <p className="text-xs text-muted-foreground">PNG/JPG, square works best</p>
+              </div>
+              <Upload className="h-5 w-5 text-muted-foreground" />
+              <input
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)}
+              />
+            </label>
+          </Field>
+          <Field label="Website (optional)">
+            <input
+              type="url"
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+              className="form-input"
+              placeholder="https://"
+            />
+          </Field>
+          <Field label="Short about" hint={`${about.length}/500 — one paragraph elevator pitch.`}>
+            <BigTextarea
+              rows={4}
+              maxLength={500}
+              value={about}
+              onChange={(e) => setAbout(e.target.value)}
+              placeholder="What you do, who you hire, why people love working here."
+              className="text-base"
+            />
+          </Field>
+          <Field label="GST number (optional)" hint="Required for the verified employer badge — you can add this later from Company → KYC.">
+            <input
+              value={gst}
+              onChange={(e) => setGst(e.target.value.toUpperCase())}
+              className="form-input"
+              placeholder="22AAAAA0000A1Z5"
+              maxLength={15}
+            />
+          </Field>
+        </div>
+      ),
+    },
+    {
+      key: "first-job",
+      title: "Ready to post your first job?",
+      hint: "We'll take you straight to a 3-minute guided post, or land you on the dashboard.",
+      render: () => (
+        <ChipChoice
+          value={postNow}
+          onChange={(v) => setPostNow(v as "yes" | "later")}
+          options={[
+            { value: "yes", label: "Yes — post my first job now", hint: "Recommended · 3 min wizard" },
+            { value: "later", label: "Maybe later — show me the dashboard", hint: "Browse around first" },
+          ]}
+        />
+      ),
+    },
+  ];
 
-          <button
-            type="submit"
-            disabled={saving}
-            className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary-dark disabled:opacity-50"
-          >
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Continue <ArrowRight className="h-4 w-4" /></>}
-          </button>
-        </form>
-      </main>
-    </div>
-  );
-}
-
-function Field({
-  label,
-  required,
-  children,
-}: {
-  label: string;
-  required?: boolean;
-  children: React.ReactNode;
-}) {
   return (
-    <label className="block">
-      <span className="text-sm font-semibold text-foreground">
-        {label}
-        {required && <span className="ml-1 text-destructive">*</span>}
-      </span>
-      <div className="mt-1.5">{children}</div>
-    </label>
+    <Questionnaire
+      steps={steps}
+      index={step}
+      onIndex={setStep}
+      onSubmit={submit}
+      submitting={saving}
+      submitLabel={saving ? "Setting up…" : "Create my workspace"}
+      side="employer"
+      brandKicker="JobsKart for employers"
+      brandLines={[
+        "Hire 4× faster with verified candidates across India.",
+        "AI shortlisting, mobile-first applicants, and a real-time pipeline.",
+      ]}
+    />
   );
 }
