@@ -1,71 +1,104 @@
-
 ## Goal
 
-Make the **candidate onboarding** and **candidate dashboard** feel like a finished, polished product — visually attractive, mobile-first, with every existing feature wired through and a couple of small functionality gaps closed. No new tables, no new dependencies.
+Make the **employer side** production-ready: a polished conversational onboarding, an attractive dashboard with real numbers, and every existing feature (jobs, applicants, database, credits, team, reports, company KYC) verified, wired together, and mobile-responsive. No new tables, no new packages — only fix gaps and lift the UI/UX to match the candidate side.
 
-## Part 1 — Onboarding redesign (`src/routes/_authenticated/onboarding/candidate.tsx` + `src/components/wizard/Questionnaire.tsx`)
+## Part 1 — Employer onboarding redesign (`src/routes/_authenticated/onboarding/employer.tsx`)
 
-Keep the existing 6-step branching logic (Basics → Work status → Experience/Roles → Education → Skills & languages → Preferences) and validators intact. Only redesign the shell and step UI; do not change save logic, branching, or schema.
+Replace the single-screen form with the same `Questionnaire` wizard already used by candidate onboarding, so the look matches end-to-end.
 
-**Wizard shell upgrade**
-- Two-column desktop layout: left rail = "brand panel" (JobsKart blue gradient, illustration blob, "Your profile = your resume" headline, animated step tracker with icons per step, current-step description, trust badges); right side = form card on white. Stacks to single column on mobile with a sticky compact progress bar at the top.
-- Replace the plain "Step N of 6" with a vertical stepper (desktop) / horizontal segmented bar (mobile) using Lucide icons (User, Briefcase, Building2, GraduationCap, Sparkles→Wand2, Target). Done steps get a check chip; current step glows; future steps are muted.
-- Animated step transitions stay (framer-motion slide+fade already present).
+Steps (all save into existing `profiles` + `companies` + `employer_members` — no schema change):
+1. **You** — recruiter full name + role (Founder / HR / Recruiter) + designation.
+2. **Company basics** — company name, industry (autocomplete from `industries`), size (tile picker, not dropdown), founded year.
+3. **Where you hire** — HQ city tile-grid (top 12 metros) + "Other" search, plus optional secondary cities (chips).
+4. **Brand & proof** — logo uploader (drag-drop, uses existing `company-logos` bucket), website, short About (≤500 chars), GST/PAN (optional, "verify later" allowed).
+5. **First job hint** — quick toggle "I want to post my first job now" → routes to `/employer/jobs/new` instead of dashboard.
 
-**Per-step polish**
-- Basics: big avatar uploader on the left (uses existing avatar field), inputs grouped in 2-col grid on md+, resume upload card moved up as a "Quick start" callout with Wand2 icon ("Skip the typing — upload your resume").
-- Work status: 3 large clickable role cards (Fresher / Experienced / Student) with icons and one-line descriptions, no radio dots.
-- Experience / Roles: each experience card gets a colored header strip, drag handle removed (not used), "Currently working" toggle styled as a switch. Empty state has illustration + "Add your first job" primary button.
-- Education: dropdown becomes a tile grid for the most common qualifications (10th, 12th, Diploma, B.Tech, B.A., B.Com, B.Sc., MBA, Other) — clicking a tile selects it; "Other" reveals a free-text. Faster on mobile.
-- Skills & languages: chips with color, AI suggestions show as a separate "✨ Suggested for you" row that fades in after typing, click-to-add. Languages get a compact row: language pill + proficiency dots (1-4).
-- Preferences: salary input with ₹ prefix and "per month" suffix; work mode as multi-select pill toggles; job types same; preferred cities autocomplete chip input.
+Two-column desktop shell matching candidate onboarding: left brand panel ("Hire faster on JobsKart" + trust chips: 1L+ candidates, AI shortlisting, verified profiles), right form card with vertical stepper. Sticky footer (Back / Save & exit / Continue). Auto-creates `employer_members(super_admin)` and seeds `employer_credit_wallets(balance=0)` so the credits screen never errors.
 
-**Footer**
-- Sticky bottom bar (white, top border) with Back / Save & exit / Continue. Continue button is full-width on mobile. Show a subtle "Auto-saved" tick after each successful save.
+## Part 2 — Employer dashboard redesign (`src/routes/_authenticated/employer/dashboard.tsx`)
 
-## Part 2 — Candidate dashboard redesign (`src/routes/_authenticated/candidate/dashboard.tsx`)
+Keep all current data queries; restructure the page:
 
-Same data sources. Restructure the visual hierarchy and tighten copy. All grids use min-w-0 + truncate per the responsive-layout pattern.
-
-**New layout**
-1. **Welcome hero band** — name + greeting, current city pill, profile-strength ring (existing `Ring`) inline on the right, plus a small badge ("Bronze / Silver / Gold / Platinum" from `computeBadge`). Gradient background (primary-light → card).
-2. **Quick actions row** — 4 tappable tiles: "Search jobs", "Upload resume" (only if missing), "Complete profile" (only if <80%), "Saved jobs". Lucide icons.
-3. **Stats row** — keep 5 stats, restyle as compact cards with delta hint ("This week: +2") where possible (applications & saved within last 7 days from existing query).
+1. **Hero band** — gradient strip: company logo + name + verification chip + active company switcher (when multi). Right side shows credit balance pill ("₹/credits: 42 · Buy more") pulling from `getCompanyWallet`.
+2. **Quick actions row** — 4 tiles (Post a job, Search candidates, Invite team, Verify company) — context-aware: hides "Verify" when verified, highlights "Post a job" when activeJobs=0.
+3. **Stats row** — 5 compact cards with week-over-week deltas (applications this week vs prior week, views delta). Numbers tabular.
 4. **Two-column body**
-   - Left (lg:col-span-2): **Recommended for you** as JobCards (already wired). Add a small "Why this match?" pill showing top 1-2 matched skills.
-   - Right: **Profile checklist** (existing `missing` items) styled as a real to-do with checkbox icons and "X of Y complete" header; **Recent activity** timeline with colored dots; new **Learning corner** card pulling 2 latest `learning_resources` rows (already in DB) with cover image + title.
-5. **Empty states** — instead of plain text, illustrated empty states (Lucide icon + heading + CTA) for no recommendations / no activity.
-6. **Mobile**: stats become a 2x2 grid; sidebar columns stack under main; hero ring sits beside greeting text.
+   - Left (lg:col-span-2): **Hiring pipeline mini-funnel** (Applied → Shortlisted → Interview → Offered → Hired) as a horizontal bar with counts; click → `/employer/jobs/:id/applicants`. Below: **Recent applicants** list (existing) with avatar, job title chip, status pill, "View" CTA.
+   - Right: **Active jobs** card (top 5 by applications, "Manage all" link), **Learning corner** for employers (reuse `learning_resources` filtered by `audience='employer'` if present, else fallback to all), **KYC checklist** (verify GST, upload logo, add About, invite teammate) — each row click-through.
+5. **Empty states** — illustrated empty for 0 jobs / 0 applicants with single primary CTA.
+6. **Mobile** — stats become 2×2, hero stacks, pipeline bar scrolls horizontally, sidebar moves below main.
 
-**Functionality gaps to close (small)**
-- Wire `learning_resources` query into the dashboard (table already exists, public read policy in place). Fallback empty state if none.
-- Resume re-upload shortcut from dashboard quick action → opens `/candidate/profile` with `?focus=resume` query; profile page already has a resume section, just scroll/highlight on mount.
-- Compute "Profile views" from `candidate_profiles.profile_views` (already used).
-- Make the strength ring + checklist click-through to the right profile section by appending `?section=...` hash anchors.
+## Part 3 — Feature polish & bug-fix sweep
 
-## Part 3 — Shared shell polish (`src/components/candidate/CandidateShell.tsx`)
+**Jobs list (`employer/jobs.tsx`)**
+- Add result count + "Active / Paused / Closed" tab counts in pills.
+- Add "Duplicate" action (insert clone with status `draft`).
+- Make card layout collapse cleanly on mobile (action buttons wrap).
 
-- Header: avatar + name + role pill on the right; notification bell already present, keep it; on mobile the title becomes a small back row.
-- Bottom mobile nav already exists in shell — re-verify the 4 most-used items (Dashboard, Jobs, Saved, Profile) with active state highlighting.
-- Smooth page transition wrapper using framer-motion `AnimatePresence` (mode="wait") around `children`.
+**Post a job (`employer/jobs.new.tsx`)**
+- Add a "Save as draft" button on every step (writes `status=draft`).
+- Step 1: replace category dropdown with chip grid (more tactile).
+- Step 2: add description templates (3 starter snippets users can insert).
+- Step 4: show a live preview card on the right (desktop) — uses existing `JobCard`.
+- Validate max_salary ≥ min_salary, pincode = 6 digits.
 
-## Verification
+**Applicants kanban (`employer/jobs.$jobId.applicants.tsx`)**
+- Enable real drag-and-drop using native HTML5 DnD (no new packages) between columns — already half-wired.
+- Add filter chips (Source, City, Experience) above the board.
+- Sidebar profile pane: add resume preview link (signed url) and "Add note" textarea writing to existing `application_notes`.
+- Fix profile deep-link: currently `/u/$slug` uses `candidate_id` (UUID) as slug — switch to fetched `profile_slug` or open the sidebar's "View full profile" via slug lookup.
 
-Run Playwright via shell to capture screenshots at 375px and 1280px for: `/onboarding/candidate` (each of the 6 steps via seeded admin login), `/candidate/dashboard`. Eyeball: no overflow, ring renders, mobile bottom nav not overlapping content, sticky onboarding footer not clipping inputs. Hit `parseResume` once with the sample PDFs via `invoke-server-function` to confirm the existing path still returns valid JSON.
+**Company KYC (`employer/company.tsx`)**
+- Wire GST/PAN upload to `company_documents` (already exists); show pending/approved badge.
+- Add "Preview public page" button that opens `/c/$slug`.
+
+**Database (`employer/database.tsx`)**
+- Show wallet balance at top, low-balance nudge with link to `/employer/credits` when <5.
+- Block "Unlock" button with friendly toast when balance=0 instead of silent fail.
+- Add saved searches (localStorage only — no DB needed).
+
+**Credits (`employer/credits.tsx`)**
+- Display ledger with date grouping; add CSV export.
+- Confirmation dialog before Razorpay checkout shows pack details.
+- Handle stub mode gracefully (no Razorpay key → show "Contact sales" CTA).
+
+**Team (`employer/team.tsx`)**
+- Resend invite + copy invite link buttons (link already generated).
+- Role description tooltips.
+
+**Reports (`employer/reports.tsx`)**
+- Add 30-day applications trend (simple SVG sparkline, no chart lib).
+- Top performing jobs table.
+
+**Shell (`EmployerShell.tsx`)**
+- Persistent credit-balance chip in the top bar (desktop).
+- Mobile bottom nav: include Database alongside Dashboard / Jobs / Credits / Post.
+- Active company switcher dropdown in sidebar when user has >1 company.
+
+## Part 4 — Verification
+
+Drive Playwright via shell at 375px and 1280px through: `/onboarding/employer` (all steps), `/employer/dashboard`, `/employer/jobs`, `/employer/jobs/new`, an applicants page, `/employer/database`, `/employer/credits`, `/employer/team`, `/employer/reports`. Screenshot each. Confirm no overflow, the credit chip renders, kanban drag works, and the post-job wizard publishes a record.
 
 ## Files touched
 
-- `src/routes/_authenticated/onboarding/candidate.tsx` — shell + per-step JSX (logic untouched)
-- `src/components/wizard/Questionnaire.tsx` — new two-column layout, vertical stepper, sticky footer
-- `src/routes/_authenticated/candidate/dashboard.tsx` — new hero, quick actions, learning card, empty states
-- `src/components/candidate/CandidateShell.tsx` — header/footer polish, page transitions
-- `src/components/candidate/primitives.tsx` — minor: add a `<TileSelect>` helper used by Work status + Education
-- `src/routes/_authenticated/candidate/profile.tsx` — only the small `?focus=resume` / `?section=...` scroll-on-mount handler
+- `src/routes/_authenticated/onboarding/employer.tsx` — full rewrite using `Questionnaire`
+- `src/routes/_authenticated/employer/dashboard.tsx` — new hero + pipeline + sidebar
+- `src/routes/_authenticated/employer/jobs.tsx` — counts, duplicate, mobile layout
+- `src/routes/_authenticated/employer/jobs.new.tsx` — draft, templates, preview, validation
+- `src/routes/_authenticated/employer/jobs.$jobId.applicants.tsx` — DnD, filters, notes, slug fix
+- `src/routes/_authenticated/employer/company.tsx` — KYC upload wiring, public preview
+- `src/routes/_authenticated/employer/database.tsx` — wallet nudges, saved searches
+- `src/routes/_authenticated/employer/credits.tsx` — ledger grouping, CSV, stub handling
+- `src/routes/_authenticated/employer/team.tsx` — resend / copy invite
+- `src/routes/_authenticated/employer/reports.tsx` — sparkline + top jobs
+- `src/components/employer/EmployerShell.tsx` — credit chip, mobile nav, company switcher
+- `src/lib/credits.functions.ts` — small helper if needed for wallet seed on onboarding
 
-No new DB migrations. No new packages.
+No DB migrations. No new packages.
 
 ## Out of scope
 
-- New candidate features (messaging, video resume, referrals) — existing surfaces only.
-- Employer / admin redesigns.
-- Color/token changes — locked to current JobsKart blue tokens.
+- Messaging / chat with candidates
+- Bulk resume import
+- Multi-currency or invoicing
+- Color/token changes
