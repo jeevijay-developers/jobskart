@@ -10,12 +10,20 @@ import {
   CheckCircle2,
   Clock,
   Flag,
+  Gift,
   GraduationCap,
   IndianRupee,
+  Languages,
   Loader2,
   MapPin,
+  Moon,
   Share2,
+  Sparkles,
+  Sun,
+  Sunrise,
+  Target,
   Users,
+  Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Navbar } from "@/components/site/Navbar";
