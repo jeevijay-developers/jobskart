@@ -88,18 +88,32 @@ export function ApplyDialog({ open, onClose, userId, job, onApplied }: Props) {
   };
 
   const submit = async () => {
-    if (!validate()) return;
+    if (!validate()) {
+      toast.error("Please fix the highlighted fields before submitting.");
+      return;
+    }
     setSubmitting(true);
     try {
+      // Make sure we're authenticated client-side before hitting RLS-guarded tables
+      const { data: sess } = await supabase.auth.getSession();
+      if (!sess.session?.user?.id || sess.session.user.id !== userId) {
+        throw new Error("Your session expired. Please sign in again to apply.");
+      }
+
       // upload new resume if provided
       if (newFile) {
         setUploading(true);
         const ext = (newFile.name.split(".").pop() || "bin").toLowerCase();
         const path = `${userId}/resume-${Date.now()}-${crypto.randomUUID()}.${ext}`;
-        const up = await supabase.storage.from("candidate-docs").upload(path, newFile, { upsert: true });
+        const up = await supabase.storage
+          .from("candidate-docs")
+          .upload(path, newFile, { upsert: true, contentType: newFile.type || undefined });
         setUploading(false);
-        if (up.error) throw up.error;
-        await Promise.all([
+        if (up.error) {
+          console.error("[ApplyDialog] resume upload failed", up.error);
+          throw new Error(`Couldn't upload resume: ${up.error.message}`);
+        }
+        const [docRes, profRes] = await Promise.all([
           supabase.from("candidate_documents").insert({
             user_id: userId,
             doc_type: "resume",
@@ -109,6 +123,8 @@ export function ApplyDialog({ open, onClose, userId, job, onApplied }: Props) {
           }),
           supabase.from("candidate_profiles").update({ resume_url: path }).eq("user_id", userId),
         ]);
+        if (docRes.error) console.warn("[ApplyDialog] document record insert failed", docRes.error);
+        if (profRes.error) console.warn("[ApplyDialog] profile resume_url update failed", profRes.error);
       }
 
       const { error } = await supabase.from("applications").insert({
@@ -119,19 +135,35 @@ export function ApplyDialog({ open, onClose, userId, job, onApplied }: Props) {
         available_from: availableFrom || null,
         cover_note: coverNote.trim() || null,
       });
-      if (error) throw error;
+
+      if (error) {
+        console.error("[ApplyDialog] application insert failed", error);
+        // 23505 = unique_violation (already applied)
+        if ((error as { code?: string }).code === "23505") {
+          toast.success("You've already applied to this job.");
+          onApplied();
+          onClose();
+          return;
+        }
+        if ((error as { code?: string }).code === "42501") {
+          throw new Error("You don't have permission to apply. Please sign in again.");
+        }
+        throw new Error(error.message || "Could not submit your application.");
+      }
 
       toast.success("Application submitted! The employer will review your profile.");
       onApplied();
       onClose();
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Could not submit application.";
+      console.error("[ApplyDialog] submit failed", e);
+      const msg = e instanceof Error && e.message ? e.message : "Could not submit application. Please try again.";
       toast.error(msg);
     } finally {
       setSubmitting(false);
       setUploading(false);
     }
   };
+
 
   const resumeLabel = newFile?.name || existing?.name || "";
 
