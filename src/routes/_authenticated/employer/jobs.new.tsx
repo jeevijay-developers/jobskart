@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { EmployerShell } from "@/components/employer/EmployerShell";
 import { Field, ChipInput } from "@/components/candidate/primitives";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchMyCompanies, getActiveCompanyId } from "@/lib/employer";
+import { fetchMyCompanies, getActiveCompanyId, setActiveCompanyId } from "@/lib/employer";
 import { INDIAN_CITIES, JOB_TYPE_OPTIONS, WORK_MODES, EDUCATION_LEVELS, SUGGESTED_SKILLS } from "@/lib/options";
 
 export const Route = createFileRoute("/_authenticated/employer/jobs/new")({
@@ -27,6 +27,9 @@ function NewJob() {
   const nav = useNavigate();
   const [step, setStep] = useState(0);
   const [companyId, setCompanyId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [companyLoading, setCompanyLoading] = useState(true);
+  const [setupError, setSetupError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<Form>({
     title: "", category: "", job_type: "full_time", work_mode: "onsite", openings: 1,
@@ -38,34 +41,49 @@ function NewJob() {
 
   useEffect(() => {
     (async () => {
-      let cid = getActiveCompanyId();
-      if (!cid) {
-        const { data: user } = await supabase.auth.getUser();
-        if (user.user) {
-          const ms = await fetchMyCompanies(user.user.id);
-          cid = ms[0]?.company_id ?? null;
+      try {
+        setCompanyLoading(true);
+        setSetupError(null);
+        const { data: user, error } = await supabase.auth.getUser();
+        if (error || !user.user) {
+          setSetupError("Your session expired. Please sign in again.");
+          setCompanyLoading(false);
+          return;
         }
+        setUserId(user.user.id);
+
+        const memberships = await fetchMyCompanies(user.user.id);
+        const storedId = getActiveCompanyId();
+        const chosen = memberships.find((m) => m.company_id === storedId) ?? memberships[0] ?? null;
+
+        if (!chosen) {
+          setSetupError("Finish your company setup before posting a job.");
+          setCompanyLoading(false);
+          return;
+        }
+
+        setActiveCompanyId(chosen.company_id);
+        setCompanyId(chosen.company_id);
+      } catch (error) {
+        console.error("[jobs.new] company lookup failed", error);
+        setSetupError(error instanceof Error ? error.message : "Could not load your company setup.");
+      } finally {
+        setCompanyLoading(false);
       }
-      if (!cid) {
-        toast.message("Finish setting up your company first.");
-        nav({ to: "/onboarding/employer" });
-        return;
-      }
-      setCompanyId(cid);
     })();
   }, [nav]);
 
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
 
-  const validate = () => {
-    if (step === 0) {
+  const validateStep = (targetStep: number) => {
+    if (targetStep === 0) {
       if (!form.title.trim()) return "Add a job title.";
       if (!form.category) return "Pick a category.";
     }
-    if (step === 1) {
+    if (targetStep === 1) {
       if (form.description.trim().length < 30) return "Add a richer description (30+ chars).";
     }
-    if (step === 2) {
+    if (targetStep === 2) {
       if (!form.city) return "Pick a city.";
       if (!form.min_salary) return "Enter min salary.";
       if (form.max_salary && Number(form.max_salary) < Number(form.min_salary))
@@ -74,6 +92,8 @@ function NewJob() {
     }
     return null;
   };
+
+  const validate = () => validateStep(step);
 
   const next = () => {
     const err = validate();
@@ -88,11 +108,25 @@ function NewJob() {
       return;
     }
     if (!form.title.trim()) return toast.error("Add a job title first.");
+    if (!asDraft) {
+      for (let i = 0; i <= 2; i += 1) {
+        const err = validateStep(i);
+        if (err) {
+          setStep(i);
+          toast.error(err);
+          return;
+        }
+      }
+    }
     setSaving(true);
     try {
-      const { data: userRes, error: userErr } = await supabase.auth.getUser();
-      if (userErr || !userRes.user) throw new Error("Session expired. Please sign in again.");
-      const uid = userRes.user.id;
+      let uid = userId;
+      if (!uid) {
+        const { data: userRes, error: userErr } = await supabase.auth.getUser();
+        if (userErr || !userRes.user) throw new Error("Session expired. Please sign in again.");
+        uid = userRes.user.id;
+        setUserId(uid);
+      }
 
       const validJobTypes = new Set(JOB_TYPE_OPTIONS.map((o) => o.id));
       const validModes = new Set(WORK_MODES.map((o) => o.id));
@@ -125,7 +159,7 @@ function NewJob() {
       const { data, error } = await supabase
         .from("jobs")
         .insert(payload as never)
-        .select("id")
+        .select("id, slug")
         .single();
 
       if (error) {
@@ -156,6 +190,24 @@ function NewJob() {
   return (
     <EmployerShell title="Post a job" subtitle="4 steps. Takes about 3 minutes.">
       <div className="mx-auto max-w-3xl">
+        {companyLoading ? (
+          <div className="rounded-2xl border border-border bg-card p-8 shadow-[var(--shadow-card)]">
+            <div className="h-24 animate-pulse rounded-xl bg-surface" />
+          </div>
+        ) : setupError ? (
+          <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-[var(--shadow-card)]">
+            <h2 className="text-lg font-bold text-foreground">Company setup required</h2>
+            <p className="mt-2 text-sm text-muted-foreground">{setupError}</p>
+            <button
+              type="button"
+              onClick={() => nav({ to: "/onboarding/employer" })}
+              className="mt-5 inline-flex h-11 items-center justify-center rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark"
+            >
+              Complete company setup
+            </button>
+          </div>
+        ) : (
+          <>
         <div className="mb-6 flex items-center gap-2">
           {steps.map((s, i) => (
             <div key={s} className="flex-1">
@@ -294,6 +346,8 @@ function NewJob() {
             </div>
           </div>
         </div>
+          </>
+        )}
       </div>
     </EmployerShell>
   );
