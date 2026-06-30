@@ -85,7 +85,7 @@ function TeamPage() {
   const changeRole = async (userId: string, newRole: string) => {
     if (!cid) return;
     const { error } = await supabase.rpc("update_member_role", {
-      _company_id: cid, _user_id: userId, _new_role: newRole as never,
+      _company_id: cid, _user_id: userId, _role: newRole as never,
     });
     if (error) return toast.error(error.message);
     toast.success("Role updated.");
