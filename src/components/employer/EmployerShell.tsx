@@ -1,7 +1,9 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import {
+  Activity,
   Building2,
   Briefcase,
+  Inbox,
   LayoutDashboard,
   Plus,
   Users,
@@ -20,9 +22,11 @@ import { fetchMyCompanies, getActiveCompanyId } from "@/lib/employer";
 const nav = [
   { to: "/employer/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/employer/jobs", label: "Jobs", icon: Briefcase },
+  { to: "/employer/responses", label: "Responses", icon: Inbox },
   { to: "/employer/database", label: "Database", icon: Database },
-  { to: "/employer/credits", label: "Credits", icon: Coins },
   { to: "/employer/reports", label: "Reports", icon: BarChart3 },
+  { to: "/employer/activity", label: "Activity", icon: Activity },
+  { to: "/employer/credits", label: "Credits", icon: Coins },
   { to: "/employer/company", label: "Company", icon: Building2 },
   { to: "/employer/team", label: "Team", icon: Users },
 ] as const;
