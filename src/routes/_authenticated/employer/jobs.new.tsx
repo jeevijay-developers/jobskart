@@ -29,7 +29,7 @@ function NewJob() {
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<Form>({
-    title: "", category: "", job_type: "full_time", work_mode: "on_site", openings: 1,
+    title: "", category: "", job_type: "full_time", work_mode: "onsite", openings: 1,
     description: "",
     city: "", locality: "", pincode: "",
     min_salary: "", max_salary: "", salary_period: "monthly", perks: [],

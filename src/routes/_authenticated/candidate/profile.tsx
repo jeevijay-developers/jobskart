@@ -331,12 +331,12 @@ function PersonalDialog({ open, onClose, uid, p, c, onSaved }: { open: boolean; 
 function CareerDialog({ open, onClose, uid, c, onSaved }: { open: boolean; onClose: () => void; uid: string; c: Candidate; onSaved: () => void }) {
   const [status, setStatus] = useState(c.experience_status); const [years, setYears] = useState(c.years_experience);
   const [lastRole, setLastRole] = useState(c.last_role || ""); const [jobTypes, setJobTypes] = useState<string[]>(c.preferred_job_types || []);
-  const [workMode, setWorkMode] = useState(c.preferred_work_mode || "on_site");
+  const [workMode, setWorkMode] = useState(c.preferred_work_mode || "onsite");
   const [cities, setCities] = useState<string[]>(c.preferred_cities || []);
   const [salary, setSalary] = useState<number | "">(c.expected_salary ?? "");
   const [notice, setNotice] = useState<number | "">(c.notice_period_days ?? "");
   const [saving, setSaving] = useState(false);
-  useEffect(() => { if (open) { setStatus(c.experience_status); setYears(c.years_experience); setLastRole(c.last_role || ""); setJobTypes(c.preferred_job_types || []); setWorkMode(c.preferred_work_mode || "on_site"); setCities(c.preferred_cities || []); setSalary(c.expected_salary ?? ""); setNotice(c.notice_period_days ?? ""); } }, [open, c]);
+  useEffect(() => { if (open) { setStatus(c.experience_status); setYears(c.years_experience); setLastRole(c.last_role || ""); setJobTypes(c.preferred_job_types || []); setWorkMode(c.preferred_work_mode || "onsite"); setCities(c.preferred_cities || []); setSalary(c.expected_salary ?? ""); setNotice(c.notice_period_days ?? ""); } }, [open, c]);
   const save = async () => {
     setSaving(true);
     await supabase.from("candidate_profiles").update({

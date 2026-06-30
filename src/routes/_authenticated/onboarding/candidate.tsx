@@ -78,7 +78,7 @@ function OnboardingPage() {
 
   // Preferences
   const [jobTypes, setJobTypes] = useState<string[]>(["full_time"]);
-  const [workModes, setWorkModes] = useState<string[]>(["on_site"]);
+  const [workModes, setWorkModes] = useState<string[]>(["onsite"]);
   const [preferredCities, setPreferredCities] = useState<string[]>([]);
   const [expectedSalary, setExpectedSalary] = useState<number | "">("");
   const [noticeDays, setNoticeDays] = useState<number | "">(0);
@@ -108,7 +108,7 @@ function OnboardingPage() {
         setExpStatus(c.experience_status as typeof expStatus); setYears(c.years_experience || 0); setLastRole(c.last_role || "");
         setSkills(c.skills || []); setAssets(c.assets || []);
         setJobTypes(c.preferred_job_types?.length ? c.preferred_job_types : ["full_time"]);
-        setWorkModes((c.preferred_work_mode || "on_site").split(",").map((s) => s.trim()).filter(Boolean));
+        setWorkModes((c.preferred_work_mode || "onsite").split(",").map((s) => s.trim()).filter(Boolean));
         setPreferredCities(c.preferred_cities || []);
         setExpectedSalary(c.expected_salary || "");
         setNoticeDays(c.notice_period_days ?? 0);
