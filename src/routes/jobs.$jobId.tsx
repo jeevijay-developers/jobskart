@@ -587,10 +587,19 @@ function JobDetailPage() {
         <div className="mx-auto flex max-w-6xl items-center gap-2">
           <button
             onClick={toggleSave}
-            className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-border bg-card text-foreground"
+            disabled={savingBookmark}
+            aria-pressed={saved}
+            aria-label={saved ? "Saved" : "Save"}
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-border bg-card text-foreground disabled:opacity-60"
             title={saved ? "Saved" : "Save"}
           >
-            {saved ? <BookmarkCheck className="h-4 w-4 text-primary" /> : <Bookmark className="h-4 w-4" />}
+            {savingBookmark ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : saved ? (
+              <BookmarkCheck className="h-4 w-4 text-primary" />
+            ) : (
+              <Bookmark className="h-4 w-4" />
+            )}
           </button>
           <button
             onClick={handleShare}
