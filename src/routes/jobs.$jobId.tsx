@@ -533,6 +533,16 @@ function JobDetailPage() {
         </div>
       </div>
 
+      {userId && job && (
+        <ApplyDialog
+          open={applyOpen}
+          onClose={() => setApplyOpen(false)}
+          userId={userId}
+          job={{ id: job.id, company_id: job.company_id, title: job.title, min_salary: job.min_salary, max_salary: job.max_salary }}
+          onApplied={handleApplied}
+        />
+      )}
+
       <Footer />
     </div>
   );
