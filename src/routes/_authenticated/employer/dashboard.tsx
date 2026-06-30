@@ -73,6 +73,7 @@ const FUNNEL = [
 ] as const;
 
 function EmployerDashboard() {
+  const navigate = useNavigate();
   const [companies, setCompanies] = useState<EmployerMembership[]>([]);
   const [active, setActive] = useState<EmployerMembership | null>(null);
   const [loading, setLoading] = useState(true);
@@ -93,6 +94,10 @@ function EmployerDashboard() {
       const { data: user } = await supabase.auth.getUser();
       if (!user.user) return;
       const ms = await fetchMyCompanies(user.user.id);
+      if (ms.length === 0) {
+        navigate({ to: "/onboarding/employer" });
+        return;
+      }
       setCompanies(ms);
       const storedId = getActiveCompanyId();
       const chosen = ms.find((m) => m.company_id === storedId) ?? ms[0] ?? null;
@@ -100,7 +105,7 @@ function EmployerDashboard() {
       setActive(chosen);
       setLoading(false);
     })();
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     if (!active) return;
