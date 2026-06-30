@@ -84,7 +84,8 @@ function EmployerDashboard() {
   const [funnel, setFunnel] = useState<Record<string, number>>({});
   const [companyMeta, setCompanyMeta] = useState<CompanyMeta | null>(null);
   const [teamCount, setTeamCount] = useState(0);
-  const [learn, setLearn] = useState<Learn[]>([]);
+  const [activity, setActivity] = useState<ActivityItem[]>([]);
+  const [activityLoading, setActivityLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
