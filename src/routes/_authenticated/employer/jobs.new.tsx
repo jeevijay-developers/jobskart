@@ -41,29 +41,35 @@ function NewJob() {
 
   useEffect(() => {
     (async () => {
-      setCompanyLoading(true);
-      setSetupError(null);
-      const { data: user, error } = await supabase.auth.getUser();
-      if (error || !user.user) {
-        setSetupError("Your session expired. Please sign in again.");
+      try {
+        setCompanyLoading(true);
+        setSetupError(null);
+        const { data: user, error } = await supabase.auth.getUser();
+        if (error || !user.user) {
+          setSetupError("Your session expired. Please sign in again.");
+          setCompanyLoading(false);
+          return;
+        }
+        setUserId(user.user.id);
+
+        const memberships = await fetchMyCompanies(user.user.id);
+        const storedId = getActiveCompanyId();
+        const chosen = memberships.find((m) => m.company_id === storedId) ?? memberships[0] ?? null;
+
+        if (!chosen) {
+          setSetupError("Finish your company setup before posting a job.");
+          setCompanyLoading(false);
+          return;
+        }
+
+        setActiveCompanyId(chosen.company_id);
+        setCompanyId(chosen.company_id);
+      } catch (error) {
+        console.error("[jobs.new] company lookup failed", error);
+        setSetupError(error instanceof Error ? error.message : "Could not load your company setup.");
+      } finally {
         setCompanyLoading(false);
-        return;
       }
-      setUserId(user.user.id);
-
-      const memberships = await fetchMyCompanies(user.user.id);
-      const storedId = getActiveCompanyId();
-      const chosen = memberships.find((m) => m.company_id === storedId) ?? memberships[0] ?? null;
-
-      if (!chosen) {
-        setSetupError("Finish your company setup before posting a job.");
-        setCompanyLoading(false);
-        return;
-      }
-
-      setActiveCompanyId(chosen.company_id);
-      setCompanyId(chosen.company_id);
-      setCompanyLoading(false);
     })();
   }, [nav]);
 
