@@ -10,6 +10,7 @@ import {
   Mail,
   UserRound,
   Coins,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { EmployerShell } from "@/components/employer/EmployerShell";
