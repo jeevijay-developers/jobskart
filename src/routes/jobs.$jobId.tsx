@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { Navbar } from "@/components/site/Navbar";
 import { Footer } from "@/components/site/Footer";
 import { JobCard, type JobCardData } from "@/components/site/JobCard";
+import { ApplyDialog } from "@/components/candidate/ApplyDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { formatExperience, formatSalary, jobTypeLabel, timeAgo, workModeLabel } from "@/lib/format";
 
