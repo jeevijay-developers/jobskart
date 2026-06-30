@@ -108,8 +108,10 @@ function DatabasePage() {
         .limit(40);
 
       if (selectedCities.length > 0) {
-        const list = selectedCities.map((c) => `"${c}"`).join(",");
-        query = query.or(`preferred_cities.cs.{${list}},city.in.(${selectedCities.join(",")})`, { foreignTable: "profiles" });
+        const list = selectedCities.map((c) => `"${c.replace(/"/g, '\\"')}"`).join(",");
+        query = query.overlaps("preferred_cities", selectedCities).or(
+          `preferred_cities.ov.{${list}}`,
+        );
       }
       if (typeof minExp === "number") query = query.gte("years_experience", minExp);
       if (q.trim()) {
