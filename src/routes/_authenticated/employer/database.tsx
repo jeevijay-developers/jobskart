@@ -107,7 +107,10 @@ function DatabasePage() {
         .order("profile_strength", { ascending: false })
         .limit(40);
 
-      if (city) query = query.or(`preferred_cities.cs.{${city}}`);
+      if (selectedCities.length > 0) {
+        const list = selectedCities.map((c) => `"${c}"`).join(",");
+        query = query.or(`preferred_cities.cs.{${list}},city.in.(${selectedCities.join(",")})`, { foreignTable: "profiles" });
+      }
       if (typeof minExp === "number") query = query.gte("years_experience", minExp);
       if (q.trim()) {
         const term = q.trim();
