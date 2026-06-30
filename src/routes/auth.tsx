@@ -61,15 +61,29 @@ function AuthPage() {
       window.location.assign(search.redirect);
       return;
     }
-    if (isNew && tab === "candidate") {
-      navigate({ to: "/onboarding/candidate" });
+    if (tab === "candidate") {
+      navigate({ to: isNew ? "/onboarding/candidate" : "/candidate/dashboard" });
       return;
     }
-    // Employers (new or returning) go straight to the dashboard; the dashboard
-    // surfaces a "set up your company" CTA when no company exists yet.
-    navigate({
-      to: tab === "employer" ? "/employer/dashboard" : "/candidate/dashboard",
-    });
+    // Employer: route to onboarding if they have no company yet (or onboarding incomplete).
+    try {
+      const { data: u } = await supabase.auth.getUser();
+      const uid = u.user?.id;
+      if (uid) {
+        const { data: members } = await supabase
+          .from("employer_members")
+          .select("company_id, companies(onboarding_completed)")
+          .eq("user_id", uid)
+          .limit(1);
+        const row = members?.[0] as { companies?: { onboarding_completed?: boolean } } | undefined;
+        const done = row?.companies?.onboarding_completed === true;
+        navigate({ to: done ? "/employer/dashboard" : "/onboarding/employer" });
+        return;
+      }
+    } catch {
+      /* fall through */
+    }
+    navigate({ to: "/onboarding/employer" });
   };
 
   return (
