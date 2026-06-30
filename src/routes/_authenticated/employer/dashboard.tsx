@@ -14,7 +14,9 @@ import {
   GraduationCap,
   ArrowRight,
   ChevronRight,
+  Activity as ActivityIcon,
 } from "lucide-react";
+import { ActivityFeed, type ActivityItem } from "@/components/employer/ActivityFeed";
 import { EmployerShell, StatCard } from "@/components/employer/EmployerShell";
 import { supabase } from "@/integrations/supabase/client";
 import {
