@@ -141,26 +141,18 @@ function JobDetailPage() {
     };
   }, [jobId]);
 
-  const handleApply = async () => {
+  const handleApply = () => {
     if (!userId) {
       navigate({ to: "/auth", search: { tab: "candidate" } });
       return;
     }
-    if (!job) return;
-    setApplying(true);
-    const { error } = await supabase.from("applications").insert({
-      job_id: job.id,
-      candidate_id: userId,
-      company_id: job.company_id,
-    });
-    setApplying(false);
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
+    if (!job || applied) return;
+    setApplyOpen(true);
+  };
+
+  const handleApplied = () => {
     setApplied(true);
     setApplicantCount((c) => c + 1);
-    toast.success("Application sent! The employer will review your profile.");
   };
 
   const toggleSave = async () => {
