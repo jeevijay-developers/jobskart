@@ -166,6 +166,16 @@ function EmployerDashboard() {
       setCompanyMeta((cMeta.data as CompanyMeta) ?? null);
       setTeamCount(tCount.count ?? 0);
       setLearn((learnRes.data || []) as Learn[]);
+
+      setActivityLoading(true);
+      const { data: act } = await supabase
+        .from("employer_activity")
+        .select("id, kind, title, body, link, created_at, metadata")
+        .eq("company_id", cid)
+        .order("created_at", { ascending: false })
+        .limit(10);
+      setActivity((act || []) as ActivityItem[]);
+      setActivityLoading(false);
     })();
   }, [active]);
 
