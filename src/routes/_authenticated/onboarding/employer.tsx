@@ -72,58 +72,39 @@ function EmployerOnboarding() {
       const uid = u.user?.id;
       if (!uid) throw new Error("Not signed in.");
 
-      await supabase
-        .from("profiles")
-        .update({ full_name: fullName })
-        .eq("id", uid);
+      await supabase.from("profiles").update({ full_name: fullName }).eq("id", uid);
       void designation; void yourRole;
 
-      const { data: company, error: cErr } = await supabase
-        .from("companies")
-        .insert({
-          name: companyName.trim(),
-          industry: industry || null,
-          size: size as never,
-          hq_city: hqCity,
-          primary_city: hqCity,
-          founded_year: foundedYear ? Number(foundedYear) : null,
-          website: website || null,
-          about: about || null,
-          gst_number: gst || null,
-          created_by: uid,
-          onboarding_completed: true,
-        })
-        .select("id, slug")
-        .single();
-      if (cErr || !company) throw cErr ?? new Error("Could not create company.");
+      const { data: companyId, error: rpcErr } = await supabase.rpc(
+        "create_company_with_owner" as never,
+        {
+          _name: companyName.trim(),
+          _industry: industry || "",
+          _size: size as never,
+          _hq_city: hqCity || "",
+          _website: website || "",
+          _about: about || "",
+          _founded_year: foundedYear ? Number(foundedYear) : null,
+          _gst: gst || "",
+        } as never,
+      );
+      if (rpcErr || !companyId) throw rpcErr ?? new Error("Could not create company.");
+      const cid = companyId as unknown as string;
 
-      const { error: mErr } = await supabase.from("employer_members").insert({
-        user_id: uid,
-        company_id: company.id,
-        role: "super_admin",
-      });
-      if (mErr) throw mErr;
-
-      // Logo upload (optional)
       if (logoFile) {
-        const path = `${company.id}/logo-${Date.now()}-${logoFile.name}`;
+        const path = `${cid}/logo-${Date.now()}-${logoFile.name}`;
         const up = await supabase.storage.from("company-logos").upload(path, logoFile, { upsert: true });
         if (!up.error) {
           const { data: signed } = await supabase.storage
             .from("company-logos")
             .createSignedUrl(path, 60 * 60 * 24 * 365);
           if (signed?.signedUrl) {
-            await supabase.from("companies").update({ logo_url: signed.signedUrl }).eq("id", company.id);
+            await supabase.from("companies").update({ logo_url: signed.signedUrl }).eq("id", cid);
           }
         }
       }
 
-      // Seed wallet so credits page never errors
-      await supabase
-        .from("employer_credit_wallets")
-        .upsert({ company_id: company.id, balance: 0 }, { onConflict: "company_id" });
-
-      setActiveCompanyId(company.id);
+      setActiveCompanyId(cid);
       toast.success(`${companyName} is ready 🎉`);
       navigate({ to: postNow === "yes" ? "/employer/jobs/new" : "/employer/dashboard" });
     } catch (err) {
