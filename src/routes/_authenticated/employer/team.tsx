@@ -18,29 +18,37 @@ type Invite = { id: string; email: string; role: string; token: string; expires_
 
 function TeamPage() {
   const [cid, setCid] = useState<string | null>(null);
+  const [meId, setMeId] = useState<string | null>(null);
+  const [myRole, setMyRole] = useState<string | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [invites, setInvites] = useState<Invite[]>([]);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("recruiter");
   const [sending, setSending] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const load = async () => {
+    setLoading(true);
     let id = getActiveCompanyId();
+    const { data: u } = await supabase.auth.getUser();
+    setMeId(u.user?.id ?? null);
     if (!id) {
-      const { data: u } = await supabase.auth.getUser();
       if (u.user) {
         const ms = await fetchMyCompanies(u.user.id);
         id = ms[0]?.company_id ?? null;
       }
     }
-    if (!id) return;
+    if (!id) { setLoading(false); return; }
     setCid(id);
     const [mRes, iRes] = await Promise.all([
       supabase.from("employer_members").select("user_id, role, profiles (full_name, email, avatar_url)").eq("company_id", id),
       supabase.from("employer_invites").select("id, email, role, token, expires_at, accepted_at, created_at").eq("company_id", id).is("accepted_at", null).order("created_at", { ascending: false }),
     ]);
-    setMembers((mRes.data || []) as unknown as Member[]);
+    const m = (mRes.data || []) as unknown as Member[];
+    setMembers(m);
     setInvites((iRes.data || []) as Invite[]);
+    if (u.user) setMyRole(m.find((x) => x.user_id === u.user!.id)?.role ?? null);
+    setLoading(false);
   };
   useEffect(() => { load(); }, []);
 
@@ -72,28 +80,77 @@ function TeamPage() {
     load();
   };
 
+  const canManage = myRole === "super_admin" || myRole === "hr_admin";
+
+  const changeRole = async (userId: string, newRole: string) => {
+    if (!cid) return;
+    const { error } = await supabase.rpc("update_member_role", {
+      _company_id: cid, _user_id: userId, _new_role: newRole as never,
+    });
+    if (error) return toast.error(error.message);
+    toast.success("Role updated.");
+    load();
+  };
+
+  const removeMember = async (userId: string) => {
+    if (!cid) return;
+    if (!confirm("Remove this teammate? They'll lose access immediately.")) return;
+    const { error } = await supabase.rpc("remove_member", { _company_id: cid, _user_id: userId });
+    if (error) return toast.error(error.message);
+    toast.success("Removed.");
+    load();
+  };
+
   return (
     <EmployerShell title="Team" subtitle="Invite recruiters, HR admins, and super admins.">
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-4">
           <section className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
-            <h2 className="text-sm font-bold">Members</h2>
-            <div className="mt-4 divide-y divide-border">
-              {members.map((m) => (
-                <div key={m.user_id} className="flex items-center justify-between py-3">
-                  <div className="flex items-center gap-3">
-                    <div className="grid h-10 w-10 place-items-center rounded-full bg-primary-light text-sm font-semibold text-primary">
-                      {(m.profiles?.full_name || "?").slice(0, 1).toUpperCase()}
+            <h2 className="text-sm font-bold">Members <span className="ml-1 text-xs font-medium text-muted-foreground">({members.length})</span></h2>
+            {loading ? (
+              <div className="mt-4 space-y-3">
+                {Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-14 animate-pulse rounded-lg bg-surface" />)}
+              </div>
+            ) : (
+              <div className="mt-4 divide-y divide-border">
+                {members.map((m) => {
+                  const isMe = m.user_id === meId;
+                  return (
+                    <div key={m.user_id} className="flex flex-wrap items-center justify-between gap-2 py-3">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary-light text-sm font-semibold text-primary">
+                          {(m.profiles?.full_name || "?").slice(0, 1).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">{m.profiles?.full_name || "Member"} {isMe && <span className="ml-1 text-[10px] font-bold uppercase text-primary">You</span>}</p>
+                          <p className="truncate text-xs text-muted-foreground">{m.profiles?.email}</p>
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        {canManage && !isMe ? (
+                          <select
+                            value={m.role}
+                            onChange={(e) => changeRole(m.user_id, e.target.value)}
+                            className="h-8 rounded-lg border border-border bg-card px-2 text-xs font-semibold"
+                          >
+                            <option value="recruiter">Recruiter</option>
+                            <option value="hr_admin">HR Admin</option>
+                            <option value="super_admin">Super Admin</option>
+                          </select>
+                        ) : (
+                          <span className="rounded-full bg-surface px-2.5 py-1 text-[10px] font-semibold uppercase">{m.role.replace("_", " ")}</span>
+                        )}
+                        {canManage && !isMe && (
+                          <button onClick={() => removeMember(m.user_id)} className="grid h-8 w-8 place-items-center rounded-lg border border-border bg-card text-destructive hover:bg-destructive-light" title="Remove">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium">{m.profiles?.full_name || "Member"}</p>
-                      <p className="text-xs text-muted-foreground">{m.profiles?.email}</p>
-                    </div>
-                  </div>
-                  <span className="rounded-full bg-surface px-2.5 py-1 text-[10px] font-semibold uppercase">{m.role.replace("_", " ")}</span>
-                </div>
-              ))}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </section>
 
           {invites.length > 0 && (
