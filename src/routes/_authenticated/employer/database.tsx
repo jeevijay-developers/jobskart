@@ -10,6 +10,7 @@ import {
   Mail,
   UserRound,
   Coins,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { EmployerShell } from "@/components/employer/EmployerShell";
@@ -66,7 +67,8 @@ function DatabasePage() {
 
   // filters
   const [q, setQ] = useState("");
-  const [city, setCity] = useState("");
+  const [selectedCities, setSelectedCities] = useState<string[]>([]);
+  const [cityInput, setCityInput] = useState("");
   const [minExp, setMinExp] = useState<number | "">("");
   const [results, setResults] = useState<Candidate[]>([]);
   const [unlockingId, setUnlockingId] = useState<string | null>(null);
@@ -105,7 +107,9 @@ function DatabasePage() {
         .order("profile_strength", { ascending: false })
         .limit(40);
 
-      if (city) query = query.or(`preferred_cities.cs.{${city}}`);
+      if (selectedCities.length > 0) {
+        query = query.overlaps("preferred_cities", selectedCities);
+      }
       if (typeof minExp === "number") query = query.gte("years_experience", minExp);
       if (q.trim()) {
         const term = q.trim();
@@ -173,7 +177,7 @@ function DatabasePage() {
         }}
         className="rounded-2xl border border-border bg-card p-4 shadow-sm"
       >
-        <div className="grid gap-3 sm:grid-cols-[1fr_180px_160px_auto]">
+        <div className="grid gap-3 sm:grid-cols-[1fr_220px_160px_auto]">
           <label className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
@@ -184,17 +188,22 @@ function DatabasePage() {
               className="h-11 w-full rounded-lg border border-border bg-surface pl-9 pr-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
             />
           </label>
-          <select
-            value={city}
-            onChange={(e) => setCity(e.target.value)}
-            className="h-11 rounded-lg border border-border bg-surface px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
-          >
-            {cities.map((c) => (
-              <option key={c} value={c}>
-                {c || "Any city"}
-              </option>
-            ))}
-          </select>
+          <div className="relative">
+            <select
+              value=""
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v && !selectedCities.includes(v)) setSelectedCities([...selectedCities, v]);
+              }}
+              className="h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+            >
+              <option value="">+ Add city ({selectedCities.length})</option>
+              {cities.filter((c) => c && !selectedCities.includes(c)).map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            {void cityInput}{void setCityInput}
+          </div>
           <select
             value={minExp}
             onChange={(e) => setMinExp(e.target.value === "" ? "" : Number(e.target.value))}
@@ -215,6 +224,30 @@ function DatabasePage() {
             Search
           </button>
         </div>
+        {selectedCities.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {selectedCities.map((c) => (
+              <span key={c} className="inline-flex items-center gap-1.5 rounded-full bg-primary-light px-3 py-1 text-xs font-semibold text-primary">
+                <MapPin className="h-3 w-3" /> {c}
+                <button
+                  type="button"
+                  onClick={() => setSelectedCities(selectedCities.filter((x) => x !== c))}
+                  className="ml-0.5 rounded-full p-0.5 hover:bg-primary/10"
+                  aria-label={`Remove ${c}`}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            ))}
+            <button
+              type="button"
+              onClick={() => setSelectedCities([])}
+              className="text-xs font-semibold text-muted-foreground hover:text-foreground"
+            >
+              Clear all
+            </button>
+          </div>
+        )}
       </form>
 
       {/* results */}

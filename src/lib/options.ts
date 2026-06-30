@@ -32,7 +32,7 @@ export const JOB_TYPE_OPTIONS = [
 ];
 
 export const WORK_MODES = [
-  { id: "on_site", label: "On-site" },
+  { id: "onsite", label: "On-site" },
   { id: "hybrid", label: "Hybrid" },
   { id: "remote", label: "Remote" },
 ];

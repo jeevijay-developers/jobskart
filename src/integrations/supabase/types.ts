@@ -1587,6 +1587,19 @@ export type Database = {
         }
         Returns: number
       }
+      create_company_with_owner: {
+        Args: {
+          _about: string
+          _founded_year: number
+          _gst: string
+          _hq_city: string
+          _industry: string
+          _name: string
+          _size: Database["public"]["Enums"]["company_size"]
+          _website: string
+        }
+        Returns: string
+      }
       find_auth_user_by_phone_or_email: {
         Args: { _email: string; _phone: string }
         Returns: {

@@ -136,8 +136,30 @@ export function EmployerShell({
         </main>
       </div>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-5 border-t border-border bg-card/95 backdrop-blur lg:hidden">
-        {primary.map((item) => {
+      <nav className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-6 border-t border-border bg-card/95 backdrop-blur lg:hidden">
+        {primary.slice(0, 2).map((item) => {
+          const active = pathname === item.to || pathname.startsWith(item.to + "/");
+          const Icon = item.icon;
+          return (
+            <Link
+              key={item.to}
+              to={item.to}
+              className={`flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium ${
+                active ? "text-primary" : "text-muted-foreground"
+              }`}
+            >
+              <Icon className="h-5 w-5" /> {item.label}
+            </Link>
+          );
+        })}
+        <Link
+          to="/employer/jobs/new"
+          className="-mt-5 mx-1 flex flex-col items-center justify-center rounded-2xl bg-primary py-2 text-[10px] font-bold text-primary-foreground shadow-lg"
+        >
+          <Plus className="h-5 w-5" />
+          Post
+        </Link>
+        {primary.slice(2, 4).map((item) => {
           const active = pathname === item.to || pathname.startsWith(item.to + "/");
           const Icon = item.icon;
           return (

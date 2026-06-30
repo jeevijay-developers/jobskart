@@ -29,7 +29,7 @@ function NewJob() {
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<Form>({
-    title: "", category: "", job_type: "full_time", work_mode: "on_site", openings: 1,
+    title: "", category: "", job_type: "full_time", work_mode: "onsite", openings: 1,
     description: "",
     city: "", locality: "", pincode: "",
     min_salary: "", max_salary: "", salary_period: "monthly", perks: [],
@@ -46,9 +46,14 @@ function NewJob() {
           cid = ms[0]?.company_id ?? null;
         }
       }
+      if (!cid) {
+        toast.message("Finish setting up your company first.");
+        nav({ to: "/onboarding/employer" });
+        return;
+      }
       setCompanyId(cid);
     })();
-  }, []);
+  }, [nav]);
 
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
 
