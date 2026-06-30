@@ -362,11 +362,20 @@ function EmployerDashboard() {
             </div>
           </section>
 
+          {/* Activity feed */}
+          <section className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="flex items-center gap-2 text-base font-bold"><ActivityIcon className="h-4 w-4 text-primary" /> Activity</h2>
+              <Link to="/employer/activity" className="text-xs font-semibold text-primary">View all →</Link>
+            </div>
+            <ActivityFeed items={activity} loading={activityLoading} />
+          </section>
+
           {/* Recent applicants */}
           <section className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
             <div className="flex items-center justify-between">
               <h2 className="text-base font-bold">Recent applicants</h2>
-              <Link to="/employer/jobs" className="text-xs font-semibold text-primary">View all →</Link>
+              <Link to="/employer/responses" className="text-xs font-semibold text-primary">Open inbox →</Link>
             </div>
             <div className="mt-4 divide-y divide-border">
               {recent.length === 0 ? (
