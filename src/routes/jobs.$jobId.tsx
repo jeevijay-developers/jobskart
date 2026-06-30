@@ -363,38 +363,75 @@ function JobDetailPage() {
                       ) : null}
                     </Block>
 
-                    <div className="grid gap-6 sm:grid-cols-2">
-                      <Block title="Requirements">
-                        <ul className="space-y-2 text-sm text-foreground/80">
-                          <Req icon={GraduationCap} label="Education" value={job.education || "Any"} />
-                          <Req icon={Briefcase} label="Experience" value={formatExperience(job.min_experience_years, job.max_experience_years)} />
-                          {job.english_level ? <Req icon={CheckCircle2} label="English" value={job.english_level} /> : null}
-                        </ul>
-                      </Block>
-                      {(job.skills?.length || 0) > 0 && (
-                        <Block title="Skills required">
-                          <div className="flex flex-wrap gap-1.5">
-                            {job.skills!.map((s) => (
-                              <span key={s} className="rounded-full bg-primary-light px-2.5 py-1 text-xs font-medium text-primary">
-                                {s}
-                              </span>
-                            ))}
-                          </div>
-                        </Block>
-                      )}
-                    </div>
+                    <Block title="Job requirements">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <ReqCard
+                          icon={Briefcase}
+                          label="Experience"
+                          value={formatExperience(job.min_experience_years, job.max_experience_years)}
+                          hint={(job.min_experience_years ?? 0) === 0 ? "Freshers welcome" : "Relevant experience"}
+                        />
+                        <ReqCard
+                          icon={GraduationCap}
+                          label="Education"
+                          value={job.education || "Any qualification"}
+                        />
+                        <ReqCard
+                          icon={Languages}
+                          label="English"
+                          value={job.english_level || "Not required"}
+                        />
+                        <ReqCard
+                          icon={Users}
+                          label="Openings"
+                          value={`${job.openings ?? 1} position${(job.openings ?? 1) > 1 ? "s" : ""}`}
+                        />
+                      </div>
+                    </Block>
 
-                    {(job.perks?.length || 0) > 0 && (
-                      <Block title="Perks & benefits">
+                    <Block title="Skills required">
+                      {(job.skills?.length || 0) > 0 ? (
                         <div className="flex flex-wrap gap-2">
-                          {job.perks!.map((p) => (
-                            <span key={p} className="inline-flex items-center gap-1.5 rounded-full bg-success-light px-3 py-1 text-xs font-medium text-success">
-                              <CheckCircle2 className="h-3 w-3" /> {p}
+                          {job.skills!.map((s) => (
+                            <span
+                              key={s}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary-light px-3 py-1.5 text-xs font-medium text-primary"
+                            >
+                              <Target className="h-3 w-3" /> {s}
                             </span>
                           ))}
                         </div>
-                      </Block>
-                    )}
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No specific skills listed — employer is open to candidates with relevant aptitude.</p>
+                      )}
+                    </Block>
+
+                    <Block title="Shift & work schedule">
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        <ShiftCard icon={shiftIcon(job.shift)} label="Shift" value={job.shift ? `${job.shift}` : "Flexible"} />
+                        <ShiftCard icon={Clock} label="Job type" value={jobTypeLabel(job.job_type)} />
+                        <ShiftCard icon={MapPin} label="Work mode" value={workModeLabel(job.work_mode)} />
+                      </div>
+                    </Block>
+
+                    <Block title="Benefits & perks">
+                      {(job.perks?.length || 0) > 0 || job.fixed_pay || job.incentives_text ? (
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          {job.fixed_pay ? (
+                            <Benefit icon={Wallet} text="Fixed monthly pay" />
+                          ) : null}
+                          {job.incentives_text ? (
+                            <Benefit icon={Sparkles} text={`Incentives: ${job.incentives_text}`} />
+                          ) : null}
+                          {(job.perks || []).map((p) => (
+                            <Benefit key={p} icon={Gift} text={p} />
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No additional benefits listed.</p>
+                      )}
+                    </Block>
+
 
                     {job.walkin && (
                       <Block title="Walk-in details">
