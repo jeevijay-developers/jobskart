@@ -316,9 +316,18 @@ function JobDetailPage() {
                     </button>
                     <button
                       onClick={toggleSave}
-                      className="inline-flex h-11 items-center gap-2 rounded-lg border border-border bg-card px-4 text-sm font-semibold text-foreground hover:bg-surface"
+                      disabled={savingBookmark}
+                      aria-pressed={saved}
+                      aria-label={saved ? "Remove from saved jobs" : "Save this job"}
+                      className="inline-flex h-11 items-center gap-2 rounded-lg border border-border bg-card px-4 text-sm font-semibold text-foreground transition-colors hover:bg-surface disabled:opacity-60"
                     >
-                      {saved ? <BookmarkCheck className="h-4 w-4 text-primary" /> : <Bookmark className="h-4 w-4" />}
+                      {savingBookmark ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : saved ? (
+                        <BookmarkCheck className="h-4 w-4 text-primary" />
+                      ) : (
+                        <Bookmark className="h-4 w-4" />
+                      )}
                       {saved ? "Saved" : "Save"}
                     </button>
                     <button
