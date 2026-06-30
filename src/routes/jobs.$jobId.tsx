@@ -642,6 +642,10 @@ function JobDetailPage() {
         />
       )}
 
+      {job && (
+        <ReportJobDialog jobId={job.id} open={reportOpen} onOpenChange={setReportOpen} />
+      )}
+
       <Footer />
     </div>
   );
