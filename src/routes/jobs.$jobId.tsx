@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { Navbar } from "@/components/site/Navbar";
 import { Footer } from "@/components/site/Footer";
 import { JobCard, type JobCardData } from "@/components/site/JobCard";
+import { ApplyDialog } from "@/components/candidate/ApplyDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { formatExperience, formatSalary, jobTypeLabel, timeAgo, workModeLabel } from "@/lib/format";
 
@@ -77,7 +78,7 @@ function JobDetailPage() {
   const [applied, setApplied] = useState(false);
   const [saved, setSaved] = useState(false);
   const [tab, setTab] = useState<"overview" | "company">("overview");
-  const [applying, setApplying] = useState(false);
+  const [applyOpen, setApplyOpen] = useState(false);
   const [applicantCount, setApplicantCount] = useState<number>(0);
   const [similar, setSimilar] = useState<JobCardData[]>([]);
 
@@ -140,26 +141,18 @@ function JobDetailPage() {
     };
   }, [jobId]);
 
-  const handleApply = async () => {
+  const handleApply = () => {
     if (!userId) {
       navigate({ to: "/auth", search: { tab: "candidate" } });
       return;
     }
-    if (!job) return;
-    setApplying(true);
-    const { error } = await supabase.from("applications").insert({
-      job_id: job.id,
-      candidate_id: userId,
-      company_id: job.company_id,
-    });
-    setApplying(false);
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
+    if (!job || applied) return;
+    setApplyOpen(true);
+  };
+
+  const handleApplied = () => {
     setApplied(true);
     setApplicantCount((c) => c + 1);
-    toast.success("Application sent! The employer will review your profile.");
   };
 
   const toggleSave = async () => {
@@ -300,10 +293,10 @@ function JobDetailPage() {
                     </button>
                     <button
                       onClick={handleApply}
-                      disabled={applied || applying}
+                      disabled={applied}
                       className="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-6 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary-dark disabled:cursor-not-allowed disabled:bg-success disabled:text-white"
                     >
-                      {applying ? (
+                      {false ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : applied ? (
                         <>
@@ -462,10 +455,10 @@ function JobDetailPage() {
                 </div>
                 <button
                   onClick={handleApply}
-                  disabled={applied || applying}
+                  disabled={applied}
                   className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary-dark disabled:cursor-not-allowed disabled:bg-success disabled:text-white"
                 >
-                  {applying ? (
+                  {false ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : applied ? (
                     <>
@@ -524,10 +517,10 @@ function JobDetailPage() {
           </button>
           <button
             onClick={handleApply}
-            disabled={applied || applying}
+            disabled={applied}
             className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm disabled:bg-success disabled:text-white"
           >
-            {applying ? (
+            {false ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : applied ? (
               <>
@@ -539,6 +532,16 @@ function JobDetailPage() {
           </button>
         </div>
       </div>
+
+      {userId && job && (
+        <ApplyDialog
+          open={applyOpen}
+          onClose={() => setApplyOpen(false)}
+          userId={userId}
+          job={{ id: job.id, company_id: job.company_id, title: job.title, min_salary: job.min_salary, max_salary: job.max_salary }}
+          onApplied={handleApplied}
+        />
+      )}
 
       <Footer />
     </div>
