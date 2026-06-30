@@ -74,8 +74,9 @@ function EmployerOnboarding() {
 
       await supabase
         .from("profiles")
-        .update({ full_name: fullName, designation: designation || yourRole })
+        .update({ full_name: fullName })
         .eq("id", uid);
+      void designation; void yourRole;
 
       const { data: company, error: cErr } = await supabase
         .from("companies")

@@ -67,7 +67,6 @@ const FUNNEL = [
   { id: "applied", label: "Applied", color: "bg-primary" },
   { id: "shortlisted", label: "Shortlisted", color: "bg-success" },
   { id: "interview", label: "Interview", color: "bg-warning" },
-  { id: "offered", label: "Offered", color: "bg-purple-500" },
   { id: "hired", label: "Hired", color: "bg-emerald-600" },
 ] as const;
 
@@ -133,7 +132,7 @@ function EmployerDashboard() {
       const jobIds = jobs.map((j) => j.id);
       const safeIds = jobIds.length ? jobIds : ["00000000-0000-0000-0000-000000000000"];
 
-      const [appsAll, appsWeek, appsPrev, interviews, fApplied, fShort, fInt, fOffered, fHired] = await Promise.all([
+      const [appsAll, appsWeek, appsPrev, interviews, fApplied, fShort, fInt, fHired] = await Promise.all([
         supabase.from("applications").select("id", { count: "exact", head: true }).in("job_id", safeIds),
         supabase.from("applications").select("id", { count: "exact", head: true }).in("job_id", safeIds).gte("created_at", weekAgo),
         supabase.from("applications").select("id", { count: "exact", head: true }).in("job_id", safeIds).gte("created_at", twoWeekAgo).lt("created_at", weekAgo),
@@ -141,7 +140,6 @@ function EmployerDashboard() {
         supabase.from("applications").select("id", { count: "exact", head: true }).in("job_id", safeIds).eq("status", "applied"),
         supabase.from("applications").select("id", { count: "exact", head: true }).in("job_id", safeIds).eq("status", "shortlisted"),
         supabase.from("applications").select("id", { count: "exact", head: true }).in("job_id", safeIds).eq("status", "interview"),
-        supabase.from("applications").select("id", { count: "exact", head: true }).in("job_id", safeIds).eq("status", "offered"),
         supabase.from("applications").select("id", { count: "exact", head: true }).in("job_id", safeIds).eq("status", "hired"),
       ]);
 
@@ -157,7 +155,6 @@ function EmployerDashboard() {
         applied: fApplied.count || 0,
         shortlisted: fShort.count || 0,
         interview: fInt.count || 0,
-        offered: fOffered.count || 0,
         hired: fHired.count || 0,
       });
       setRecent((recentRes.data || []) as unknown as RecentApp[]);
