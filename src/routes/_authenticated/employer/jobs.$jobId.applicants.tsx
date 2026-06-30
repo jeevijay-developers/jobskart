@@ -18,13 +18,13 @@ type Application = {
   cover_note: string | null;
   candidate_id: string;
   profiles: { full_name: string | null; email: string | null; mobile: string | null; avatar_url: string | null; city: string | null } | null;
+  candidate_profiles: { profile_slug: string | null } | null;
 };
 
 const COLUMNS = [
   { id: "applied", label: "Applied", tone: "bg-primary-light text-primary" },
   { id: "shortlisted", label: "Shortlisted", tone: "bg-success-light text-success" },
   { id: "interview", label: "Interview", tone: "bg-warning-light text-warning" },
-  { id: "offered", label: "Offered", tone: "bg-purple-50 text-purple-700" },
   { id: "hired", label: "Hired", tone: "bg-success text-success-foreground" },
   { id: "rejected", label: "Rejected", tone: "bg-surface text-muted-foreground" },
 ] as const;
@@ -42,7 +42,17 @@ function ApplicantsPage() {
       supabase.from("applications").select("id, status, created_at, cover_note, candidate_id, profiles!applications_candidate_id_fkey (full_name, email, mobile, avatar_url, city)").eq("job_id", jobId).order("created_at", { ascending: false }),
     ]);
     setJob(jRes.data as { title: string; status: string } | null);
-    setApps((aRes.data || []) as unknown as Application[]);
+    const rows = ((aRes.data || []) as unknown) as Array<Omit<Application, "candidate_profiles">>;
+    const ids = Array.from(new Set(rows.map((r) => r.candidate_id)));
+    let slugMap: Record<string, string | null> = {};
+    if (ids.length) {
+      const { data: cps } = await supabase
+        .from("candidate_profiles")
+        .select("user_id, profile_slug")
+        .in("user_id", ids);
+      slugMap = Object.fromEntries((cps || []).map((c) => [c.user_id, c.profile_slug]));
+    }
+    setApps(rows.map((r) => ({ ...r, candidate_profiles: { profile_slug: slugMap[r.candidate_id] ?? null } })) as Application[]);
     setLoading(false);
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [jobId]);
@@ -147,13 +157,19 @@ function ApplicantsPage() {
               </div>
             </div>
 
-            <Link
-              to="/u/$slug"
-              params={{ slug: active.candidate_id }}
-              className="mt-6 block rounded-lg border border-border bg-surface px-3 py-2 text-center text-sm font-semibold text-foreground hover:bg-card"
-            >
-              View full profile
-            </Link>
+            {active.candidate_profiles?.profile_slug ? (
+              <Link
+                to="/u/$slug"
+                params={{ slug: active.candidate_profiles.profile_slug }}
+                className="mt-6 block rounded-lg border border-border bg-surface px-3 py-2 text-center text-sm font-semibold text-foreground hover:bg-card"
+              >
+                View full profile
+              </Link>
+            ) : (
+              <p className="mt-6 rounded-lg border border-dashed border-border px-3 py-2 text-center text-xs text-muted-foreground">
+                Candidate has not published a public profile yet
+              </p>
+            )}
           </aside>
         </div>
       )}

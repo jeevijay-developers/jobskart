@@ -1,88 +1,74 @@
-# Employer portal: feed, team, analytics, responses, onboarding
+## Root-cause finding (critical)
 
-Five focused workstreams. Each piece is shippable on its own; together they make the employer side feel complete.
+The live preview console is throwing `permission denied for function has_company_membership` on every read of `public.jobs`, signed-in or not. The database has these helper functions:
 
-## 1. Activity feed (new)
+- `has_company_membership(uuid, uuid)` — **no EXECUTE for `anon` or `authenticated`**
+- `has_company_role(uuid, uuid, employer_role)` — same
+- `user_companies(uuid)` — same
+- `find_auth_user_by_phone_or_email(text, text)` — same
 
-**DB migration** — `employer_activity` table:
-- `id uuid pk`, `company_id uuid`, `actor_id uuid null`, `kind text` (`job.created`, `job.published`, `job.draft_saved`, `job.duplicated`, `job.closed`, `application.received`, `application.status_changed`, `candidate.unlocked`, `credits.purchased`, `team.invited`, `team.joined`), `title text`, `body text null`, `link text null`, `metadata jsonb`, `created_at timestamptz default now()`.
-- GRANTs + RLS: members of `company_id` can SELECT; service_role inserts.
-- Index `(company_id, created_at desc)`.
+But the RLS policies on `jobs`, `companies`, `applications`, `employer_members`, `employer_invites`, `application_notes`, `application_status_history`, `application_ai_scores`, `candidate_unlocks`, `credit_transactions`, `employer_credit_wallets`, `employer_activity`, `candidate_documents`, and `notifications` all call these helpers. Without EXECUTE the whole expression fails, so PostgREST returns 401/`42501` and the page renders empty.
 
-**Triggers** — fire inserts from existing triggers/handlers:
-- Extend `tg_applications_after_insert` → also insert `application.received`.
-- Extend `tg_applications_after_update` → also insert `application.status_changed`.
-- New triggers on `jobs` (AFTER INSERT / UPDATE of status) and on `credit_transactions` and `candidate_unlocks` and `employer_invites`.
+Visible symptoms today:
+- `/jobs` shows nothing for everyone (the page in the screenshot)
+- `/c/$slug` (company pages) — empty jobs list
+- Homepage live stats render 0/0/0/0 (the `getPlatformStats` server fn hits the same RLS)
+- Employer dashboard, Responses, Reports, Jobs, Activity, Applicants — all silently fail to fetch
+- Mobile + OTP login can't look up existing users → first-time auto-create always runs
 
-**UI**
-- `src/components/employer/ActivityFeed.tsx` — timeline with icon per kind, relative time, optional deep link.
-- Render on dashboard right column (replace the static "Recent applications" with the richer feed) and on a new full-page route `/employer/activity`.
-- Loading skeleton + empty state ("No activity yet — post your first job").
+This is the highest-impact single fix. Everything else is downstream polish.
 
-## 2. Team management hardening
+## Plan
 
-`src/routes/_authenticated/employer/team.tsx` already exists; fix and extend:
-- Add **role editing** for existing members (dropdown → `UPDATE employer_members.role`), with self-demotion guard (cannot remove last super_admin).
-- Add **remove member** action with confirm modal.
-- Add **resend / regenerate invite link** (rotate `token`, bump `expires_at`).
-- Show member's last-seen / joined date.
-- Ensure layout fits inside `EmployerShell` at all breakpoints (cap form column width, stack on mobile, prevent horizontal scroll on members table).
-- Use shadcn `Dialog` + `Select` instead of `confirm()` and native `<select>` to match the rest of the portal.
-- Log to activity feed on invite create / accept / role change / remove.
+### Phase 1 — Unblock data access (single migration)
 
-## 3. Analytics dashboard (real data)
+1. `GRANT EXECUTE` on the four helper functions to `anon` and `authenticated`.
+2. Sanity-check policy coverage for the `cities`, `industries`, `job_categories`, `skills_master`, `job_titles_master`, `languages_master`, `candidate_assets_master`, `learning_resources`, `promo_banners` tables — confirm they have `TO anon SELECT` policies + grants so the homepage, autocompletes, and learning section render for logged-out users. Add only what is missing; do not widen anything else.
+3. Verify `employer_credit_wallets` has the `updated_at` column referenced by `apply_credit_delta`; add it if missing so unlock / purchase / grant transactions don't error.
 
-Rewrite `/employer/reports` (and the dashboard stat cards) to compute real metrics:
-- **Server fn** `getEmployerAnalytics({ companyId, rangeDays })` in `src/lib/employer-analytics.functions.ts` using `requireSupabaseAuth` + membership check.
-- Metrics: total job views, applications, hires, unique candidates, conversion rate, **week-over-week delta** for views & applications, top 5 jobs by applications, applications by status, applications-per-day sparkline (last 30 days).
-- Add a lightweight `views_count` increment path on the public job page (server fn already increments) — verify it's wired; if missing, add `incrementJobViews`.
-- Report page UI: range switcher (7/30/90 days), 4 KPI cards with deltas, funnel bar (existing), top-jobs list, status breakdown donut (CSS-only), sparkline (inline SVG).
-- Loading skeletons + empty state ("Post a job to see analytics").
-- Dashboard `StatCard` `delta` values now come from the analytics fn (currently 0).
+### Phase 2 — Functional bug fixes (frontend)
 
-## 4. Job responses + AI shortlist
+1. **Applicants kanban** (`employer/jobs.$jobId.applicants.tsx`): remove the `offered` column — it is not in the `application_status` enum, so any drop into it currently throws. Use `applied → shortlisted → interview → hired → rejected`.
+2. **Broken candidate profile link** in the applicants drawer: the link uses `candidate_id` against `/u/$slug`, but `/u/$slug` resolves by `candidate_profiles.profile_slug`. Fetch the slug alongside the application, fall back to hiding the link when the candidate has no public slug.
+3. **Legacy signup routes**: `signup.candidate.tsx` and `signup.employer.tsx` are still mounted but the product now uses only `/auth` (mobile + OTP). Replace both with a `beforeLoad` redirect to `/auth` so old links and emails don't dead-end.
+4. **Platform stats — cities**: count from `public.cities` (already populated) instead of distincting up to 1000 active jobs; show a real number on the landing hero.
+5. **OTP login resilience**: now that `find_auth_user_by_phone_or_email` is grantable, double-check `loginOrCreateWithMobile` returns the right `existing` flag so returning users land on `/candidate/dashboard` or `/employer/dashboard` instead of onboarding.
 
-New route `/employer/responses` — single inbox across all jobs:
-- Filters: job (dropdown), status, date range, search by candidate name/skill.
-- Table/cards with candidate avatar, job title, applied date, current status, quick actions: **Shortlist / Reject / Schedule interview / Hire / Message**.
-- Status update flows through existing `applications.status` (triggers handle notify + history + activity feed). Toast + optimistic update.
-- Bulk select + bulk status change.
+### Phase 3 — Responsive & UX polish
 
-**AI shortlist** — new tab "Recommended" on each job's applicants page and on `/employer/responses`:
-- Server fn `recommendShortlist({ jobId, limit })` — pulls applications + candidate profile (skills, experience, city, headline), scores via Lovable AI (Gemini Flash) against job's title/description/skills/min_experience, returns ranked list with `score 0-100` and `reasoning`.
-- Cache result for 1h in a new `application_ai_scores` table to avoid re-spending tokens; refresh button to invalidate.
-- UI: ranked list with score chip, top match reasons, one-click "Shortlist top N".
+1. **Employer mobile bottom nav** currently truncates to the first 4 items (Dashboard, Jobs, Responses, Database). Reports, Activity, Credits, Company, Team are unreachable on phones. Replace the 5th slot ("Post") with a "More" sheet that opens a drawer containing the remaining nav items and the "Post a job" CTA, so every section is reachable on mobile.
+2. **Candidate shell** parity: confirm the candidate bottom nav covers Dashboard, Jobs, Applications, Saved, Profile; add the missing entry if any is dropped.
+3. **Empty-state pass** on Reports, Activity, Responses, Database, Credits — show the existing empty cards I added when there is no data, instead of bare skeletons that never resolve.
+4. **Header overflow** on small screens: tighten the `EmployerShell` header grid so the company-switcher select doesn't push the title off-screen on 360px widths.
 
-## 5. Onboarding end-to-end verification
+### Phase 4 — Verification
 
-Walk `src/routes/_authenticated/onboarding/employer.tsx` step-by-step in Playwright (signed-in via injected session) and verify each step:
-- **You**: updates `profiles.full_name`, `profiles.designation` (re-add if missing in profiles schema check), sets `signup_intent = 'employer'`.
-- **Company**: creates `companies` row, sets industry/size; `employer_members` row with `super_admin`; `employer_credit_wallets` seeded with `balance = 0`.
-- **City**: writes `companies.hq_city`, optional address.
-- **Brand/KYC**: uploads logo to `company-logos` bucket, writes `companies.logo_url`, `about`, `gst_number`, sets `verification_status = 'pending'`.
-- **First-job hint**: stores intent (job title + city) in `companies.metadata` jsonb (or skip and redirect to `/employer/jobs/new` prefilled).
-- On finish: `candidate_profiles`/profile `onboarding_completed = true` equivalent for employers — add `companies.onboarding_completed boolean default false` if missing, set true; redirect to `/employer/dashboard`.
-- Emit `team.joined` + `company.created` activity events.
-- Fix any field that currently writes to a missing column (verify against `supabase--read_query` on `companies` / `profiles`).
+For each surface, drive Playwright against `http://localhost:8080` (anon + a restored Supabase session) and capture screenshots:
+
+- `/` — hero stats show real numbers, mockups render, CTAs work
+- `/jobs` and `/jobs?q=delivery` — at least one card renders, pagination works
+- `/c/<slug>` — company header + active jobs list
+- `/auth` — mobile + OTP for both new and existing users; redirect destinations correct
+- `/_authenticated/candidate/dashboard`, `/profile`, `/applications`, `/saved`
+- `/_authenticated/employer/dashboard`, `/jobs`, `/jobs/new`, `/responses`, `/jobs/<id>/applicants`, `/database`, `/credits`, `/reports`, `/activity`, `/team`, `/company`
+- `/admin/*` for a seeded super-admin
+
+Run the Supabase linter after the migration to confirm no new RLS warnings, and `tsgo --noEmit` for a clean typecheck.
 
 ## Technical notes
 
-- All new server fns: `createServerFn` + `requireSupabaseAuth` + company-membership guard via `has_company_membership` RPC.
-- All new tables follow GRANT-then-RLS pattern.
-- All new UI matches existing `EmployerShell` design language (rounded-2xl cards, `shadow-[var(--shadow-card)]`, primary blue tokens, lucide icons — no `Sparkles`/`Star`).
-- Mobile responsive: every new screen tested at 375px.
+```sql
+-- Phase 1 migration sketch
+GRANT EXECUTE ON FUNCTION public.has_company_membership(uuid, uuid) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.has_company_role(uuid, uuid, public.employer_role) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.user_companies(uuid)        TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.find_auth_user_by_phone_or_email(text, text) TO anon, authenticated;
 
-## Out of scope
+-- Add only if missing:
+ALTER TABLE public.employer_credit_wallets
+  ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
+```
 
-- Messaging/chat between employer and candidate (only the action button + toast "Coming soon" for now).
-- Email delivery for invites (still copy-link flow).
-- Razorpay changes.
+These are pure GRANTs — they do not loosen RLS, because the helpers are `SECURITY DEFINER` and `STABLE`; the row visibility logic is unchanged. The fix simply lets PostgREST evaluate the policies instead of erroring out.
 
-## Order of execution
-
-1. Migration: `employer_activity` + triggers + `application_ai_scores` + `companies.onboarding_completed`.
-2. Activity feed component + dashboard integration + `/employer/activity` route.
-3. Team page hardening.
-4. Analytics server fn + reports page rewrite + dashboard deltas.
-5. Responses inbox + AI shortlist server fn + UI.
-6. Playwright onboarding walkthrough + fixes.
+No new tables, no policy rewrites, no schema renames. Estimated work: 1 migration + ~6 small file edits + Playwright verification.
