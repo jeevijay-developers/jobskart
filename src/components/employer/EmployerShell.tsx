@@ -7,10 +7,11 @@ import {
   LayoutDashboard,
   Plus,
   Users,
-  Settings,
   Database,
   BarChart3,
   Coins,
+  MoreHorizontal,
+  X,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
@@ -86,6 +87,9 @@ export function EmployerShell({
   actions?: ReactNode;
 }) {
   const { pathname } = useLocation();
+  const [moreOpen, setMoreOpen] = useState(false);
+  const primary = nav.slice(0, 4);
+  const overflow = nav.slice(4);
   return (
     <div className="min-h-screen bg-surface pb-20 lg:pb-0">
       <Navbar />
@@ -117,8 +121,8 @@ export function EmployerShell({
           </nav>
         </aside>
         <main className="min-w-0 flex-1">
-          <header className="mb-6 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 sm:flex sm:flex-wrap sm:justify-between">
-            <div className="min-w-0">
+          <header className="mb-6 flex flex-wrap items-end justify-between gap-3">
+            <div className="min-w-0 flex-1">
               <h1 className="truncate text-2xl font-bold text-foreground sm:text-3xl">{title}</h1>
               {subtitle ? <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p> : null}
             </div>
@@ -133,7 +137,7 @@ export function EmployerShell({
       </div>
 
       <nav className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-5 border-t border-border bg-card/95 backdrop-blur lg:hidden">
-        {nav.slice(0, 4).map((item) => {
+        {primary.map((item) => {
           const active = pathname === item.to || pathname.startsWith(item.to + "/");
           const Icon = item.icon;
           return (
@@ -148,13 +152,63 @@ export function EmployerShell({
             </Link>
           );
         })}
-        <Link
-          to="/employer/jobs/new"
-          className="flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium text-primary"
+        <button
+          type="button"
+          onClick={() => setMoreOpen(true)}
+          className="flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium text-muted-foreground"
         >
-          <Plus className="h-5 w-5" /> Post
-        </Link>
+          <MoreHorizontal className="h-5 w-5" /> More
+        </button>
       </nav>
+
+      {moreOpen && (
+        <div className="fixed inset-0 z-50 flex lg:hidden" role="dialog" aria-modal="true">
+          <button
+            type="button"
+            aria-label="Close menu"
+            className="flex-1 bg-foreground/40"
+            onClick={() => setMoreOpen(false)}
+          />
+          <aside className="w-72 max-w-[85vw] overflow-y-auto bg-card p-5 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <p className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Menu</p>
+              <button
+                type="button"
+                onClick={() => setMoreOpen(false)}
+                className="rounded-lg p-2 hover:bg-surface"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <Link
+              to="/employer/jobs/new"
+              onClick={() => setMoreOpen(false)}
+              className="mb-4 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2.5 text-sm font-semibold text-primary-foreground"
+            >
+              <Plus className="h-4 w-4" /> Post a job
+            </Link>
+            <div className="space-y-1">
+              {overflow.map((item) => {
+                const Icon = item.icon;
+                const active = pathname === item.to || pathname.startsWith(item.to + "/");
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    onClick={() => setMoreOpen(false)}
+                    className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium ${
+                      active ? "bg-primary-light text-primary" : "text-foreground/80 hover:bg-surface"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" /> {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          </aside>
+        </div>
+      )}
     </div>
   );
 }
@@ -196,4 +250,4 @@ export function StatCard({
   );
 }
 
-export function Settings_ ({ }: { unused?: boolean }) { return <Settings className="hidden" />; }
+
