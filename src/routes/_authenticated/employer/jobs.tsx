@@ -128,11 +128,14 @@ function EmployerJobs() {
             <button
               key={s}
               onClick={() => setStatusFilter(s)}
-              className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold capitalize ${
-                statusFilter === s ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-foreground/70"
+              className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold capitalize ${
+                statusFilter === s ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-foreground/70 hover:border-foreground/30"
               }`}
             >
               {s}
+              <span className={`tabular-nums ${statusFilter === s ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+                ({counts[s] ?? 0})
+              </span>
             </button>
           ))}
         </div>
