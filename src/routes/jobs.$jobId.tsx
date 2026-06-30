@@ -8,15 +8,19 @@ import {
   Building2,
   Calendar,
   CheckCircle2,
+  Clock,
+  Flag,
   GraduationCap,
   IndianRupee,
   Loader2,
   MapPin,
+  Share2,
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Navbar } from "@/components/site/Navbar";
 import { Footer } from "@/components/site/Footer";
+import { JobCard, type JobCardData } from "@/components/site/JobCard";
 import { supabase } from "@/integrations/supabase/client";
 import { formatExperience, formatSalary, jobTypeLabel, timeAgo, workModeLabel } from "@/lib/format";
 
@@ -52,7 +56,15 @@ type JobDetail = {
   walkin_details: string | null;
   created_at: string;
   expires_at: string | null;
-  companies: { name: string; is_verified: boolean | null; industry: string | null; primary_city: string | null; description: string | null } | null;
+  category: string | null;
+  companies: {
+    name: string;
+    is_verified: boolean | null;
+    industry: string | null;
+    primary_city: string | null;
+    description: string | null;
+    logo_url: string | null;
+  } | null;
 };
 
 function JobDetailPage() {
@@ -66,15 +78,18 @@ function JobDetailPage() {
   const [saved, setSaved] = useState(false);
   const [tab, setTab] = useState<"overview" | "company">("overview");
   const [applying, setApplying] = useState(false);
+  const [applicantCount, setApplicantCount] = useState<number>(0);
+  const [similar, setSimilar] = useState<JobCardData[]>([]);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
+      window.scrollTo({ top: 0 });
       const { data, error } = await supabase
         .from("jobs")
         .select(
-          "id, company_id, title, description, city, state, locality, min_salary, max_salary, salary_period, fixed_pay, incentives_text, job_type, work_mode, shift, min_experience_years, max_experience_years, education, english_level, skills, perks, openings, walkin, walkin_details, created_at, expires_at, companies (name, is_verified, industry, primary_city, description)",
+          "id, company_id, title, description, city, state, locality, min_salary, max_salary, salary_period, fixed_pay, incentives_text, job_type, work_mode, shift, min_experience_years, max_experience_years, education, english_level, skills, perks, openings, walkin, walkin_details, created_at, expires_at, category, companies (name, is_verified, industry, primary_city, description, logo_url)",
         )
         .eq("id", jobId)
         .maybeSingle();
@@ -84,9 +99,29 @@ function JobDetailPage() {
         setLoading(false);
         return;
       }
-      setJob(data as unknown as JobDetail);
+      const jobData = data as unknown as JobDetail;
+      setJob(jobData);
+      if (typeof document !== "undefined") {
+        document.title = `${jobData.title} · ${jobData.companies?.name || "JobsKart"}`;
+      }
 
-      const { data: sess } = await supabase.auth.getSession();
+      const [{ count }, { data: sess }, { data: sim }] = await Promise.all([
+        supabase.from("applications").select("id", { count: "exact", head: true }).eq("job_id", jobId),
+        supabase.auth.getSession(),
+        supabase
+          .from("jobs")
+          .select(
+            "id, title, city, state, locality, min_salary, max_salary, salary_period, job_type, work_mode, min_experience_years, max_experience_years, education, skills, created_at, companies (name, is_verified)",
+          )
+          .eq("status", "active")
+          .neq("id", jobId)
+          .eq(jobData.category ? "category" : "job_type", jobData.category || jobData.job_type)
+          .limit(4),
+      ]);
+      if (cancelled) return;
+      setApplicantCount(count || 0);
+      setSimilar((sim || []) as unknown as JobCardData[]);
+
       const uid = sess.session?.user.id ?? null;
       setUserId(uid);
       if (uid) {
@@ -123,7 +158,8 @@ function JobDetailPage() {
       return;
     }
     setApplied(true);
-    toast.success("Application sent!");
+    setApplicantCount((c) => c + 1);
+    toast.success("Application sent! The employer will review your profile.");
   };
 
   const toggleSave = async () => {
@@ -143,7 +179,27 @@ function JobDetailPage() {
         return;
       }
       setSaved(true);
-      toast.success("Saved");
+      toast.success("Saved to your list");
+    }
+  };
+
+  const handleShare = async () => {
+    if (!job) return;
+    const url = typeof window !== "undefined" ? window.location.href : "";
+    const text = `${job.title} at ${job.companies?.name || "a top company"} · ${formatSalary(job.min_salary, job.max_salary, job.salary_period || "monthly")}`;
+    if (typeof navigator !== "undefined" && (navigator as Navigator).share) {
+      try {
+        await (navigator as Navigator).share({ title: job.title, text, url });
+        return;
+      } catch {
+        /* user cancelled */
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Link copied to clipboard");
+    } catch {
+      toast.error("Could not copy link");
     }
   };
 
@@ -171,43 +227,243 @@ function JobDetailPage() {
   }
 
   const location = [job.locality, job.city, job.state].filter(Boolean).join(", ");
+  const initials = (job.companies?.name || "JK")
+    .split(" ")
+    .map((p) => p[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+  const expires = job.expires_at ? new Date(job.expires_at) : null;
+  const daysLeft = expires ? Math.ceil((expires.getTime() - Date.now()) / 86400000) : null;
 
   return (
     <div className="flex min-h-screen flex-col bg-surface">
       <Navbar />
-      <main className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 lg:px-8">
+      <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-28 sm:px-6 lg:px-8 lg:pb-10">
         <Link to="/jobs" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary">
           <ArrowLeft className="h-4 w-4" /> Back to jobs
         </Link>
 
-        <div className="mt-4 overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]">
-          <div className="bg-gradient-to-br from-primary-light to-card p-6 sm:p-8">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div className="min-w-0">
-                <h1 className="text-2xl font-bold text-foreground sm:text-3xl">{job.title}</h1>
-                <p className="mt-1 flex items-center gap-2 text-sm text-foreground/80">
-                  <Building2 className="h-4 w-4 text-primary" />
-                  <span className="font-medium">{job.companies?.name || "Confidential employer"}</span>
-                  {job.companies?.is_verified ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-success-light px-2 py-0.5 text-xs font-semibold text-success">
-                      <CheckCircle2 className="h-3 w-3" /> Verified
-                    </span>
-                  ) : null}
-                </p>
-                <p className="mt-2 text-xs text-muted-foreground">Posted {timeAgo(job.created_at)}</p>
+        <div className="mt-4 grid gap-6 lg:grid-cols-[1fr_320px]">
+          <div className="min-w-0">
+            <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]">
+              <div className="bg-gradient-to-br from-primary-light to-card p-5 sm:p-7">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex min-w-0 gap-4">
+                    <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl border border-border bg-card text-base font-bold text-primary sm:h-16 sm:w-16 sm:text-lg">
+                      {job.companies?.logo_url ? (
+                        <img src={job.companies.logo_url} alt={job.companies.name} className="h-full w-full object-cover" />
+                      ) : (
+                        initials
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <h1 className="text-xl font-bold leading-tight text-foreground sm:text-2xl lg:text-3xl">{job.title}</h1>
+                      <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-foreground/80">
+                        <Building2 className="h-4 w-4 text-primary" />
+                        <span className="font-medium">{job.companies?.name || "Confidential employer"}</span>
+                        {job.companies?.is_verified ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-success-light px-2 py-0.5 text-xs font-semibold text-success">
+                            <CheckCircle2 className="h-3 w-3" /> Verified
+                          </span>
+                        ) : null}
+                      </p>
+                      <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                        <span className="inline-flex items-center gap-1"><Clock className="h-3 w-3" /> Posted {timeAgo(job.created_at)}</span>
+                        <span>·</span>
+                        <span className="inline-flex items-center gap-1"><Users className="h-3 w-3" /> {applicantCount} applicant{applicantCount === 1 ? "" : "s"}</span>
+                        {daysLeft != null && daysLeft >= 0 ? (
+                          <>
+                            <span>·</span>
+                            <span className={daysLeft <= 3 ? "text-amber font-medium" : ""}>
+                              {daysLeft === 0 ? "Closes today" : `${daysLeft}d left to apply`}
+                            </span>
+                          </>
+                        ) : null}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="hidden shrink-0 gap-2 sm:flex">
+                    <button
+                      onClick={handleShare}
+                      title="Share"
+                      className="grid h-11 w-11 place-items-center rounded-lg border border-border bg-card text-foreground hover:bg-surface"
+                    >
+                      <Share2 className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={toggleSave}
+                      className="inline-flex h-11 items-center gap-2 rounded-lg border border-border bg-card px-4 text-sm font-semibold text-foreground hover:bg-surface"
+                    >
+                      {saved ? <BookmarkCheck className="h-4 w-4 text-primary" /> : <Bookmark className="h-4 w-4" />}
+                      {saved ? "Saved" : "Save"}
+                    </button>
+                    <button
+                      onClick={handleApply}
+                      disabled={applied || applying}
+                      className="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-6 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary-dark disabled:cursor-not-allowed disabled:bg-success disabled:text-white"
+                    >
+                      {applying ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : applied ? (
+                        <>
+                          <CheckCircle2 className="h-4 w-4" /> Applied
+                        </>
+                      ) : (
+                        "Apply now"
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <Stat icon={IndianRupee} label="Salary" value={formatSalary(job.min_salary, job.max_salary, job.salary_period || "monthly")} />
+                  <Stat icon={MapPin} label="Location" value={location || "India"} />
+                  <Stat icon={Briefcase} label="Experience" value={formatExperience(job.min_experience_years, job.max_experience_years)} />
+                  <Stat icon={Users} label="Openings" value={`${job.openings ?? 1}`} />
+                </div>
               </div>
-              <div className="flex shrink-0 gap-2">
-                <button
-                  onClick={toggleSave}
-                  className="inline-flex h-11 items-center gap-2 rounded-lg border border-border bg-card px-4 text-sm font-semibold text-foreground hover:bg-surface"
-                >
-                  {saved ? <BookmarkCheck className="h-4 w-4 text-primary" /> : <Bookmark className="h-4 w-4" />}
-                  {saved ? "Saved" : "Save"}
-                </button>
+
+              <div className="flex gap-1 border-b border-border px-2 sm:px-6">
+                {(["overview", "company"] as const).map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => setTab(t)}
+                    className={`relative px-4 py-3 text-sm font-semibold capitalize transition-colors ${
+                      tab === t ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {t === "company" ? "About company" : "Job overview"}
+                    {tab === t && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-primary" />}
+                  </button>
+                ))}
+              </div>
+
+              <div className="p-5 sm:p-7">
+                {tab === "overview" ? (
+                  <div className="space-y-6">
+                    <div className="flex flex-wrap gap-2">
+                      <Pill>{jobTypeLabel(job.job_type)}</Pill>
+                      <Pill>{workModeLabel(job.work_mode)}</Pill>
+                      {job.shift ? <Pill>{`${job.shift} shift`}</Pill> : null}
+                      {job.fixed_pay ? <Pill tone="success">Fixed pay</Pill> : null}
+                      {job.incentives_text ? <Pill tone="success">+ Incentives</Pill> : null}
+                    </div>
+
+                    <Block title="Job description">
+                      <p className="whitespace-pre-line text-sm leading-6 text-foreground/80">
+                        {job.description || "No description provided."}
+                      </p>
+                      {job.incentives_text ? (
+                        <p className="mt-3 rounded-lg border border-success/20 bg-success-light/40 p-3 text-sm text-foreground/80">
+                          <span className="font-semibold text-success">Incentives: </span>
+                          {job.incentives_text}
+                        </p>
+                      ) : null}
+                    </Block>
+
+                    <div className="grid gap-6 sm:grid-cols-2">
+                      <Block title="Requirements">
+                        <ul className="space-y-2 text-sm text-foreground/80">
+                          <Req icon={GraduationCap} label="Education" value={job.education || "Any"} />
+                          <Req icon={Briefcase} label="Experience" value={formatExperience(job.min_experience_years, job.max_experience_years)} />
+                          {job.english_level ? <Req icon={CheckCircle2} label="English" value={job.english_level} /> : null}
+                        </ul>
+                      </Block>
+                      {(job.skills?.length || 0) > 0 && (
+                        <Block title="Skills required">
+                          <div className="flex flex-wrap gap-1.5">
+                            {job.skills!.map((s) => (
+                              <span key={s} className="rounded-full bg-primary-light px-2.5 py-1 text-xs font-medium text-primary">
+                                {s}
+                              </span>
+                            ))}
+                          </div>
+                        </Block>
+                      )}
+                    </div>
+
+                    {(job.perks?.length || 0) > 0 && (
+                      <Block title="Perks & benefits">
+                        <div className="flex flex-wrap gap-2">
+                          {job.perks!.map((p) => (
+                            <span key={p} className="inline-flex items-center gap-1.5 rounded-full bg-success-light px-3 py-1 text-xs font-medium text-success">
+                              <CheckCircle2 className="h-3 w-3" /> {p}
+                            </span>
+                          ))}
+                        </div>
+                      </Block>
+                    )}
+
+                    {job.walkin && (
+                      <Block title="Walk-in details">
+                        <p className="flex items-start gap-2 rounded-lg border border-amber/30 bg-amber/5 p-3 text-sm text-foreground/80">
+                          <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-amber" />
+                          {job.walkin_details || "Walk-in interview available. Contact employer for details."}
+                        </p>
+                      </Block>
+                    )}
+
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4 text-xs text-muted-foreground">
+                      <span>Job ID: {job.id.slice(0, 8).toUpperCase()}</span>
+                      <button className="inline-flex items-center gap-1.5 hover:text-destructive">
+                        <Flag className="h-3.5 w-3.5" /> Report this job
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-4">
+                      <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl border border-border bg-surface text-base font-bold text-primary">
+                        {job.companies?.logo_url ? (
+                          <img src={job.companies.logo_url} alt={job.companies.name} className="h-full w-full object-cover" />
+                        ) : (
+                          initials
+                        )}
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-semibold text-foreground">{job.companies?.name || "Confidential employer"}</h2>
+                        {job.companies?.industry || job.companies?.primary_city ? (
+                          <p className="text-sm text-muted-foreground">
+                            {[job.companies?.industry, job.companies?.primary_city].filter(Boolean).join(" · ")}
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                    <p className="text-sm leading-6 text-foreground/80">{job.companies?.description || "Company details coming soon."}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {similar.length > 0 && (
+              <section className="mt-8">
+                <h2 className="mb-3 text-lg font-bold text-foreground">Similar jobs you may like</h2>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {similar.map((s) => (
+                    <JobCard key={s.id} job={s} />
+                  ))}
+                </div>
+              </section>
+            )}
+          </div>
+
+          {/* Sidebar */}
+          <aside className="hidden lg:block">
+            <div className="sticky top-24 space-y-4">
+              <div className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Quick summary</p>
+                <div className="mt-3 space-y-3 text-sm">
+                  <Side icon={IndianRupee} label="Salary" value={formatSalary(job.min_salary, job.max_salary, job.salary_period || "monthly")} />
+                  <Side icon={MapPin} label="Location" value={location || "India"} />
+                  <Side icon={Briefcase} label="Type" value={`${jobTypeLabel(job.job_type)} · ${workModeLabel(job.work_mode)}`} />
+                  <Side icon={GraduationCap} label="Education" value={job.education || "Any"} />
+                  <Side icon={Users} label="Openings" value={`${job.openings ?? 1}`} />
+                </div>
                 <button
                   onClick={handleApply}
                   disabled={applied || applying}
-                  className="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-6 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary-dark disabled:cursor-not-allowed disabled:bg-success disabled:text-white"
+                  className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary-dark disabled:cursor-not-allowed disabled:bg-success disabled:text-white"
                 >
                   {applying ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -219,98 +475,71 @@ function JobDetailPage() {
                     "Apply now"
                   )}
                 </button>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <button
+                    onClick={toggleSave}
+                    className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-border bg-card text-sm font-medium text-foreground hover:bg-surface"
+                  >
+                    {saved ? <BookmarkCheck className="h-4 w-4 text-primary" /> : <Bookmark className="h-4 w-4" />}
+                    {saved ? "Saved" : "Save"}
+                  </button>
+                  <button
+                    onClick={handleShare}
+                    className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-border bg-card text-sm font-medium text-foreground hover:bg-surface"
+                  >
+                    <Share2 className="h-4 w-4" /> Share
+                  </button>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-border bg-gradient-to-br from-primary-light to-card p-5">
+                <p className="text-sm font-semibold text-foreground">Tips to get hired faster</p>
+                <ul className="mt-2 space-y-1.5 text-xs text-foreground/80">
+                  <li className="flex gap-2"><CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" /> Complete your profile to 100%</li>
+                  <li className="flex gap-2"><CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" /> Upload an updated resume</li>
+                  <li className="flex gap-2"><CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" /> Apply within 24 hours of posting</li>
+                </ul>
               </div>
             </div>
-
-            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <Stat icon={IndianRupee} label="Salary" value={formatSalary(job.min_salary, job.max_salary, job.salary_period || "monthly")} />
-              <Stat icon={MapPin} label="Location" value={location || "India"} />
-              <Stat icon={Briefcase} label="Experience" value={formatExperience(job.min_experience_years, job.max_experience_years)} />
-              <Stat icon={Users} label="Openings" value={`${job.openings ?? 1}`} />
-            </div>
-          </div>
-
-          <div className="flex gap-1 border-b border-border px-2 sm:px-6">
-            {(["overview", "company"] as const).map((t) => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                className={`relative px-4 py-3 text-sm font-semibold capitalize transition-colors ${
-                  tab === t ? "text-primary" : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {t === "company" ? "About company" : "Job overview"}
-                {tab === t && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-primary" />}
-              </button>
-            ))}
-          </div>
-
-          <div className="p-6 sm:p-8">
-            {tab === "overview" ? (
-              <div className="space-y-6">
-                <div className="flex flex-wrap gap-2">
-                  <Pill>{jobTypeLabel(job.job_type)}</Pill>
-                  <Pill>{workModeLabel(job.work_mode)}</Pill>
-                  {job.shift ? <Pill>{`${job.shift} shift`}</Pill> : null}
-                  {job.fixed_pay ? <Pill tone="success">Fixed pay</Pill> : null}
-                </div>
-
-                <Block title="Job description">
-                  <p className="whitespace-pre-line text-sm leading-6 text-foreground/80">{job.description || "No description provided."}</p>
-                </Block>
-
-                <div className="grid gap-6 sm:grid-cols-2">
-                  <Block title="Requirements">
-                    <ul className="space-y-2 text-sm text-foreground/80">
-                      <Req icon={GraduationCap} label="Education" value={job.education || "Any"} />
-                      <Req icon={Briefcase} label="Experience" value={formatExperience(job.min_experience_years, job.max_experience_years)} />
-                      {job.english_level ? <Req icon={CheckCircle2} label="English" value={job.english_level} /> : null}
-                    </ul>
-                  </Block>
-                  {(job.skills?.length || 0) > 0 && (
-                    <Block title="Skills required">
-                      <div className="flex flex-wrap gap-1.5">
-                        {job.skills!.map((s) => (
-                          <span key={s} className="rounded-full bg-primary-light px-2.5 py-1 text-xs font-medium text-primary">
-                            {s}
-                          </span>
-                        ))}
-                      </div>
-                    </Block>
-                  )}
-                </div>
-
-                {(job.perks?.length || 0) > 0 && (
-                  <Block title="Perks & benefits">
-                    <div className="flex flex-wrap gap-2">
-                      {job.perks!.map((p) => (
-                        <span key={p} className="inline-flex items-center gap-1.5 rounded-full bg-success-light px-3 py-1 text-xs font-medium text-success">
-                          <CheckCircle2 className="h-3 w-3" /> {p}
-                        </span>
-                      ))}
-                    </div>
-                  </Block>
-                )}
-
-                {job.walkin && (
-                  <Block title="Walk-in details">
-                    <p className="flex items-start gap-2 rounded-lg border border-amber/30 bg-amber/5 p-3 text-sm text-foreground/80">
-                      <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-amber" />
-                      {job.walkin_details || "Walk-in interview available. Contact employer for details."}
-                    </p>
-                  </Block>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <h2 className="text-lg font-semibold text-foreground">{job.companies?.name || "Confidential employer"}</h2>
-                {job.companies?.industry ? <p className="text-sm text-muted-foreground">{job.companies.industry} · {job.companies.primary_city || ""}</p> : null}
-                <p className="text-sm leading-6 text-foreground/80">{job.companies?.description || "Company details coming soon."}</p>
-              </div>
-            )}
-          </div>
+          </aside>
         </div>
       </main>
+
+      {/* Mobile sticky apply bar */}
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 p-3 backdrop-blur lg:hidden">
+        <div className="mx-auto flex max-w-6xl items-center gap-2">
+          <button
+            onClick={toggleSave}
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-border bg-card text-foreground"
+            title={saved ? "Saved" : "Save"}
+          >
+            {saved ? <BookmarkCheck className="h-4 w-4 text-primary" /> : <Bookmark className="h-4 w-4" />}
+          </button>
+          <button
+            onClick={handleShare}
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-border bg-card text-foreground"
+            title="Share"
+          >
+            <Share2 className="h-4 w-4" />
+          </button>
+          <button
+            onClick={handleApply}
+            disabled={applied || applying}
+            className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm disabled:bg-success disabled:text-white"
+          >
+            {applying ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : applied ? (
+              <>
+                <CheckCircle2 className="h-4 w-4" /> Applied
+              </>
+            ) : (
+              "Apply now"
+            )}
+          </button>
+        </div>
+      </div>
+
       <Footer />
     </div>
   );
@@ -347,5 +576,16 @@ function Req({ icon: Icon, label, value }: { icon: typeof IndianRupee; label: st
         <span className="font-medium text-foreground">{value}</span>
       </span>
     </li>
+  );
+}
+function Side({ icon: Icon, label, value }: { icon: typeof IndianRupee; label: string; value: string }) {
+  return (
+    <div className="flex items-start gap-2">
+      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+      <div className="min-w-0">
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className="truncate font-medium text-foreground">{value}</p>
+      </div>
+    </div>
   );
 }
