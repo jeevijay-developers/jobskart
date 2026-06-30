@@ -85,6 +85,7 @@ function JobDetailPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [applied, setApplied] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [savingBookmark, setSavingBookmark] = useState(false);
   const [tab, setTab] = useState<"overview" | "company">("overview");
   const [applyOpen, setApplyOpen] = useState(false);
   const [applicantCount, setApplicantCount] = useState<number>(0);
@@ -164,25 +165,46 @@ function JobDetailPage() {
   };
 
   const toggleSave = async () => {
+    if (!job) return;
     if (!userId) {
-      navigate({ to: "/auth", search: { tab: "candidate" } });
+      toast.info("Sign in to save this job to your list");
+      navigate({
+        to: "/auth",
+        search: { tab: "candidate", redirect: `/jobs/${job.id}` } as never,
+      });
       return;
     }
-    if (!job) return;
-    if (saved) {
-      await supabase.from("saved_jobs").delete().eq("job_id", job.id).eq("user_id", userId);
-      setSaved(false);
-      toast.success("Removed from saved");
-    } else {
-      const { error } = await supabase.from("saved_jobs").insert({ job_id: job.id, user_id: userId });
-      if (error) {
-        toast.error(error.message);
-        return;
+    if (savingBookmark) return;
+    const next = !saved;
+    setSaved(next); // optimistic
+    setSavingBookmark(true);
+    try {
+      if (next) {
+        const { error } = await supabase
+          .from("saved_jobs")
+          .insert({ job_id: job.id, user_id: userId });
+        // Ignore duplicate-key (already saved in another tab)
+        if (error && !/duplicate key|unique/i.test(error.message)) throw error;
+        toast.success("Saved to your list", {
+          action: { label: "View saved", onClick: () => navigate({ to: "/candidate/saved" as never }) },
+        });
+      } else {
+        const { error } = await supabase
+          .from("saved_jobs")
+          .delete()
+          .eq("job_id", job.id)
+          .eq("user_id", userId);
+        if (error) throw error;
+        toast.success("Removed from saved");
       }
-      setSaved(true);
-      toast.success("Saved to your list");
+    } catch (err) {
+      setSaved(!next); // revert
+      toast.error(err instanceof Error ? err.message : "Could not update saved jobs");
+    } finally {
+      setSavingBookmark(false);
     }
   };
+
 
   const handleShare = async () => {
     if (!job) return;
@@ -294,9 +316,18 @@ function JobDetailPage() {
                     </button>
                     <button
                       onClick={toggleSave}
-                      className="inline-flex h-11 items-center gap-2 rounded-lg border border-border bg-card px-4 text-sm font-semibold text-foreground hover:bg-surface"
+                      disabled={savingBookmark}
+                      aria-pressed={saved}
+                      aria-label={saved ? "Remove from saved jobs" : "Save this job"}
+                      className="inline-flex h-11 items-center gap-2 rounded-lg border border-border bg-card px-4 text-sm font-semibold text-foreground transition-colors hover:bg-surface disabled:opacity-60"
                     >
-                      {saved ? <BookmarkCheck className="h-4 w-4 text-primary" /> : <Bookmark className="h-4 w-4" />}
+                      {savingBookmark ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : saved ? (
+                        <BookmarkCheck className="h-4 w-4 text-primary" />
+                      ) : (
+                        <Bookmark className="h-4 w-4" />
+                      )}
                       {saved ? "Saved" : "Save"}
                     </button>
                     <button
@@ -516,9 +547,17 @@ function JobDetailPage() {
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   <button
                     onClick={toggleSave}
-                    className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-border bg-card text-sm font-medium text-foreground hover:bg-surface"
+                    disabled={savingBookmark}
+                    aria-pressed={saved}
+                    className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-border bg-card text-sm font-medium text-foreground transition-colors hover:bg-surface disabled:opacity-60"
                   >
-                    {saved ? <BookmarkCheck className="h-4 w-4 text-primary" /> : <Bookmark className="h-4 w-4" />}
+                    {savingBookmark ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : saved ? (
+                      <BookmarkCheck className="h-4 w-4 text-primary" />
+                    ) : (
+                      <Bookmark className="h-4 w-4" />
+                    )}
                     {saved ? "Saved" : "Save"}
                   </button>
                   <button
@@ -548,10 +587,19 @@ function JobDetailPage() {
         <div className="mx-auto flex max-w-6xl items-center gap-2">
           <button
             onClick={toggleSave}
-            className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-border bg-card text-foreground"
+            disabled={savingBookmark}
+            aria-pressed={saved}
+            aria-label={saved ? "Saved" : "Save"}
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-border bg-card text-foreground disabled:opacity-60"
             title={saved ? "Saved" : "Save"}
           >
-            {saved ? <BookmarkCheck className="h-4 w-4 text-primary" /> : <Bookmark className="h-4 w-4" />}
+            {savingBookmark ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : saved ? (
+              <BookmarkCheck className="h-4 w-4 text-primary" />
+            ) : (
+              <Bookmark className="h-4 w-4" />
+            )}
           </button>
           <button
             onClick={handleShare}
