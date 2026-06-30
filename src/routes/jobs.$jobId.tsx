@@ -477,7 +477,11 @@ function JobDetailPage() {
 
                     <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4 text-xs text-muted-foreground">
                       <span>Job ID: {job.id.slice(0, 8).toUpperCase()}</span>
-                      <button className="inline-flex items-center gap-1.5 hover:text-destructive">
+                      <button
+                        type="button"
+                        onClick={() => setReportOpen(true)}
+                        className="inline-flex items-center gap-1.5 transition hover:text-destructive"
+                      >
                         <Flag className="h-3.5 w-3.5" /> Report this job
                       </button>
                     </div>
