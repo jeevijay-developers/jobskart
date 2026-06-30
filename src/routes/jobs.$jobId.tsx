@@ -165,25 +165,46 @@ function JobDetailPage() {
   };
 
   const toggleSave = async () => {
+    if (!job) return;
     if (!userId) {
-      navigate({ to: "/auth", search: { tab: "candidate" } });
+      toast.info("Sign in to save this job to your list");
+      navigate({
+        to: "/auth",
+        search: { tab: "candidate", redirect: `/jobs/${job.id}` } as never,
+      });
       return;
     }
-    if (!job) return;
-    if (saved) {
-      await supabase.from("saved_jobs").delete().eq("job_id", job.id).eq("user_id", userId);
-      setSaved(false);
-      toast.success("Removed from saved");
-    } else {
-      const { error } = await supabase.from("saved_jobs").insert({ job_id: job.id, user_id: userId });
-      if (error) {
-        toast.error(error.message);
-        return;
+    if (savingBookmark) return;
+    const next = !saved;
+    setSaved(next); // optimistic
+    setSavingBookmark(true);
+    try {
+      if (next) {
+        const { error } = await supabase
+          .from("saved_jobs")
+          .insert({ job_id: job.id, user_id: userId });
+        // Ignore duplicate-key (already saved in another tab)
+        if (error && !/duplicate key|unique/i.test(error.message)) throw error;
+        toast.success("Saved to your list", {
+          action: { label: "View saved", onClick: () => navigate({ to: "/candidate/saved" as never }) },
+        });
+      } else {
+        const { error } = await supabase
+          .from("saved_jobs")
+          .delete()
+          .eq("job_id", job.id)
+          .eq("user_id", userId);
+        if (error) throw error;
+        toast.success("Removed from saved");
       }
-      setSaved(true);
-      toast.success("Saved to your list");
+    } catch (err) {
+      setSaved(!next); // revert
+      toast.error(err instanceof Error ? err.message : "Could not update saved jobs");
+    } finally {
+      setSavingBookmark(false);
     }
   };
+
 
   const handleShare = async () => {
     if (!job) return;
