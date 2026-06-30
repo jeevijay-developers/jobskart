@@ -1,35 +1,66 @@
-## Fix critical employer + candidate flows
+## Goal
+Make employer job posting work end-to-end and make candidate resume parsing actually fill the onboarding/profile fields.
 
-### 1. Employer onboarding enforcement
-- `src/routes/auth.tsx`: after login, if user is employer, check `fetchMyCompanies()` → if no company OR `onboarding_completed = false`, redirect to `/onboarding/employer` instead of `/employer`.
-- `src/routes/_authenticated/employer/route.tsx`: add a guard that bounces to `/onboarding/employer` when no company exists for the user.
+## 1. Fix "employer can't post a job"
 
-### 2. Fix "Could not save" on employer onboarding + first job
-- Migration: add missing GRANTs on `employer_credit_wallets` (INSERT/UPDATE for authenticated via owning company) and `notifications` (INSERT for authenticated, needed so the application trigger doesn't fail).
-- Move credit-wallet seeding into a `SECURITY DEFINER` RPC `create_company_with_owner(...)` so onboarding atomically creates company + membership + wallet without hitting RLS edges.
-- `src/routes/_authenticated/onboarding/employer.tsx`: call the new RPC; on success mark `onboarding_completed = true` and redirect to `/employer`.
+Symptom: clicking **Publish job** in `/employer/jobs/new` does nothing visible / shows "Could not save". DB shows zero user-posted jobs even though RLS + GRANTs are fine.
 
-### 3. Fix Post-a-Job
-- `src/lib/options.ts`: change `on_site` → `onsite` (DB enum).
-- `src/routes/_authenticated/employer/jobs.new.tsx`: map work_mode correctly, allow draft save with minimal fields, surface server error message instead of generic toast.
-- `src/components/employer/EmployerShell.tsx`: promote "Post a job" to a primary action in the mobile bottom bar (replace overflow placement).
+Root causes to fix:
+- Insert payload silently fails because of enum / nullability mismatches and the catch toast hides the real Postgres error.
+- Trigger chain (`tg_jobs_activity_insert` → `log_employer_activity`) requires `posted_by`; we pass it but the active session can race (we call `supabase.auth.getUser()` again at submit time after a long wizard).
+- Slug trigger writes to `slug` only when null — fine, but the `RETURNING` after insert sometimes fails if `select().single()` cannot read the row back (older bug from SELECT policy joins). We'll re-select explicitly.
 
-### 4. Fix candidate Job Detail + Apply
-- `src/routes/jobs.$jobId.tsx`: ensure public read works (anon SELECT policy on `jobs` where `status='published'`) and that the route doesn't 404 on slug vs id.
-- `src/components/candidate/ApplyDialog.tsx`: ensure insert into `applications` includes `company_id` (required by trigger) and handles notification-trigger permission via the grant added in step 2.
-- Add a clear success state + link to "My Applications".
+Changes in `src/routes/_authenticated/employer/jobs.new.tsx`:
+- Resolve `companyId` AND `userId` once on mount; block Publish until both are set; show inline banner if either is missing with a "Go to onboarding" CTA.
+- Replace the silent catch with a typed handler that surfaces `error.code`, `error.message`, and `error.details` in the toast and `console.error` for debugging (mirrors what we did for ApplyDialog).
+- Coerce enum fields to known valid values from `JOB_TYPE_OPTIONS` / `WORK_MODES`; drop the `as never` cast; only send fields with non-empty values.
+- After insert, fetch the row with `.select("id, slug").single()` in a separate call (so an RLS read failure on insert-returning doesn't kill the success path).
+- On success, navigate to the applicants page; on draft, to `/employer/jobs`. Always `toast.success` first.
 
-### 5. Multi-city database filter (employer)
-- `src/routes/_authenticated/employer/database.tsx`: replace single-city `Select` with a multi-select (chips) backed by `cities` master. Update query to `.in('city', selectedCities)` or `preferred_cities && selectedCities` for candidates with multiple preferences.
+Changes in `src/routes/_authenticated/employer/dashboard.tsx`:
+- The "Post a job" CTA already links to `/employer/jobs/new`. Add a guard: if `companies.length === 0` keep redirect to onboarding (already there), else make sure the link is rendered as a real `<Link>` (it is). No regression.
 
-### 6. Company profile editing + documents
-- `src/routes/_authenticated/employer/company.tsx`:
-  - Editable fields: name, about, industry, size, website, hq_city, founded_year, GSTIN, PAN, social links, logo, cover.
-  - Documents section: upload to `company-docs` bucket, list with status (pending/verified/rejected), delete, re-upload. Uses existing `company_documents` table.
+Changes in `src/routes/_authenticated/onboarding/employer.tsx`:
+- After `create_company_with_owner` RPC succeeds, also call `setActiveCompanyId(cid)` before navigating, so the new job route immediately finds an active company without a round-trip.
 
-### Technical details
-- New RPC `public.create_company_with_owner(_name text, _industry text, _size company_size, _hq_city text, _website text, _about text)` returns the new `company_id`; inserts into `companies`, `employer_members` (super_admin), and `employer_credit_wallets` in one transaction.
-- Grants: `GRANT INSERT, UPDATE ON public.employer_credit_wallets TO authenticated;` plus policy `USING (has_company_membership(auth.uid(), company_id))`. `GRANT INSERT ON public.notifications TO authenticated;` (trigger runs as definer already, but explicit grant prevents edge failures).
-- Anon SELECT policy review on `jobs` for public job-detail page.
+Verification:
+- Re-run the flow as a fresh employer: onboarding → "Post my first job" → fill 4 steps → Publish. Confirm a row appears in `public.jobs` with `status='active'`, `posted_by = auth.uid()`, and is visible on `/jobs` (public list) and to candidates.
+- Negative test: post with missing salary → see specific validation toast, not generic "Could not save".
 
-No other areas touched.
+## 2. Fix candidate resume parsing
+
+Symptom: uploading a PDF in candidate onboarding completes upload but no fields auto-fill.
+
+Root causes:
+- `parseResume` uses `google/gemini-2.5-flash` with a `file` content part. The Lovable AI Gateway accepts PDFs for Gemini only as **inline base64 image_url for images** or as `input_file` for PDFs; the current `{ type: "file", file: {...} }` shape returns an empty `content` for many PDFs, and we silently return all-nulls.
+- Even when content comes back, the system prompt allows nulls, so a degraded response = blank form with no error toast.
+
+Changes in `src/lib/resume.functions.ts`:
+- Switch PDF handling to extract text server-side first using a pure-JS parser (`unpdf` — Worker-compatible, no native deps), then send the extracted text to Gemini as a plain `text` message. Falls back to the vision path only for images.
+- Keep images on `google/gemini-2.5-flash` with `image_url` (this path already works).
+- Log the raw model response length and the parsed field count; throw a clear error if every field is null so the caller's toast shows "Couldn't read your resume — try a clearer PDF or fill manually" instead of a silent success.
+- Tighten the prompt: instruct the model to return at least name + email + mobile + skills whenever the text contains them; reject empty objects.
+
+Changes in `src/components/candidate/ResumeUpload.tsx`:
+- Surface a warning toast when the parser returns but every important field is empty, prompting the user to retry or continue manually.
+- After a successful parse, scroll the parent form into view (the onboarding wrapper) so the user sees fields filling in.
+
+Changes in `src/routes/_authenticated/onboarding/candidate.tsx` (only the `onParsed` handler):
+- Merge parsed values into the wizard state non-destructively (don't overwrite values the user has already typed). Also store the uploaded resume in `candidate-docs` and persist `candidate_documents` row immediately so it's available in the dashboard even if onboarding is interrupted.
+
+Dependency:
+- Add `unpdf` via `bun add unpdf` (pure-JS, Cloudflare Workers compatible — used inside the server function only).
+
+Verification:
+- Upload a sample resume PDF → fields for name, email, mobile, headline, skills auto-populate within ~5s.
+- Upload an image (JPG) of a resume → same outcome via the vision path.
+- Upload a DOCX → toast says "Auto-fill works best with PDF or image" (existing behaviour preserved).
+- Upload a corrupt/blank PDF → clear error toast, no silent failure.
+
+## Out of scope
+No schema changes. No new tables. No changes to RLS or GRANTs (already correct). No UI redesign.
+
+## Technical notes
+- Job insert payload will only include keys with truthy values to avoid sending `""` into enum/text columns that have defaults.
+- `unpdf` runs inside `createServerFn` only — never imported from a component — so it stays out of the client bundle.
+- Resume parser will keep the existing Zod schema; only the input path to Gemini changes.
