@@ -39,10 +39,20 @@ function ApplicantsPage() {
   const load = async () => {
     const [jRes, aRes] = await Promise.all([
       supabase.from("jobs").select("title, status").eq("id", jobId).single(),
-      supabase.from("applications").select("id, status, created_at, cover_note, candidate_id, profiles!applications_candidate_id_fkey (full_name, email, mobile, avatar_url, city), candidate_profiles!applications_candidate_id_fkey (profile_slug)").eq("job_id", jobId).order("created_at", { ascending: false }),
+      supabase.from("applications").select("id, status, created_at, cover_note, candidate_id, profiles!applications_candidate_id_fkey (full_name, email, mobile, avatar_url, city)").eq("job_id", jobId).order("created_at", { ascending: false }),
     ]);
     setJob(jRes.data as { title: string; status: string } | null);
-    setApps((aRes.data || []) as unknown as Application[]);
+    const rows = (aRes.data || []) as Array<Omit<Application, "candidate_profiles">>;
+    const ids = Array.from(new Set(rows.map((r) => r.candidate_id)));
+    let slugMap: Record<string, string | null> = {};
+    if (ids.length) {
+      const { data: cps } = await supabase
+        .from("candidate_profiles")
+        .select("user_id, profile_slug")
+        .in("user_id", ids);
+      slugMap = Object.fromEntries((cps || []).map((c) => [c.user_id, c.profile_slug]));
+    }
+    setApps(rows.map((r) => ({ ...r, candidate_profiles: { profile_slug: slugMap[r.candidate_id] ?? null } })) as Application[]);
     setLoading(false);
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [jobId]);
