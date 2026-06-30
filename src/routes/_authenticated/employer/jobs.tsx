@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Briefcase, Copy, Eye, Pause, Play, Plus, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
@@ -30,6 +30,13 @@ type Job = {
 const STATUSES = ["all", "active", "paused", "closed", "draft"] as const;
 
 function EmployerJobs() {
+  const { pathname } = useLocation();
+  if (pathname !== "/employer/jobs") return <Outlet />;
+
+  return <EmployerJobsList />;
+}
+
+function EmployerJobsList() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [jobs, setJobs] = useState<Job[]>([]);
