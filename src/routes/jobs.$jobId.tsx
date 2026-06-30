@@ -30,6 +30,7 @@ import { Navbar } from "@/components/site/Navbar";
 import { Footer } from "@/components/site/Footer";
 import { JobCard, type JobCardData } from "@/components/site/JobCard";
 import { ApplyDialog } from "@/components/candidate/ApplyDialog";
+import { ReportJobDialog } from "@/components/candidate/ReportJobDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { formatExperience, formatSalary, jobTypeLabel, timeAgo, workModeLabel } from "@/lib/format";
 
@@ -88,6 +89,7 @@ function JobDetailPage() {
   const [savingBookmark, setSavingBookmark] = useState(false);
   const [tab, setTab] = useState<"overview" | "company">("overview");
   const [applyOpen, setApplyOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const [applicantCount, setApplicantCount] = useState<number>(0);
   const [similar, setSimilar] = useState<JobCardData[]>([]);
 
@@ -475,7 +477,11 @@ function JobDetailPage() {
 
                     <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4 text-xs text-muted-foreground">
                       <span>Job ID: {job.id.slice(0, 8).toUpperCase()}</span>
-                      <button className="inline-flex items-center gap-1.5 hover:text-destructive">
+                      <button
+                        type="button"
+                        onClick={() => setReportOpen(true)}
+                        className="inline-flex items-center gap-1.5 transition hover:text-destructive"
+                      >
                         <Flag className="h-3.5 w-3.5" /> Report this job
                       </button>
                     </div>
@@ -634,6 +640,10 @@ function JobDetailPage() {
           job={{ id: job.id, company_id: job.company_id, title: job.title, min_salary: job.min_salary, max_salary: job.max_salary }}
           onApplied={handleApplied}
         />
+      )}
+
+      {job && (
+        <ReportJobDialog jobId={job.id} open={reportOpen} onOpenChange={setReportOpen} />
       )}
 
       <Footer />
