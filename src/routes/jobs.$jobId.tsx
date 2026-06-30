@@ -293,10 +293,10 @@ function JobDetailPage() {
                     </button>
                     <button
                       onClick={handleApply}
-                      disabled={applied || applying}
+                      disabled={applied}
                       className="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-6 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary-dark disabled:cursor-not-allowed disabled:bg-success disabled:text-white"
                     >
-                      {applying ? (
+                      {false ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : applied ? (
                         <>
@@ -455,10 +455,10 @@ function JobDetailPage() {
                 </div>
                 <button
                   onClick={handleApply}
-                  disabled={applied || applying}
+                  disabled={applied}
                   className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary-dark disabled:cursor-not-allowed disabled:bg-success disabled:text-white"
                 >
-                  {applying ? (
+                  {false ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : applied ? (
                     <>
@@ -517,10 +517,10 @@ function JobDetailPage() {
           </button>
           <button
             onClick={handleApply}
-            disabled={applied || applying}
+            disabled={applied}
             className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm disabled:bg-success disabled:text-white"
           >
-            {applying ? (
+            {false ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : applied ? (
               <>
