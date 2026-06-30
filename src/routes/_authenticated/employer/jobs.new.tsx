@@ -82,38 +82,71 @@ function NewJob() {
   };
 
   const publish = async (asDraft = false) => {
-    if (!companyId) return toast.error("No active company.");
+    if (!companyId) {
+      toast.error("Finish company setup first.");
+      nav({ to: "/onboarding/employer" });
+      return;
+    }
     if (!form.title.trim()) return toast.error("Add a job title first.");
     setSaving(true);
     try {
-      const { data: user } = await supabase.auth.getUser();
-      const { data, error } = await supabase.from("jobs").insert({
+      const { data: userRes, error: userErr } = await supabase.auth.getUser();
+      if (userErr || !userRes.user) throw new Error("Session expired. Please sign in again.");
+      const uid = userRes.user.id;
+
+      const validJobTypes = new Set(JOB_TYPE_OPTIONS.map((o) => o.id));
+      const validModes = new Set(WORK_MODES.map((o) => o.id));
+      const jobType = validJobTypes.has(form.job_type) ? form.job_type : "full_time";
+      const workMode = validModes.has(form.work_mode) ? form.work_mode : "onsite";
+
+      const payload: Record<string, unknown> = {
         company_id: companyId,
+        posted_by: uid,
         title: form.title.trim(),
-        category: form.category || null,
-        job_type: form.job_type as never,
-        work_mode: form.work_mode as never,
-        openings: form.openings,
-        description: form.description,
-        city: form.city || null,
-        locality: form.locality || null,
-        pincode: form.pincode || null,
-        min_salary: form.min_salary ? Number(form.min_salary) : null,
-        max_salary: form.max_salary ? Number(form.max_salary) : null,
-        salary_period: form.salary_period,
-        perks: form.perks,
-        min_experience_years: form.min_experience_years ? Number(form.min_experience_years) : null,
-        max_experience_years: form.max_experience_years ? Number(form.max_experience_years) : null,
-        education: form.education || null,
-        skills: form.skills,
+        description: form.description?.trim() || "",
+        job_type: jobType,
+        work_mode: workMode,
+        openings: Number(form.openings) || 1,
+        salary_period: form.salary_period || "monthly",
+        perks: form.perks ?? [],
+        skills: form.skills ?? [],
         status: asDraft ? "draft" : "active",
-        posted_by: user.user?.id,
-      } as never).select().single();
-      if (error) throw error;
+      };
+      if (form.category) payload.category = form.category;
+      if (form.city) payload.city = form.city;
+      if (form.locality) payload.locality = form.locality;
+      if (form.pincode) payload.pincode = form.pincode;
+      if (form.min_salary) payload.min_salary = Number(form.min_salary);
+      if (form.max_salary) payload.max_salary = Number(form.max_salary);
+      if (form.min_experience_years !== "") payload.min_experience_years = Number(form.min_experience_years);
+      if (form.max_experience_years !== "") payload.max_experience_years = Number(form.max_experience_years);
+      if (form.education) payload.education = form.education;
+
+      const { data, error } = await supabase
+        .from("jobs")
+        .insert(payload as never)
+        .select("id")
+        .single();
+
+      if (error) {
+        console.error("[jobs.publish] insert error", error);
+        const code = (error as { code?: string }).code;
+        if (code === "42501") {
+          toast.error("You don't have permission to post for this company. Check your team role.");
+        } else if (code === "23502") {
+          toast.error("A required field is missing. Please review the form.");
+        } else {
+          toast.error(error.message || "Could not publish the job.");
+        }
+        return;
+      }
+
+      const jobId = (data as { id: string }).id;
       toast.success(asDraft ? "Saved as draft." : "Job published! Candidates can apply now.");
       if (asDraft) nav({ to: "/employer/jobs" });
-      else nav({ to: "/employer/jobs/$jobId/applicants", params: { jobId: (data as { id: string }).id } });
+      else nav({ to: "/employer/jobs/$jobId/applicants", params: { jobId } });
     } catch (e: unknown) {
+      console.error("[jobs.publish] unexpected", e);
       toast.error(e instanceof Error ? e.message : "Could not publish.");
     } finally { setSaving(false); }
   };
