@@ -46,9 +46,14 @@ function NewJob() {
           cid = ms[0]?.company_id ?? null;
         }
       }
+      if (!cid) {
+        toast.message("Finish setting up your company first.");
+        nav({ to: "/onboarding/employer" });
+        return;
+      }
       setCompanyId(cid);
     })();
-  }, []);
+  }, [nav]);
 
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
 
