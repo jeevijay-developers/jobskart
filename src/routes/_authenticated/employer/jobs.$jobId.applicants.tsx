@@ -42,7 +42,7 @@ function ApplicantsPage() {
       supabase.from("applications").select("id, status, created_at, cover_note, candidate_id, profiles!applications_candidate_id_fkey (full_name, email, mobile, avatar_url, city)").eq("job_id", jobId).order("created_at", { ascending: false }),
     ]);
     setJob(jRes.data as { title: string; status: string } | null);
-    const rows = (aRes.data || []) as Array<Omit<Application, "candidate_profiles">>;
+    const rows = ((aRes.data || []) as unknown) as Array<Omit<Application, "candidate_profiles">>;
     const ids = Array.from(new Set(rows.map((r) => r.candidate_id)));
     let slugMap: Record<string, string | null> = {};
     if (ids.length) {
