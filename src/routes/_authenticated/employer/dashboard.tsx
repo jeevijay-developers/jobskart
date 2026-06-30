@@ -14,7 +14,9 @@ import {
   GraduationCap,
   ArrowRight,
   ChevronRight,
+  Activity as ActivityIcon,
 } from "lucide-react";
+import { ActivityFeed, type ActivityItem } from "@/components/employer/ActivityFeed";
 import { EmployerShell, StatCard } from "@/components/employer/EmployerShell";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -83,6 +85,8 @@ function EmployerDashboard() {
   const [companyMeta, setCompanyMeta] = useState<CompanyMeta | null>(null);
   const [teamCount, setTeamCount] = useState(0);
   const [learn, setLearn] = useState<Learn[]>([]);
+  const [activity, setActivity] = useState<ActivityItem[]>([]);
+  const [activityLoading, setActivityLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
@@ -162,6 +166,16 @@ function EmployerDashboard() {
       setCompanyMeta((cMeta.data as CompanyMeta) ?? null);
       setTeamCount(tCount.count ?? 0);
       setLearn((learnRes.data || []) as Learn[]);
+
+      setActivityLoading(true);
+      const { data: act } = await supabase
+        .from("employer_activity")
+        .select("id, kind, title, body, link, created_at, metadata")
+        .eq("company_id", cid)
+        .order("created_at", { ascending: false })
+        .limit(10);
+      setActivity((act || []) as ActivityItem[]);
+      setActivityLoading(false);
     })();
   }, [active]);
 
@@ -348,11 +362,20 @@ function EmployerDashboard() {
             </div>
           </section>
 
+          {/* Activity feed */}
+          <section className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="flex items-center gap-2 text-base font-bold"><ActivityIcon className="h-4 w-4 text-primary" /> Activity</h2>
+              <Link to="/employer/activity" className="text-xs font-semibold text-primary">View all →</Link>
+            </div>
+            <ActivityFeed items={activity} loading={activityLoading} />
+          </section>
+
           {/* Recent applicants */}
           <section className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
             <div className="flex items-center justify-between">
               <h2 className="text-base font-bold">Recent applicants</h2>
-              <Link to="/employer/jobs" className="text-xs font-semibold text-primary">View all →</Link>
+              <Link to="/employer/responses" className="text-xs font-semibold text-primary">Open inbox →</Link>
             </div>
             <div className="mt-4 divide-y divide-border">
               {recent.length === 0 ? (

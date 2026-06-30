@@ -1,104 +1,88 @@
-## Goal
+# Employer portal: feed, team, analytics, responses, onboarding
 
-Make the **employer side** production-ready: a polished conversational onboarding, an attractive dashboard with real numbers, and every existing feature (jobs, applicants, database, credits, team, reports, company KYC) verified, wired together, and mobile-responsive. No new tables, no new packages — only fix gaps and lift the UI/UX to match the candidate side.
+Five focused workstreams. Each piece is shippable on its own; together they make the employer side feel complete.
 
-## Part 1 — Employer onboarding redesign (`src/routes/_authenticated/onboarding/employer.tsx`)
+## 1. Activity feed (new)
 
-Replace the single-screen form with the same `Questionnaire` wizard already used by candidate onboarding, so the look matches end-to-end.
+**DB migration** — `employer_activity` table:
+- `id uuid pk`, `company_id uuid`, `actor_id uuid null`, `kind text` (`job.created`, `job.published`, `job.draft_saved`, `job.duplicated`, `job.closed`, `application.received`, `application.status_changed`, `candidate.unlocked`, `credits.purchased`, `team.invited`, `team.joined`), `title text`, `body text null`, `link text null`, `metadata jsonb`, `created_at timestamptz default now()`.
+- GRANTs + RLS: members of `company_id` can SELECT; service_role inserts.
+- Index `(company_id, created_at desc)`.
 
-Steps (all save into existing `profiles` + `companies` + `employer_members` — no schema change):
-1. **You** — recruiter full name + role (Founder / HR / Recruiter) + designation.
-2. **Company basics** — company name, industry (autocomplete from `industries`), size (tile picker, not dropdown), founded year.
-3. **Where you hire** — HQ city tile-grid (top 12 metros) + "Other" search, plus optional secondary cities (chips).
-4. **Brand & proof** — logo uploader (drag-drop, uses existing `company-logos` bucket), website, short About (≤500 chars), GST/PAN (optional, "verify later" allowed).
-5. **First job hint** — quick toggle "I want to post my first job now" → routes to `/employer/jobs/new` instead of dashboard.
+**Triggers** — fire inserts from existing triggers/handlers:
+- Extend `tg_applications_after_insert` → also insert `application.received`.
+- Extend `tg_applications_after_update` → also insert `application.status_changed`.
+- New triggers on `jobs` (AFTER INSERT / UPDATE of status) and on `credit_transactions` and `candidate_unlocks` and `employer_invites`.
 
-Two-column desktop shell matching candidate onboarding: left brand panel ("Hire faster on JobsKart" + trust chips: 1L+ candidates, AI shortlisting, verified profiles), right form card with vertical stepper. Sticky footer (Back / Save & exit / Continue). Auto-creates `employer_members(super_admin)` and seeds `employer_credit_wallets(balance=0)` so the credits screen never errors.
+**UI**
+- `src/components/employer/ActivityFeed.tsx` — timeline with icon per kind, relative time, optional deep link.
+- Render on dashboard right column (replace the static "Recent applications" with the richer feed) and on a new full-page route `/employer/activity`.
+- Loading skeleton + empty state ("No activity yet — post your first job").
 
-## Part 2 — Employer dashboard redesign (`src/routes/_authenticated/employer/dashboard.tsx`)
+## 2. Team management hardening
 
-Keep all current data queries; restructure the page:
+`src/routes/_authenticated/employer/team.tsx` already exists; fix and extend:
+- Add **role editing** for existing members (dropdown → `UPDATE employer_members.role`), with self-demotion guard (cannot remove last super_admin).
+- Add **remove member** action with confirm modal.
+- Add **resend / regenerate invite link** (rotate `token`, bump `expires_at`).
+- Show member's last-seen / joined date.
+- Ensure layout fits inside `EmployerShell` at all breakpoints (cap form column width, stack on mobile, prevent horizontal scroll on members table).
+- Use shadcn `Dialog` + `Select` instead of `confirm()` and native `<select>` to match the rest of the portal.
+- Log to activity feed on invite create / accept / role change / remove.
 
-1. **Hero band** — gradient strip: company logo + name + verification chip + active company switcher (when multi). Right side shows credit balance pill ("₹/credits: 42 · Buy more") pulling from `getCompanyWallet`.
-2. **Quick actions row** — 4 tiles (Post a job, Search candidates, Invite team, Verify company) — context-aware: hides "Verify" when verified, highlights "Post a job" when activeJobs=0.
-3. **Stats row** — 5 compact cards with week-over-week deltas (applications this week vs prior week, views delta). Numbers tabular.
-4. **Two-column body**
-   - Left (lg:col-span-2): **Hiring pipeline mini-funnel** (Applied → Shortlisted → Interview → Offered → Hired) as a horizontal bar with counts; click → `/employer/jobs/:id/applicants`. Below: **Recent applicants** list (existing) with avatar, job title chip, status pill, "View" CTA.
-   - Right: **Active jobs** card (top 5 by applications, "Manage all" link), **Learning corner** for employers (reuse `learning_resources` filtered by `audience='employer'` if present, else fallback to all), **KYC checklist** (verify GST, upload logo, add About, invite teammate) — each row click-through.
-5. **Empty states** — illustrated empty for 0 jobs / 0 applicants with single primary CTA.
-6. **Mobile** — stats become 2×2, hero stacks, pipeline bar scrolls horizontally, sidebar moves below main.
+## 3. Analytics dashboard (real data)
 
-## Part 3 — Feature polish & bug-fix sweep
+Rewrite `/employer/reports` (and the dashboard stat cards) to compute real metrics:
+- **Server fn** `getEmployerAnalytics({ companyId, rangeDays })` in `src/lib/employer-analytics.functions.ts` using `requireSupabaseAuth` + membership check.
+- Metrics: total job views, applications, hires, unique candidates, conversion rate, **week-over-week delta** for views & applications, top 5 jobs by applications, applications by status, applications-per-day sparkline (last 30 days).
+- Add a lightweight `views_count` increment path on the public job page (server fn already increments) — verify it's wired; if missing, add `incrementJobViews`.
+- Report page UI: range switcher (7/30/90 days), 4 KPI cards with deltas, funnel bar (existing), top-jobs list, status breakdown donut (CSS-only), sparkline (inline SVG).
+- Loading skeletons + empty state ("Post a job to see analytics").
+- Dashboard `StatCard` `delta` values now come from the analytics fn (currently 0).
 
-**Jobs list (`employer/jobs.tsx`)**
-- Add result count + "Active / Paused / Closed" tab counts in pills.
-- Add "Duplicate" action (insert clone with status `draft`).
-- Make card layout collapse cleanly on mobile (action buttons wrap).
+## 4. Job responses + AI shortlist
 
-**Post a job (`employer/jobs.new.tsx`)**
-- Add a "Save as draft" button on every step (writes `status=draft`).
-- Step 1: replace category dropdown with chip grid (more tactile).
-- Step 2: add description templates (3 starter snippets users can insert).
-- Step 4: show a live preview card on the right (desktop) — uses existing `JobCard`.
-- Validate max_salary ≥ min_salary, pincode = 6 digits.
+New route `/employer/responses` — single inbox across all jobs:
+- Filters: job (dropdown), status, date range, search by candidate name/skill.
+- Table/cards with candidate avatar, job title, applied date, current status, quick actions: **Shortlist / Reject / Schedule interview / Hire / Message**.
+- Status update flows through existing `applications.status` (triggers handle notify + history + activity feed). Toast + optimistic update.
+- Bulk select + bulk status change.
 
-**Applicants kanban (`employer/jobs.$jobId.applicants.tsx`)**
-- Enable real drag-and-drop using native HTML5 DnD (no new packages) between columns — already half-wired.
-- Add filter chips (Source, City, Experience) above the board.
-- Sidebar profile pane: add resume preview link (signed url) and "Add note" textarea writing to existing `application_notes`.
-- Fix profile deep-link: currently `/u/$slug` uses `candidate_id` (UUID) as slug — switch to fetched `profile_slug` or open the sidebar's "View full profile" via slug lookup.
+**AI shortlist** — new tab "Recommended" on each job's applicants page and on `/employer/responses`:
+- Server fn `recommendShortlist({ jobId, limit })` — pulls applications + candidate profile (skills, experience, city, headline), scores via Lovable AI (Gemini Flash) against job's title/description/skills/min_experience, returns ranked list with `score 0-100` and `reasoning`.
+- Cache result for 1h in a new `application_ai_scores` table to avoid re-spending tokens; refresh button to invalidate.
+- UI: ranked list with score chip, top match reasons, one-click "Shortlist top N".
 
-**Company KYC (`employer/company.tsx`)**
-- Wire GST/PAN upload to `company_documents` (already exists); show pending/approved badge.
-- Add "Preview public page" button that opens `/c/$slug`.
+## 5. Onboarding end-to-end verification
 
-**Database (`employer/database.tsx`)**
-- Show wallet balance at top, low-balance nudge with link to `/employer/credits` when <5.
-- Block "Unlock" button with friendly toast when balance=0 instead of silent fail.
-- Add saved searches (localStorage only — no DB needed).
+Walk `src/routes/_authenticated/onboarding/employer.tsx` step-by-step in Playwright (signed-in via injected session) and verify each step:
+- **You**: updates `profiles.full_name`, `profiles.designation` (re-add if missing in profiles schema check), sets `signup_intent = 'employer'`.
+- **Company**: creates `companies` row, sets industry/size; `employer_members` row with `super_admin`; `employer_credit_wallets` seeded with `balance = 0`.
+- **City**: writes `companies.hq_city`, optional address.
+- **Brand/KYC**: uploads logo to `company-logos` bucket, writes `companies.logo_url`, `about`, `gst_number`, sets `verification_status = 'pending'`.
+- **First-job hint**: stores intent (job title + city) in `companies.metadata` jsonb (or skip and redirect to `/employer/jobs/new` prefilled).
+- On finish: `candidate_profiles`/profile `onboarding_completed = true` equivalent for employers — add `companies.onboarding_completed boolean default false` if missing, set true; redirect to `/employer/dashboard`.
+- Emit `team.joined` + `company.created` activity events.
+- Fix any field that currently writes to a missing column (verify against `supabase--read_query` on `companies` / `profiles`).
 
-**Credits (`employer/credits.tsx`)**
-- Display ledger with date grouping; add CSV export.
-- Confirmation dialog before Razorpay checkout shows pack details.
-- Handle stub mode gracefully (no Razorpay key → show "Contact sales" CTA).
+## Technical notes
 
-**Team (`employer/team.tsx`)**
-- Resend invite + copy invite link buttons (link already generated).
-- Role description tooltips.
-
-**Reports (`employer/reports.tsx`)**
-- Add 30-day applications trend (simple SVG sparkline, no chart lib).
-- Top performing jobs table.
-
-**Shell (`EmployerShell.tsx`)**
-- Persistent credit-balance chip in the top bar (desktop).
-- Mobile bottom nav: include Database alongside Dashboard / Jobs / Credits / Post.
-- Active company switcher dropdown in sidebar when user has >1 company.
-
-## Part 4 — Verification
-
-Drive Playwright via shell at 375px and 1280px through: `/onboarding/employer` (all steps), `/employer/dashboard`, `/employer/jobs`, `/employer/jobs/new`, an applicants page, `/employer/database`, `/employer/credits`, `/employer/team`, `/employer/reports`. Screenshot each. Confirm no overflow, the credit chip renders, kanban drag works, and the post-job wizard publishes a record.
-
-## Files touched
-
-- `src/routes/_authenticated/onboarding/employer.tsx` — full rewrite using `Questionnaire`
-- `src/routes/_authenticated/employer/dashboard.tsx` — new hero + pipeline + sidebar
-- `src/routes/_authenticated/employer/jobs.tsx` — counts, duplicate, mobile layout
-- `src/routes/_authenticated/employer/jobs.new.tsx` — draft, templates, preview, validation
-- `src/routes/_authenticated/employer/jobs.$jobId.applicants.tsx` — DnD, filters, notes, slug fix
-- `src/routes/_authenticated/employer/company.tsx` — KYC upload wiring, public preview
-- `src/routes/_authenticated/employer/database.tsx` — wallet nudges, saved searches
-- `src/routes/_authenticated/employer/credits.tsx` — ledger grouping, CSV, stub handling
-- `src/routes/_authenticated/employer/team.tsx` — resend / copy invite
-- `src/routes/_authenticated/employer/reports.tsx` — sparkline + top jobs
-- `src/components/employer/EmployerShell.tsx` — credit chip, mobile nav, company switcher
-- `src/lib/credits.functions.ts` — small helper if needed for wallet seed on onboarding
-
-No DB migrations. No new packages.
+- All new server fns: `createServerFn` + `requireSupabaseAuth` + company-membership guard via `has_company_membership` RPC.
+- All new tables follow GRANT-then-RLS pattern.
+- All new UI matches existing `EmployerShell` design language (rounded-2xl cards, `shadow-[var(--shadow-card)]`, primary blue tokens, lucide icons — no `Sparkles`/`Star`).
+- Mobile responsive: every new screen tested at 375px.
 
 ## Out of scope
 
-- Messaging / chat with candidates
-- Bulk resume import
-- Multi-currency or invoicing
-- Color/token changes
+- Messaging/chat between employer and candidate (only the action button + toast "Coming soon" for now).
+- Email delivery for invites (still copy-link flow).
+- Razorpay changes.
+
+## Order of execution
+
+1. Migration: `employer_activity` + triggers + `application_ai_scores` + `companies.onboarding_completed`.
+2. Activity feed component + dashboard integration + `/employer/activity` route.
+3. Team page hardening.
+4. Analytics server fn + reports page rewrite + dashboard deltas.
+5. Responses inbox + AI shortlist server fn + UI.
+6. Playwright onboarding walkthrough + fixes.

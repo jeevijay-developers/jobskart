@@ -1,9 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { BarChart3, Eye, Users, TrendingUp } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { BarChart3, Briefcase, Eye, TrendingUp, Users } from "lucide-react";
 import { EmployerShell, StatCard } from "@/components/employer/EmployerShell";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchMyCompanies, getActiveCompanyId, type EmployerMembership } from "@/lib/employer";
+import { fetchMyCompanies, getActiveCompanyId } from "@/lib/employer";
+import { getEmployerAnalytics, type EmployerAnalytics } from "@/lib/employer-analytics.functions";
 
 export const Route = createFileRoute("/_authenticated/employer/reports")({
   head: () => ({ meta: [{ title: "Reports · JobsKart Employer" }] }),
@@ -11,130 +13,158 @@ export const Route = createFileRoute("/_authenticated/employer/reports")({
 });
 
 function ReportsPage() {
-  const [active, setActive] = useState<EmployerMembership | null>(null);
+  const [cid, setCid] = useState<string | null>(null);
+  const [range, setRange] = useState<7 | 30 | 90>(30);
+  const [data, setData] = useState<EmployerAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({ jobs: 0, apps: 0, views: 0, hired: 0 });
-  const [funnel, setFunnel] = useState({ submitted: 0, reviewed: 0, shortlisted: 0, interview: 0, hired: 0, rejected: 0 });
+  const fetchAnalytics = useServerFn(getEmployerAnalytics);
 
   useEffect(() => {
     (async () => {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) return;
-      const ms = await fetchMyCompanies(u.user.id);
-      const storedId = getActiveCompanyId();
-      const chosen = ms.find((m) => m.company_id === storedId) ?? ms[0] ?? null;
-      setActive(chosen);
-      if (chosen) {
-        const cid = chosen.company_id;
-        const [{ data: jobs }] = await Promise.all([
-          supabase.from("jobs").select("id, applications_count, views_count, status").eq("company_id", cid),
-        ]);
-        const jobIds = (jobs || []).map((j) => j.id);
-        const safeIds = jobIds.length ? jobIds : ["00000000-0000-0000-0000-000000000000"];
-        const [
-          { count: applied },
-          { count: shortlisted },
-          { count: interview },
-          { count: hired },
-          { count: rejected },
-          { count: withdrawn },
-        ] = await Promise.all([
-          supabase.from("applications").select("id", { count: "exact", head: true }).in("job_id", safeIds).eq("status", "applied"),
-          supabase.from("applications").select("id", { count: "exact", head: true }).in("job_id", safeIds).eq("status", "shortlisted"),
-          supabase.from("applications").select("id", { count: "exact", head: true }).in("job_id", safeIds).eq("status", "interview"),
-          supabase.from("applications").select("id", { count: "exact", head: true }).in("job_id", safeIds).eq("status", "hired"),
-          supabase.from("applications").select("id", { count: "exact", head: true }).in("job_id", safeIds).eq("status", "rejected"),
-          supabase.from("applications").select("id", { count: "exact", head: true }).in("job_id", safeIds).eq("status", "withdrawn"),
-        ]);
-        setStats({
-          jobs: (jobs || []).length,
-          apps: (jobs || []).reduce((a, b) => a + (b.applications_count || 0), 0),
-          views: (jobs || []).reduce((a, b) => a + (b.views_count || 0), 0),
-          hired: hired || 0,
-        });
-        setFunnel({
-          submitted: applied || 0,
-          reviewed: 0,
-          shortlisted: shortlisted || 0,
-          interview: interview || 0,
-          hired: hired || 0,
-          rejected: (rejected || 0) + (withdrawn || 0),
-        });
+      let id = getActiveCompanyId();
+      if (!id) {
+        const { data: u } = await supabase.auth.getUser();
+        if (u.user) {
+          const ms = await fetchMyCompanies(u.user.id);
+          id = ms[0]?.company_id ?? null;
+        }
       }
-      setLoading(false);
+      setCid(id);
     })();
   }, []);
 
-  if (loading) {
+  useEffect(() => {
+    if (!cid) return;
+    setLoading(true);
+    fetchAnalytics({ data: { companyId: cid, rangeDays: range } })
+      .then((r) => setData(r as EmployerAnalytics))
+      .finally(() => setLoading(false));
+  }, [cid, range, fetchAnalytics]);
+
+  if (loading || !data) {
     return (
       <EmployerShell title="Reports">
-        <div className="h-40 animate-pulse rounded-2xl bg-card" />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-28 animate-pulse rounded-2xl bg-card" />
+          ))}
+        </div>
+        <div className="mt-6 h-64 animate-pulse rounded-2xl bg-card" />
       </EmployerShell>
     );
   }
 
-  const max = Math.max(funnel.submitted, 1);
+  const max = Math.max(data.funnel.applied, 1);
   const stages: Array<[string, number]> = [
-    ["Submitted", funnel.submitted],
-    ["Reviewed", funnel.reviewed],
-    ["Shortlisted", funnel.shortlisted],
-    ["Interview", funnel.interview],
-    ["Hired", funnel.hired],
-    ["Rejected", funnel.rejected],
+    ["Applied", data.funnel.applied],
+    ["Shortlisted", data.funnel.shortlisted],
+    ["Interview", data.funnel.interview],
+    ["Hired", data.funnel.hired],
+    ["Rejected", data.funnel.rejected + data.funnel.withdrawn],
   ];
 
-  return (
-    <EmployerShell title="Reports" subtitle="Hiring performance for your company.">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Total jobs" value={stats.jobs} tone="primary" hint="All time" />
-        <StatCard label="Applications" value={stats.apps} tone="success" hint="All time" />
-        <StatCard label="Profile views" value={stats.views} tone="muted" hint="All time" />
-        <StatCard label="Hires" value={stats.hired} tone="success" hint="Closed" />
-      </div>
+  const maxDay = Math.max(...data.daily.map((d) => d.applications), 1);
+  const empty = data.totals.jobs === 0;
 
-      <section className="mt-6 rounded-2xl border border-border bg-card p-5">
-        <div className="mb-4 flex items-center gap-2">
-          <BarChart3 className="h-4 w-4 text-primary" />
-          <h2 className="text-base font-bold text-foreground">Application funnel</h2>
-        </div>
-        <div className="space-y-3">
-          {stages.map(([label, value]) => (
-            <div key={label}>
-              <div className="mb-1 flex items-center justify-between text-xs font-semibold text-muted-foreground">
-                <span>{label}</span>
-                <span className="tabular-nums text-foreground">{value}</span>
-              </div>
-              <div className="h-2 overflow-hidden rounded-full bg-surface">
-                <div
-                  className="h-full rounded-full bg-primary"
-                  style={{ width: `${Math.round((value / max) * 100)}%` }}
-                />
-              </div>
-            </div>
+  return (
+    <EmployerShell
+      title="Reports"
+      subtitle="Hiring performance with real data, refreshed live."
+      actions={
+        <div className="inline-flex rounded-lg border border-border bg-card p-0.5">
+          {([7, 30, 90] as const).map((r) => (
+            <button
+              key={r}
+              onClick={() => setRange(r)}
+              className={`rounded-md px-3 py-1.5 text-xs font-semibold ${
+                range === r ? "bg-primary text-primary-foreground" : "text-foreground/70 hover:bg-surface"
+              }`}
+            >{r}d</button>
           ))}
         </div>
-      </section>
+      }
+    >
+      {empty ? (
+        <div className="rounded-2xl border border-dashed border-border bg-surface p-10 text-center">
+          <BarChart3 className="mx-auto mb-2 h-6 w-6 text-muted-foreground" />
+          <p className="text-sm font-semibold">Post your first job to see analytics</p>
+          <p className="mt-1 text-xs text-muted-foreground">Views, applications, and pipeline metrics show up here.</p>
+        </div>
+      ) : (
+        <>
+          <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+            <StatCard label="Active jobs" value={data.totals.activeJobs} tone="primary" hint={`${data.totals.jobs} total`} />
+            <StatCard label="Applications" value={data.totals.applications} tone="success" delta={data.deltas.applications} hint={`Last ${range}d`} />
+            <StatCard label="Job views" value={data.totals.views} tone="muted" hint="All time" />
+            <StatCard label="Conversion" value={`${data.conversionRate}%`} tone="warning" hint="Apply / view" />
+          </div>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2">
-        <div className="rounded-2xl border border-border bg-card p-5">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <Eye className="mr-1 inline h-3.5 w-3.5" />
-            Avg. views per job
-          </p>
-          <p className="mt-2 text-2xl font-bold text-foreground tabular-nums">
-            {stats.jobs ? Math.round(stats.views / stats.jobs) : 0}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-border bg-card p-5">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <Users className="mr-1 inline h-3.5 w-3.5" />
-            Apply rate
-          </p>
-          <p className="mt-2 text-2xl font-bold text-foreground tabular-nums">
-            {stats.views ? Math.round((stats.apps / stats.views) * 100) : 0}%
-          </p>
-        </div>
-      </div>
+          <div className="mt-6 grid gap-6 lg:grid-cols-3">
+            <section className="lg:col-span-2 rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
+              <div className="mb-4 flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-primary" />
+                <h2 className="text-base font-bold">Applications · last {range} days</h2>
+              </div>
+              <div className="flex h-32 items-end gap-0.5">
+                {data.daily.map((d) => (
+                  <div key={d.date} className="group relative flex-1">
+                    <div
+                      className="w-full rounded-t bg-primary/80 transition-colors hover:bg-primary"
+                      style={{ height: `${(d.applications / maxDay) * 100}%`, minHeight: d.applications ? "2px" : "0" }}
+                      title={`${d.date}: ${d.applications}`}
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="mt-2 flex justify-between text-[10px] text-muted-foreground">
+                <span>{data.daily[0]?.date.slice(5)}</span>
+                <span>{data.daily[data.daily.length - 1]?.date.slice(5)}</span>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
+              <div className="mb-4 flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-primary" />
+                <h2 className="text-base font-bold">Pipeline</h2>
+              </div>
+              <div className="space-y-3">
+                {stages.map(([label, value]) => (
+                  <div key={label}>
+                    <div className="mb-1 flex items-center justify-between text-xs font-semibold text-muted-foreground">
+                      <span>{label}</span>
+                      <span className="tabular-nums text-foreground">{value}</span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-surface">
+                      <div className="h-full rounded-full bg-primary" style={{ width: `${Math.round((value / max) * 100)}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+
+          <section className="mt-6 rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
+            <div className="mb-3 flex items-center gap-2">
+              <Briefcase className="h-4 w-4 text-primary" />
+              <h2 className="text-base font-bold">Top performing jobs</h2>
+            </div>
+            <ul className="divide-y divide-border">
+              {data.topJobs.map((j) => (
+                <li key={j.id} className="flex items-center justify-between gap-3 py-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold">{j.title}</p>
+                    <p className="text-[11px] text-muted-foreground">Status: {j.status}</p>
+                  </div>
+                  <div className="flex shrink-0 gap-4 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1"><Eye className="h-3.5 w-3.5" /><span className="tabular-nums text-foreground">{j.views}</span></span>
+                    <span className="flex items-center gap-1"><Users className="h-3.5 w-3.5" /><span className="tabular-nums text-foreground">{j.applications}</span></span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        </>
+      )}
     </EmployerShell>
   );
 }

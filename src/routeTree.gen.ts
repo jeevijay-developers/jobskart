@@ -28,12 +28,14 @@ import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authentic
 import { Route as AuthenticatedOnboardingEmployerRouteImport } from './routes/_authenticated/onboarding/employer'
 import { Route as AuthenticatedOnboardingCandidateRouteImport } from './routes/_authenticated/onboarding/candidate'
 import { Route as AuthenticatedEmployerTeamRouteImport } from './routes/_authenticated/employer/team'
+import { Route as AuthenticatedEmployerResponsesRouteImport } from './routes/_authenticated/employer/responses'
 import { Route as AuthenticatedEmployerReportsRouteImport } from './routes/_authenticated/employer/reports'
 import { Route as AuthenticatedEmployerJobsRouteImport } from './routes/_authenticated/employer/jobs'
 import { Route as AuthenticatedEmployerDatabaseRouteImport } from './routes/_authenticated/employer/database'
 import { Route as AuthenticatedEmployerDashboardRouteImport } from './routes/_authenticated/employer/dashboard'
 import { Route as AuthenticatedEmployerCreditsRouteImport } from './routes/_authenticated/employer/credits'
 import { Route as AuthenticatedEmployerCompanyRouteImport } from './routes/_authenticated/employer/company'
+import { Route as AuthenticatedEmployerActivityRouteImport } from './routes/_authenticated/employer/activity'
 import { Route as AuthenticatedCandidateSavedRouteImport } from './routes/_authenticated/candidate/saved'
 import { Route as AuthenticatedCandidateProfileRouteImport } from './routes/_authenticated/candidate/profile'
 import { Route as AuthenticatedCandidateDashboardRouteImport } from './routes/_authenticated/candidate/dashboard'
@@ -148,6 +150,12 @@ const AuthenticatedEmployerTeamRoute =
     path: '/employer/team',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedEmployerResponsesRoute =
+  AuthenticatedEmployerResponsesRouteImport.update({
+    id: '/employer/responses',
+    path: '/employer/responses',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedEmployerReportsRoute =
   AuthenticatedEmployerReportsRouteImport.update({
     id: '/employer/reports',
@@ -182,6 +190,12 @@ const AuthenticatedEmployerCompanyRoute =
   AuthenticatedEmployerCompanyRouteImport.update({
     id: '/employer/company',
     path: '/employer/company',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedEmployerActivityRoute =
+  AuthenticatedEmployerActivityRouteImport.update({
+    id: '/employer/activity',
+    path: '/employer/activity',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedCandidateSavedRoute =
@@ -308,12 +322,14 @@ export interface FileRoutesByFullPath {
   '/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
   '/candidate/profile': typeof AuthenticatedCandidateProfileRoute
   '/candidate/saved': typeof AuthenticatedCandidateSavedRoute
+  '/employer/activity': typeof AuthenticatedEmployerActivityRoute
   '/employer/company': typeof AuthenticatedEmployerCompanyRoute
   '/employer/credits': typeof AuthenticatedEmployerCreditsRoute
   '/employer/dashboard': typeof AuthenticatedEmployerDashboardRoute
   '/employer/database': typeof AuthenticatedEmployerDatabaseRoute
   '/employer/jobs': typeof AuthenticatedEmployerJobsRouteWithChildren
   '/employer/reports': typeof AuthenticatedEmployerReportsRoute
+  '/employer/responses': typeof AuthenticatedEmployerResponsesRoute
   '/employer/team': typeof AuthenticatedEmployerTeamRoute
   '/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
   '/onboarding/employer': typeof AuthenticatedOnboardingEmployerRoute
@@ -350,12 +366,14 @@ export interface FileRoutesByTo {
   '/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
   '/candidate/profile': typeof AuthenticatedCandidateProfileRoute
   '/candidate/saved': typeof AuthenticatedCandidateSavedRoute
+  '/employer/activity': typeof AuthenticatedEmployerActivityRoute
   '/employer/company': typeof AuthenticatedEmployerCompanyRoute
   '/employer/credits': typeof AuthenticatedEmployerCreditsRoute
   '/employer/dashboard': typeof AuthenticatedEmployerDashboardRoute
   '/employer/database': typeof AuthenticatedEmployerDatabaseRoute
   '/employer/jobs': typeof AuthenticatedEmployerJobsRouteWithChildren
   '/employer/reports': typeof AuthenticatedEmployerReportsRoute
+  '/employer/responses': typeof AuthenticatedEmployerResponsesRoute
   '/employer/team': typeof AuthenticatedEmployerTeamRoute
   '/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
   '/onboarding/employer': typeof AuthenticatedOnboardingEmployerRoute
@@ -394,12 +412,14 @@ export interface FileRoutesById {
   '/_authenticated/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
   '/_authenticated/candidate/profile': typeof AuthenticatedCandidateProfileRoute
   '/_authenticated/candidate/saved': typeof AuthenticatedCandidateSavedRoute
+  '/_authenticated/employer/activity': typeof AuthenticatedEmployerActivityRoute
   '/_authenticated/employer/company': typeof AuthenticatedEmployerCompanyRoute
   '/_authenticated/employer/credits': typeof AuthenticatedEmployerCreditsRoute
   '/_authenticated/employer/dashboard': typeof AuthenticatedEmployerDashboardRoute
   '/_authenticated/employer/database': typeof AuthenticatedEmployerDatabaseRoute
   '/_authenticated/employer/jobs': typeof AuthenticatedEmployerJobsRouteWithChildren
   '/_authenticated/employer/reports': typeof AuthenticatedEmployerReportsRoute
+  '/_authenticated/employer/responses': typeof AuthenticatedEmployerResponsesRoute
   '/_authenticated/employer/team': typeof AuthenticatedEmployerTeamRoute
   '/_authenticated/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
   '/_authenticated/onboarding/employer': typeof AuthenticatedOnboardingEmployerRoute
@@ -438,12 +458,14 @@ export interface FileRouteTypes {
     | '/candidate/dashboard'
     | '/candidate/profile'
     | '/candidate/saved'
+    | '/employer/activity'
     | '/employer/company'
     | '/employer/credits'
     | '/employer/dashboard'
     | '/employer/database'
     | '/employer/jobs'
     | '/employer/reports'
+    | '/employer/responses'
     | '/employer/team'
     | '/onboarding/candidate'
     | '/onboarding/employer'
@@ -480,12 +502,14 @@ export interface FileRouteTypes {
     | '/candidate/dashboard'
     | '/candidate/profile'
     | '/candidate/saved'
+    | '/employer/activity'
     | '/employer/company'
     | '/employer/credits'
     | '/employer/dashboard'
     | '/employer/database'
     | '/employer/jobs'
     | '/employer/reports'
+    | '/employer/responses'
     | '/employer/team'
     | '/onboarding/candidate'
     | '/onboarding/employer'
@@ -523,12 +547,14 @@ export interface FileRouteTypes {
     | '/_authenticated/candidate/dashboard'
     | '/_authenticated/candidate/profile'
     | '/_authenticated/candidate/saved'
+    | '/_authenticated/employer/activity'
     | '/_authenticated/employer/company'
     | '/_authenticated/employer/credits'
     | '/_authenticated/employer/dashboard'
     | '/_authenticated/employer/database'
     | '/_authenticated/employer/jobs'
     | '/_authenticated/employer/reports'
+    | '/_authenticated/employer/responses'
     | '/_authenticated/employer/team'
     | '/_authenticated/onboarding/candidate'
     | '/_authenticated/onboarding/employer'
@@ -690,6 +716,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedEmployerTeamRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/employer/responses': {
+      id: '/_authenticated/employer/responses'
+      path: '/employer/responses'
+      fullPath: '/employer/responses'
+      preLoaderRoute: typeof AuthenticatedEmployerResponsesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/employer/reports': {
       id: '/_authenticated/employer/reports'
       path: '/employer/reports'
@@ -730,6 +763,13 @@ declare module '@tanstack/react-router' {
       path: '/employer/company'
       fullPath: '/employer/company'
       preLoaderRoute: typeof AuthenticatedEmployerCompanyRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/employer/activity': {
+      id: '/_authenticated/employer/activity'
+      path: '/employer/activity'
+      fullPath: '/employer/activity'
+      preLoaderRoute: typeof AuthenticatedEmployerActivityRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/candidate/saved': {
@@ -900,12 +940,14 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCandidateDashboardRoute: typeof AuthenticatedCandidateDashboardRoute
   AuthenticatedCandidateProfileRoute: typeof AuthenticatedCandidateProfileRoute
   AuthenticatedCandidateSavedRoute: typeof AuthenticatedCandidateSavedRoute
+  AuthenticatedEmployerActivityRoute: typeof AuthenticatedEmployerActivityRoute
   AuthenticatedEmployerCompanyRoute: typeof AuthenticatedEmployerCompanyRoute
   AuthenticatedEmployerCreditsRoute: typeof AuthenticatedEmployerCreditsRoute
   AuthenticatedEmployerDashboardRoute: typeof AuthenticatedEmployerDashboardRoute
   AuthenticatedEmployerDatabaseRoute: typeof AuthenticatedEmployerDatabaseRoute
   AuthenticatedEmployerJobsRoute: typeof AuthenticatedEmployerJobsRouteWithChildren
   AuthenticatedEmployerReportsRoute: typeof AuthenticatedEmployerReportsRoute
+  AuthenticatedEmployerResponsesRoute: typeof AuthenticatedEmployerResponsesRoute
   AuthenticatedEmployerTeamRoute: typeof AuthenticatedEmployerTeamRoute
   AuthenticatedOnboardingCandidateRoute: typeof AuthenticatedOnboardingCandidateRoute
   AuthenticatedOnboardingEmployerRoute: typeof AuthenticatedOnboardingEmployerRoute
@@ -918,12 +960,14 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCandidateDashboardRoute: AuthenticatedCandidateDashboardRoute,
   AuthenticatedCandidateProfileRoute: AuthenticatedCandidateProfileRoute,
   AuthenticatedCandidateSavedRoute: AuthenticatedCandidateSavedRoute,
+  AuthenticatedEmployerActivityRoute: AuthenticatedEmployerActivityRoute,
   AuthenticatedEmployerCompanyRoute: AuthenticatedEmployerCompanyRoute,
   AuthenticatedEmployerCreditsRoute: AuthenticatedEmployerCreditsRoute,
   AuthenticatedEmployerDashboardRoute: AuthenticatedEmployerDashboardRoute,
   AuthenticatedEmployerDatabaseRoute: AuthenticatedEmployerDatabaseRoute,
   AuthenticatedEmployerJobsRoute: AuthenticatedEmployerJobsRouteWithChildren,
   AuthenticatedEmployerReportsRoute: AuthenticatedEmployerReportsRoute,
+  AuthenticatedEmployerResponsesRoute: AuthenticatedEmployerResponsesRoute,
   AuthenticatedEmployerTeamRoute: AuthenticatedEmployerTeamRoute,
   AuthenticatedOnboardingCandidateRoute: AuthenticatedOnboardingCandidateRoute,
   AuthenticatedOnboardingEmployerRoute: AuthenticatedOnboardingEmployerRoute,
