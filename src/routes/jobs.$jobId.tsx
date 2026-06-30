@@ -85,6 +85,7 @@ function JobDetailPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [applied, setApplied] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [savingBookmark, setSavingBookmark] = useState(false);
   const [tab, setTab] = useState<"overview" | "company">("overview");
   const [applyOpen, setApplyOpen] = useState(false);
   const [applicantCount, setApplicantCount] = useState<number>(0);
