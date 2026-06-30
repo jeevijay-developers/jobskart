@@ -10,12 +10,20 @@ import {
   CheckCircle2,
   Clock,
   Flag,
+  Gift,
   GraduationCap,
   IndianRupee,
+  Languages,
   Loader2,
   MapPin,
+  Moon,
   Share2,
+  Sparkles,
+  Sun,
+  Sunrise,
+  Target,
   Users,
+  Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Navbar } from "@/components/site/Navbar";
@@ -355,38 +363,75 @@ function JobDetailPage() {
                       ) : null}
                     </Block>
 
-                    <div className="grid gap-6 sm:grid-cols-2">
-                      <Block title="Requirements">
-                        <ul className="space-y-2 text-sm text-foreground/80">
-                          <Req icon={GraduationCap} label="Education" value={job.education || "Any"} />
-                          <Req icon={Briefcase} label="Experience" value={formatExperience(job.min_experience_years, job.max_experience_years)} />
-                          {job.english_level ? <Req icon={CheckCircle2} label="English" value={job.english_level} /> : null}
-                        </ul>
-                      </Block>
-                      {(job.skills?.length || 0) > 0 && (
-                        <Block title="Skills required">
-                          <div className="flex flex-wrap gap-1.5">
-                            {job.skills!.map((s) => (
-                              <span key={s} className="rounded-full bg-primary-light px-2.5 py-1 text-xs font-medium text-primary">
-                                {s}
-                              </span>
-                            ))}
-                          </div>
-                        </Block>
-                      )}
-                    </div>
+                    <Block title="Job requirements">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <ReqCard
+                          icon={Briefcase}
+                          label="Experience"
+                          value={formatExperience(job.min_experience_years, job.max_experience_years)}
+                          hint={(job.min_experience_years ?? 0) === 0 ? "Freshers welcome" : "Relevant experience"}
+                        />
+                        <ReqCard
+                          icon={GraduationCap}
+                          label="Education"
+                          value={job.education || "Any qualification"}
+                        />
+                        <ReqCard
+                          icon={Languages}
+                          label="English"
+                          value={job.english_level || "Not required"}
+                        />
+                        <ReqCard
+                          icon={Users}
+                          label="Openings"
+                          value={`${job.openings ?? 1} position${(job.openings ?? 1) > 1 ? "s" : ""}`}
+                        />
+                      </div>
+                    </Block>
 
-                    {(job.perks?.length || 0) > 0 && (
-                      <Block title="Perks & benefits">
+                    <Block title="Skills required">
+                      {(job.skills?.length || 0) > 0 ? (
                         <div className="flex flex-wrap gap-2">
-                          {job.perks!.map((p) => (
-                            <span key={p} className="inline-flex items-center gap-1.5 rounded-full bg-success-light px-3 py-1 text-xs font-medium text-success">
-                              <CheckCircle2 className="h-3 w-3" /> {p}
+                          {job.skills!.map((s) => (
+                            <span
+                              key={s}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary-light px-3 py-1.5 text-xs font-medium text-primary"
+                            >
+                              <Target className="h-3 w-3" /> {s}
                             </span>
                           ))}
                         </div>
-                      </Block>
-                    )}
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No specific skills listed — employer is open to candidates with relevant aptitude.</p>
+                      )}
+                    </Block>
+
+                    <Block title="Shift & work schedule">
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        <ShiftCard icon={shiftIcon(job.shift)} label="Shift" value={job.shift ? `${job.shift}` : "Flexible"} />
+                        <ShiftCard icon={Clock} label="Job type" value={jobTypeLabel(job.job_type)} />
+                        <ShiftCard icon={MapPin} label="Work mode" value={workModeLabel(job.work_mode)} />
+                      </div>
+                    </Block>
+
+                    <Block title="Benefits & perks">
+                      {(job.perks?.length || 0) > 0 || job.fixed_pay || job.incentives_text ? (
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          {job.fixed_pay ? (
+                            <Benefit icon={Wallet} text="Fixed monthly pay" />
+                          ) : null}
+                          {job.incentives_text ? (
+                            <Benefit icon={Sparkles} text={`Incentives: ${job.incentives_text}`} />
+                          ) : null}
+                          {(job.perks || []).map((p) => (
+                            <Benefit key={p} icon={Gift} text={p} />
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No additional benefits listed.</p>
+                      )}
+                    </Block>
+
 
                     {job.walkin && (
                       <Block title="Walk-in details">
@@ -580,6 +625,46 @@ function Req({ icon: Icon, label, value }: { icon: typeof IndianRupee; label: st
       </span>
     </li>
   );
+}
+function ReqCard({ icon: Icon, label, value, hint }: { icon: typeof IndianRupee; label: string; value: string; hint?: string }) {
+  return (
+    <div className="flex items-start gap-3 rounded-xl border border-border bg-card p-3.5 transition-colors hover:border-primary/30 hover:bg-primary-light/30">
+      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary-light text-primary">
+        <Icon className="h-4.5 w-4.5" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+        <p className="text-sm font-semibold text-foreground">{value}</p>
+        {hint ? <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p> : null}
+      </div>
+    </div>
+  );
+}
+function ShiftCard({ icon: Icon, label, value }: { icon: typeof IndianRupee; label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-border bg-gradient-to-br from-card to-surface p-3 text-center">
+      <div className="mx-auto mb-2 grid h-10 w-10 place-items-center rounded-full bg-primary-light text-primary">
+        <Icon className="h-5 w-5" />
+      </div>
+      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="mt-0.5 text-sm font-semibold capitalize text-foreground">{value}</p>
+    </div>
+  );
+}
+function Benefit({ icon: Icon, text }: { icon: typeof IndianRupee; text: string }) {
+  return (
+    <div className="flex items-start gap-2.5 rounded-lg border border-success/20 bg-success-light/40 p-2.5">
+      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+      <span className="text-sm text-foreground/85">{text}</span>
+    </div>
+  );
+}
+function shiftIcon(shift: string | null) {
+  const s = (shift || "").toLowerCase();
+  if (s.includes("night")) return Moon;
+  if (s.includes("morning") || s.includes("early")) return Sunrise;
+  if (s.includes("day")) return Sun;
+  return Clock;
 }
 function Side({ icon: Icon, label, value }: { icon: typeof IndianRupee; label: string; value: string }) {
   return (
