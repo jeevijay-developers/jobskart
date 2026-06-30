@@ -1,74 +1,73 @@
-## Root-cause finding (critical)
+## Fix plan for employer onboarding, job posting, candidate apply, database filters, and company documents
 
-The live preview console is throwing `permission denied for function has_company_membership` on every read of `public.jobs`, signed-in or not. The database has these helper functions:
+### Root causes found
 
-- `has_company_membership(uuid, uuid)` — **no EXECUTE for `anon` or `authenticated`**
-- `has_company_role(uuid, uuid, employer_role)` — same
-- `user_companies(uuid)` — same
-- `find_auth_user_by_phone_or_email(text, text)` — same
+1. **Employer login redirects too early**
+   - `src/routes/auth.tsx` sends employers directly to `/employer/dashboard` after OTP, even when no company exists or company onboarding is incomplete.
 
-But the RLS policies on `jobs`, `companies`, `applications`, `employer_members`, `employer_invites`, `application_notes`, `application_status_history`, `application_ai_scores`, `candidate_unlocks`, `credit_transactions`, `employer_credit_wallets`, `employer_activity`, `candidate_documents`, and `notifications` all call these helpers. Without EXECUTE the whole expression fails, so PostgREST returns 401/`42501` and the page renders empty.
+2. **Job posting/onboarding save failures**
+   - Frontend uses `work_mode = "on_site"` in multiple places, while the database enum is `onsite | remote | hybrid | field`. This can break job insert/update and candidate preference save.
+   - Employer onboarding creates a credit wallet from the browser. That can fail with RLS/permission issues and blocks onboarding.
 
-Visible symptoms today:
-- `/jobs` shows nothing for everyone (the page in the screenshot)
-- `/c/$slug` (company pages) — empty jobs list
-- Homepage live stats render 0/0/0/0 (the `getPlatformStats` server fn hits the same RLS)
-- Employer dashboard, Responses, Reports, Jobs, Activity, Applicants — all silently fail to fetch
-- Mobile + OTP login can't look up existing users → first-time auto-create always runs
+3. **Candidate apply can fail**
+   - The application insert path also triggers notifications/history. If notification insert permissions or trigger grants are missing, apply fails even when the application data is valid.
 
-This is the highest-impact single fix. Everything else is downstream polish.
+4. **Employer database location filter is single-city only**
+   - `src/routes/_authenticated/employer/database.tsx` has one city field instead of a multi-location selector.
 
-## Plan
+5. **Company profile documents need full management**
+   - Existing `company_documents` and `company-docs` bucket support upload/read/delete, but the UI should expose edit details, upload new docs, status, and remove/re-upload actions clearly.
 
-### Phase 1 — Unblock data access (single migration)
+### Build-mode implementation steps
 
-1. `GRANT EXECUTE` on the four helper functions to `anon` and `authenticated`.
-2. Sanity-check policy coverage for the `cities`, `industries`, `job_categories`, `skills_master`, `job_titles_master`, `languages_master`, `candidate_assets_master`, `learning_resources`, `promo_banners` tables — confirm they have `TO anon SELECT` policies + grants so the homepage, autocompletes, and learning section render for logged-out users. Add only what is missing; do not widen anything else.
-3. Verify `employer_credit_wallets` has the `updated_at` column referenced by `apply_credit_delta`; add it if missing so unlock / purchase / grant transactions don't error.
+1. **Enforce employer onboarding before dashboard**
+   - Update `src/routes/auth.tsx` so after employer OTP login:
+     - If no company membership exists → `/onboarding/employer`
+     - If company exists but `companies.onboarding_completed = false` → `/onboarding/employer`
+     - Otherwise → `/employer/dashboard`
+   - Update `fetchMyCompanies` select to include `onboarding_completed`.
 
-### Phase 2 — Functional bug fixes (frontend)
+2. **Fix enum mismatch everywhere**
+   - Change `WORK_MODES` from `on_site` to `onsite` in `src/lib/options.ts`.
+   - Normalize old `on_site` values to `onsite` in candidate onboarding/profile and employer job form.
+   - Ensure new jobs insert `work_mode: "onsite"` by default.
 
-1. **Applicants kanban** (`employer/jobs.$jobId.applicants.tsx`): remove the `offered` column — it is not in the `application_status` enum, so any drop into it currently throws. Use `applied → shortlisted → interview → hired → rejected`.
-2. **Broken candidate profile link** in the applicants drawer: the link uses `candidate_id` against `/u/$slug`, but `/u/$slug` resolves by `candidate_profiles.profile_slug`. Fetch the slug alongside the application, fall back to hiding the link when the candidate has no public slug.
-3. **Legacy signup routes**: `signup.candidate.tsx` and `signup.employer.tsx` are still mounted but the product now uses only `/auth` (mobile + OTP). Replace both with a `beforeLoad` redirect to `/auth` so old links and emails don't dead-end.
-4. **Platform stats — cities**: count from `public.cities` (already populated) instead of distincting up to 1000 active jobs; show a real number on the landing hero.
-5. **OTP login resilience**: now that `find_auth_user_by_phone_or_email` is grantable, double-check `loginOrCreateWithMobile` returns the right `existing` flag so returning users land on `/candidate/dashboard` or `/employer/dashboard` instead of onboarding.
+3. **Make employer onboarding save robust**
+   - In `src/routes/_authenticated/onboarding/employer.tsx`, save company and employer member first.
+   - Mark `onboarding_completed: true` on the company.
+   - Move initial wallet creation to a server-side/admin-safe function or make it non-blocking so onboarding never fails because of wallet RLS.
+   - Keep first-job CTA redirecting to `/employer/jobs/new`.
 
-### Phase 3 — Responsive & UX polish
+4. **Make post-job form clickable and save correctly**
+   - Add a prominent mobile-visible “Post a job” action in `EmployerShell` bottom navigation / More menu.
+   - Update `src/routes/_authenticated/employer/jobs.new.tsx` to use valid enum values and friendlier validation.
+   - On successful first job save, redirect to job details/applicants or jobs list with a toast.
 
-1. **Employer mobile bottom nav** currently truncates to the first 4 items (Dashboard, Jobs, Responses, Database). Reports, Activity, Credits, Company, Team are unreachable on phones. Replace the 5th slot ("Post") with a "More" sheet that opens a drawer containing the remaining nav items and the "Post a job" CTA, so every section is reachable on mobile.
-2. **Candidate shell** parity: confirm the candidate bottom nav covers Dashboard, Jobs, Applications, Saved, Profile; add the missing entry if any is dropped.
-3. **Empty-state pass** on Reports, Activity, Responses, Database, Credits — show the existing empty cards I added when there is no data, instead of bare skeletons that never resolve.
-4. **Header overflow** on small screens: tighten the `EmployerShell` header grid so the company-switcher select doesn't push the title off-screen on 360px widths.
+5. **Fix candidate job details + apply**
+   - Verify `/jobs/$jobId` loader uses public active job access and handles auth/no-auth gracefully.
+   - Update `ApplyDialog` so the candidate can apply with an existing profile/resume and gets a clear duplicate-application message.
+   - Add a migration/grants if needed for notification/history trigger writes so application insert is not blocked.
 
-### Phase 4 — Verification
+6. **Multi-city hiring database filter**
+   - Replace single city filter in `src/routes/_authenticated/employer/database.tsx` with selectable city chips/search.
+   - Query candidates where `profiles.city` or `candidate_profiles.preferred_cities` overlaps any selected city.
+   - Show selected locations as removable filter chips.
 
-For each surface, drive Playwright against `http://localhost:8080` (anon + a restored Supabase session) and capture screenshots:
+7. **Company profile edit + document management**
+   - Expand `src/routes/_authenticated/employer/company.tsx` with editable company fields, logo/cover upload, GST/PAN fields, and document upload/delete.
+   - Show verification status, document type, uploaded date, and verified/rejected notes.
 
-- `/` — hero stats show real numbers, mockups render, CTAs work
-- `/jobs` and `/jobs?q=delivery` — at least one card renders, pagination works
-- `/c/<slug>` — company header + active jobs list
-- `/auth` — mobile + OTP for both new and existing users; redirect destinations correct
-- `/_authenticated/candidate/dashboard`, `/profile`, `/applications`, `/saved`
-- `/_authenticated/employer/dashboard`, `/jobs`, `/jobs/new`, `/responses`, `/jobs/<id>/applicants`, `/database`, `/credits`, `/reports`, `/activity`, `/team`, `/company`
-- `/admin/*` for a seeded super-admin
+8. **Database migration safety net**
+   - Add a migration for missing grants/columns if required:
+     - `GRANT EXECUTE` on helper functions used by RLS.
+     - `GRANT INSERT`/trigger-safe access for notifications/history where application triggers run.
+     - `employer_credit_wallets.updated_at` if missing.
 
-Run the Supabase linter after the migration to confirm no new RLS warnings, and `tsgo --noEmit` for a clean typecheck.
+### Verification checklist
 
-## Technical notes
-
-```sql
--- Phase 1 migration sketch
-GRANT EXECUTE ON FUNCTION public.has_company_membership(uuid, uuid) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.has_company_role(uuid, uuid, public.employer_role) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.user_companies(uuid)        TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.find_auth_user_by_phone_or_email(text, text) TO anon, authenticated;
-
--- Add only if missing:
-ALTER TABLE public.employer_credit_wallets
-  ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
-```
-
-These are pure GRANTs — they do not loosen RLS, because the helpers are `SECURITY DEFINER` and `STABLE`; the row visibility logic is unchanged. The fix simply lets PostgREST evaluate the policies instead of erroring out.
-
-No new tables, no policy rewrites, no schema renames. Estimated work: 1 migration + ~6 small file edits + Playwright verification.
+- New employer login → onboarding first → save → dashboard.
+- “Post my first job” and “Post a job” both open the job form on desktop and mobile.
+- Employer can create a valid active/draft job without “Could not save”.
+- Candidate dashboard job card → job detail opens → apply succeeds or shows duplicate message.
+- Employer database supports multiple selected cities/locations.
+- Company page edits save and documents upload/delete correctly.
