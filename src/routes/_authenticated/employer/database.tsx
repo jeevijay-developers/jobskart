@@ -67,7 +67,8 @@ function DatabasePage() {
 
   // filters
   const [q, setQ] = useState("");
-  const [city, setCity] = useState("");
+  const [selectedCities, setSelectedCities] = useState<string[]>([]);
+  const [cityInput, setCityInput] = useState("");
   const [minExp, setMinExp] = useState<number | "">("");
   const [results, setResults] = useState<Candidate[]>([]);
   const [unlockingId, setUnlockingId] = useState<string | null>(null);
