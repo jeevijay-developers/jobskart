@@ -547,9 +547,17 @@ function JobDetailPage() {
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   <button
                     onClick={toggleSave}
-                    className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-border bg-card text-sm font-medium text-foreground hover:bg-surface"
+                    disabled={savingBookmark}
+                    aria-pressed={saved}
+                    className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-border bg-card text-sm font-medium text-foreground transition-colors hover:bg-surface disabled:opacity-60"
                   >
-                    {saved ? <BookmarkCheck className="h-4 w-4 text-primary" /> : <Bookmark className="h-4 w-4" />}
+                    {savingBookmark ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : saved ? (
+                      <BookmarkCheck className="h-4 w-4 text-primary" />
+                    ) : (
+                      <Bookmark className="h-4 w-4" />
+                    )}
                     {saved ? "Saved" : "Save"}
                   </button>
                   <button
