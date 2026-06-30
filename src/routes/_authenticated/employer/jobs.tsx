@@ -196,7 +196,10 @@ function EmployerJobs() {
                       <Play className="h-4 w-4" /> Resume
                     </button>
                   ) : null}
-                  <button onClick={() => remove(j.id)} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-destructive hover:bg-destructive-light">
+                  <button onClick={() => duplicate(j.id)} title="Duplicate" className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-foreground hover:bg-surface">
+                    <Copy className="h-4 w-4" />
+                  </button>
+                  <button onClick={() => remove(j.id)} title="Delete" className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-destructive hover:bg-destructive-light">
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
