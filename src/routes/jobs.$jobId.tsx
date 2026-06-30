@@ -626,6 +626,46 @@ function Req({ icon: Icon, label, value }: { icon: typeof IndianRupee; label: st
     </li>
   );
 }
+function ReqCard({ icon: Icon, label, value, hint }: { icon: typeof IndianRupee; label: string; value: string; hint?: string }) {
+  return (
+    <div className="flex items-start gap-3 rounded-xl border border-border bg-card p-3.5 transition-colors hover:border-primary/30 hover:bg-primary-light/30">
+      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary-light text-primary">
+        <Icon className="h-4.5 w-4.5" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+        <p className="text-sm font-semibold text-foreground">{value}</p>
+        {hint ? <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p> : null}
+      </div>
+    </div>
+  );
+}
+function ShiftCard({ icon: Icon, label, value }: { icon: typeof IndianRupee; label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-border bg-gradient-to-br from-card to-surface p-3 text-center">
+      <div className="mx-auto mb-2 grid h-10 w-10 place-items-center rounded-full bg-primary-light text-primary">
+        <Icon className="h-5 w-5" />
+      </div>
+      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="mt-0.5 text-sm font-semibold capitalize text-foreground">{value}</p>
+    </div>
+  );
+}
+function Benefit({ icon: Icon, text }: { icon: typeof IndianRupee; text: string }) {
+  return (
+    <div className="flex items-start gap-2.5 rounded-lg border border-success/20 bg-success-light/40 p-2.5">
+      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+      <span className="text-sm text-foreground/85">{text}</span>
+    </div>
+  );
+}
+function shiftIcon(shift: string | null) {
+  const s = (shift || "").toLowerCase();
+  if (s.includes("night")) return Moon;
+  if (s.includes("morning") || s.includes("early")) return Sunrise;
+  if (s.includes("day")) return Sun;
+  return Clock;
+}
 function Side({ icon: Icon, label, value }: { icon: typeof IndianRupee; label: string; value: string }) {
   return (
     <div className="flex items-start gap-2">
