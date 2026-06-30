@@ -78,7 +78,7 @@ function JobDetailPage() {
   const [applied, setApplied] = useState(false);
   const [saved, setSaved] = useState(false);
   const [tab, setTab] = useState<"overview" | "company">("overview");
-  const [applying, setApplying] = useState(false);
+  const [applyOpen, setApplyOpen] = useState(false);
   const [applicantCount, setApplicantCount] = useState<number>(0);
   const [similar, setSimilar] = useState<JobCardData[]>([]);
 
