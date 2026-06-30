@@ -75,15 +75,15 @@ function NewJob() {
 
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
 
-  const validate = () => {
-    if (step === 0) {
+  const validateStep = (targetStep: number) => {
+    if (targetStep === 0) {
       if (!form.title.trim()) return "Add a job title.";
       if (!form.category) return "Pick a category.";
     }
-    if (step === 1) {
+    if (targetStep === 1) {
       if (form.description.trim().length < 30) return "Add a richer description (30+ chars).";
     }
-    if (step === 2) {
+    if (targetStep === 2) {
       if (!form.city) return "Pick a city.";
       if (!form.min_salary) return "Enter min salary.";
       if (form.max_salary && Number(form.max_salary) < Number(form.min_salary))
@@ -92,6 +92,8 @@ function NewJob() {
     }
     return null;
   };
+
+  const validate = () => validateStep(step);
 
   const next = () => {
     const err = validate();
@@ -106,6 +108,16 @@ function NewJob() {
       return;
     }
     if (!form.title.trim()) return toast.error("Add a job title first.");
+    if (!asDraft) {
+      for (let i = 0; i <= 2; i += 1) {
+        const err = validateStep(i);
+        if (err) {
+          setStep(i);
+          toast.error(err);
+          return;
+        }
+      }
+    }
     setSaving(true);
     try {
       let uid = userId;
