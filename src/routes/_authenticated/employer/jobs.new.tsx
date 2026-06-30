@@ -226,7 +226,7 @@ function NewJob() {
             </div>
           )}
 
-          <div className="mt-6 flex items-center justify-between">
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-2">
             <button
               type="button"
               disabled={step === 0}
@@ -235,15 +235,25 @@ function NewJob() {
             >
               <ArrowLeft className="h-4 w-4" /> Back
             </button>
-            {step < 3 ? (
-              <button onClick={next} className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark">
-                Next <ArrowRight className="h-4 w-4" />
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => publish(true)}
+                disabled={saving || !form.title.trim()}
+                className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-4 text-sm font-semibold text-foreground hover:bg-surface disabled:opacity-50"
+              >
+                Save as draft
               </button>
-            ) : (
-              <button onClick={publish} disabled={saving} className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-60">
-                {saving && <Loader2 className="h-4 w-4 animate-spin" />} Publish job
-              </button>
-            )}
+              {step < 3 ? (
+                <button onClick={next} className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark">
+                  Next <ArrowRight className="h-4 w-4" />
+                </button>
+              ) : (
+                <button onClick={() => publish(false)} disabled={saving} className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-60">
+                  {saving && <Loader2 className="h-4 w-4 animate-spin" />} Publish job
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
