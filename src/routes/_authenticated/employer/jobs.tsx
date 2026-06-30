@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { Briefcase, Eye, MoreVertical, Pause, Play, Plus, Trash2, Users } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Briefcase, Copy, Eye, Pause, Play, Plus, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 import { EmployerShell } from "@/components/employer/EmployerShell";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,6 +33,7 @@ function EmployerJobs() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [allJobs, setAllJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
@@ -44,26 +45,57 @@ function EmployerJobs() {
       const ms = await fetchMyCompanies(user.user.id);
       cid = ms[0]?.company_id ?? null;
     }
-    if (!cid) { setJobs([]); setLoading(false); return; }
-    let q = supabase
+    if (!cid) { setJobs([]); setAllJobs([]); setLoading(false); return; }
+    const { data, error } = await supabase
       .from("jobs")
       .select("id, title, city, status, job_type, min_salary, max_salary, salary_period, applications_count, views_count, created_at")
       .eq("company_id", cid)
       .order("created_at", { ascending: false });
-    if (statusFilter !== "all") q = q.eq("status", statusFilter as never);
-    if (search) q = q.ilike("title", `%${search}%`);
-    const { data, error } = await q;
     if (error) toast.error(error.message);
-    setJobs((data || []) as Job[]);
+    setAllJobs((data || []) as Job[]);
     setLoading(false);
   };
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [statusFilter, search]);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+
+  // client-side filter so counts always render
+  useEffect(() => {
+    let res = allJobs;
+    if (statusFilter !== "all") res = res.filter((j) => j.status === statusFilter);
+    if (search.trim()) {
+      const t = search.toLowerCase();
+      res = res.filter((j) => j.title.toLowerCase().includes(t));
+    }
+    setJobs(res);
+  }, [allJobs, statusFilter, search]);
+
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { all: allJobs.length };
+    for (const s of ["active", "paused", "closed", "draft"]) {
+      c[s] = allJobs.filter((j) => j.status === s).length;
+    }
+    return c;
+  }, [allJobs]);
 
   const setStatus = async (id: string, status: "active" | "paused" | "closed") => {
     const { error } = await supabase.from("jobs").update({ status } as never).eq("id", id);
     if (error) return toast.error(error.message);
     toast.success(`Job ${status}.`);
+    load();
+  };
+  const duplicate = async (id: string) => {
+    const orig = allJobs.find((j) => j.id === id);
+    if (!orig) return;
+    const { data: full, error: fErr } = await supabase.from("jobs").select("*").eq("id", id).single();
+    if (fErr || !full) return toast.error(fErr?.message || "Could not load job");
+    const f = full as Record<string, unknown>;
+    delete f.id; delete f.created_at; delete f.updated_at; delete f.slug;
+    delete f.applications_count; delete f.views_count; delete f.quality_score;
+    f.title = `${orig.title} (copy)`;
+    f.status = "draft";
+    const { error } = await supabase.from("jobs").insert(f as never);
+    if (error) return toast.error(error.message);
+    toast.success("Job duplicated as draft.");
     load();
   };
   const remove = async (id: string) => {
