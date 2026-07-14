@@ -12,6 +12,7 @@ import {
   Flag,
   Gift,
   GraduationCap,
+  Download,
   IndianRupee,
   Languages,
   Loader2,
