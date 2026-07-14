@@ -395,13 +395,40 @@ function JobDetailPage() {
                     </div>
 
                     <Block title="Job description">
-                      <p className="whitespace-pre-line text-sm leading-6 text-foreground/80">
-                        {job.description || "No description provided."}
-                      </p>
-                      {job.incentives_text ? (
+                      {job.description_html ? (
+                        <div className="prose prose-sm max-w-none text-sm leading-6 text-foreground/80" dangerouslySetInnerHTML={{ __html: job.description_html }} />
+                      ) : (
+                        <p className="whitespace-pre-line text-sm leading-6 text-foreground/80">
+                          {job.description || "No description provided."}
+                        </p>
+                      )}
+                      {job.pay_type === "fixed_incentive" && job.avg_incentive_monthly ? (
+                        <p className="mt-3 rounded-lg border border-success/20 bg-success-light/40 p-3 text-sm text-foreground/80">
+                          <span className="font-semibold text-success">Earning potential: </span>
+                          Up to ₹{((job.max_salary || job.min_salary || 0) + job.avg_incentive_monthly).toLocaleString("en-IN")}/month (fixed + avg incentive)
+                        </p>
+                      ) : job.incentives_text ? (
                         <p className="mt-3 rounded-lg border border-success/20 bg-success-light/40 p-3 text-sm text-foreground/80">
                           <span className="font-semibold text-success">Incentives: </span>
                           {job.incentives_text}
+                        </p>
+                      ) : null}
+                      {job.interview_type ? (
+                        <div className="mt-4 rounded-lg border border-border bg-surface p-3 text-sm">
+                          <p className="font-semibold text-foreground">Interview</p>
+                          <p className="mt-1 text-foreground/80">
+                            {job.interview_type === "in_person" ? "In-person" : "Telephonic"}
+                            {job.interview_type === "in_person" && job.interview_address
+                              ? ` · ${[job.interview_address, job.interview_locality, job.interview_city].filter(Boolean).join(", ")}`
+                              : job.interview_type === "in_person" && job.interview_same_as_company
+                                ? " · at company address"
+                                : ""}
+                          </p>
+                        </div>
+                      ) : null}
+                      {job.joining_fee_required ? (
+                        <p className="mt-3 rounded-lg border border-warning/30 bg-warning-light/40 p-3 text-xs text-foreground/80">
+                          <span className="font-semibold text-warning">Note:</span> Joining fee or deposit applicable.
                         </p>
                       ) : null}
                     </Block>
