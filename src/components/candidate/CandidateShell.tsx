@@ -1,5 +1,5 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Bell, Bookmark, FileText, FolderOpen, LayoutDashboard, Search, Settings, UserRound } from "lucide-react";
+import { Bell, Bookmark, CalendarCheck, FileText, FolderOpen, LayoutDashboard, Search, Settings, UserRound, Zap } from "lucide-react";
 import type { ReactNode } from "react";
 import { Navbar } from "@/components/site/Navbar";
 
@@ -7,13 +7,15 @@ const navItems = [
   { to: "/candidate/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/jobs", label: "Browse jobs", icon: Search },
   { to: "/candidate/applications", label: "Applications", icon: FileText },
+  { to: "/candidate/interviews", label: "Interviews", icon: CalendarCheck },
   { to: "/candidate/saved", label: "Saved jobs", icon: Bookmark },
+  { to: "/candidate/alerts", label: "Job alerts", icon: Zap },
   { to: "/candidate/notifications", label: "Notifications", icon: Bell },
   { to: "/candidate/documents", label: "Documents", icon: FolderOpen },
   { to: "/candidate/profile", label: "Profile", icon: UserRound },
   { to: "/candidate/settings", label: "Settings", icon: Settings },
 ] as const;
-const mobileItems = navItems.filter((i) => ["/candidate/dashboard","/jobs","/candidate/applications","/candidate/notifications","/candidate/profile"].includes(i.to));
+const mobileItems = navItems.filter((i) => ["/candidate/dashboard","/jobs","/candidate/applications","/candidate/interviews","/candidate/profile"].includes(i.to));
 
 export function CandidateShell({ title, subtitle, children, actions }: { title: string; subtitle?: string; children: ReactNode; actions?: ReactNode }) {
   const { pathname } = useLocation();
@@ -53,7 +55,6 @@ export function CandidateShell({ title, subtitle, children, actions }: { title: 
         </main>
       </div>
 
-      {/* Mobile bottom nav */}
       <nav className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-5 border-t border-border bg-card/95 backdrop-blur lg:hidden">
         {mobileItems.map((item) => {
           const active = pathname === item.to || pathname.startsWith(item.to + "/");

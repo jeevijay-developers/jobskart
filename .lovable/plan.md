@@ -1,125 +1,109 @@
 
-# JobsKart — Completion & Bug-Fix Plan
+# JobsKart — Phase 3+ Completion Plan
 
-Below is a full audit of what exists, what's broken, and what's missing across every panel, plus a phased plan to close it.
-
----
-
-## A. Bugs & Regressions (fix first)
-
-1. **SSR hydration mismatches on `/`** — console shows `__gcrremoteframetoken` and input-attribute mismatches. Wrap the hero search form + client-only widgets with a hydration-safe boundary (mount after `useHydrated()`), and remove any `Math.random()` / `Date.now()` used during render.
-2. **OTP is stub / dev-only** — `auth-mobile.functions.ts` mints magic-links; no real SMS. Either wire a provider (MSG91 / Twilio) behind a secret, or lock the stub behind `DEV` and show a clear "test OTP: 000000" banner in non-prod previews. Add rate-limit + attempt lockout.
-3. **"Coming soon" leftovers** — DigiLocker card on candidate dashboard, "Company details coming soon" on job detail. Either build (company about pulled from `companies.about`) or hide.
-4. **Sign-in reflect state** — verify Navbar swaps "Sign in" for account menu after login in all viewports; audit for the "click Sign in, nothing happens" trap.
-5. **Sign-out hygiene** — ensure `cancelQueries → clear → signOut → navigate('/auth', replace:true)` is used everywhere.
-6. **Job detail save CTA** — guests hit `toast.info` only; add proper "Sign in to save" redirect preserving job id.
-7. **Applications withdraw** uses `window.confirm` — replace with AlertDialog.
-8. **RLS/GRANT audit** — run linter, fix any table missing anon-safe policy for public reads (jobs, companies, cities, industries, categories, skills_master, promo_banners).
-9. **`ApplyDialog` resume flow** — verify storage bucket policy for `candidate-docs`; ensure signed URL used for employer viewing.
-10. **Employer post-job** — confirm redirect after publish lands on `/employer/jobs/:id/applicants`; verify onboarding-completed guard.
+Building all four priority tracks: bulk job posting, AI response matching, interview scheduling, smart candidate matching — plus animated dashboards and app-like mobile polish.
 
 ---
 
-## B. Candidate Panel — Gaps
+## 1. Bulk Job Posting (Employer)
 
-Existing: dashboard, profile, applications, saved. Missing / thin:
+**Route:** `/employer/jobs/bulk`
 
-1. **Notifications page** (`/candidate/notifications`) — list from `notifications` table with mark-read / mark-all-read; today only the bell dropdown exists.
-2. **Interview schedule page** (`/candidate/interviews`) — new light table `candidate_interviews` (job_id, application_id, mode, scheduled_at, address/link, status) + list UI + ICS download.
-3. **Messages / Chat** with employer (`/candidate/messages`) — thread per application; realtime via Supabase channel. (Optional MVP: read-only status timeline from `application_status_history`.)
-4. **Documents** (`/candidate/documents`) — manage resumes, ID proofs, certificates in `candidate_documents` (already exists); set primary resume used by ApplyDialog.
-5. **Settings** (`/candidate/settings`) — mobile change (OTP re-verify), email, WhatsApp opt-in, notification prefs, delete account (soft).
-6. **Job Alerts** (`/candidate/alerts`) — saved searches → daily email/WA; table `candidate_job_alerts` + pg_cron dispatcher (edge webhook).
-7. **Public profile** (`/u/:slug`) — route exists; verify masking rules for unauth viewers and unlock gating for employers.
-8. **Onboarding polish** — save partial progress on each step (currently only end-of-wizard); resume where left off.
-9. **Profile completeness nudges** — inline missing-field CTAs on dashboard (skills, education, preferred cities, expected salary).
-
----
-
-## C. Employer Panel — Gaps
-
-Existing: dashboard, jobs list, jobs.new (4-step), applicants, responses, database, credits, company, team, activity, reports. Missing / thin:
-
-1. **Edit job** (`/employer/jobs/:id/edit`) — no edit route; today only create. Reuse wizard, prefill from row.
-2. **Job clone / repost / close** — actions on jobs list; already partially in row menu, ensure all wired and audited.
-3. **Applicant workspace** — add bulk shortlist/reject, notes (table exists), stage kanban, download resume, message candidate, schedule interview button.
-4. **Interviews** (`/employer/interviews`) — schedule from applicant row, calendar view, ICS + WhatsApp reminders.
-5. **Company profile** — allow logo/cover/GST/CIN upload + verification badge request; today edit exists but doc upload flow needs storage wiring + admin verification queue.
-6. **Database search** — multi-city filter is in; add: experience range slider, notice period, salary, skills (AND/OR), education, gender/age (compliance-flagged), saved searches, CSV export (credit-gated).
-7. **Credit ledger** — add invoice PDF download per transaction (reuse `jd-pdf` pattern).
-8. **Team roles** — invite email currently magic-link; confirm expiry, add "resend"/"revoke".
-9. **Reports** — thin; add funnel (posted → applied → shortlisted → hired), time-to-hire, source of hire, credits burn chart.
-10. **Onboarding** — auto-create wallet + trial credits (e.g. 5 free unlocks) on company create.
+- **Excel template generator** (`src/lib/jd-bulk-template.ts`) using `xlsx` npm package:
+  - Sheet 1 "Jobs" with 15 columns: title, category, city (comma-sep), job_type, work_mode, exp_min, exp_max, salary_min, salary_max, openings, skills (comma-sep), education, description, earning_potential, apply_deadline
+  - Sheet 2 "Instructions" with rules + examples
+  - Sheet 3 "Reference" with valid values (cities, categories, job types) — used as source for Data Validation dropdowns on Sheet 1
+  - "Download template" button pre-fills the reference sheet from live masters
+- **Upload UI** (drag-drop XLSX/CSV → parse in-browser with `xlsx` → preview table with row-level validation errors → "Fix inline" editable cells → "Publish N jobs" button)
+- **Server fn** `bulkCreateJobs` (`src/lib/jobs-bulk.functions.ts`) validates rows against masters, inserts in batch, returns per-row status. Auto-generates JD via existing `jd-template.ts` when description empty.
+- Bottom-sheet progress modal with success/error count + link to jobs list
 
 ---
 
-## D. Super Admin Panel — Gaps
+## 2. AI Response Matching
 
-Existing but stubby (dashboard=33 lines, jobs=56, resumes=34).
+**New table** `application_match_scores` (score 0-100, breakdown jsonb, matched_at) — extends existing `application_ai_scores`.
 
-1. **Dashboard** — real KPIs: DAU, signups (7/30d), jobs posted, applications, credits sold, revenue, top companies, top cities.
-2. **Users** — filter by type/status, impersonate (server fn issuing scoped magic-link), suspend, delete, reset mobile.
-3. **Companies** — verify KYC docs (approve/reject with reason), feature toggle, credit grant.
-4. **Jobs** — moderation queue (reported jobs via `job_reports`), take down, feature/pin, edit category.
-5. **Resumes / Candidates** — search, flag, export.
-6. **Credits** — pack CRUD (table exists), Razorpay txn viewer, refunds.
-7. **Masters** — cities/skills/industries/categories/job-titles/languages/assets CRUD (partial today).
-8. **Banners** — schedule + target audience (candidate/employer/city).
-9. **Learning resources** — CRUD + publish state.
-10. **Reports & exports** — CSV of any list; audit log viewer (`employer_activity` + new `platform_audit`).
-
----
-
-## E. Cross-cutting / Platform
-
-1. **Notifications** — server fn to send WhatsApp (MSG91/Interakt) + email (Resend) on: application received, status change, interview scheduled, invite. Templates in `supabase` migrations.
-2. **File storage** — audit `candidate-docs`, `company-docs`, `avatars`, `company-logos` policies; use signed URLs everywhere.
-3. **SEO** — leaf routes need real `head()` (jobs list, job detail, company page, candidate public profile); add JSON-LD `JobPosting` on job detail; sitemap route `/api/public/sitemap.xml`; robots.
-4. **PWA / mobile polish** — install prompt, bottom nav on candidate too, safe-area padding.
-5. **Error/Not-found** — ensure every route has `errorComponent` + `notFoundComponent`.
-6. **Analytics** — page-view + event hooks (apply, unlock, purchase); store in `analytics_events` table.
-7. **Rate limits & abuse** — OTP send/verify, apply spam, unlock throttle.
-8. **i18n stub** — Hindi toggle (copy-only, later).
-9. **Legal pages** — /terms, /privacy, /refunds, /contact (contact_messages table exists).
+- **Server fn** `scoreApplication` — Gemini 2.0 Flash: JD + candidate profile → JSON `{score, strengths[], gaps[], summary}`. Called on application insert via trigger → edge queue OR on-demand from applicant row.
+- **Auto-scoring trigger:** `tg_applications_score_on_insert` enqueues score job (writes to `application_match_scores` with status='pending'); resolved by background poll from applicant page (`useQuery` with `refetchInterval` until scored).
+- **Applicant page upgrades** (`jobs.$jobId.applicants.tsx`):
+  - Match % badge (green ≥80, amber 60-79, grey <60) on every row
+  - Sort by match, filter by min-match slider
+  - Expandable row shows strengths/gaps
+  - Bulk "Auto-shortlist ≥ threshold" action (employer-settable per job, default 80)
+- **Job setting:** `auto_shortlist_threshold` column on `jobs` (default null=off). Step 4 of post-job wizard adds this control.
+- **Candidate side:** on `/jobs/:id` and job cards, compute match client-side against the signed-in candidate profile (skills overlap + experience + city) — instant, no AI call. Show ring badge "78% match — you're a strong fit". Guests see "Sign in to see your match".
 
 ---
 
-## F. Phased Rollout
+## 3. Interview Scheduling
 
-**Phase 1 — Stability (1 pass)**
-Bugs A1–A10, remove "coming soon", RLS audit, SSR mismatch fix, sign-in/out hygiene, apply flow verification.
+**New table** `interviews`:
+```
+id, application_id, company_id, candidate_id, job_id,
+mode (video|phone|onsite), scheduled_at, duration_min,
+location, meeting_url, notes, status (scheduled|confirmed|rescheduled|cancelled|completed),
+created_by, created_at, updated_at
+```
++ policies (candidate reads own, company members read/write theirs) + activity trigger + notification trigger.
 
-**Phase 2 — Candidate completion**
-Notifications page, Documents, Settings, Interviews (read-only), Job Alerts (schema + list), onboarding partial-save.
-
-**Phase 3 — Employer completion**
-Edit job, applicant bulk actions + notes UI, Interviews (schedule), Company KYC upload + verification request, Database advanced filters + CSV, trial credits on signup.
-
-**Phase 4 — Admin completion**
-Real dashboard KPIs, KYC approval queue, job moderation, credit pack CRUD, banners scheduler, masters CRUD, audit log.
-
-**Phase 5 — Growth & polish**
-WhatsApp/Email notifications, SEO + JSON-LD + sitemap, analytics events, legal pages, PWA polish.
+- **Employer:** `/employer/interviews` calendar (week + list view). "Schedule interview" button on applicant row opens dialog (date/time picker, mode, meeting URL auto-generated placeholder, notes). Sends notification + logs activity. ICS download.
+- **Candidate:** `/candidate/interviews` list with upcoming/past tabs, confirm/reschedule request buttons, "Add to calendar" (ICS).
+- **Notifications** on both bells; email/WhatsApp hook stubbed for later provider wiring.
 
 ---
 
-## G. Data Model Additions (summary)
+## 4. Smart Candidate Matching & Alerts
 
-- `candidate_interviews` (application_id, mode, scheduled_at, location, meeting_url, status)
-- `candidate_job_alerts` (user_id, query jsonb, frequency, last_sent_at)
-- `platform_audit` (actor_id, kind, target, metadata)
-- `analytics_events` (user_id, kind, path, props jsonb)
-- `notification_prefs` on `profiles` (email/whatsapp/sms booleans)
-
-All with GRANTs + RLS scoped to `auth.uid()` + service_role.
+- **Match % on `JobCard`** — client-side score for signed-in candidates (skills, city, exp, salary overlap). Adds a small ring next to the salary chip.
+- **1-tap apply:** `ApplyDialog` gains "Use my last resume" as default, so applying takes one click when a primary resume exists.
+- **Job Alerts** (`/candidate/alerts`): new table `candidate_job_alerts (query jsonb, frequency, is_active, last_sent_at)`. UI: name, keywords, city multi-select, salary min, category, frequency (daily/weekly), WhatsApp/email toggles. "Save current search as alert" button on `/jobs`.
+- **Alert delivery** is queued (pg_cron/edge) — plan lays groundwork; actual send is stubbed until provider is chosen.
 
 ---
 
-## H. Verification checklist (per phase)
+## 5. Attractiveness Pass
 
-- Build passes, no TS errors.
-- Playwright smoke: candidate signup → onboarding → apply → track; employer signup → onboarding → post → view applicant → unlock → schedule interview.
-- Supabase linter clean.
-- Lighthouse mobile ≥ 90 on `/`, `/jobs`, `/jobs/:id`.
+- **Animated dashboards** (both candidate + employer):
+  - `AnimatedCounter` component (framer-motion `useSpring`) for KPI tiles
+  - `Sparkline` (existing) + new `MiniAreaChart` for hiring funnel + applications-per-day
+  - Card hover states: subtle lift + shadow via existing `--shadow-card` tokens
+  - Skeleton shimmer on all queries (replaces "Loading…" text)
+- **Mobile app-like feel:**
+  - Candidate bottom nav (5 tabs) — mirror employer pattern already in `CandidateShell`
+  - Pull-to-refresh on candidate dashboard, applications, saved (custom hook wrapping `TouchEvents` + `queryClient.invalidateQueries`)
+  - Swipe on `JobCard` in mobile list: swipe-right = save, swipe-left = dismiss (framer-motion drag)
+  - Safe-area padding on all fixed bottom nav (`pb-[env(safe-area-inset-bottom)]`)
+  - Sticky "Apply" bar on `/jobs/:id` gets a scale-in animation on scroll past the header
 
-Approve this and I'll start Phase 1.
+---
+
+## Technical Details
+
+**New files**
+- `src/lib/jd-bulk-template.ts`, `src/lib/jobs-bulk.functions.ts`
+- `src/routes/_authenticated/employer/jobs.bulk.tsx`
+- `src/lib/matching.ts` (client-side score), `src/lib/matching.functions.ts` (AI scoring)
+- `src/routes/_authenticated/employer/interviews.tsx`
+- `src/routes/_authenticated/candidate/interviews.tsx`
+- `src/routes/_authenticated/candidate/alerts.tsx`
+- `src/components/employer/ScheduleInterviewDialog.tsx`
+- `src/components/common/AnimatedCounter.tsx`, `MiniAreaChart.tsx`, `Shimmer.tsx`
+- `src/hooks/use-pull-to-refresh.tsx`, `use-swipe.tsx`
+
+**Deps to add**
+- `xlsx` (SheetJS) for template + parse
+- (framer-motion already installed)
+
+**Migrations**
+1. `interviews` + `application_match_scores` + `candidate_job_alerts` tables (with GRANTs, RLS, triggers)
+2. `jobs.auto_shortlist_threshold int` column
+
+**Order of build**
+1. Migrations → 2. Bulk sheet → 3. AI match + applicant page upgrades → 4. Interviews → 5. Alerts + candidate match ring → 6. Animation/mobile polish across dashboards
+
+Ship in that order so each step is independently usable.
+
+---
+
+Approve and I'll start with the migrations and the bulk-posting flow, then work through the rest.

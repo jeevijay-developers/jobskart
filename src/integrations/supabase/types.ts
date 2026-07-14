@@ -83,6 +83,56 @@ export type Database = {
           },
         ]
       }
+      application_match_scores: {
+        Row: {
+          application_id: string
+          candidate_id: string
+          company_id: string
+          created_at: string
+          gaps: Json | null
+          job_id: string
+          score: number | null
+          status: string
+          strengths: Json | null
+          summary: string | null
+          updated_at: string
+        }
+        Insert: {
+          application_id: string
+          candidate_id: string
+          company_id: string
+          created_at?: string
+          gaps?: Json | null
+          job_id: string
+          score?: number | null
+          status?: string
+          strengths?: Json | null
+          summary?: string | null
+          updated_at?: string
+        }
+        Update: {
+          application_id?: string
+          candidate_id?: string
+          company_id?: string
+          created_at?: string
+          gaps?: Json | null
+          job_id?: string
+          score?: number | null
+          status?: string
+          strengths?: Json | null
+          summary?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "application_match_scores_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: true
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       application_notes: {
         Row: {
           application_id: string
@@ -345,6 +395,48 @@ export type Database = {
           start_date?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      candidate_job_alerts: {
+        Row: {
+          created_at: string
+          email_enabled: boolean
+          frequency: string
+          id: string
+          is_active: boolean
+          last_sent_at: string | null
+          name: string
+          query: Json
+          updated_at: string
+          user_id: string
+          whatsapp_enabled: boolean
+        }
+        Insert: {
+          created_at?: string
+          email_enabled?: boolean
+          frequency?: string
+          id?: string
+          is_active?: boolean
+          last_sent_at?: string | null
+          name: string
+          query?: Json
+          updated_at?: string
+          user_id: string
+          whatsapp_enabled?: boolean
+        }
+        Update: {
+          created_at?: string
+          email_enabled?: boolean
+          frequency?: string
+          id?: string
+          is_active?: boolean
+          last_sent_at?: string | null
+          name?: string
+          query?: Json
+          updated_at?: string
+          user_id?: string
+          whatsapp_enabled?: boolean
         }
         Relationships: []
       }
@@ -983,6 +1075,82 @@ export type Database = {
         }
         Relationships: []
       }
+      interviews: {
+        Row: {
+          application_id: string | null
+          candidate_id: string
+          company_id: string
+          created_at: string
+          created_by: string | null
+          duration_min: number
+          id: string
+          job_id: string | null
+          location: string | null
+          meeting_url: string | null
+          mode: Database["public"]["Enums"]["interview_mode"]
+          notes: string | null
+          scheduled_at: string
+          status: Database["public"]["Enums"]["interview_status"]
+          updated_at: string
+        }
+        Insert: {
+          application_id?: string | null
+          candidate_id: string
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          duration_min?: number
+          id?: string
+          job_id?: string | null
+          location?: string | null
+          meeting_url?: string | null
+          mode?: Database["public"]["Enums"]["interview_mode"]
+          notes?: string | null
+          scheduled_at: string
+          status?: Database["public"]["Enums"]["interview_status"]
+          updated_at?: string
+        }
+        Update: {
+          application_id?: string | null
+          candidate_id?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          duration_min?: number
+          id?: string
+          job_id?: string | null
+          location?: string | null
+          meeting_url?: string | null
+          mode?: Database["public"]["Enums"]["interview_mode"]
+          notes?: string | null
+          scheduled_at?: string
+          status?: Database["public"]["Enums"]["interview_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interviews_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interviews_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interviews_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_categories: {
         Row: {
           created_at: string
@@ -1083,6 +1251,7 @@ export type Database = {
           age_max: number | null
           age_min: number | null
           applications_count: number | null
+          auto_shortlist_threshold: number | null
           avg_incentive_monthly: number | null
           boosted_until: string | null
           category: string | null
@@ -1146,6 +1315,7 @@ export type Database = {
           age_max?: number | null
           age_min?: number | null
           applications_count?: number | null
+          auto_shortlist_threshold?: number | null
           avg_incentive_monthly?: number | null
           boosted_until?: string | null
           category?: string | null
@@ -1209,6 +1379,7 @@ export type Database = {
           age_max?: number | null
           age_min?: number | null
           applications_count?: number | null
+          auto_shortlist_threshold?: number | null
           avg_incentive_monthly?: number | null
           boosted_until?: string | null
           category?: string | null
@@ -1793,6 +1964,13 @@ export type Database = {
       credit_txn_kind: "purchase" | "unlock" | "refund" | "bonus" | "adjustment"
       employer_role: "super_admin" | "hr_admin" | "recruiter"
       experience_status: "fresher" | "experienced" | "student"
+      interview_mode: "video" | "phone" | "onsite"
+      interview_status:
+        | "scheduled"
+        | "confirmed"
+        | "rescheduled"
+        | "cancelled"
+        | "completed"
       job_shift: "day" | "night" | "rotational" | "flexible"
       job_status: "draft" | "active" | "paused" | "closed" | "expired"
       job_type:
@@ -1951,6 +2129,14 @@ export const Constants = {
       credit_txn_kind: ["purchase", "unlock", "refund", "bonus", "adjustment"],
       employer_role: ["super_admin", "hr_admin", "recruiter"],
       experience_status: ["fresher", "experienced", "student"],
+      interview_mode: ["video", "phone", "onsite"],
+      interview_status: [
+        "scheduled",
+        "confirmed",
+        "rescheduled",
+        "cancelled",
+        "completed",
+      ],
       job_shift: ["day", "night", "rotational", "flexible"],
       job_status: ["draft", "active", "paused", "closed", "expired"],
       job_type: [
