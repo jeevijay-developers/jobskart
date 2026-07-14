@@ -180,59 +180,99 @@ function OnboardingPage() {
   }, [expStatus]);
   const currentLabel = visibleSteps[step] || visibleSteps[0];
 
+  // Throws with a readable label if a Supabase call returned an error.
+  const runOrThrow = async <T,>(
+    p: PromiseLike<{ error: { message: string } | null; data?: T }>,
+    label: string,
+  ): Promise<T | undefined> => {
+    const { error, data } = await p;
+    if (error) throw new Error(`${label}: ${error.message}`);
+    return data as T | undefined;
+  };
+
   const saveStep = async (advance: 1 | -1 | "finish") => {
     if (!uid) return;
     setSaving(true);
     try {
-      await supabase.from("profiles").update({ full_name: fullName, mobile, city }).eq("id", uid);
-      await supabase.from("candidate_profiles").update({
-        headline: headline || null,
-        date_of_birth: dob || null,
-        gender: gender || null,
-        experience_status: expStatus,
-        years_experience: years || 0,
-        last_role: lastRole || null,
-        skills,
-        assets,
-        preferred_job_types: jobTypes,
-        preferred_work_mode: workModes.join(","),
-        preferred_cities: preferredCities,
-        expected_salary: typeof expectedSalary === "number" ? expectedSalary : null,
-        notice_period_days: typeof noticeDays === "number" ? noticeDays : null,
-        resume_url: resume?.path || null,
-        resume_name: resume?.name || null,
-        profile_strength: strength,
-        whatsapp_number: whatsapp || null,
-        whatsapp_opt_in: whatsappOptIn,
-        highest_qualification: highestQualification || null,
-        interested_roles: interestedRoles,
-        onboarding_completed: advance === "finish" ? true : undefined,
-      }).eq("user_id", uid);
+      await runOrThrow(
+        supabase.from("profiles").update({ full_name: fullName, mobile, city }).eq("id", uid),
+        "Save basics",
+      );
+
+      // Ensure a candidate_profiles row exists before update (mobile-OTP signups may not have one yet)
+      await runOrThrow(
+        supabase.from("candidate_profiles").upsert(
+          { user_id: uid, experience_status: expStatus },
+          { onConflict: "user_id" },
+        ),
+        "Init profile",
+      );
+
+      await runOrThrow(
+        supabase.from("candidate_profiles").update({
+          headline: headline || null,
+          date_of_birth: dob || null,
+          gender: gender || null,
+          experience_status: expStatus,
+          years_experience: years || 0,
+          last_role: lastRole || null,
+          skills,
+          assets,
+          preferred_job_types: jobTypes,
+          preferred_work_mode: workModes.join(","),
+          preferred_cities: preferredCities,
+          expected_salary: typeof expectedSalary === "number" ? expectedSalary : null,
+          notice_period_days: typeof noticeDays === "number" ? noticeDays : null,
+          resume_url: resume?.path || null,
+          resume_name: resume?.name || null,
+          profile_strength: strength,
+          whatsapp_number: whatsapp || null,
+          whatsapp_opt_in: whatsappOptIn,
+          highest_qualification: highestQualification || null,
+          interested_roles: interestedRoles,
+          onboarding_completed: advance === "finish" ? true : undefined,
+        }).eq("user_id", uid),
+        "Save profile",
+      );
 
       if (currentLabel === "Experience") {
-        await supabase.from("candidate_experiences").delete().eq("user_id", uid);
+        await runOrThrow(
+          supabase.from("candidate_experiences").delete().eq("user_id", uid),
+          "Clear experience",
+        );
         if (experiences.length) {
-          await supabase.from("candidate_experiences").insert(experiences.map((e) => ({
-            user_id: uid, job_title: e.job_title, company_name: e.company_name,
-            start_date: e.start_date || null, end_date: e.is_current ? null : (e.end_date || null),
-            is_current: e.is_current, description: e.description || null,
-          })));
+          await runOrThrow(
+            supabase.from("candidate_experiences").insert(experiences.map((e) => ({
+              user_id: uid, job_title: e.job_title, company_name: e.company_name,
+              start_date: e.start_date || null, end_date: e.is_current ? null : (e.end_date || null),
+              is_current: e.is_current, description: e.description || null,
+            }))),
+            "Save experience",
+          );
         }
       }
       if (currentLabel === "Education" && highestQualification) {
-        // Persist highest qualification as a single education row; detailed entries live on the profile screen.
-        await supabase.from("candidate_education").delete().eq("user_id", uid).eq("level", highestQualification);
-        await supabase.from("candidate_education").insert({
-          user_id: uid,
-          level: highestQualification,
-        });
+        await runOrThrow(
+          supabase.from("candidate_education").delete().eq("user_id", uid).eq("level", highestQualification),
+          "Clear education",
+        );
+        await runOrThrow(
+          supabase.from("candidate_education").insert({ user_id: uid, level: highestQualification }),
+          "Save education",
+        );
       }
       if (currentLabel === "Skills & languages") {
-        await supabase.from("candidate_languages").delete().eq("user_id", uid);
+        await runOrThrow(
+          supabase.from("candidate_languages").delete().eq("user_id", uid),
+          "Clear languages",
+        );
         if (languages.length) {
-          await supabase.from("candidate_languages").insert(languages.map((l) => ({
-            user_id: uid, language: l.language, proficiency: l.proficiency, can_read: l.can_read, can_write: l.can_write,
-          })));
+          await runOrThrow(
+            supabase.from("candidate_languages").insert(languages.map((l) => ({
+              user_id: uid, language: l.language, proficiency: l.proficiency, can_read: l.can_read, can_write: l.can_write,
+            }))),
+            "Save languages",
+          );
         }
       }
 
@@ -241,10 +281,11 @@ function OnboardingPage() {
         navigate({ to: "/candidate/dashboard" });
         return;
       }
+      toast.success("Saved");
       setStep((s) => Math.max(0, Math.min(visibleSteps.length - 1, s + (advance as number))));
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error((e as Error).message || "Could not save. Please try again.");
     } finally {
       setSaving(false);
     }
