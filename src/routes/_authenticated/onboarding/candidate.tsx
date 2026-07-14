@@ -359,14 +359,22 @@ function OnboardingPage() {
     const fileErr = validateResumeFile(file);
     if (fileErr) return toast.error(fileErr);
     setUploading(true);
-    const ext = (file.name.split(".").pop() || "bin").toLowerCase();
-    const path = `${uid}/resume-${Date.now()}-${crypto.randomUUID()}.${ext}`;
-    const { error } = await supabase.storage.from("candidate-docs").upload(path, file, { upsert: true });
-    setUploading(false);
-    if (error) return toast.error(error.message);
-    setResume({ name: file.name, path });
-    await supabase.from("candidate_documents").insert({ user_id: uid, doc_type: "resume", file_path: path, file_name: file.name, size_bytes: file.size });
-    toast.success("Resume uploaded");
+    try {
+      const ext = (file.name.split(".").pop() || "bin").toLowerCase();
+      const path = `${uid}/resume-${Date.now()}-${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage.from("candidate-docs").upload(path, file, { upsert: true });
+      if (error) throw new Error(error.message);
+      setResume({ name: file.name, path });
+      const { error: docErr } = await supabase.from("candidate_documents").insert({
+        user_id: uid, doc_type: "resume", file_path: path, file_name: file.name, size_bytes: file.size,
+      });
+      if (docErr) console.warn("candidate_documents insert:", docErr.message);
+      toast.success("Resume uploaded");
+    } catch (e) {
+      toast.error((e as Error).message || "Upload failed");
+    } finally {
+      setUploading(false);
+    }
   };
 
   if (loading) {
