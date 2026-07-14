@@ -100,13 +100,19 @@ ${rows.map((r, i) => `${i + 1}. app_id=${r.application_id} name="${r.full_name}"
     }
 
     // Persist
-    const upserts = scores.map((s) => ({
-      application_id: s.application_id,
-      job_id: data.job_id,
-      score: s.score,
-      reason: s.reason,
-      model: apiKey ? "gemini-2.5-flash" : "heuristic",
-    }));
+    const rowById = Object.fromEntries(rows.map((r) => [r.application_id, r]));
+    const upserts = scores.map((s) => {
+      const r = rowById[s.application_id];
+      return {
+        application_id: s.application_id,
+        job_id: data.job_id,
+        company_id: job.company_id,
+        candidate_id: r?.candidate_id,
+        score: s.score,
+        summary: s.reason,
+        status: "scored",
+      };
+    });
     if (upserts.length) {
       await supabase.from("application_match_scores").upsert(upserts as never, { onConflict: "application_id" });
     }

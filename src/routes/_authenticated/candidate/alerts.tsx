@@ -12,7 +12,7 @@ export const Route = createFileRoute("/_authenticated/candidate/alerts")({
   component: Page,
 });
 
-type Alert = { id: string; keyword: string | null; city: string | null; frequency: string; created_at: string };
+type Alert = { id: string; name: string; query: { keyword?: string; city?: string } | null; frequency: string; created_at: string };
 
 function Page() {
   const [items, setItems] = useState<Alert[]>([]);
@@ -25,20 +25,22 @@ function Page() {
     const { data: u } = await supabase.auth.getUser();
     if (!u.user) return setLoading(false);
     const { data } = await supabase.from("candidate_job_alerts")
-      .select("id, keyword, city, frequency, created_at")
+      .select("id, name, query, frequency, created_at")
       .eq("user_id", u.user.id)
       .order("created_at", { ascending: false });
-    setItems((data || []) as Alert[]);
+    setItems((data || []) as unknown as Alert[]);
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
 
   const add = async () => {
-    if (!keyword.trim() && !city.trim()) return toast.error("Add a keyword or city");
+    const kw = keyword.trim(); const ct = city.trim();
+    if (!kw && !ct) return toast.error("Add a keyword or city");
     const { data: u } = await supabase.auth.getUser();
     if (!u.user) return;
+    const name = [kw, ct].filter(Boolean).join(" · ") || "New alert";
     const { error } = await supabase.from("candidate_job_alerts").insert({
-      user_id: u.user.id, keyword: keyword.trim() || null, city: city.trim() || null, frequency: freq,
+      user_id: u.user.id, name, query: { keyword: kw || null, city: ct || null }, frequency: freq,
     } as never);
     if (error) return toast.error(error.message);
     toast.success("Alert saved");
@@ -75,7 +77,7 @@ function Page() {
          ) : items.map((a) => (
            <div key={a.id} className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
              <div>
-               <p className="font-medium">{a.keyword || "Any role"}{a.city ? ` · ${a.city}` : ""}</p>
+               <p className="font-medium">{a.name}</p>
                <p className="text-xs text-muted-foreground uppercase">{a.frequency}</p>
              </div>
              <Button variant="ghost" size="sm" onClick={() => del(a.id)}><Trash2 className="h-4 w-4" /></Button>

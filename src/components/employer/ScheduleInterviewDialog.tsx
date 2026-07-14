@@ -27,7 +27,7 @@ export function ScheduleInterviewDialog({
     const { data: u } = await supabase.auth.getUser();
     const { error } = await supabase.from("interviews").insert({
       application_id: applicationId, job_id: jobId, candidate_id: candidateId,
-      company_id: companyId, scheduled_by: u.user?.id,
+      company_id: companyId, created_by: u.user?.id,
       scheduled_at: new Date(when).toISOString(),
       mode, location: location || null, meeting_url: url || null, notes: notes || null,
       status: "scheduled",
