@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, Check, Loader2, RefreshCw } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Download, Loader2, RefreshCw } from "lucide-react";
+import { downloadJdPdf } from "@/lib/jd-pdf";
 import { toast } from "sonner";
 import { EmployerShell } from "@/components/employer/EmployerShell";
 import { Field, ChipInput } from "@/components/candidate/primitives";
@@ -584,9 +585,33 @@ function NewJob() {
                       <h3 className="text-base font-semibold">Job description</h3>
                       <p className="text-xs text-muted-foreground">Auto-generated from your inputs. You can edit before publishing.</p>
                     </div>
-                    <button type="button" onClick={regenerate} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold hover:border-primary hover:text-primary">
-                      <RefreshCw className="h-3.5 w-3.5" /> Regenerate
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button type="button" onClick={regenerate} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold hover:border-primary hover:text-primary">
+                        <RefreshCw className="h-3.5 w-3.5" /> Regenerate
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const html = form.description_html || buildJd(jdInput).html;
+                          const salary = form.min_salary || form.max_salary
+                            ? `₹${form.min_salary || "?"}${form.max_salary ? `–${form.max_salary}` : ""}/mo`
+                            : undefined;
+                          downloadJdPdf({
+                            title: form.title || "Job Description",
+                            company: companyName,
+                            city: form.city || undefined,
+                            jobType: form.job_type?.replace("_", " "),
+                            workMode: form.work_mode,
+                            salary,
+                            html,
+                          });
+                        }}
+                        disabled={!form.title.trim()}
+                        className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-50"
+                      >
+                        <Download className="h-3.5 w-3.5" /> Download PDF
+                      </button>
+                    </div>
                   </div>
                   <div className="grid gap-4 lg:grid-cols-2">
                     <div>
