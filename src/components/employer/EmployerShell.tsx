@@ -12,6 +12,8 @@ import {
   Coins,
   MoreHorizontal,
   X,
+  CalendarCheck,
+  FileSpreadsheet,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
@@ -24,7 +26,9 @@ const nav = [
   { to: "/employer/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/employer/jobs", label: "Jobs", icon: Briefcase },
   { to: "/employer/responses", label: "Responses", icon: Inbox },
+  { to: "/employer/interviews", label: "Interviews", icon: CalendarCheck },
   { to: "/employer/database", label: "Database", icon: Database },
+  { to: "/employer/jobs/bulk", label: "Bulk post", icon: FileSpreadsheet },
   { to: "/employer/reports", label: "Reports", icon: BarChart3 },
   { to: "/employer/activity", label: "Activity", icon: Activity },
   { to: "/employer/credits", label: "Credits", icon: Coins },
