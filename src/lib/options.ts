@@ -87,4 +87,9 @@ export const INTERVIEW_TYPES = [
   { id: "telephonic", label: "Telephonic" },
 ];
 
-export const SHIFTS = ["Day","Night","Rotational","Flexible"];
+export const SHIFTS: { id: string; label: string }[] = [
+  { id: "day", label: "Day" },
+  { id: "night", label: "Night" },
+  { id: "rotational", label: "Rotational" },
+  { id: "flexible", label: "Flexible" },
+];
