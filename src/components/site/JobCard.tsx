@@ -46,6 +46,9 @@ export function JobCard({ job }: { job: JobCardData }) {
         <span className="flex items-center gap-1.5 text-foreground/80">
           <IndianRupee className="h-3.5 w-3.5 text-primary" />
           {formatSalary(job.min_salary, job.max_salary, job.salary_period || "monthly")}
+          {job.pay_type === "fixed_incentive" && job.avg_incentive_monthly
+            ? ` + up to ₹${job.avg_incentive_monthly.toLocaleString("en-IN")} incentive`
+            : ""}
         </span>
         <span className="flex items-center gap-1.5 text-foreground/80">
           <MapPin className="h-3.5 w-3.5 text-primary" /> {location}
