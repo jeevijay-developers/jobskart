@@ -424,6 +424,7 @@ export type Database = {
           last_role: string | null
           marital_status: string | null
           notice_period_days: number | null
+          notification_prefs: Json
           onboarding_completed: boolean
           preferred_cities: string[]
           preferred_job_types: string[]
@@ -458,6 +459,7 @@ export type Database = {
           last_role?: string | null
           marital_status?: string | null
           notice_period_days?: number | null
+          notification_prefs?: Json
           onboarding_completed?: boolean
           preferred_cities?: string[]
           preferred_job_types?: string[]
@@ -492,6 +494,7 @@ export type Database = {
           last_role?: string | null
           marital_status?: string | null
           notice_period_days?: number | null
+          notification_prefs?: Json
           onboarding_completed?: boolean
           preferred_cities?: string[]
           preferred_job_types?: string[]

@@ -1,5 +1,5 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Bookmark, FileText, LayoutDashboard, Search, UserRound } from "lucide-react";
+import { Bell, Bookmark, FileText, FolderOpen, LayoutDashboard, Search, Settings, UserRound } from "lucide-react";
 import type { ReactNode } from "react";
 import { Navbar } from "@/components/site/Navbar";
 
@@ -8,8 +8,12 @@ const navItems = [
   { to: "/jobs", label: "Browse jobs", icon: Search },
   { to: "/candidate/applications", label: "Applications", icon: FileText },
   { to: "/candidate/saved", label: "Saved jobs", icon: Bookmark },
+  { to: "/candidate/notifications", label: "Notifications", icon: Bell },
+  { to: "/candidate/documents", label: "Documents", icon: FolderOpen },
   { to: "/candidate/profile", label: "Profile", icon: UserRound },
+  { to: "/candidate/settings", label: "Settings", icon: Settings },
 ] as const;
+const mobileItems = navItems.filter((i) => ["/candidate/dashboard","/jobs","/candidate/applications","/candidate/notifications","/candidate/profile"].includes(i.to));
 
 export function CandidateShell({ title, subtitle, children, actions }: { title: string; subtitle?: string; children: ReactNode; actions?: ReactNode }) {
   const { pathname } = useLocation();
@@ -51,7 +55,7 @@ export function CandidateShell({ title, subtitle, children, actions }: { title: 
 
       {/* Mobile bottom nav */}
       <nav className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-5 border-t border-border bg-card/95 backdrop-blur lg:hidden">
-        {navItems.map((item) => {
+        {mobileItems.map((item) => {
           const active = pathname === item.to || pathname.startsWith(item.to + "/");
           const Icon = item.icon;
           return (

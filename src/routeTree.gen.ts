@@ -36,8 +36,11 @@ import { Route as AuthenticatedEmployerDashboardRouteImport } from './routes/_au
 import { Route as AuthenticatedEmployerCreditsRouteImport } from './routes/_authenticated/employer/credits'
 import { Route as AuthenticatedEmployerCompanyRouteImport } from './routes/_authenticated/employer/company'
 import { Route as AuthenticatedEmployerActivityRouteImport } from './routes/_authenticated/employer/activity'
+import { Route as AuthenticatedCandidateSettingsRouteImport } from './routes/_authenticated/candidate/settings'
 import { Route as AuthenticatedCandidateSavedRouteImport } from './routes/_authenticated/candidate/saved'
 import { Route as AuthenticatedCandidateProfileRouteImport } from './routes/_authenticated/candidate/profile'
+import { Route as AuthenticatedCandidateNotificationsRouteImport } from './routes/_authenticated/candidate/notifications'
+import { Route as AuthenticatedCandidateDocumentsRouteImport } from './routes/_authenticated/candidate/documents'
 import { Route as AuthenticatedCandidateDashboardRouteImport } from './routes/_authenticated/candidate/dashboard'
 import { Route as AuthenticatedCandidateApplicationsRouteImport } from './routes/_authenticated/candidate/applications'
 import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin/users'
@@ -198,6 +201,12 @@ const AuthenticatedEmployerActivityRoute =
     path: '/employer/activity',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedCandidateSettingsRoute =
+  AuthenticatedCandidateSettingsRouteImport.update({
+    id: '/candidate/settings',
+    path: '/candidate/settings',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedCandidateSavedRoute =
   AuthenticatedCandidateSavedRouteImport.update({
     id: '/candidate/saved',
@@ -208,6 +217,18 @@ const AuthenticatedCandidateProfileRoute =
   AuthenticatedCandidateProfileRouteImport.update({
     id: '/candidate/profile',
     path: '/candidate/profile',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedCandidateNotificationsRoute =
+  AuthenticatedCandidateNotificationsRouteImport.update({
+    id: '/candidate/notifications',
+    path: '/candidate/notifications',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedCandidateDocumentsRoute =
+  AuthenticatedCandidateDocumentsRouteImport.update({
+    id: '/candidate/documents',
+    path: '/candidate/documents',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedCandidateDashboardRoute =
@@ -320,8 +341,11 @@ export interface FileRoutesByFullPath {
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/candidate/applications': typeof AuthenticatedCandidateApplicationsRoute
   '/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
+  '/candidate/documents': typeof AuthenticatedCandidateDocumentsRoute
+  '/candidate/notifications': typeof AuthenticatedCandidateNotificationsRoute
   '/candidate/profile': typeof AuthenticatedCandidateProfileRoute
   '/candidate/saved': typeof AuthenticatedCandidateSavedRoute
+  '/candidate/settings': typeof AuthenticatedCandidateSettingsRoute
   '/employer/activity': typeof AuthenticatedEmployerActivityRoute
   '/employer/company': typeof AuthenticatedEmployerCompanyRoute
   '/employer/credits': typeof AuthenticatedEmployerCreditsRoute
@@ -364,8 +388,11 @@ export interface FileRoutesByTo {
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/candidate/applications': typeof AuthenticatedCandidateApplicationsRoute
   '/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
+  '/candidate/documents': typeof AuthenticatedCandidateDocumentsRoute
+  '/candidate/notifications': typeof AuthenticatedCandidateNotificationsRoute
   '/candidate/profile': typeof AuthenticatedCandidateProfileRoute
   '/candidate/saved': typeof AuthenticatedCandidateSavedRoute
+  '/candidate/settings': typeof AuthenticatedCandidateSettingsRoute
   '/employer/activity': typeof AuthenticatedEmployerActivityRoute
   '/employer/company': typeof AuthenticatedEmployerCompanyRoute
   '/employer/credits': typeof AuthenticatedEmployerCreditsRoute
@@ -410,8 +437,11 @@ export interface FileRoutesById {
   '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
   '/_authenticated/candidate/applications': typeof AuthenticatedCandidateApplicationsRoute
   '/_authenticated/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
+  '/_authenticated/candidate/documents': typeof AuthenticatedCandidateDocumentsRoute
+  '/_authenticated/candidate/notifications': typeof AuthenticatedCandidateNotificationsRoute
   '/_authenticated/candidate/profile': typeof AuthenticatedCandidateProfileRoute
   '/_authenticated/candidate/saved': typeof AuthenticatedCandidateSavedRoute
+  '/_authenticated/candidate/settings': typeof AuthenticatedCandidateSettingsRoute
   '/_authenticated/employer/activity': typeof AuthenticatedEmployerActivityRoute
   '/_authenticated/employer/company': typeof AuthenticatedEmployerCompanyRoute
   '/_authenticated/employer/credits': typeof AuthenticatedEmployerCreditsRoute
@@ -456,8 +486,11 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/candidate/applications'
     | '/candidate/dashboard'
+    | '/candidate/documents'
+    | '/candidate/notifications'
     | '/candidate/profile'
     | '/candidate/saved'
+    | '/candidate/settings'
     | '/employer/activity'
     | '/employer/company'
     | '/employer/credits'
@@ -500,8 +533,11 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/candidate/applications'
     | '/candidate/dashboard'
+    | '/candidate/documents'
+    | '/candidate/notifications'
     | '/candidate/profile'
     | '/candidate/saved'
+    | '/candidate/settings'
     | '/employer/activity'
     | '/employer/company'
     | '/employer/credits'
@@ -545,8 +581,11 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/users'
     | '/_authenticated/candidate/applications'
     | '/_authenticated/candidate/dashboard'
+    | '/_authenticated/candidate/documents'
+    | '/_authenticated/candidate/notifications'
     | '/_authenticated/candidate/profile'
     | '/_authenticated/candidate/saved'
+    | '/_authenticated/candidate/settings'
     | '/_authenticated/employer/activity'
     | '/_authenticated/employer/company'
     | '/_authenticated/employer/credits'
@@ -772,6 +811,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedEmployerActivityRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/candidate/settings': {
+      id: '/_authenticated/candidate/settings'
+      path: '/candidate/settings'
+      fullPath: '/candidate/settings'
+      preLoaderRoute: typeof AuthenticatedCandidateSettingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/candidate/saved': {
       id: '/_authenticated/candidate/saved'
       path: '/candidate/saved'
@@ -784,6 +830,20 @@ declare module '@tanstack/react-router' {
       path: '/candidate/profile'
       fullPath: '/candidate/profile'
       preLoaderRoute: typeof AuthenticatedCandidateProfileRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/candidate/notifications': {
+      id: '/_authenticated/candidate/notifications'
+      path: '/candidate/notifications'
+      fullPath: '/candidate/notifications'
+      preLoaderRoute: typeof AuthenticatedCandidateNotificationsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/candidate/documents': {
+      id: '/_authenticated/candidate/documents'
+      path: '/candidate/documents'
+      fullPath: '/candidate/documents'
+      preLoaderRoute: typeof AuthenticatedCandidateDocumentsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/candidate/dashboard': {
@@ -938,8 +998,11 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRouteRoute: typeof AuthenticatedAdminRouteRouteWithChildren
   AuthenticatedCandidateApplicationsRoute: typeof AuthenticatedCandidateApplicationsRoute
   AuthenticatedCandidateDashboardRoute: typeof AuthenticatedCandidateDashboardRoute
+  AuthenticatedCandidateDocumentsRoute: typeof AuthenticatedCandidateDocumentsRoute
+  AuthenticatedCandidateNotificationsRoute: typeof AuthenticatedCandidateNotificationsRoute
   AuthenticatedCandidateProfileRoute: typeof AuthenticatedCandidateProfileRoute
   AuthenticatedCandidateSavedRoute: typeof AuthenticatedCandidateSavedRoute
+  AuthenticatedCandidateSettingsRoute: typeof AuthenticatedCandidateSettingsRoute
   AuthenticatedEmployerActivityRoute: typeof AuthenticatedEmployerActivityRoute
   AuthenticatedEmployerCompanyRoute: typeof AuthenticatedEmployerCompanyRoute
   AuthenticatedEmployerCreditsRoute: typeof AuthenticatedEmployerCreditsRoute
@@ -958,8 +1021,12 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCandidateApplicationsRoute:
     AuthenticatedCandidateApplicationsRoute,
   AuthenticatedCandidateDashboardRoute: AuthenticatedCandidateDashboardRoute,
+  AuthenticatedCandidateDocumentsRoute: AuthenticatedCandidateDocumentsRoute,
+  AuthenticatedCandidateNotificationsRoute:
+    AuthenticatedCandidateNotificationsRoute,
   AuthenticatedCandidateProfileRoute: AuthenticatedCandidateProfileRoute,
   AuthenticatedCandidateSavedRoute: AuthenticatedCandidateSavedRoute,
+  AuthenticatedCandidateSettingsRoute: AuthenticatedCandidateSettingsRoute,
   AuthenticatedEmployerActivityRoute: AuthenticatedEmployerActivityRoute,
   AuthenticatedEmployerCompanyRoute: AuthenticatedEmployerCompanyRoute,
   AuthenticatedEmployerCreditsRoute: AuthenticatedEmployerCreditsRoute,
@@ -1006,13 +1073,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

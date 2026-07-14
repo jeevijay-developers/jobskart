@@ -697,7 +697,7 @@ function Ring({ value }: { value: number }) {
 
 /* ---------- Nudge banner (unchanged behavior) ---------- */
 
-type NudgeKind = "profile_completion" | "verification_awareness" | "digilocker";
+type NudgeKind = "profile_completion" | "verification_awareness" | "documents";
 const DISMISS_KEY = "jk_nudge_dismissed";
 
 function NudgeBanner({ strength, missing }: { strength: number; missing: string[] }) {
@@ -708,7 +708,7 @@ function NudgeBanner({ strength, missing }: { strength: number; missing: string[
     let next: NudgeKind | null = null;
     if (strength < 70 && missing.length > 0) next = "profile_completion";
     else if (missing.includes("Verify your identity")) next = "verification_awareness";
-    else if (strength >= 70) next = "digilocker";
+    else if (strength >= 70) next = "documents";
 
     if (!next) return;
 
@@ -738,11 +738,11 @@ function NudgeBanner({ strength, missing }: { strength: number; missing: string[
       cta: "Verify identity",
       to: "/candidate/profile",
     },
-    digilocker: {
-      title: "Add verified documents",
-      body: "Coming soon: link DigiLocker to auto-share verified IDs and certificates with employers.",
-      cta: "Learn more",
-      to: "/candidate/profile",
+    documents: {
+      title: "Upload your documents",
+      body: "Add your ID, resume and certificates once — employers can verify you in seconds.",
+      cta: "Add documents",
+      to: "/candidate/documents",
     },
   };
 
