@@ -29,6 +29,7 @@ import {
 import { toast } from "sonner";
 import { Navbar } from "@/components/site/Navbar";
 import { Footer } from "@/components/site/Footer";
+import { downloadJdPdf } from "@/lib/jd-pdf";
 import { JobCard, type JobCardData } from "@/components/site/JobCard";
 import { ApplyDialog } from "@/components/candidate/ApplyDialog";
 import { ReportJobDialog } from "@/components/candidate/ReportJobDialog";
