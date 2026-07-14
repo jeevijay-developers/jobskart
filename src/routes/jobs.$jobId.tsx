@@ -75,6 +75,7 @@ type JobDetail = {
     industry: string | null;
     primary_city: string | null;
   description: string | null;
+    about?: string | null;
     logo_url: string | null;
   } | null;
   description_html?: string | null;
