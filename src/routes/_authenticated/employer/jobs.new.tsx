@@ -12,6 +12,7 @@ import {
   ENGLISH_LEVELS, INTERVIEW_TYPES, SHIFTS, SUGGESTED_LANGUAGES, ASSETS,
 } from "@/lib/options";
 import { buildJd, type JdInput } from "@/lib/jd-template";
+import { suggestedSkillsFor } from "@/lib/jd-library";
 
 export const Route = createFileRoute("/_authenticated/employer/jobs/new")({
   head: () => ({ meta: [{ title: "Post a Job · JobsKart" }] }),
@@ -486,8 +487,25 @@ function NewJob() {
                     </div>
                   </Field>
 
-                  <Field label="Required skills" required>
+                  <Field label="Required skills" required hint="Each skill becomes one bullet in the auto-generated JD.">
                     <ChipInput values={form.skills} onChange={(v) => set("skills", v)} suggestions={SUGGESTED_SKILLS} />
+                    {(() => {
+                      const suggested = suggestedSkillsFor(form.title, form.industry).filter((s) => !form.skills.includes(s));
+                      if (!suggested.length) return null;
+                      return (
+                        <div className="mt-3 rounded-xl border border-primary/20 bg-primary-light/40 p-3">
+                          <p className="mb-2 text-xs font-semibold text-primary">Suggested for this role — tap to add</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {suggested.map((s) => (
+                              <button key={s} type="button" onClick={() => set("skills", [...form.skills, s])}
+                                className="rounded-full border border-primary/30 bg-white px-3 py-1 text-xs font-medium text-primary hover:bg-primary hover:text-primary-foreground">
+                                + {s}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </Field>
 
                   <div className="grid gap-3 sm:grid-cols-2">
