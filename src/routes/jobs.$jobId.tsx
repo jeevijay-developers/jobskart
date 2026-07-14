@@ -544,7 +544,7 @@ function JobDetailPage() {
                         ) : null}
                       </div>
                     </div>
-                    <p className="text-sm leading-6 text-foreground/80">{job.companies?.description || "Company details coming soon."}</p>
+                    <p className="text-sm leading-6 text-foreground/80">{job.companies?.about || job.companies?.description || `${job.companies?.name || "This employer"} is hiring on JobsKart. Apply now to hear back directly from the recruiter.`}</p>
                   </div>
                 )}
               </div>
