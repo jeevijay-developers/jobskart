@@ -1,0 +1,1 @@
+ALTER TABLE public.candidate_profiles ADD COLUMN IF NOT EXISTS notification_prefs jsonb NOT NULL DEFAULT '{"email_alerts":true,"whatsapp_alerts":false,"weekly_digest":true}'::jsonb;
