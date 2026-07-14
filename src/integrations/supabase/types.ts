@@ -1080,38 +1080,55 @@ export type Database = {
           age_max: number | null
           age_min: number | null
           applications_count: number | null
+          avg_incentive_monthly: number | null
           boosted_until: string | null
           category: string | null
+          certifications: string[] | null
           city: string | null
           company_id: string
           contact_pref: string | null
           created_at: string
+          degree: string | null
           description: string
+          description_html: string | null
           education: string | null
           english_level: string | null
+          experience_bucket: string | null
           expires_at: string | null
           fixed_pay: boolean | null
           gender_pref: string | null
           id: string
           incentives_text: string | null
+          industry: string | null
+          interview_address: string | null
+          interview_city: string | null
+          interview_locality: string | null
+          interview_same_as_company: boolean | null
+          interview_type: string | null
           is_featured: boolean
           job_type: Database["public"]["Enums"]["job_type"]
+          joining_fee_required: boolean | null
           locality: string | null
           max_experience_years: number | null
           max_salary: number | null
           min_experience_years: number | null
           min_salary: number | null
           openings: number | null
+          pay_type: string | null
           perks: string[] | null
           pincode: string | null
           posted_by: string | null
+          preferred_industries: string[] | null
+          preferred_languages: string[] | null
           quality_score: number | null
+          required_assets: string[] | null
           role_type: string | null
           salary_period: string | null
           screening_questions: Json
           shift: Database["public"]["Enums"]["job_shift"] | null
           skills: string[] | null
           slug: string | null
+          specialisation: string | null
           state: string | null
           status: Database["public"]["Enums"]["job_status"]
           title: string
@@ -1120,43 +1137,61 @@ export type Database = {
           walkin: boolean | null
           walkin_details: string | null
           work_mode: Database["public"]["Enums"]["work_mode"]
+          working_days: number | null
         }
         Insert: {
           age_max?: number | null
           age_min?: number | null
           applications_count?: number | null
+          avg_incentive_monthly?: number | null
           boosted_until?: string | null
           category?: string | null
+          certifications?: string[] | null
           city?: string | null
           company_id: string
           contact_pref?: string | null
           created_at?: string
+          degree?: string | null
           description?: string
+          description_html?: string | null
           education?: string | null
           english_level?: string | null
+          experience_bucket?: string | null
           expires_at?: string | null
           fixed_pay?: boolean | null
           gender_pref?: string | null
           id?: string
           incentives_text?: string | null
+          industry?: string | null
+          interview_address?: string | null
+          interview_city?: string | null
+          interview_locality?: string | null
+          interview_same_as_company?: boolean | null
+          interview_type?: string | null
           is_featured?: boolean
           job_type?: Database["public"]["Enums"]["job_type"]
+          joining_fee_required?: boolean | null
           locality?: string | null
           max_experience_years?: number | null
           max_salary?: number | null
           min_experience_years?: number | null
           min_salary?: number | null
           openings?: number | null
+          pay_type?: string | null
           perks?: string[] | null
           pincode?: string | null
           posted_by?: string | null
+          preferred_industries?: string[] | null
+          preferred_languages?: string[] | null
           quality_score?: number | null
+          required_assets?: string[] | null
           role_type?: string | null
           salary_period?: string | null
           screening_questions?: Json
           shift?: Database["public"]["Enums"]["job_shift"] | null
           skills?: string[] | null
           slug?: string | null
+          specialisation?: string | null
           state?: string | null
           status?: Database["public"]["Enums"]["job_status"]
           title: string
@@ -1165,43 +1200,61 @@ export type Database = {
           walkin?: boolean | null
           walkin_details?: string | null
           work_mode?: Database["public"]["Enums"]["work_mode"]
+          working_days?: number | null
         }
         Update: {
           age_max?: number | null
           age_min?: number | null
           applications_count?: number | null
+          avg_incentive_monthly?: number | null
           boosted_until?: string | null
           category?: string | null
+          certifications?: string[] | null
           city?: string | null
           company_id?: string
           contact_pref?: string | null
           created_at?: string
+          degree?: string | null
           description?: string
+          description_html?: string | null
           education?: string | null
           english_level?: string | null
+          experience_bucket?: string | null
           expires_at?: string | null
           fixed_pay?: boolean | null
           gender_pref?: string | null
           id?: string
           incentives_text?: string | null
+          industry?: string | null
+          interview_address?: string | null
+          interview_city?: string | null
+          interview_locality?: string | null
+          interview_same_as_company?: boolean | null
+          interview_type?: string | null
           is_featured?: boolean
           job_type?: Database["public"]["Enums"]["job_type"]
+          joining_fee_required?: boolean | null
           locality?: string | null
           max_experience_years?: number | null
           max_salary?: number | null
           min_experience_years?: number | null
           min_salary?: number | null
           openings?: number | null
+          pay_type?: string | null
           perks?: string[] | null
           pincode?: string | null
           posted_by?: string | null
+          preferred_industries?: string[] | null
+          preferred_languages?: string[] | null
           quality_score?: number | null
+          required_assets?: string[] | null
           role_type?: string | null
           salary_period?: string | null
           screening_questions?: Json
           shift?: Database["public"]["Enums"]["job_shift"] | null
           skills?: string[] | null
           slug?: string | null
+          specialisation?: string | null
           state?: string | null
           status?: Database["public"]["Enums"]["job_status"]
           title?: string
@@ -1210,6 +1263,7 @@ export type Database = {
           walkin?: boolean | null
           walkin_details?: string | null
           work_mode?: Database["public"]["Enums"]["work_mode"]
+          working_days?: number | null
         }
         Relationships: [
           {
