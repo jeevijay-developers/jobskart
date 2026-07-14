@@ -612,6 +612,20 @@ function JobDetailPage() {
                     <Share2 className="h-4 w-4" /> Share
                   </button>
                 </div>
+                <button
+                  onClick={() => downloadJdPdf({
+                    title: job.title,
+                    company: job.companies?.name,
+                    city: job.city || undefined,
+                    jobType: job.job_type?.replace("_", " ") || undefined,
+                    workMode: job.work_mode || undefined,
+                    salary: formatSalary(job.min_salary, job.max_salary, job.salary_period || "monthly"),
+                    html: job.description_html || (job.description ? `<p>${job.description.replace(/\n/g, "<br/>")}</p>` : ""),
+                  })}
+                  className="mt-2 inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-card text-sm font-medium text-foreground hover:bg-surface"
+                >
+                  <Download className="h-4 w-4" /> Download JD (PDF)
+                </button>
               </div>
 
               <div className="rounded-2xl border border-border bg-gradient-to-br from-primary-light to-card p-5">
