@@ -21,13 +21,13 @@ export const adminOverview = createServerFn({ method: "GET" })
       supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }).eq("user_type", "employer"),
       supabaseAdmin.from("companies").select("id", { count: "exact", head: true }),
       supabaseAdmin.from("jobs").select("id", { count: "exact", head: true }),
-      supabaseAdmin.from("jobs").select("id", { count: "exact", head: true }).eq("status", "open"),
+      supabaseAdmin.from("jobs").select("id", { count: "exact", head: true }).eq("status", "active"),
       supabaseAdmin.from("applications").select("id", { count: "exact", head: true }),
       supabaseAdmin.from("applications").select("id", { count: "exact", head: true }).gte("created_at", since7),
       supabaseAdmin.from("companies").select("id", { count: "exact", head: true }).eq("verification_status", "pending"),
-      supabaseAdmin.from("razorpay_orders").select("amount, created_at").eq("status", "paid").gte("created_at", since30),
+      supabaseAdmin.from("razorpay_orders").select("amount_inr, created_at").eq("status", "paid").gte("created_at", since30),
     ]);
-    const revenue30 = (revPaid.data ?? []).reduce((s: number, r: { amount: number | null }) => s + (r.amount ?? 0), 0) / 100;
+    const revenue30 = ((revPaid.data ?? []) as Array<{ amount_inr: number | null }>).reduce((s, r) => s + (r.amount_inr ?? 0), 0);
     return {
       users: users.count ?? 0,
       users7: users7.count ?? 0,
