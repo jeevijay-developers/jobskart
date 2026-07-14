@@ -559,7 +559,7 @@ function NewJob() {
                     <Field label="Shift">
                       <select value={form.shift} onChange={(e) => set("shift", e.target.value)} className="form-input">
                         <option value="">Any</option>
-                        {SHIFTS.map((s) => <option key={s} value={s}>{s}</option>)}
+                        {SHIFTS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
                       </select>
                     </Field>
                     <Field label="Working days / week">
