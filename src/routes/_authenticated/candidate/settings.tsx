@@ -38,7 +38,7 @@ function SettingsPage() {
     const { data: sess } = await supabase.auth.getSession();
     const uid = sess.session?.user.id;
     if (!uid) return;
-    const { error } = await supabase.from("candidate_profiles").update({ notification_prefs: prefs }).eq("user_id", uid);
+    const { error } = await supabase.from("candidate_profiles").update({ notification_prefs: prefs } as never).eq("user_id", uid);
     setSaving(false);
     if (error) return toast.error(error.message);
     toast.success("Preferences saved");
