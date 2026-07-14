@@ -12,6 +12,7 @@ import {
   ENGLISH_LEVELS, INTERVIEW_TYPES, SHIFTS, SUGGESTED_LANGUAGES, ASSETS,
 } from "@/lib/options";
 import { buildJd, type JdInput } from "@/lib/jd-template";
+import { suggestedSkillsFor } from "@/lib/jd-library";
 
 export const Route = createFileRoute("/_authenticated/employer/jobs/new")({
   head: () => ({ meta: [{ title: "Post a Job · JobsKart" }] }),
