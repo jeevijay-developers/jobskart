@@ -18,6 +18,8 @@ export type JobCardData = {
   education: string | null;
   skills: string[] | null;
   created_at: string;
+  pay_type?: string | null;
+  avg_incentive_monthly?: number | null;
   companies?: { name: string; is_verified: boolean | null } | null;
 };
 
