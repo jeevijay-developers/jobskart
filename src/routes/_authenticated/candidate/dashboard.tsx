@@ -738,11 +738,11 @@ function NudgeBanner({ strength, missing }: { strength: number; missing: string[
       cta: "Verify identity",
       to: "/candidate/profile",
     },
-    digilocker: {
-      title: "Add verified documents",
-      body: "Coming soon: link DigiLocker to auto-share verified IDs and certificates with employers.",
-      cta: "Learn more",
-      to: "/candidate/profile",
+    documents: {
+      title: "Upload your documents",
+      body: "Add your ID, resume and certificates once — employers can verify you in seconds.",
+      cta: "Add documents",
+      to: "/candidate/documents",
     },
   };
 
