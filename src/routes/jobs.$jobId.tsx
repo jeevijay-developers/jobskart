@@ -72,9 +72,19 @@ type JobDetail = {
     is_verified: boolean | null;
     industry: string | null;
     primary_city: string | null;
-    description: string | null;
+  description: string | null;
     logo_url: string | null;
   } | null;
+  description_html?: string | null;
+  pay_type?: string | null;
+  avg_incentive_monthly?: number | null;
+  interview_type?: string | null;
+  interview_same_as_company?: boolean | null;
+  interview_city?: string | null;
+  interview_locality?: string | null;
+  interview_address?: string | null;
+  joining_fee_required?: boolean | null;
+  industry?: string | null;
 };
 
 function JobDetailPage() {
