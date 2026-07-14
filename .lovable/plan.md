@@ -1,66 +1,114 @@
+
 ## Goal
-Make employer job posting work end-to-end and make candidate resume parsing actually fill the onboarding/profile fields.
+Rebuild `/employer/jobs/new` to match the new spec in `JobsKart_Job_Posting_Flow.docx`, and auto-generate the JD (description) using the `JD_Auto_Generation_Template.docx`. No manual description writing — description is templated from structured fields.
 
-## 1. Fix "employer can't post a job"
+## New 4-step flow
 
-Symptom: clicking **Publish job** in `/employer/jobs/new` does nothing visible / shows "Could not save". DB shows zero user-posted jobs even though RLS + GRANTs are fine.
+**Step 1 — Basics**
+- Job title (with autocomplete from `job_titles_master`)
+- Auto-suggested Category (from title → `job_categories`), user can override
+- Industry (new field; from `industries` master)
+- Job type · Work mode · Openings
+- Gender preference: Any / Male / Female
 
-Root causes to fix:
-- Insert payload silently fails because of enum / nullability mismatches and the catch toast hides the real Postgres error.
-- Trigger chain (`tg_jobs_activity_insert` → `log_employer_activity`) requires `posted_by`; we pass it but the active session can race (we call `supabase.auth.getUser()` again at submit time after a long wizard).
-- Slug trigger writes to `slug` only when null — fine, but the `RETURNING` after insert sometimes fails if `select().single()` cannot read the row back (older bug from SELECT policy joins). We'll re-select explicitly.
+**Step 2 — Location & Compensation**
+- City, Locality, Pincode
+- Pay type toggle: Fixed Only · Fixed + Incentive · Incentive Only
+- Fixed salary/month range (min–max), Average incentive/month (if applicable)
+- Auto-calculated yearly CTC + candidate-facing salary breakup card (min–max fixed, avg incentive, earning potential)
+- Interview type: In-person / Telephonic
+  - If In-person: "Same as company address?" Yes/No → Interview city, locality, address
 
-Changes in `src/routes/_authenticated/employer/jobs.new.tsx`:
-- Resolve `companyId` AND `userId` once on mount; block Publish until both are set; show inline banner if either is missing with a "Go to onboarding" CTA.
-- Replace the silent catch with a typed handler that surfaces `error.code`, `error.message`, and `error.details` in the toast and `console.error` for debugging (mirrors what we did for ApplyDialog).
-- Coerce enum fields to known valid values from `JOB_TYPE_OPTIONS` / `WORK_MODES`; drop the `as never` cast; only send fields with non-empty values.
-- After insert, fetch the row with `.select("id, slug").single()` in a separate call (so an RLS read failure on insert-returning doesn't kill the success path).
-- On success, navigate to the applicants page; on draft, to `/employer/jobs`. Always `toast.success` first.
+**Step 3 — Requirements**
+- Total experience: Any / Fresher only / Experienced only
+- Min–Max experience sliders
+- English fluency (optional): Basic / Good / Speaks Good
+- Skills (chip picker from `skills_master`)
+- Optional add-ons (each is a togglable section): Age range, Preferred languages, Assets, Degree & specialisation, Certification, Preferred industry
+- Perks: chip picker with the full list from the doc (Flexible Hours, Weekly Payout, OT, Joining Bonus, Annual Bonus, PF, TA, Petrol, Mobile, Internet, Laptop, Health Insurance, ESI, Meals, Accommodation, 5-day week, One-way cab, Two-way cab) + "Add other perk"
+- Joining fee / deposit required? Yes / No
 
-Changes in `src/routes/_authenticated/employer/dashboard.tsx`:
-- The "Post a job" CTA already links to `/employer/jobs/new`. Add a guard: if `companies.length === 0` keep redirect to onboarding (already there), else make sure the link is rendered as a real `<Link>` (it is). No regression.
+**Step 4 — Description (auto-generated)**
+- Renders a live JD preview built from Steps 1–3 using the JD template
+- Editable rich-text (user can tweak before publish)
+- "Regenerate from template" button
+- Publish / Save as draft
 
-Changes in `src/routes/_authenticated/onboarding/employer.tsx`:
-- After `create_company_with_owner` RPC succeeds, also call `setActiveCompanyId(cid)` before navigating, so the new job route immediately finds an active company without a round-trip.
+## JD auto-generation
 
-Verification:
-- Re-run the flow as a fresh employer: onboarding → "Post my first job" → fill 4 steps → Publish. Confirm a row appears in `public.jobs` with `status='active'`, `posted_by = auth.uid()`, and is visible on `/jobs` (public list) and to candidates.
-- Negative test: post with missing salary → see specific validation toast, not generic "Could not save".
+Client-side templating (no AI call needed for v1) using the spec:
 
-## 2. Fix candidate resume parsing
+```
+We are looking for a {title} to join {company}[, in {industry}]. {2-line role summary from category bank}. The position offers {salaryRange}[ + incentives up to ₹{incentive}/month] and opportunities for growth.
 
-Symptom: uploading a PDF in candidate onboarding completes upload but no fields auto-fill.
+Key Responsibilities:
+- {from responsibilities bank keyed by category → fallback: skills}
 
-Root causes:
-- `parseResume` uses `google/gemini-2.5-flash` with a `file` content part. The Lovable AI Gateway accepts PDFs for Gemini only as **inline base64 image_url for images** or as `input_file` for PDFs; the current `{ type: "file", file: {...} }` shape returns an empty `content` for many PDFs, and we silently return all-nulls.
-- Even when content comes back, the system prompt allows nulls, so a degraded response = blank form with no error toast.
+Job Requirements:
+Minimum qualification: {degree}. {minExp–maxExp} experience required[, or "Freshers welcome"]. Key skills: {skills}. {englishLine}. {genderLine}. Available for {shift}[, {workingDays}-day working][, own {assets}].
 
-Changes in `src/lib/resume.functions.ts`:
-- Switch PDF handling to extract text server-side first using a pure-JS parser (`unpdf` — Worker-compatible, no native deps), then send the extracted text to Gemini as a plain `text` message. Falls back to the vision path only for images.
-- Keep images on `google/gemini-2.5-flash` with `image_url` (this path already works).
-- Log the raw model response length and the parsed field count; throw a clear error if every field is null so the caller's toast shows "Couldn't read your resume — try a clearer PDF or fill manually" instead of a silent success.
-- Tighten the prompt: instruct the model to return at least name + email + mobile + skills whenever the text contains them; reject empty objects.
+Perks: {perk1} · {perk2} · ...
 
-Changes in `src/components/candidate/ResumeUpload.tsx`:
-- Surface a warning toast when the parser returns but every important field is empty, prompting the user to retry or continue manually.
-- After a successful parse, scroll the parent form into view (the onboarding wrapper) so the user sees fields filling in.
+Notes (only lines with data):
+- Joining fee applicable
+- Certification: {x} required
+- {ageRange} preferred
+- Preferred Language: ...
+- Language Proficiency: ...
+- Gender: ...
+- Work Mode: Remote/Hybrid
+- Tool/software familiarity
+```
 
-Changes in `src/routes/_authenticated/onboarding/candidate.tsx` (only the `onParsed` handler):
-- Merge parsed values into the wizard state non-destructively (don't overwrite values the user has already typed). Also store the uploaded resume in `candidate-docs` and persist `candidate_documents` row immediately so it's available in the dashboard even if onboarding is interrupted.
+A small `src/lib/jd-template.ts` module owns:
+- `RESPONSIBILITIES_BANK: Record<categorySlug, string[]>` — 8-10 curated entries per common category (Sales, Delivery, Customer Support, Data Entry, Security, Housekeeping, Driver, Telecaller, Field Sales, Retail). Fallback = skills-derived bullets.
+- `ROLE_SUMMARY_BANK: Record<categorySlug, string>`
+- `buildJd(input): { markdown, html }`
 
-Dependency:
-- Add `unpdf` via `bun add unpdf` (pure-JS, Cloudflare Workers compatible — used inside the server function only).
+Optional "Improve with AI" button later — out of scope for v1.
 
-Verification:
-- Upload a sample resume PDF → fields for name, email, mobile, headline, skills auto-populate within ~5s.
-- Upload an image (JPG) of a resume → same outcome via the vision path.
-- Upload a DOCX → toast says "Auto-fill works best with PDF or image" (existing behaviour preserved).
-- Upload a corrupt/blank PDF → clear error toast, no silent failure.
+## Data / schema changes (one migration)
+
+Add columns to `public.jobs` (all nullable, backwards-compatible):
+- `industry text`
+- `gender_preference text check in ('any','male','female') default 'any'`
+- `pay_type text check in ('fixed','fixed_incentive','incentive_only') default 'fixed'`
+- `salary_period text default 'monthly'`
+- `avg_incentive_monthly int`
+- `interview_type text` — 'in_person' | 'telephonic'
+- `interview_same_as_company boolean`
+- `interview_city text`, `interview_locality text`, `interview_address text`
+- `experience_bucket text` — 'any' | 'fresher' | 'experienced'
+- `english_level text` — 'basic' | 'good' | 'speaks_good'
+- `age_min int`, `age_max int`
+- `preferred_languages text[]`
+- `required_assets text[]`
+- `degree text`, `specialisation text`
+- `certifications text[]`
+- `preferred_industries text[]`
+- `perks text[]` (replace/augment existing perks column if present)
+- `joining_fee_required boolean default false`
+- `working_days int`, `shift text`
+- `description_html text` (rendered JD)
+
+Migration includes GRANTs (SELECT/INSERT/UPDATE/DELETE to authenticated, ALL to service_role, SELECT to anon — jobs are publicly listable). RLS policies stay as-is.
+
+## Files touched
+
+- `src/routes/_authenticated/employer/jobs.new.tsx` — full rewrite into the 4-step wizard using the existing `Questionnaire`/`Field` primitives.
+- `src/lib/jd-template.ts` — new; JD builder + banks.
+- `src/lib/options.ts` — add `PERKS`, `ENGLISH_LEVELS`, `PAY_TYPES`, `GENDERS`, `EXPERIENCE_BUCKETS`.
+- `src/routes/jobs.$jobId.tsx` — render `description_html` when present; show new fields (interview type/address, pay breakup card, perks chips, joining-fee note).
+- `src/components/site/JobCard.tsx` — surface earning potential range when `pay_type='fixed_incentive'`.
+- Migration file for the `jobs` columns above.
 
 ## Out of scope
-No schema changes. No new tables. No changes to RLS or GRANTs (already correct). No UI redesign.
+- AI JD rewriter (button stub only)
+- Changes to candidate apply flow, resume parsing, admin, or credits
+- Any redesign of dashboards
 
-## Technical notes
-- Job insert payload will only include keys with truthy values to avoid sending `""` into enum/text columns that have defaults.
-- `unpdf` runs inside `createServerFn` only — never imported from a component — so it stays out of the client bundle.
-- Resume parser will keep the existing Zod schema; only the input path to Gemini changes.
+## Verification
+- Create a job end-to-end: fill all 4 steps → preview JD → publish → row lands in `jobs` with new columns populated → visible in `/jobs` list and `/jobs/:id` detail with the new salary breakup + interview block.
+- Draft path: Save as draft at any step → row inserted with `status='draft'`, appears in `/employer/jobs`.
+- Fixed-only pay hides incentive fields; incentive-only hides fixed range; breakup card updates live.
+- In-person interview shows address sub-form; telephonic hides it.
