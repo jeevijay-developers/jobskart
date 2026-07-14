@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, Check, Loader2, RefreshCw } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Download, Loader2, RefreshCw } from "lucide-react";
+import { downloadJdPdf } from "@/lib/jd-pdf";
 import { toast } from "sonner";
 import { EmployerShell } from "@/components/employer/EmployerShell";
 import { Field, ChipInput } from "@/components/candidate/primitives";
