@@ -35,13 +35,15 @@ export const bulkCreateJobs = createServerFn({ method: "POST" })
       .maybeSingle();
     if (!member) throw new Error("Not a member of this company");
 
+    const validJobTypes = new Set(["full_time","part_time","contract","internship","temporary"]);
+    const validModes = new Set(["onsite","remote","hybrid","field"]);
     const payload = data.rows.map((r) => ({
       company_id: data.company_id,
       posted_by: userId,
       title: r.title,
       city: r.city || null,
-      job_type: r.job_type,
-      work_mode: r.work_mode,
+      job_type: validJobTypes.has(r.job_type) ? r.job_type : "full_time",
+      work_mode: validModes.has(r.work_mode) ? r.work_mode : "onsite",
       min_salary: r.min_salary ?? null,
       max_salary: r.max_salary ?? null,
       min_experience_years: r.min_experience_years ?? null,
@@ -50,7 +52,7 @@ export const bulkCreateJobs = createServerFn({ method: "POST" })
       skills: r.skills ? r.skills.split(",").map((s) => s.trim()).filter(Boolean) : [],
       description: r.description || r.title,
       openings: r.openings,
-      status: "published",
+      status: "active",
       salary_period: "monthly",
       pay_type: "fixed",
     }));

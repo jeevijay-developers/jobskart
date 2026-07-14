@@ -24,8 +24,8 @@ const HEADERS = [
 ];
 
 const SAMPLE: (string | number)[][] = [
-  ["Field Sales Executive", "Delhi", "full_time", "on_site", 20000, 35000, 0, 2, "12th Pass", "Sales, Communication, Field Work", "Meet clients daily and close deals.", 3],
-  ["Telecaller", "Mumbai", "full_time", "on_site", 18000, 28000, 0, 1, "12th Pass", "Cold Calling, Hindi, English", "Outbound calls to leads.", 5],
+  ["Field Sales Executive", "Delhi", "full_time", "onsite", 20000, 35000, 0, 2, "12th Pass", "Sales, Communication, Field Work", "Meet clients daily and close deals.", 3],
+  ["Telecaller", "Mumbai", "full_time", "onsite", 18000, 28000, 0, 1, "12th Pass", "Cold Calling, Hindi, English", "Outbound calls to leads.", 5],
 ];
 
 export function downloadBulkJobTemplate() {
@@ -33,8 +33,8 @@ export function downloadBulkJobTemplate() {
   ws["!cols"] = HEADERS.map(() => ({ wch: 22 }));
   const notes = XLSX.utils.aoa_to_sheet([
     ["Field", "Allowed values"],
-    ["job_type", "full_time, part_time, contract, internship, gig"],
-    ["work_mode", "on_site, remote, hybrid, field"],
+    ["job_type", "full_time, part_time, contract, internship, temporary"],
+    ["work_mode", "onsite, remote, hybrid, field"],
     ["salary", "Monthly ₹, numeric"],
     ["skills", "Comma-separated, e.g. Sales, Excel"],
   ]);
