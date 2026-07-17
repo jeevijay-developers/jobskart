@@ -189,20 +189,15 @@ export function buildJd(input: JdInput): { markdown: string; html: string } {
   }
 
   const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  const html: string[] = [];
-  html.push(`<p>${esc(line1)}${line2 ? ` ${esc(line2)}` : ""}</p>`);
-  html.push(`<p><em>${esc(compClause)}</em></p>`);
-  html.push(`<h4>Key Responsibilities</h4><ul>${responsibilities.map((r) => `<li>${esc(r)}</li>`).join("")}</ul>`);
-  html.push(`<h4>Job Requirements</h4><p>${esc(reqBits.join(" "))}</p>`);
-  if (input.perks?.length) html.push(`<h4>Perks</h4><p>${input.perks.map(esc).join(" · ")}</p>`);
   const allResp = [...responsibilities, ...(tpl?.fixedResponsibilities ?? [])];
-  html.length = 0;
+  const html: string[] = [];
   html.push(`<p>${esc(line1)}${line2 ? ` ${esc(line2)}` : ""}</p>`);
   html.push(`<p><em>${esc(compClause)}</em></p>`);
   html.push(`<h4>Key Responsibilities</h4><ul>${allResp.map((r) => `<li>${esc(r)}</li>`).join("")}</ul>`);
   html.push(`<h4>Job Requirements</h4><p>${esc(reqBits.join(" "))}</p>`);
   if (input.perks?.length) html.push(`<h4>Perks</h4><p>${input.perks.map(esc).join(" · ")}</p>`);
   if (notes.length) html.push(`<h4>Notes</h4><ul>${notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>`);
+
 
 
   return { markdown: md.join("\n"), html: html.join("") };
