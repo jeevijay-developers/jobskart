@@ -265,6 +265,15 @@ const CURATED: RoleTemplate[] = [
   },
 ];
 
+/** Curated templates take precedence; sheet-imported ones fill the long tail. */
+export const JD_LIBRARY: RoleTemplate[] = [
+  ...CURATED,
+  ...SHEET_TEMPLATES.filter(
+    (s) => !CURATED.some((c) => c.title.toLowerCase() === s.title.toLowerCase()),
+  ),
+];
+
+
 function norm(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
