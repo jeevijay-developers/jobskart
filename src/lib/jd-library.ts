@@ -3,16 +3,44 @@
 // The wizard picks the closest role and renders responsibilities for the
 // skills the employer selected.
 
+import sheetTemplates from "./jd-library-sheet.json";
+
 export type SkillResponsibility = { skill: string; responsibility: string };
 
 export type RoleTemplate = {
   title: string;
   industry: string;
   summary: [string, string];
+  /** Optional 1:1 skill→responsibility mapping (used by curated roles). */
   skills: SkillResponsibility[];
+  /** Optional bulk skill-based responsibility bullets (from JD sheet). */
+  skillResponsibilities?: string[];
+  /** Fixed responsibilities appended after skill-based ones. */
+  fixedResponsibilities?: string[];
+  /** Flat skill chip list (from JD sheet) when per-skill mapping isn't available. */
+  skillList?: string[];
 };
 
-export const JD_LIBRARY: RoleTemplate[] = [
+type SheetRow = {
+  title: string;
+  industry: string;
+  summary: [string, string];
+  skillList: string[];
+  skillResponsibilities: string[];
+  fixedResponsibilities: string[];
+};
+
+const SHEET_TEMPLATES: RoleTemplate[] = (sheetTemplates as SheetRow[]).map((r) => ({
+  title: r.title,
+  industry: r.industry,
+  summary: [r.summary[0] || "", r.summary[1] || ""] as [string, string],
+  skills: r.skillList.map((s) => ({ skill: s, responsibility: `Handle day-to-day tasks related to ${s}.` })),
+  skillResponsibilities: r.skillResponsibilities,
+  fixedResponsibilities: r.fixedResponsibilities,
+  skillList: r.skillList,
+}));
+
+const CURATED: RoleTemplate[] = [
   {
     title: "HR Recruiter",
     industry: "Recruitment & Staffing",
@@ -236,6 +264,15 @@ export const JD_LIBRARY: RoleTemplate[] = [
     ],
   },
 ];
+
+/** Curated templates take precedence; sheet-imported ones fill the long tail. */
+export const JD_LIBRARY: RoleTemplate[] = [
+  ...CURATED,
+  ...SHEET_TEMPLATES.filter(
+    (s) => !CURATED.some((c) => c.title.toLowerCase() === s.title.toLowerCase()),
+  ),
+];
+
 
 function norm(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();

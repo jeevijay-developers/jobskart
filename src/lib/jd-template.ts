@@ -92,6 +92,7 @@ function normSkill(s: string) {
  *  falling back to a generic line for unknown skills. */
 function responsibilitiesFor(skills: string[], tpl: RoleTemplate | null): string[] {
   if (!skills.length) {
+    if (tpl?.skillResponsibilities?.length) return tpl.skillResponsibilities;
     return tpl
       ? tpl.skills.slice(0, 5).map((s) => s.responsibility)
       : [
@@ -103,16 +104,26 @@ function responsibilitiesFor(skills: string[], tpl: RoleTemplate | null): string
   }
   const index = new Map<string, string>();
   tpl?.skills.forEach((s) => index.set(normSkill(s.skill), s.responsibility));
-  return skills.map((s) => {
+  const mapped = skills.map((s) => {
     const hit = index.get(normSkill(s));
     if (hit) return hit;
-    // fuzzy contains match
     for (const [k, v] of index) {
       if (k.includes(normSkill(s)) || normSkill(s).includes(k)) return v;
     }
     return `Handle day-to-day tasks related to ${s}.`;
   });
+  // If the template came from the JD sheet (has skillResponsibilities but no
+  // real per-skill mapping), also surface a few of those authored bullets so
+  // the JD reads like the sheet examples rather than repetitive "handle X".
+  if (tpl?.skillResponsibilities?.length) {
+    const generic = mapped.filter((m) => m.startsWith("Handle day-to-day tasks related to "));
+    if (generic.length >= Math.max(1, Math.floor(mapped.length / 2))) {
+      return tpl.skillResponsibilities;
+    }
+  }
+  return mapped;
 }
+
 
 function summaryFor(input: JdInput, tpl: RoleTemplate | null): [string, string] {
   if (input.summaryOverride) {
@@ -159,7 +170,11 @@ export function buildJd(input: JdInput): { markdown: string; html: string } {
   md.push("", compClause, "");
   md.push("**Key Responsibilities:**");
   responsibilities.forEach((r) => md.push(`- ${r}`));
+  if (tpl?.fixedResponsibilities?.length) {
+    tpl.fixedResponsibilities.forEach((r) => md.push(`- ${r}`));
+  }
   md.push("");
+
   md.push("**Job Requirements:**");
   md.push(reqBits.join(" "));
   if (input.perks?.length) {
@@ -174,13 +189,16 @@ export function buildJd(input: JdInput): { markdown: string; html: string } {
   }
 
   const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const allResp = [...responsibilities, ...(tpl?.fixedResponsibilities ?? [])];
   const html: string[] = [];
   html.push(`<p>${esc(line1)}${line2 ? ` ${esc(line2)}` : ""}</p>`);
   html.push(`<p><em>${esc(compClause)}</em></p>`);
-  html.push(`<h4>Key Responsibilities</h4><ul>${responsibilities.map((r) => `<li>${esc(r)}</li>`).join("")}</ul>`);
+  html.push(`<h4>Key Responsibilities</h4><ul>${allResp.map((r) => `<li>${esc(r)}</li>`).join("")}</ul>`);
   html.push(`<h4>Job Requirements</h4><p>${esc(reqBits.join(" "))}</p>`);
   if (input.perks?.length) html.push(`<h4>Perks</h4><p>${input.perks.map(esc).join(" · ")}</p>`);
   if (notes.length) html.push(`<h4>Notes</h4><ul>${notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>`);
+
+
 
   return { markdown: md.join("\n"), html: html.join("") };
 }
