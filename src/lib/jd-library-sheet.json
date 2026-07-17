@@ -1,0 +1,4355 @@
+[
+  {
+    "title": ".NET Developer",
+    "industry": "Software Engineering",
+    "summary": [
+      "Join our development team to build, maintain, and enhance scalable web and desktop applications using Microsoft .NET technologies.",
+      "You will collaborate with cross-functional teams to deliver secure, high-performance software solutions aligned with business requirements."
+    ],
+    "skillList": [
+      "C#",
+      ".NET Framework",
+      ".NET Core",
+      "ASP.NET MVC",
+      "ASP.NET Web API",
+      "Entity Framework",
+      "LINQ",
+      "SQL Server",
+      "REST APIs",
+      "HTML",
+      "CSS",
+      "JavaScript",
+      "Git",
+      "Visual Studio",
+      "Azure DevOps",
+      "IIS",
+      "OOP",
+      "Unit Testing",
+      "Debugging",
+      "Agile Methodology"
+    ],
+    "skillResponsibilities": [
+      "Develop scalable web and desktop applications using .NET technologies.",
+      "Build and maintain RESTful APIs for seamless system integration.",
+      "Design and optimize SQL Server databases and complex queries.",
+      "Debug, troubleshoot, and resolve software defects efficiently.",
+      "Write clean, reusable, and secure code following coding standards.",
+      "Perform unit testing and participate in peer code reviews.",
+      "Collaborate with QA, UI/UX, and DevOps teams throughout development."
+    ],
+    "fixedResponsibilities": [
+      "Analyze business requirements and convert them into technical solutions.",
+      "Maintain project documentation and ensure timely delivery of assigned modules.",
+      "Follow Agile development practices while collaborating with cross-functional teams."
+    ]
+  },
+  {
+    "title": ".NET Software Engineer",
+    "industry": "Software Engineering",
+    "summary": [
+      "Join our engineering team to develop secure, scalable, and high-performing software applications using the .NET framework.",
+      "You will contribute to the complete software development lifecycle while ensuring application reliability and maintainability."
+    ],
+    "skillList": [
+      "C#",
+      ".NET Core",
+      ".NET Framework",
+      "ASP.NET",
+      "MVC",
+      "Web API",
+      "Entity Framework",
+      "SQL Server",
+      "LINQ",
+      "Git",
+      "Visual Studio",
+      "Azure",
+      "CI/CD",
+      "Agile",
+      "OOP",
+      "Design Patterns",
+      "Unit Testing",
+      "Performance Optimization",
+      "Debugging",
+      "Problem Solving"
+    ],
+    "skillResponsibilities": [
+      "Develop software modules using .NET technologies and coding best practices.",
+      "Optimize application performance and improve system efficiency.",
+      "Implement reusable software components and APIs.",
+      "Debug and resolve application issues during development and production.",
+      "Conduct unit testing and participate in code review sessions.",
+      "Integrate applications with databases and third-party services.",
+      "Support software deployment and continuous improvement initiatives."
+    ],
+    "fixedResponsibilities": [
+      "Participate in Agile ceremonies including sprint planning and reviews.",
+      "Maintain software documentation and technical specifications.",
+      "Collaborate with stakeholders to deliver reliable business solutions."
+    ]
+  },
+  {
+    "title": "2D Animator",
+    "industry": "UX, Design & Architecture",
+    "summary": [
+      "Join our creative team to produce engaging 2D animations for films, advertisements, games, and digital media.",
+      "You will transform storyboards into compelling animations that enhance storytelling and audience engagement."
+    ],
+    "skillList": [
+      "Adobe Animate",
+      "Toon Boom Harmony",
+      "Adobe After Effects",
+      "Photoshop",
+      "Illustrator",
+      "Storyboarding",
+      "Character Animation",
+      "Motion Graphics",
+      "Frame-by-Frame Animation",
+      "Timing & Spacing",
+      "Lip Sync",
+      "Visual Storytelling",
+      "Color Theory",
+      "Video Editing",
+      "Creativity",
+      "Illustration",
+      "Team Collaboration",
+      "Attention to Detail"
+    ],
+    "skillResponsibilities": [
+      "Create high-quality 2D animations based on storyboards and scripts.",
+      "Animate characters, objects, and environments with smooth transitions.",
+      "Design motion graphics for advertisements and promotional content.",
+      "Synchronize animations with audio, dialogue, and visual effects.",
+      "Modify animations based on creative feedback and revisions.",
+      "Optimize animation quality while maintaining project timelines.",
+      "Collaborate with designers, illustrators, and production teams."
+    ],
+    "fixedResponsibilities": [
+      "Interpret creative briefs and convert concepts into engaging animations.",
+      "Maintain visual consistency across all animation projects.",
+      "Deliver production-ready animation assets within deadlines."
+    ]
+  },
+  {
+    "title": "3D Animator",
+    "industry": "UX, Design & Architecture",
+    "summary": [
+      "Join our animation team to create realistic 3D character, environment, and visual effect animations for games, films, and commercials.",
+      "You will bring digital assets to life using industry-standard animation techniques and creative storytelling."
+    ],
+    "skillList": [
+      "Autodesk Maya",
+      "Blender",
+      "3ds Max",
+      "Character Animation",
+      "Rigging",
+      "Skinning",
+      "Motion Capture",
+      "Keyframe Animation",
+      "Lighting",
+      "Rendering",
+      "Animation Principles",
+      "Camera Animation",
+      "Physics Simulation",
+      "Facial Animation",
+      "Visual Effects",
+      "Adobe After Effects",
+      "Creativity",
+      "Team Collaboration",
+      "Time Management"
+    ],
+    "skillResponsibilities": [
+      "Create realistic character and object animations using industry-standard software.",
+      "Apply rigging and skinning techniques for smooth character movement.",
+      "Develop keyframe and motion capture animations for digital assets.",
+      "Fine-tune animations to achieve realistic movement and expressions.",
+      "Coordinate with modeling and VFX teams for asset integration.",
+      "Optimize animation sequences for quality and performance.",
+      "Review and improve animation outputs based on creative feedback."
+    ],
+    "fixedResponsibilities": [
+      "Interpret project requirements and animation guidelines.",
+      "Ensure consistency in animation quality across production assets.",
+      "Deliver production-ready animations within project timelines."
+    ]
+  },
+  {
+    "title": "3D Artist",
+    "industry": "UX, Design & Architecture",
+    "summary": [
+      "Join our creative team to design high-quality 3D models, textures, and digital assets for games, films, and product visualization projects.",
+      "You will collaborate with designers and art directors to create visually realistic and technically optimized assets."
+    ],
+    "skillList": [
+      "3D Modeling",
+      "Sculpting",
+      "Texturing",
+      "UV Mapping",
+      "ZBrush",
+      "Substance Painter",
+      "Autodesk Maya",
+      "Blender",
+      "3ds Max",
+      "PBR Workflow",
+      "High Poly Modeling",
+      "Low Poly Modeling",
+      "Retopology",
+      "Rendering",
+      "Lighting",
+      "Material Creation",
+      "Asset Optimization",
+      "Creativity",
+      "Attention to Detail",
+      "Team Collaboration"
+    ],
+    "skillResponsibilities": [
+      "Design detailed 3D models for characters, environments, and products.",
+      "Create realistic textures and materials using industry-standard workflows.",
+      "Perform sculpting, retopology, and UV mapping for optimized assets.",
+      "Apply lighting and rendering techniques to enhance visual quality.",
+      "Optimize 3D assets for real-time and production environments.",
+      "Modify assets based on creative feedback and project requirements.",
+      "Collaborate with animation and design teams for seamless asset integration."
+    ],
+    "fixedResponsibilities": [
+      "Follow project specifications and artistic guidelines throughout production.",
+      "Maintain consistency in asset quality, file organization, and naming conventions.",
+      "Deliver production-ready assets within defined project deadlines."
+    ]
+  },
+  {
+    "title": "3D Designer",
+    "industry": "UX, Design & Architecture",
+    "summary": [
+      "Join our design team to develop innovative 3D concepts and visual models for architecture, products, and multimedia applications.",
+      "You will combine technical expertise with creative thinking to produce accurate and visually compelling design solutions."
+    ],
+    "skillList": [
+      "3D Modeling",
+      "CAD",
+      "SketchUp",
+      "Rhino",
+      "Autodesk Maya",
+      "Blender",
+      "Rendering",
+      "Visualization",
+      "Product Design",
+      "Architectural Modeling",
+      "Concept Development",
+      "Technical Drawing",
+      "Lighting",
+      "Materials",
+      "Presentation Design",
+      "Creativity",
+      "Problem Solving",
+      "Communication Skills",
+      "Time Management",
+      "Attention to Detail"
+    ],
+    "skillResponsibilities": [
+      "Develop 3D concepts based on client and project requirements.",
+      "Create accurate architectural and product models using industry software.",
+      "Produce high-quality renderings and visual presentations.",
+      "Modify and refine designs based on stakeholder feedback.",
+      "Apply appropriate materials, lighting, and textures to improve realism.",
+      "Prepare design files for presentations and production use.",
+      "Coordinate with architects, engineers, and creative teams during project execution."
+    ],
+    "fixedResponsibilities": [
+      "Interpret design briefs and convert concepts into production-ready models.",
+      "Ensure all deliverables meet quality, accuracy, and branding standards.",
+      "Complete assigned design projects within agreed timelines."
+    ]
+  },
+  {
+    "title": "3D Graphic Designer",
+    "industry": "UX, Design & Architecture",
+    "summary": [
+      "Join our creative team to design visually impactful 3D graphics for digital, print, branding, and marketing campaigns.",
+      "You will combine graphic design expertise with 3D modeling techniques to create engaging visual experiences across multiple platforms."
+    ],
+    "skillList": [
+      "3D Modeling",
+      "Graphic Design",
+      "Adobe Photoshop",
+      "Adobe Illustrator",
+      "Adobe After Effects",
+      "Blender",
+      "Autodesk Maya",
+      "Typography",
+      "Layout Design",
+      "Branding",
+      "Rendering",
+      "Lighting",
+      "Texturing",
+      "Motion Graphics",
+      "Animation",
+      "Color Theory",
+      "Visual Storytelling",
+      "Creativity",
+      "Communication Skills",
+      "Attention to Detail"
+    ],
+    "skillResponsibilities": [
+      "Design creative 3D graphics for digital, print, and branding projects.",
+      "Develop 3D models and visual assets using industry-standard software.",
+      "Apply textures, lighting, and rendering techniques for realistic visuals.",
+      "Create motion graphics and animations for promotional content.",
+      "Maintain brand consistency across all creative deliverables.",
+      "Revise creative assets based on client and stakeholder feedback.",
+      "Collaborate with marketing, UI/UX, and creative teams on campaign execution."
+    ],
+    "fixedResponsibilities": [
+      "Understand project objectives and deliver high-quality visual solutions.",
+      "Organize design assets and maintain project documentation.",
+      "Deliver creative outputs within deadlines while adhering to design standards."
+    ]
+  },
+  {
+    "title": "3D Visualizer",
+    "industry": "UX, Design & Architecture",
+    "summary": [
+      "Join our visualization team to create photorealistic 3D renders and animations for architectural, interior, and product presentation projects.",
+      "You will transform design concepts into compelling visual experiences that help clients understand and evaluate project outcomes effectively."
+    ],
+    "skillList": [
+      "3ds Max",
+      "V-Ray",
+      "Corona Renderer",
+      "AutoCAD",
+      "SketchUp",
+      "Photoshop",
+      "Rendering",
+      "3D Visualization",
+      "Lighting",
+      "Material Creation",
+      "Texturing",
+      "Post Processing",
+      "Camera Setup",
+      "Architectural Visualization",
+      "Product Visualization",
+      "Animation",
+      "Presentation Skills",
+      "Attention to Detail",
+      "Creativity",
+      "Time Management"
+    ],
+    "skillResponsibilities": [
+      "Produce high-quality photorealistic renders for architectural and product visualization projects.",
+      "Apply realistic lighting, textures, and materials to enhance visual quality.",
+      "Develop walkthrough animations and presentation-ready visual assets.",
+      "Perform post-processing using Photoshop to improve final renders.",
+      "Optimize rendering settings for quality and performance.",
+      "Modify visualization outputs based on client and stakeholder feedback.",
+      "Collaborate with architects, designers, and project teams to visualize concepts accurately."
+    ],
+    "fixedResponsibilities": [
+      "Interpret design briefs and project requirements before execution.",
+      "Maintain consistency in rendering quality and visual standards.",
+      "Deliver visualization projects within agreed timelines while following production workflows."
+    ]
+  },
+  {
+    "title": "AC Technician",
+    "industry": "Maintenance Services",
+    "summary": [
+      "Join our maintenance team to install, service, and repair air conditioning and refrigeration systems across residential and commercial locations.",
+      "You will ensure efficient system performance through preventive maintenance, troubleshooting, and adherence to safety standards."
+    ],
+    "skillList": [
+      "HVAC Systems",
+      "Air Conditioning Installation",
+      "Refrigeration Systems",
+      "Electrical Wiring",
+      "Preventive Maintenance",
+      "Fault Diagnosis",
+      "Troubleshooting",
+      "Gas Charging",
+      "Compressor Repair",
+      "Thermostat Installation",
+      "Copper Pipe Brazing",
+      "Leak Detection",
+      "Electrical Testing",
+      "Power Tools",
+      "Safety Compliance",
+      "Customer Service",
+      "Technical Documentation",
+      "Time Management",
+      "Problem Solving",
+      "Teamwork"
+    ],
+    "skillResponsibilities": [
+      "Install and commission air conditioning and refrigeration systems.",
+      "Diagnose electrical and mechanical faults using testing equipment.",
+      "Perform preventive maintenance to improve equipment reliability.",
+      "Repair compressors, condensers, evaporators, and cooling components.",
+      "Recharge refrigerant gas and detect system leaks safely.",
+      "Conduct performance testing after repairs and servicing.",
+      "Educate customers on equipment usage and routine maintenance practices."
+    ],
+    "fixedResponsibilities": [
+      "Follow safety guidelines and industry standards during all service activities.",
+      "Maintain accurate service records and maintenance documentation.",
+      "Complete assigned maintenance and repair work within scheduled timelines."
+    ]
+  },
+  {
+    "title": "AC-HVAC Technician",
+    "industry": "Maintenance Services",
+    "summary": [
+      "Join our technical team to install, maintain, and repair HVAC systems for residential, commercial, and industrial facilities.",
+      "You will ensure optimal indoor climate control by servicing electrical, mechanical, and refrigeration components while maintaining system efficiency."
+    ],
+    "skillList": [
+      "HVAC Systems",
+      "Air Conditioning",
+      "Ventilation Systems",
+      "Refrigeration",
+      "Electrical Systems",
+      "Plumbing Basics",
+      "Mechanical Maintenance",
+      "Diagnostics",
+      "Preventive Maintenance",
+      "HVAC Controls",
+      "Thermostat Installation",
+      "Duct Installation",
+      "Refrigerant Charging",
+      "Leak Detection",
+      "EPA Regulations",
+      "Safety Compliance",
+      "Power Tools",
+      "Customer Service",
+      "Troubleshooting",
+      "Technical Documentation"
+    ],
+    "skillResponsibilities": [
+      "Install and maintain HVAC systems according to technical specifications.",
+      "Diagnose and repair electrical, mechanical, and refrigeration faults.",
+      "Perform preventive maintenance to maximize equipment efficiency.",
+      "Install and calibrate thermostats, ductwork, and HVAC control systems.",
+      "Conduct refrigerant charging, leak testing, and system balancing.",
+      "Inspect HVAC systems to ensure compliance with safety regulations.",
+      "Respond to service calls and resolve customer issues efficiently."
+    ],
+    "fixedResponsibilities": [
+      "Follow preventive maintenance schedules and standard operating procedures.",
+      "Maintain service reports and equipment maintenance records.",
+      "Ensure all work complies with safety, environmental, and company standards."
+    ]
+  },
+  {
+    "title": "Academic Advisor",
+    "industry": "Teaching & Training",
+    "summary": [
+      "Join our academic support team to guide students in course selection, academic planning, and career development.",
+      "You will provide personalized guidance to help students achieve their educational goals while enhancing their overall academic experience."
+    ],
+    "skillList": [
+      "Student Counseling",
+      "Academic Advising",
+      "Communication Skills",
+      "Career Guidance",
+      "Course Planning",
+      "Problem Solving",
+      "Student Relationship Management",
+      "Conflict Resolution",
+      "Time Management",
+      "Data Analysis",
+      "Documentation",
+      "Educational Policies",
+      "Counseling Techniques",
+      "Microsoft Office",
+      "Report Preparation",
+      "Empathy",
+      "Active Listening",
+      "Decision Making",
+      "Presentation Skills",
+      "Organizational Skills"
+    ],
+    "skillResponsibilities": [
+      "Provide academic counseling and personalized guidance to students.",
+      "Assist students in selecting courses based on academic goals.",
+      "Monitor student progress and recommend improvement strategies.",
+      "Guide students on career planning, internships, and higher education opportunities.",
+      "Maintain accurate student records and academic documentation.",
+      "Address student concerns and coordinate with faculty when required.",
+      "Conduct orientation sessions and academic workshops for students."
+    ],
+    "fixedResponsibilities": [
+      "Ensure compliance with institutional academic policies and procedures.",
+      "Collaborate with faculty and administrative teams to support student success.",
+      "Prepare reports and maintain confidential student information accurately."
+    ]
+  },
+  {
+    "title": "Academic Coordinator",
+    "industry": "Teaching & Training",
+    "summary": [
+      "Join our academic team to coordinate educational programs, faculty schedules, and day-to-day academic operations efficiently.",
+      "You will ensure smooth execution of academic activities while maintaining compliance with institutional policies and quality standards."
+    ],
+    "skillList": [
+      "Program Coordination",
+      "Academic Scheduling",
+      "Faculty Coordination",
+      "Timetable Management",
+      "Communication Skills",
+      "Organizational Skills",
+      "Administration",
+      "Event Planning",
+      "Student Coordination",
+      "Documentation",
+      "Microsoft Office",
+      "Google Workspace",
+      "Report Preparation",
+      "Time Management",
+      "Problem Solving",
+      "Stakeholder Management",
+      "Data Management",
+      "Multitasking",
+      "Attention to Detail",
+      "Leadership"
+    ],
+    "skillResponsibilities": [
+      "Coordinate academic schedules, timetables, and classroom allocations.",
+      "Manage faculty assignments and ensure smooth academic operations.",
+      "Organize seminars, workshops, examinations, and academic events.",
+      "Maintain academic records, reports, and departmental documentation.",
+      "Coordinate with faculty, students, and administrative departments.",
+      "Monitor program timelines and ensure adherence to academic calendars.",
+      "Resolve operational issues to ensure uninterrupted academic activities."
+    ],
+    "fixedResponsibilities": [
+      "Ensure compliance with institutional policies and academic guidelines.",
+      "Prepare periodic reports and maintain accurate academic documentation.",
+      "Support continuous improvement of academic processes and student services."
+    ]
+  },
+  {
+    "title": "Academic Counsellor / Counselor",
+    "industry": "Teaching & Training",
+    "summary": [
+      "Join our student support team to provide academic, career, and personal guidance that empowers students to achieve their educational goals.",
+      "You will build meaningful relationships with students while helping them overcome academic and personal challenges through professional counseling."
+    ],
+    "skillList": [
+      "Student Counseling",
+      "Career Guidance",
+      "Academic Advising",
+      "Communication Skills",
+      "Active Listening",
+      "Empathy",
+      "Problem Solving",
+      "Student Support",
+      "Conflict Resolution",
+      "Relationship Management",
+      "Presentation Skills",
+      "Confidentiality",
+      "Time Management",
+      "Documentation",
+      "Report Preparation",
+      "Counseling Techniques",
+      "Decision Making",
+      "Organizational Skills",
+      "Microsoft Office",
+      "Emotional Intelligence"
+    ],
+    "skillResponsibilities": [
+      "Provide one-on-one academic and career counseling sessions.",
+      "Guide students in course selection and academic planning.",
+      "Identify student concerns and recommend appropriate support solutions.",
+      "Conduct workshops on career development, study skills, and personal growth.",
+      "Maintain confidential counseling records and student progress reports.",
+      "Coordinate with faculty and parents to support student development.",
+      "Track student progress and provide continuous mentoring and follow-up."
+    ],
+    "fixedResponsibilities": [
+      "Maintain confidentiality and professional ethics during all counseling activities.",
+      "Ensure compliance with institutional counseling policies and procedures.",
+      "Prepare reports and contribute to student success initiatives."
+    ]
+  },
+  {
+    "title": "Academic Mentor",
+    "industry": "Teaching & Training",
+    "summary": [
+      "Join our academic support team to mentor students through personalized coaching, motivation, and continuous academic guidance.",
+      "You will help learners strengthen study habits, improve performance, and achieve their educational objectives with confidence."
+    ],
+    "skillList": [
+      "Academic Mentoring",
+      "Subject Expertise",
+      "Student Coaching",
+      "Communication Skills",
+      "Leadership",
+      "Motivation",
+      "Goal Setting",
+      "Study Planning",
+      "Progress Monitoring",
+      "Active Listening",
+      "Presentation Skills",
+      "Problem Solving",
+      "Time Management",
+      "Feedback Management",
+      "Relationship Building",
+      "Classroom Support",
+      "Microsoft Office",
+      "Organizational Skills",
+      "Decision Making",
+      "Empathy"
+    ],
+    "skillResponsibilities": [
+      "Mentor students to improve academic performance and learning outcomes.",
+      "Develop personalized study plans and goal-oriented learning strategies.",
+      "Monitor academic progress and provide constructive feedback regularly.",
+      "Motivate students to overcome learning challenges and stay engaged.",
+      "Conduct mentoring sessions and academic skill-building workshops.",
+      "Coordinate with faculty to address individual student needs.",
+      "Encourage continuous learning through guidance and performance tracking."
+    ],
+    "fixedResponsibilities": [
+      "Maintain mentoring records and student progress documentation.",
+      "Collaborate with faculty and academic teams to improve student outcomes.",
+      "Promote a positive and supportive learning environment."
+    ]
+  },
+  {
+    "title": "Academic Registrar",
+    "industry": "Teaching & Training",
+    "summary": [
+      "Join our academic administration team to manage student records, enrollment processes, and institutional academic documentation.",
+      "You will ensure accurate record management while maintaining compliance with academic policies and regulatory requirements."
+    ],
+    "skillList": [
+      "Student Record Management",
+      "Enrollment Management",
+      "Academic Documentation",
+      "Data Entry",
+      "Database Management",
+      "Microsoft Excel",
+      "Microsoft Office",
+      "Compliance Management",
+      "Record Verification",
+      "Documentation",
+      "Report Preparation",
+      "Information Management",
+      "Organizational Skills",
+      "Attention to Detail",
+      "Communication Skills",
+      "Time Management",
+      "Problem Solving",
+      "Confidentiality",
+      "Administrative Support",
+      "Data Accuracy"
+    ],
+    "skillResponsibilities": [
+      "Manage student admissions, enrollments, and academic records accurately.",
+      "Verify and maintain academic documents, transcripts, and certifications.",
+      "Update institutional databases with accurate student information.",
+      "Generate academic reports and maintain regulatory documentation.",
+      "Ensure compliance with institutional and educational regulations.",
+      "Coordinate with academic departments for record verification and updates.",
+      "Resolve documentation-related queries from students and faculty."
+    ],
+    "fixedResponsibilities": [
+      "Maintain confidentiality and integrity of all academic records.",
+      "Ensure accurate documentation and compliance with institutional policies.",
+      "Support academic administration through timely reporting and record management."
+    ]
+  },
+  {
+    "title": "Account / Relationship Management - Non Voice",
+    "industry": "Sales & BD",
+    "summary": [
+      "Join our customer success team to manage client relationships through email, chat, and other digital communication channels.",
+      "You will ensure exceptional customer satisfaction by resolving queries, managing accounts, and building long-term client relationships."
+    ],
+    "skillList": [
+      "Account Management",
+      "Relationship Management",
+      "Customer Service",
+      "CRM Software",
+      "Written Communication",
+      "Email Etiquette",
+      "Chat Support",
+      "Client Retention",
+      "Complaint Resolution",
+      "Problem Solving",
+      "Customer Engagement",
+      "Documentation",
+      "Microsoft Office",
+      "Google Workspace",
+      "Time Management",
+      "Negotiation",
+      "Data Management",
+      "Multitasking",
+      "Attention to Detail",
+      "Professional Communication"
+    ],
+    "skillResponsibilities": [
+      "Manage client accounts through email, chat, and digital communication channels.",
+      "Respond to customer queries and resolve issues within defined SLAs.",
+      "Maintain accurate customer records using CRM software.",
+      "Build long-term client relationships by understanding customer requirements.",
+      "Coordinate with internal teams to resolve customer concerns efficiently.",
+      "Identify opportunities for account growth and customer retention.",
+      "Prepare account updates and maintain communication history."
+    ],
+    "fixedResponsibilities": [
+      "Ensure high levels of customer satisfaction through timely support.",
+      "Maintain accurate account documentation and CRM records.",
+      "Collaborate with cross-functional teams to improve client experience."
+    ]
+  },
+  {
+    "title": "Account / Relationship Management - Voice / Blended",
+    "industry": "Sales & BD",
+    "summary": [
+      "Join our relationship management team to engage clients through voice and digital communication while delivering exceptional customer experiences.",
+      "You will strengthen client relationships, address customer needs, and contribute to business growth through effective communication and account management."
+    ],
+    "skillList": [
+      "Account Management",
+      "Relationship Management",
+      "Customer Service",
+      "Verbal Communication",
+      "CRM Software",
+      "Sales",
+      "Negotiation",
+      "Active Listening",
+      "Customer Retention",
+      "Lead Management",
+      "Cross-selling",
+      "Upselling",
+      "Complaint Resolution",
+      "Microsoft Office",
+      "Time Management",
+      "Problem Solving",
+      "Communication Skills",
+      "Documentation",
+      "Team Collaboration",
+      "Client Engagement"
+    ],
+    "skillResponsibilities": [
+      "Handle client interactions through phone calls, emails, and digital platforms.",
+      "Build and maintain strong relationships with existing customers.",
+      "Identify upselling and cross-selling opportunities during client interactions.",
+      "Resolve customer concerns while ensuring a positive service experience.",
+      "Update CRM records with customer interactions and account details.",
+      "Coordinate with internal departments to resolve client issues promptly.",
+      "Achieve customer satisfaction and account management targets."
+    ],
+    "fixedResponsibilities": [
+      "Maintain professional communication with clients at all times.",
+      "Ensure timely follow-up on customer requests and escalations.",
+      "Support business growth by delivering excellent customer service."
+    ]
+  },
+  {
+    "title": "Account Admin",
+    "industry": "Finance & Accounting",
+    "summary": [
+      "Join our finance team to provide administrative support for accounting operations and financial documentation.",
+      "You will assist in maintaining accurate financial records, processing invoices, and ensuring smooth day-to-day accounting activities."
+    ],
+    "skillList": [
+      "Accounting",
+      "Bookkeeping",
+      "Financial Documentation",
+      "Data Entry",
+      "MS Excel",
+      "Tally ERP",
+      "Invoice Processing",
+      "Financial Reporting",
+      "Record Management",
+      "Bank Reconciliation",
+      "GST Basics",
+      "Voucher Entry",
+      "Documentation",
+      "Attention to Detail",
+      "Time Management",
+      "Organizational Skills",
+      "Communication Skills",
+      "Microsoft Office",
+      "Compliance",
+      "Problem Solving"
+    ],
+    "skillResponsibilities": [
+      "Process invoices, vouchers, and financial documents accurately.",
+      "Maintain accounting records and update financial databases.",
+      "Assist in preparing financial reports and management statements.",
+      "Perform bank reconciliations and verify financial transactions.",
+      "Support audit activities by organizing financial documentation.",
+      "Ensure proper filing and record management of accounting documents.",
+      "Coordinate with internal teams regarding financial and administrative requirements."
+    ],
+    "fixedResponsibilities": [
+      "Maintain confidentiality of financial records and company information.",
+      "Ensure compliance with company accounting policies and procedures.",
+      "Complete assigned accounting and administrative tasks within deadlines."
+    ]
+  },
+  {
+    "title": "Account Clerk",
+    "industry": "Finance & Accounting",
+    "summary": [
+      "Join our finance team to perform routine accounting and clerical tasks that support daily financial operations.",
+      "You will maintain accurate financial records, process transactions, and assist the accounting team in ensuring smooth business operations."
+    ],
+    "skillList": [
+      "Data Entry",
+      "Bookkeeping",
+      "Ledger Maintenance",
+      "Invoice Processing",
+      "MS Excel",
+      "MS Office",
+      "Voucher Entry",
+      "Record Management",
+      "Filing",
+      "Accounts Payable",
+      "Accounts Receivable",
+      "Bank Reconciliation",
+      "Documentation",
+      "Financial Records",
+      "Attention to Detail",
+      "Time Management",
+      "Communication Skills",
+      "Organizational Skills",
+      "Compliance",
+      "Problem Solving"
+    ],
+    "skillResponsibilities": [
+      "Record daily financial transactions and maintain accounting ledgers accurately.",
+      "Process invoices, vouchers, receipts, and payment records.",
+      "Perform data entry and maintain organized financial documentation.",
+      "Assist in bank reconciliations and verification of financial records.",
+      "Prepare reports and support month-end accounting activities.",
+      "Verify transaction details to ensure data accuracy and compliance.",
+      "Coordinate with internal departments for accounting documentation and record updates."
+    ],
+    "fixedResponsibilities": [
+      "Maintain confidentiality of financial information and company records.",
+      "Ensure compliance with accounting policies and internal procedures.",
+      "Complete assigned accounting tasks within defined timelines."
+    ]
+  },
+  {
+    "title": "Account Client Relationship Associate - (Non-Voice)",
+    "industry": "Sales & BD",
+    "summary": [
+      "Join our client relationship team to manage customer accounts through email, chat, and other digital communication channels.",
+      "You will resolve client queries, strengthen relationships, and ensure exceptional customer satisfaction while supporting account growth."
+    ],
+    "skillList": [
+      "Account Management",
+      "Relationship Management",
+      "Customer Service",
+      "Written Communication",
+      "CRM Software",
+      "Email Etiquette",
+      "Chat Support",
+      "Client Retention",
+      "Complaint Resolution",
+      "Data Entry",
+      "Documentation",
+      "Microsoft Office",
+      "Google Workspace",
+      "Time Management",
+      "Problem Solving",
+      "Organizational Skills",
+      "Attention to Detail",
+      "Multitasking",
+      "Professional Communication",
+      "Customer Engagement"
+    ],
+    "skillResponsibilities": [
+      "Manage client communication through email, chat, and online support channels.",
+      "Resolve customer queries while ensuring timely and professional responses.",
+      "Update and maintain customer information in CRM systems.",
+      "Build long-term relationships by understanding customer needs and expectations.",
+      "Coordinate with internal teams to resolve customer issues effectively.",
+      "Monitor customer accounts and identify retention opportunities.",
+      "Prepare communication logs and account-related reports accurately."
+    ],
+    "fixedResponsibilities": [
+      "Deliver exceptional customer service while maintaining professional communication.",
+      "Ensure accurate documentation of all customer interactions.",
+      "Collaborate with internal departments to improve client satisfaction and retention."
+    ]
+  },
+  {
+    "title": "Account Client Services Representative - (Non-Voice)",
+    "industry": "Sales & BD",
+    "summary": [
+      "Join our customer service team to provide exceptional client support through email, chat, and digital communication platforms.",
+      "You will resolve customer concerns, process service requests, and contribute to a positive client experience through timely support."
+    ],
+    "skillList": [
+      "Customer Service",
+      "Client Support",
+      "Written Communication",
+      "CRM Software",
+      "Email Management",
+      "Chat Support",
+      "Data Entry",
+      "Complaint Resolution",
+      "Relationship Building",
+      "Documentation",
+      "Microsoft Office",
+      "Google Workspace",
+      "Problem Solving",
+      "Attention to Detail",
+      "Time Management",
+      "Organizational Skills",
+      "Customer Engagement",
+      "Professional Communication",
+      "Multitasking",
+      "Service Excellence"
+    ],
+    "skillResponsibilities": [
+      "Respond to customer queries through email and chat support channels.",
+      "Process service requests and provide accurate information to clients.",
+      "Resolve customer complaints while maintaining service quality standards.",
+      "Update CRM records with customer interactions and case details.",
+      "Coordinate with relevant departments to ensure timely issue resolution.",
+      "Monitor pending requests and provide regular follow-ups to customers.",
+      "Prepare service reports and maintain accurate documentation."
+    ],
+    "fixedResponsibilities": [
+      "Ensure timely resolution of customer requests and escalations.",
+      "Maintain accurate customer records and communication history.",
+      "Support continuous improvement in customer service processes and client satisfaction."
+    ]
+  },
+  {
+    "title": "Account Consultant",
+    "industry": "Finance & Accounting",
+    "summary": [
+      "Join our finance consulting team to provide strategic financial guidance, reporting, and advisory services to clients.",
+      "You will analyze financial data, recommend solutions, and help clients achieve their financial and business objectives."
+    ],
+    "skillList": [
+      "Financial Analysis",
+      "Financial Consulting",
+      "Budgeting",
+      "Forecasting",
+      "Financial Reporting",
+      "MS Excel",
+      "Advanced Excel",
+      "Client Management",
+      "Taxation",
+      "Cost Analysis",
+      "Business Analysis",
+      "Financial Planning",
+      "MIS Reporting",
+      "Risk Assessment",
+      "Data Analysis",
+      "Communication Skills",
+      "Presentation Skills",
+      "Problem Solving",
+      "Decision Making",
+      "Relationship Management"
+    ],
+    "skillResponsibilities": [
+      "Analyze financial statements and identify improvement opportunities.",
+      "Prepare financial reports, budgets, and forecasting models for clients.",
+      "Provide financial consulting and strategic business recommendations.",
+      "Assist clients with taxation, compliance, and regulatory requirements.",
+      "Develop financial plans to support business growth and profitability.",
+      "Present financial insights and recommendations to clients professionally.",
+      "Build long-term relationships by delivering value-driven financial solutions."
+    ],
+    "fixedResponsibilities": [
+      "Maintain confidentiality of client financial information and business data.",
+      "Ensure compliance with accounting standards and financial regulations.",
+      "Collaborate with internal teams to deliver accurate and timely consulting services."
+    ]
+  },
+  {
+    "title": "Account Coordinator",
+    "industry": "Finance & Accounting",
+    "summary": [
+      "Join our finance team to coordinate accounting operations, monitor financial activities, and support efficient workflow across departments.",
+      "You will ensure timely processing of financial transactions while maintaining effective communication between internal stakeholders."
+    ],
+    "skillList": [
+      "Accounting",
+      "Financial Coordination",
+      "Data Entry",
+      "Scheduling",
+      "Communication Skills",
+      "MS Excel",
+      "Microsoft Office",
+      "Record Management",
+      "Invoice Processing",
+      "Financial Documentation",
+      "Bank Reconciliation",
+      "Organizational Skills",
+      "Time Management",
+      "Problem Solving",
+      "Attention to Detail",
+      "Compliance",
+      "Reporting",
+      "Team Coordination",
+      "Documentation",
+      "Multitasking"
+    ],
+    "skillResponsibilities": [
+      "Coordinate daily accounting activities and financial transaction schedules.",
+      "Process accounting documents, invoices, and payment records accurately.",
+      "Maintain financial records and update accounting databases regularly.",
+      "Coordinate with internal departments to resolve finance-related issues.",
+      "Prepare financial reports and support month-end closing activities.",
+      "Track pending transactions and ensure timely completion of accounting tasks.",
+      "Assist in maintaining organized financial documentation and records."
+    ],
+    "fixedResponsibilities": [
+      "Ensure compliance with company accounting policies and financial procedures.",
+      "Maintain confidentiality and accuracy of financial information.",
+      "Support finance teams in achieving timely and error-free accounting operations."
+    ]
+  },
+  {
+    "title": "Account Executive (Accounting)",
+    "industry": "Finance & Accounting",
+    "summary": [
+      "Join our accounting team to manage financial records, client accounts, and day-to-day accounting operations with accuracy and efficiency.",
+      "You will prepare financial reports, handle billing and reconciliations, and ensure compliance with accounting standards."
+    ],
+    "skillList": [
+      "Accounting",
+      "Financial Reporting",
+      "Bookkeeping",
+      "Account Management",
+      "Billing",
+      "Reconciliation",
+      "Accounts Payable",
+      "Accounts Receivable",
+      "GST Knowledge",
+      "Tally ERP",
+      "MS Excel",
+      "Financial Analysis",
+      "Invoice Processing",
+      "Audit Support",
+      "Compliance",
+      "Documentation",
+      "Communication Skills",
+      "Problem Solving",
+      "Organizational Skills",
+      "Attention to Detail"
+    ],
+    "skillResponsibilities": [
+      "Prepare and maintain financial statements and accounting records.",
+      "Process invoices, billing, and payment transactions accurately.",
+      "Perform bank, ledger, and account reconciliations regularly.",
+      "Support statutory and internal audit activities with required documentation.",
+      "Monitor receivables, payables, and outstanding financial transactions.",
+      "Ensure compliance with accounting standards and tax regulations.",
+      "Generate financial reports and MIS for management review."
+    ],
+    "fixedResponsibilities": [
+      "Maintain confidentiality of financial records and business information.",
+      "Ensure timely completion of accounting activities and financial reporting.",
+      "Coordinate with internal departments to support smooth financial operations."
+    ]
+  },
+  {
+    "title": "Account Head",
+    "industry": "Finance & Accounting",
+    "summary": [
+      "Join our leadership team to oversee accounting operations, financial reporting, and strategic financial planning across the organization.",
+      "You will lead the finance team while ensuring regulatory compliance, financial accuracy, and continuous process improvement."
+    ],
+    "skillList": [
+      "Financial Reporting",
+      "Leadership",
+      "Budgeting",
+      "Financial Planning",
+      "Audit Management",
+      "Compliance Management",
+      "Team Management",
+      "Strategic Planning",
+      "Risk Management",
+      "Taxation",
+      "MIS Reporting",
+      "Advanced MS Excel",
+      "Financial Analysis",
+      "Cash Flow Management",
+      "ERP Systems",
+      "Decision Making",
+      "Communication Skills",
+      "Problem Solving",
+      "Stakeholder Management",
+      "Business Strategy"
+    ],
+    "skillResponsibilities": [
+      "Lead and supervise the accounting team to achieve organizational objectives.",
+      "Review financial statements, reports, and management accounts for accuracy.",
+      "Manage budgeting, forecasting, and financial planning activities.",
+      "Oversee statutory audits, tax compliance, and regulatory reporting.",
+      "Develop financial strategies to improve profitability and operational efficiency.",
+      "Monitor internal controls and implement accounting best practices.",
+      "Present financial insights and recommendations to senior management."
+    ],
+    "fixedResponsibilities": [
+      "Ensure compliance with financial regulations and company policies.",
+      "Maintain the accuracy, integrity, and confidentiality of financial information.",
+      "Collaborate with business leaders to support strategic financial decision-making."
+    ]
+  },
+  {
+    "title": "Account Manager",
+    "industry": "Finance & Accounting",
+    "summary": [
+      "Join our finance team to manage client accounts, oversee billing and collections, and build long-term financial relationships.",
+      "You will provide financial support to clients while ensuring accurate account management and regulatory compliance."
+    ],
+    "skillList": [
+      "Account Management",
+      "Client Relationship Management",
+      "Financial Analysis",
+      "Billing",
+      "Collections",
+      "Financial Reporting",
+      "Negotiation",
+      "Compliance",
+      "MS Excel",
+      "CRM Software",
+      "Budgeting",
+      "Cash Flow Management",
+      "Accounts Receivable",
+      "Accounts Payable",
+      "Risk Assessment",
+      "Communication Skills",
+      "Problem Solving",
+      "Time Management",
+      "Customer Relationship Management",
+      "Documentation"
+    ],
+    "skillResponsibilities": [
+      "Manage a portfolio of client accounts and maintain strong business relationships.",
+      "Monitor billing, collections, and outstanding account balances.",
+      "Analyze financial data and provide recommendations to improve account performance.",
+      "Coordinate with clients regarding invoices, payments, and financial queries.",
+      "Prepare account reports and financial summaries for management review.",
+      "Negotiate payment terms and resolve account-related issues professionally.",
+      "Ensure compliance with financial policies and contractual agreements."
+    ],
+    "fixedResponsibilities": [
+      "Maintain accurate client account records and financial documentation.",
+      "Ensure timely completion of billing, collections, and reporting activities.",
+      "Collaborate with internal teams to deliver exceptional client service and financial support."
+    ]
+  },
+  {
+    "title": "Account Manager - (Non-Voice)",
+    "industry": "Finance & Accounting",
+    "summary": [
+      "Join our finance operations team to manage client accounts through email, chat, and other digital communication channels.",
+      "You will handle billing, account-related queries, and service requests while ensuring exceptional client satisfaction and long-term retention."
+    ],
+    "skillList": [
+      "Account Management",
+      "Written Communication",
+      "Customer Service",
+      "CRM Software",
+      "Billing Management",
+      "Data Entry",
+      "MS Excel",
+      "Financial Documentation",
+      "Invoice Management",
+      "Email Etiquette",
+      "Client Relationship Management",
+      "Problem Solving",
+      "Attention to Detail",
+      "Organizational Skills",
+      "Time Management",
+      "Documentation",
+      "Microsoft Office",
+      "Complaint Resolution",
+      "Multitasking",
+      "Professional Communication"
+    ],
+    "skillResponsibilities": [
+      "Manage client accounts through email and other digital communication platforms.",
+      "Respond to billing queries and resolve account-related concerns promptly.",
+      "Process invoices and maintain accurate customer account records.",
+      "Update CRM systems with account activities and communication history.",
+      "Coordinate with finance and operations teams to resolve client requests.",
+      "Monitor account status and ensure timely follow-up on pending issues.",
+      "Build long-term client relationships through proactive account management."
+    ],
+    "fixedResponsibilities": [
+      "Maintain confidentiality of customer and financial information.",
+      "Ensure timely completion of account-related activities and documentation.",
+      "Collaborate with internal teams to deliver excellent client service."
+    ]
+  },
+  {
+    "title": "Account Relationship Consultant",
+    "industry": "Sales & BD",
+    "summary": [
+      "Join our business development team to build strong client relationships and deliver customized solutions that drive business growth.",
+      "You will identify new opportunities, strengthen existing partnerships, and maximize customer satisfaction through consultative relationship management."
+    ],
+    "skillList": [
+      "Relationship Management",
+      "Sales",
+      "Business Development",
+      "Client Relationship Management",
+      "CRM Software",
+      "Negotiation",
+      "Customer Service",
+      "Communication Skills",
+      "Networking",
+      "Presentation Skills",
+      "Lead Generation",
+      "Account Management",
+      "Strategic Planning",
+      "Problem Solving",
+      "Time Management",
+      "Stakeholder Management",
+      "Market Analysis",
+      "Cross-selling",
+      "Upselling",
+      "Decision Making"
+    ],
+    "skillResponsibilities": [
+      "Develop and maintain long-term relationships with key clients.",
+      "Identify new business opportunities and generate qualified leads.",
+      "Understand client requirements and recommend suitable business solutions.",
+      "Conduct client meetings, presentations, and relationship-building activities.",
+      "Negotiate commercial terms and support business growth initiatives.",
+      "Monitor customer satisfaction and resolve relationship-related concerns.",
+      "Maintain accurate client records and sales activities within CRM systems."
+    ],
+    "fixedResponsibilities": [
+      "Deliver exceptional customer experience while achieving relationship goals.",
+      "Collaborate with internal teams to provide effective client solutions.",
+      "Ensure timely follow-up and compliance with company sales processes."
+    ]
+  },
+  {
+    "title": "Account Relationship Executive - (Non-Voice)",
+    "industry": "Sales & BD",
+    "summary": [
+      "Join our client relationship team to manage customer accounts through email, chat, and other digital communication channels.",
+      "You will strengthen client engagement, resolve queries, and support customer retention through professional non-voice communication."
+    ],
+    "skillList": [
+      "Account Management",
+      "Relationship Management",
+      "Written Communication",
+      "Customer Service",
+      "CRM Software",
+      "Email Etiquette",
+      "Chat Support",
+      "Client Retention",
+      "Data Entry",
+      "Documentation",
+      "Microsoft Office",
+      "Google Workspace",
+      "Complaint Resolution",
+      "Attention to Detail",
+      "Organizational Skills",
+      "Time Management",
+      "Multitasking",
+      "Problem Solving",
+      "Customer Engagement",
+      "Professional Communication"
+    ],
+    "skillResponsibilities": [
+      "Manage customer interactions through email, chat, and digital communication channels.",
+      "Resolve client concerns while maintaining high service quality standards.",
+      "Update CRM records with customer interactions and account information.",
+      "Build strong client relationships through timely follow-up and communication.",
+      "Coordinate with internal teams to resolve account-related issues.",
+      "Monitor customer engagement and identify retention opportunities.",
+      "Prepare communication records and customer service reports accurately."
+    ],
+    "fixedResponsibilities": [
+      "Ensure professional communication and timely response to customer requests.",
+      "Maintain accurate client documentation and account records.",
+      "Support customer retention initiatives by delivering exceptional service."
+    ]
+  },
+  {
+    "title": "Account Specialist",
+    "industry": "Finance & Accounting",
+    "summary": [
+      "Join our finance team to specialize in key accounting functions such as payroll, accounts payable, or accounts receivable while ensuring operational accuracy.",
+      "You will manage specialized financial processes, maintain compliance, and contribute to efficient financial reporting and business operations."
+    ],
+    "skillList": [
+      "Accounting",
+      "Payroll Management",
+      "Accounts Payable",
+      "Accounts Receivable",
+      "Financial Reporting",
+      "Compliance",
+      "Data Analysis",
+      "Advanced MS Excel",
+      "Tally ERP",
+      "ERP Systems",
+      "Reconciliation",
+      "GST Knowledge",
+      "Taxation Basics",
+      "Financial Documentation",
+      "Audit Support",
+      "Problem Solving",
+      "Attention to Detail",
+      "Organizational Skills",
+      "Time Management",
+      "Reporting"
+    ],
+    "skillResponsibilities": [
+      "Manage specialized accounting functions such as payroll, AP, or AR operations.",
+      "Prepare and reconcile financial records with high levels of accuracy.",
+      "Process accounting transactions while ensuring regulatory compliance.",
+      "Generate financial reports and analyze accounting data for management.",
+      "Support internal and statutory audit requirements with accurate documentation.",
+      "Monitor financial discrepancies and implement corrective actions when required.",
+      "Coordinate with internal stakeholders to ensure smooth financial operations."
+    ],
+    "fixedResponsibilities": [
+      "Ensure compliance with accounting standards and statutory regulations.",
+      "Maintain confidentiality and integrity of financial information.",
+      "Support continuous improvement of finance processes through accurate reporting and documentation."
+    ]
+  },
+  {
+    "title": "Account Supervisor",
+    "industry": "Finance & Accounting",
+    "summary": [
+      "Join our finance leadership team to supervise accounting operations and ensure accurate financial reporting across the organization.",
+      "You will lead the accounting team, oversee compliance, and drive process improvements while supporting audits and financial controls."
+    ],
+    "skillList": [
+      "Accounting",
+      "Financial Reporting",
+      "Team Leadership",
+      "Audit Coordination",
+      "Compliance Management",
+      "Budgeting",
+      "Bank Reconciliation",
+      "Advanced MS Excel",
+      "ERP Systems",
+      "Tally ERP",
+      "Financial Analysis",
+      "Internal Controls",
+      "Team Supervision",
+      "MIS Reporting",
+      "Communication Skills",
+      "Organizational Skills",
+      "Problem Solving",
+      "Decision Making",
+      "Process Improvement",
+      "Time Management"
+    ],
+    "skillResponsibilities": [
+      "Supervise day-to-day accounting activities and guide the finance team.",
+      "Review financial statements, vouchers, and accounting records for accuracy.",
+      "Coordinate internal and statutory audit activities with relevant stakeholders.",
+      "Monitor compliance with accounting standards and financial regulations.",
+      "Analyze financial reports and recommend process improvements.",
+      "Train and support junior accounting staff on accounting procedures.",
+      "Resolve accounting discrepancies and ensure timely financial reporting."
+    ],
+    "fixedResponsibilities": [
+      "Ensure compliance with company financial policies and statutory requirements.",
+      "Maintain confidentiality and accuracy of financial information.",
+      "Collaborate with management to improve accounting efficiency and reporting standards."
+    ]
+  },
+  {
+    "title": "Account Trainee",
+    "industry": "Finance & Accounting",
+    "summary": [
+      "Join our finance team as an Account Trainee to learn practical accounting processes while supporting daily financial operations.",
+      "You will receive hands-on experience in bookkeeping, reconciliations, financial documentation, and accounting systems under senior guidance."
+    ],
+    "skillList": [
+      "Accounting Basics",
+      "Bookkeeping",
+      "Data Entry",
+      "MS Excel",
+      "Tally ERP",
+      "Voucher Entry",
+      "Bank Reconciliation",
+      "Invoice Processing",
+      "Financial Documentation",
+      "GST Basics",
+      "Accounts Payable",
+      "Accounts Receivable",
+      "Report Preparation",
+      "Organizational Skills",
+      "Time Management",
+      "Attention to Detail",
+      "Communication Skills",
+      "Learning Agility",
+      "Teamwork",
+      "Problem Solving"
+    ],
+    "skillResponsibilities": [
+      "Assist in recording daily accounting transactions and voucher entries.",
+      "Support invoice processing and financial document verification.",
+      "Perform data entry and maintain accounting records accurately.",
+      "Assist in bank reconciliations and ledger verification activities.",
+      "Prepare basic financial reports and MIS under supervision.",
+      "Learn accounting software and company financial procedures.",
+      "Support senior accountants with routine accounting and documentation tasks."
+    ],
+    "fixedResponsibilities": [
+      "Follow company accounting policies and standard operating procedures.",
+      "Maintain confidentiality of financial records and organizational information.",
+      "Complete assigned training and accounting tasks within defined timelines."
+    ]
+  },
+  {
+    "title": "Accountant",
+    "industry": "Finance & Accounting",
+    "summary": [
+      "Join our finance team to manage accounting operations, financial reporting, and statutory compliance with precision and integrity.",
+      "You will prepare financial statements, oversee taxation and budgeting activities, and ensure accurate financial records for business decision-making."
+    ],
+    "skillList": [
+      "Accounting",
+      "Financial Reporting",
+      "Bookkeeping",
+      "Taxation",
+      "GST",
+      "TDS",
+      "Budgeting",
+      "Financial Analysis",
+      "Bank Reconciliation",
+      "Accounts Payable",
+      "Accounts Receivable",
+      "General Ledger",
+      "Advanced MS Excel",
+      "Tally ERP",
+      "ERP Systems",
+      "Audit Support",
+      "Compliance",
+      "MIS Reporting",
+      "Analytical Skills",
+      "Attention to Detail"
+    ],
+    "skillResponsibilities": [
+      "Prepare and maintain accurate financial statements and accounting records.",
+      "Handle taxation, GST, TDS, and statutory compliance activities.",
+      "Perform bank reconciliations and monitor general ledger transactions.",
+      "Prepare budgets, MIS reports, and financial analysis for management.",
+      "Process accounts payable, receivable, and month-end closing activities.",
+      "Support internal and statutory audits with accurate documentation.",
+      "Identify financial discrepancies and implement corrective actions when required."
+    ],
+    "fixedResponsibilities": [
+      "Ensure compliance with accounting standards, tax regulations, and company policies.",
+      "Maintain confidentiality and integrity of financial information.",
+      "Collaborate with internal departments to ensure efficient financial operations and reporting."
+    ]
+  },
+  {
+    "title": "Accountant (Articleship)",
+    "industry": "Finance & Accounting",
+    "summary": [
+      "Join our finance team as an Articleship Accountant to gain practical exposure to accounting, auditing, taxation, and financial reporting.",
+      "You will work alongside experienced professionals while developing technical expertise required for a successful accounting career."
+    ],
+    "skillList": [
+      "Auditing",
+      "Accounting",
+      "Financial Analysis",
+      "Taxation",
+      "GST",
+      "TDS",
+      "Financial Reporting",
+      "MS Excel",
+      "Tally ERP",
+      "ERP Systems",
+      "Bank Reconciliation",
+      "Ledger Scrutiny",
+      "Report Preparation",
+      "Compliance",
+      "Documentation",
+      "Learning Agility",
+      "Analytical Skills",
+      "Communication Skills",
+      "Attention to Detail",
+      "Time Management"
+    ],
+    "skillResponsibilities": [
+      "Assist in statutory, internal, and tax audit assignments.",
+      "Prepare financial statements, audit schedules, and supporting documentation.",
+      "Perform ledger scrutiny, reconciliations, and financial data verification.",
+      "Support GST, TDS, and income tax return preparation activities.",
+      "Analyze financial records and assist in preparing management reports.",
+      "Maintain accounting records in ERP and accounting software.",
+      "Learn professional accounting standards and audit methodologies through practical assignments."
+    ],
+    "fixedResponsibilities": [
+      "Ensure compliance with accounting standards and regulatory requirements.",
+      "Maintain confidentiality of financial records and client information.",
+      "Complete assigned audit and accounting assignments within scheduled timelines while adhering to professional standards."
+    ]
+  },
+  {
+    "title": "Accountant Cum Office Assistant",
+    "industry": "Finance & Accounting",
+    "summary": [
+      "Join our team to manage daily accounting activities while supporting general office administration and coordination tasks.",
+      "You will ensure smooth financial operations, maintain office records, and assist in administrative functions to improve organizational efficiency."
+    ],
+    "skillList": [
+      "Bookkeeping",
+      "Office Administration",
+      "Billing",
+      "Invoice Processing",
+      "Data Entry",
+      "MS Excel",
+      "MS Office",
+      "Tally ERP",
+      "Record Management",
+      "Documentation",
+      "Filing",
+      "Bank Reconciliation",
+      "Accounts Payable",
+      "Accounts Receivable",
+      "Communication Skills",
+      "Organizational Skills",
+      "Time Management",
+      "Multitasking",
+      "Attention to Detail",
+      "Problem Solving"
+    ],
+    "skillResponsibilities": [
+      "Maintain day-to-day accounting records and bookkeeping activities.",
+      "Process invoices, bills, vouchers, and financial transactions accurately.",
+      "Handle office documentation, filing, and record management efficiently.",
+      "Assist with bank reconciliations and financial data verification.",
+      "Coordinate administrative tasks including office supplies and correspondence.",
+      "Prepare financial reports and maintain organized accounting documentation.",
+      "Support management with both accounting and office coordination activities."
+    ],
+    "fixedResponsibilities": [
+      "Ensure compliance with company accounting and administrative procedures.",
+      "Maintain confidentiality of financial records and office documents.",
+      "Coordinate with internal departments to ensure smooth office and finance operations."
+    ]
+  },
+  {
+    "title": "Accountant / Accounts Executive",
+    "industry": "Finance & Accounting",
+    "summary": [
+      "Join our finance team to manage day-to-day accounting operations, financial reporting, and statutory compliance activities.",
+      "You will support audits, maintain accurate financial records, and coordinate with various departments to ensure efficient financial operations."
+    ],
+    "skillList": [
+      "Accounting",
+      "Financial Reporting",
+      "Bookkeeping",
+      "Audit Support",
+      "Compliance",
+      "GST",
+      "TDS",
+      "Advanced MS Excel",
+      "Tally ERP",
+      "ERP Systems",
+      "Bank Reconciliation",
+      "Accounts Payable",
+      "Accounts Receivable",
+      "General Ledger",
+      "Financial Analysis",
+      "Invoice Processing",
+      "MIS Reporting",
+      "Documentation",
+      "Attention to Detail",
+      "Problem Solving"
+    ],
+    "skillResponsibilities": [
+      "Manage daily accounting transactions and maintain financial records accurately.",
+      "Prepare financial statements, MIS reports, and management reports.",
+      "Perform bank, vendor, and ledger reconciliations regularly.",
+      "Handle GST, TDS, and statutory compliance activities.",
+      "Support internal and statutory audits with complete documentation.",
+      "Monitor receivables, payables, and account balances efficiently.",
+      "Coordinate with internal departments for smooth financial processing."
+    ],
+    "fixedResponsibilities": [
+      "Ensure compliance with accounting standards and statutory regulations.",
+      "Maintain confidentiality and integrity of financial information.",
+      "Support timely month-end and year-end financial closing activities."
+    ]
+  },
+  {
+    "title": "Accounting Assistant",
+    "industry": "Finance & Accounting",
+    "summary": [
+      "Join our finance team to support accounting operations by processing financial transactions and maintaining accurate accounting records.",
+      "You will assist senior accountants with reconciliations, documentation, and administrative activities while ensuring operational accuracy."
+    ],
+    "skillList": [
+      "Accounting",
+      "Data Entry",
+      "Bookkeeping",
+      "Record Keeping",
+      "MS Excel",
+      "Tally ERP",
+      "Invoice Processing",
+      "Bank Reconciliation",
+      "Financial Documentation",
+      "Filing",
+      "Accounts Payable",
+      "Accounts Receivable",
+      "Voucher Entry",
+      "Report Preparation",
+      "Organizational Skills",
+      "Communication Skills",
+      "Time Management",
+      "Attention to Detail",
+      "Problem Solving",
+      "Microsoft Office"
+    ],
+    "skillResponsibilities": [
+      "Process accounting transactions, invoices, and vouchers accurately.",
+      "Maintain organized financial records and accounting documentation.",
+      "Assist with bank reconciliations and ledger verification.",
+      "Prepare accounting reports and support month-end closing activities.",
+      "Verify financial records for completeness and accuracy.",
+      "Coordinate with finance team members to resolve accounting discrepancies.",
+      "Support administrative accounting activities and document management."
+    ],
+    "fixedResponsibilities": [
+      "Follow company accounting policies and financial procedures.",
+      "Maintain confidentiality of accounting records and business information.",
+      "Complete assigned accounting tasks within defined timelines while ensuring accuracy."
+    ]
+  },
+  {
+    "title": "Accounting Associate",
+    "industry": "Finance & Accounting",
+    "summary": [
+      "Join our finance team to perform routine accounting operations including accounts payable, receivable, reconciliations, and financial reporting.",
+      "You will support monthly and annual financial closing activities while ensuring accurate accounting records and regulatory compliance."
+    ],
+    "skillList": [
+      "Accounts Payable",
+      "Accounts Receivable",
+      "Accounting",
+      "Bookkeeping",
+      "Reconciliation",
+      "Data Entry",
+      "Advanced MS Excel",
+      "Tally ERP",
+      "ERP Systems",
+      "Financial Reporting",
+      "General Ledger",
+      "Invoice Processing",
+      "Bank Reconciliation",
+      "MIS Reporting",
+      "Compliance",
+      "Documentation",
+      "Attention to Detail",
+      "Teamwork",
+      "Time Management",
+      "Problem Solving"
+    ],
+    "skillResponsibilities": [
+      "Manage accounts payable and receivable transactions accurately.",
+      "Perform bank, vendor, and ledger reconciliations on a regular basis.",
+      "Process invoices and maintain accurate accounting records.",
+      "Assist in monthly and annual financial closing activities.",
+      "Generate accounting reports and support management reporting requirements.",
+      "Identify and resolve accounting discrepancies through detailed analysis.",
+      "Coordinate with finance teams to ensure smooth accounting operations."
+    ],
+    "fixedResponsibilities": [
+      "Ensure compliance with accounting standards and organizational policies.",
+      "Maintain confidentiality and accuracy of financial information.",
+      "Support continuous improvement of accounting processes and financial reporting."
+    ]
+  },
+  {
+    "title": "Accounting Clerk",
+    "industry": "Finance & Accounting",
+    "summary": [
+      "Join our finance team to perform clerical accounting tasks and maintain accurate financial records for daily business operations.",
+      "You will support invoice processing, ledger maintenance, reconciliations, and financial documentation while ensuring accuracy and compliance."
+    ],
+    "skillList": [
+      "Ledger Maintenance",
+      "Invoice Processing",
+      "Data Entry",
+      "Bookkeeping",
+      "MS Excel",
+      "MS Office",
+      "Tally ERP",
+      "Accounts Payable",
+      "Accounts Receivable",
+      "Voucher Entry",
+      "Bank Reconciliation",
+      "Financial Documentation",
+      "Filing",
+      "Record Management",
+      "Attention to Detail",
+      "Communication Skills",
+      "Organizational Skills",
+      "Time Management",
+      "Compliance",
+      "Problem Solving"
+    ],
+    "skillResponsibilities": [
+      "Maintain accounting ledgers and record daily financial transactions accurately.",
+      "Process invoices, payment vouchers, and financial documents.",
+      "Perform data entry and maintain organized accounting records.",
+      "Assist with bank reconciliations and transaction verification.",
+      "Support audit activities by preparing required financial documentation.",
+      "Verify financial information to ensure accuracy and completeness.",
+      "Coordinate with internal teams to resolve accounting-related queries."
+    ],
+    "fixedResponsibilities": [
+      "Follow accounting policies and company financial procedures.",
+      "Maintain confidentiality and integrity of financial records.",
+      "Complete assigned accounting tasks within defined timelines while ensuring data accuracy."
+    ]
+  },
+  {
+    "title": "Accounting Intern",
+    "industry": "Finance & Accounting",
+    "summary": [
+      "Join our finance team as an Accounting Intern to gain practical exposure to accounting processes, financial reporting, and compliance activities.",
+      "You will assist senior professionals while developing hands-on experience in bookkeeping, reconciliations, and accounting systems."
+    ],
+    "skillList": [
+      "Accounting Basics",
+      "Data Entry",
+      "Bookkeeping",
+      "MS Excel",
+      "Tally ERP",
+      "Bank Reconciliation",
+      "Financial Documentation",
+      "Report Preparation",
+      "Invoice Processing",
+      "Voucher Entry",
+      "Accounts Payable",
+      "Accounts Receivable",
+      "Organizational Skills",
+      "Time Management",
+      "Attention to Detail",
+      "Communication Skills",
+      "Learning Agility",
+      "Teamwork",
+      "Microsoft Office",
+      "Problem Solving"
+    ],
+    "skillResponsibilities": [
+      "Assist with recording daily accounting transactions and voucher entries.",
+      "Perform data entry and maintain financial records accurately.",
+      "Support bank reconciliations and ledger verification activities.",
+      "Assist in preparing accounting reports and financial statements.",
+      "Process invoices and organize supporting financial documentation.",
+      "Learn accounting software and company financial procedures under supervision.",
+      "Support senior accountants with routine accounting and administrative tasks."
+    ],
+    "fixedResponsibilities": [
+      "Follow company accounting policies and financial procedures.",
+      "Maintain confidentiality of financial records and organizational data.",
+      "Complete assigned learning objectives and accounting tasks within scheduled timelines."
+    ]
+  },
+  {
+    "title": "Accounts & Audit Assistant",
+    "industry": "Finance & Accounting",
+    "summary": [
+      "Join our finance team to support accounting operations and audit activities while ensuring financial accuracy and regulatory compliance.",
+      "You will assist senior accountants in maintaining financial records, preparing audit documentation, and processing accounting transactions."
+    ],
+    "skillList": [
+      "Accounting",
+      "Auditing",
+      "Bookkeeping",
+      "Data Entry",
+      "Invoice Processing",
+      "MS Excel",
+      "Tally ERP",
+      "Bank Reconciliation",
+      "Financial Reporting",
+      "Audit Support",
+      "Compliance",
+      "GST Basics",
+      "Voucher Entry",
+      "Financial Documentation",
+      "Record Management",
+      "Attention to Detail",
+      "Organizational Skills",
+      "Time Management",
+      "Communication Skills",
+      "Problem Solving"
+    ],
+    "skillResponsibilities": [
+      "Process accounting entries, invoices, and financial transactions accurately.",
+      "Assist in preparing audit schedules and supporting documentation.",
+      "Perform bank and ledger reconciliations to verify financial accuracy.",
+      "Support statutory and internal audit activities with required records.",
+      "Maintain accounting records and ensure compliance with financial procedures.",
+      "Generate accounting reports and assist in month-end closing activities.",
+      "Coordinate with finance teams to resolve accounting discrepancies."
+    ],
+    "fixedResponsibilities": [
+      "Ensure compliance with accounting standards and audit requirements.",
+      "Maintain confidentiality and integrity of financial information.",
+      "Support timely completion of accounting and audit assignments."
+    ]
+  },
+  {
+    "title": "Accounts Administrator",
+    "industry": "Finance & Accounting",
+    "summary": [
+      "Join our finance team to manage accounting records, process financial transactions, and support efficient administrative operations.",
+      "You will ensure accurate financial reporting while coordinating with internal teams to maintain compliance and operational efficiency."
+    ],
+    "skillList": [
+      "Accounting",
+      "Financial Administration",
+      "Data Entry",
+      "Financial Reporting",
+      "MS Excel",
+      "Microsoft Office",
+      "Record Management",
+      "Bookkeeping",
+      "Invoice Processing",
+      "Bank Reconciliation",
+      "Compliance",
+      "Documentation",
+      "Accounts Payable",
+      "Accounts Receivable",
+      "Organizational Skills",
+      "Communication Skills",
+      "Time Management",
+      "Problem Solving",
+      "Attention to Detail",
+      "Team Coordination"
+    ],
+    "skillResponsibilities": [
+      "Manage accounting records and maintain organized financial documentation.",
+      "Process invoices, payments, and financial transactions accurately.",
+      "Prepare financial reports and assist in management reporting activities.",
+      "Coordinate with internal departments for accounting and administrative support.",
+      "Perform reconciliations and verify financial records regularly.",
+      "Monitor compliance with company accounting policies and procedures.",
+      "Support audit activities by preparing required financial documents."
+    ],
+    "fixedResponsibilities": [
+      "Ensure confidentiality and accuracy of financial information.",
+      "Maintain compliance with accounting standards and organizational policies.",
+      "Collaborate with internal stakeholders to ensure smooth financial and administrative operations."
+    ]
+  },
+  {
+    "title": "Accounts and Admin Executive",
+    "industry": "Finance & Accounting",
+    "summary": [
+      "Join our organization to manage accounting operations alongside administrative functions, ensuring efficient financial and office management.",
+      "You will support bookkeeping, billing, office coordination, and documentation while maintaining smooth day-to-day business operations."
+    ],
+    "skillList": [
+      "Accounting",
+      "Administration",
+      "Bookkeeping",
+      "Billing",
+      "Invoice Processing",
+      "Data Entry",
+      "MS Excel",
+      "Microsoft Office",
+      "Tally ERP",
+      "Record Management",
+      "Office Coordination",
+      "Financial Documentation",
+      "Bank Reconciliation",
+      "Filing",
+      "Accounts Payable",
+      "Accounts Receivable",
+      "Communication Skills",
+      "Organizational Skills",
+      "Multitasking",
+      "Time Management"
+    ],
+    "skillResponsibilities": [
+      "Maintain day-to-day accounting records and bookkeeping activities.",
+      "Process invoices, billing, payments, and financial transactions accurately.",
+      "Coordinate office administration, documentation, and filing activities.",
+      "Perform bank reconciliations and maintain financial records.",
+      "Prepare accounting reports and administrative documentation.",
+      "Coordinate with vendors, clients, and internal departments for operational support.",
+      "Ensure organized management of office and financial records."
+    ],
+    "fixedResponsibilities": [
+      "Ensure compliance with company accounting and administrative procedures.",
+      "Maintain confidentiality of financial and organizational information.",
+      "Support smooth coordination between finance and administration teams."
+    ]
+  },
+  {
+    "title": "Accounts and Finance Executive",
+    "industry": "Finance & Accounting",
+    "summary": [
+      "Join our finance team to manage accounting operations, financial reporting, and budgeting while ensuring regulatory compliance.",
+      "You will support financial planning, audits, and day-to-day finance activities to strengthen organizational financial performance."
+    ],
+    "skillList": [
+      "Accounting",
+      "Finance",
+      "Financial Reporting",
+      "Budgeting",
+      "Financial Analysis",
+      "Audit Support",
+      "GST",
+      "TDS",
+      "Advanced MS Excel",
+      "Tally ERP",
+      "ERP Systems",
+      "Bank Reconciliation",
+      "Accounts Payable",
+      "Accounts Receivable",
+      "MIS Reporting",
+      "Compliance",
+      "Financial Planning",
+      "Documentation",
+      "Attention to Detail",
+      "Problem Solving"
+    ],
+    "skillResponsibilities": [
+      "Manage daily accounting transactions and financial records accurately.",
+      "Prepare financial statements, MIS reports, and budget reports.",
+      "Perform bank reconciliations and monitor financial transactions.",
+      "Assist with budgeting, forecasting, and financial planning activities.",
+      "Support statutory and internal audit processes with documentation.",
+      "Ensure compliance with accounting standards and tax regulations.",
+      "Coordinate with departments for efficient financial operations and reporting."
+    ],
+    "fixedResponsibilities": [
+      "Maintain confidentiality and integrity of financial information.",
+      "Ensure compliance with financial policies, accounting standards, and statutory requirements.",
+      "Support month-end and year-end financial closing activities."
+    ]
+  },
+  {
+    "title": "Accounts Executive",
+    "industry": "Finance & Accounting",
+    "summary": [
+      "Join our finance team to oversee daily accounting operations, financial reporting, and client account management with accuracy and efficiency.",
+      "You will support audits, ensure compliance, and maintain reliable financial records to facilitate business decision-making."
+    ],
+    "skillList": [
+      "Accounting",
+      "Financial Reporting",
+      "Client Management",
+      "Bookkeeping",
+      "Accounts Payable",
+      "Accounts Receivable",
+      "Bank Reconciliation",
+      "Audit Support",
+      "GST",
+      "TDS",
+      "Tally ERP",
+      "Advanced MS Excel",
+      "Invoice Processing",
+      "Financial Analysis",
+      "MIS Reporting",
+      "Compliance",
+      "Communication Skills",
+      "Organizational Skills",
+      "Attention to Detail",
+      "Problem Solving"
+    ],
+    "skillResponsibilities": [
+      "Manage day-to-day accounting transactions and maintain financial records.",
+      "Prepare financial statements and periodic management reports.",
+      "Process invoices, payments, and client account reconciliations.",
+      "Perform bank, vendor, and ledger reconciliations regularly.",
+      "Support audit activities with complete financial documentation.",
+      "Monitor compliance with accounting standards and statutory regulations.",
+      "Coordinate with clients and internal teams to resolve financial queries."
+    ],
+    "fixedResponsibilities": [
+      "Maintain confidentiality of financial information and client records.",
+      "Ensure timely completion of accounting and reporting activities.",
+      "Collaborate with internal departments to support efficient financial operations."
+    ]
+  },
+  {
+    "title": "Accounts Manager",
+    "industry": "Finance & Accounting",
+    "summary": [
+      "Join our leadership team to oversee accounting operations, financial reporting, budgeting, and compliance across the organization.",
+      "You will lead the finance team, optimize accounting processes, and provide strategic financial insights to support business growth and decision-making."
+    ],
+    "skillList": [
+      "Leadership",
+      "Financial Reporting",
+      "Budgeting",
+      "Financial Planning",
+      "Audit Management",
+      "Team Management",
+      "Compliance Management",
+      "Strategic Planning",
+      "Risk Management",
+      "Advanced MS Excel",
+      "ERP Systems",
+      "Financial Analysis",
+      "Cash Flow Management",
+      "MIS Reporting",
+      "Taxation",
+      "Internal Controls",
+      "Stakeholder Management",
+      "Communication Skills",
+      "Decision Making",
+      "Problem Solving"
+    ],
+    "skillResponsibilities": [
+      "Lead and supervise the accounting team to achieve departmental objectives.",
+      "Review financial statements, reports, and management accounts for accuracy.",
+      "Manage budgeting, forecasting, and cash flow planning activities.",
+      "Oversee statutory audits, tax compliance, and regulatory reporting.",
+      "Develop and implement financial controls to improve operational efficiency.",
+      "Analyze financial performance and provide strategic recommendations to management.",
+      "Mentor team members and drive continuous improvement in finance processes."
+    ],
+    "fixedResponsibilities": [
+      "Ensure compliance with accounting standards, tax laws, and company policies.",
+      "Maintain the integrity, confidentiality, and accuracy of financial information.",
+      "Collaborate with senior leadership to support strategic business planning and financial decision-making."
+    ]
+  },
+  {
+    "title": "Accounts Officer",
+    "industry": "Finance & Accounting",
+    "summary": [
+      "Join our finance team to manage accounting operations, maintain financial records, and ensure accurate processing of financial transactions.",
+      "You will prepare vouchers, maintain ledgers, process payments, and support audits while ensuring compliance with accounting standards."
+    ],
+    "skillList": [
+      "Accounting",
+      "Bookkeeping",
+      "Ledger Maintenance",
+      "Voucher Preparation",
+      "Payment Processing",
+      "Bank Reconciliation",
+      "Accounts Payable",
+      "Accounts Receivable",
+      "General Ledger",
+      "Tally ERP",
+      "Advanced MS Excel",
+      "GST",
+      "TDS",
+      "Financial Reporting",
+      "Audit Support",
+      "Financial Documentation",
+      "Compliance",
+      "Communication Skills",
+      "Attention to Detail",
+      "Problem Solving"
+    ],
+    "skillResponsibilities": [
+      "Prepare accounting vouchers and record financial transactions accurately.",
+      "Maintain general ledgers and reconcile financial accounts regularly.",
+      "Process vendor payments and monitor payment schedules.",
+      "Perform bank reconciliations and verify accounting records.",
+      "Support statutory and internal audits with required financial documentation.",
+      "Prepare financial reports and MIS statements for management review.",
+      "Ensure compliance with accounting standards and statutory regulations."
+    ],
+    "fixedResponsibilities": [
+      "Maintain confidentiality and integrity of financial information.",
+      "Follow company accounting policies and financial procedures.",
+      "Coordinate with internal departments to ensure smooth financial operations and timely reporting."
+    ]
+  },
+  {
+    "title": "Accounts Payable",
+    "industry": "Finance & Accounting",
+    "summary": [
+      "Join our finance team to manage the accounts payable function by ensuring timely invoice processing, vendor payments, and financial accuracy.",
+      "You will maintain vendor relationships, monitor payment cycles, and ensure compliance with organizational financial policies."
+    ],
+    "skillList": [
+      "Accounts Payable",
+      "Invoice Processing",
+      "Vendor Management",
+      "Payment Processing",
+      "Bank Reconciliation",
+      "Purchase Orders",
+      "Vendor Reconciliation",
+      "GST",
+      "TDS",
+      "Advanced MS Excel",
+      "ERP Systems",
+      "Tally ERP",
+      "Financial Documentation",
+      "Compliance",
+      "Record Management",
+      "Attention to Detail",
+      "Organizational Skills",
+      "Communication Skills",
+      "Time Management",
+      "Problem Solving"
+    ],
+    "skillResponsibilities": [
+      "Verify vendor invoices against purchase orders and supporting documents.",
+      "Process vendor payments according to approved payment schedules.",
+      "Perform vendor statement reconciliations and resolve payment discrepancies.",
+      "Maintain accurate accounts payable records and supporting documentation.",
+      "Coordinate with vendors and internal departments regarding payment queries.",
+      "Generate accounts payable reports and aging analysis for management.",
+      "Ensure compliance with company policies and statutory payment regulations."
+    ],
+    "fixedResponsibilities": [
+      "Maintain confidentiality and accuracy of financial information.",
+      "Ensure timely processing of invoices and vendor payments.",
+      "Support audit requirements by maintaining complete financial documentation."
+    ]
+  },
+  {
+    "title": "Accounts Receivable Officer",
+    "industry": "Finance & Accounting",
+    "summary": [
+      "Join our finance team to oversee accounts receivable operations, monitor customer payments, and manage collection activities efficiently.",
+      "You will ensure timely invoice collection, maintain customer account records, and support healthy organizational cash flow."
+    ],
+    "skillList": [
+      "Accounts Receivable",
+      "Collections",
+      "Invoicing",
+      "Payment Tracking",
+      "Customer Relationship Management",
+      "Bank Reconciliation",
+      "Credit Control",
+      "Billing",
+      "Payment Follow-up",
+      "MS Excel",
+      "ERP Systems",
+      "Tally ERP",
+      "Financial Reporting",
+      "Data Entry",
+      "Communication Skills",
+      "Negotiation Skills",
+      "Organizational Skills",
+      "Attention to Detail",
+      "Problem Solving",
+      "Documentation"
+    ],
+    "skillResponsibilities": [
+      "Generate customer invoices and maintain accurate billing records.",
+      "Track incoming payments and update customer account balances.",
+      "Follow up with customers regarding overdue payments and collections.",
+      "Perform customer account reconciliations and resolve payment discrepancies.",
+      "Prepare accounts receivable aging reports and collection summaries.",
+      "Coordinate with sales and finance teams to resolve billing issues.",
+      "Monitor outstanding receivables and recommend collection strategies."
+    ],
+    "fixedResponsibilities": [
+      "Maintain confidentiality of customer financial information.",
+      "Ensure compliance with company credit and collection policies.",
+      "Support month-end financial closing and reporting activities."
+    ]
+  },
+  {
+    "title": "Accounts Supervisor",
+    "industry": "Finance & Accounting",
+    "summary": [
+      "Join our finance leadership team to supervise accounting operations, review financial records, and ensure compliance with accounting policies and procedures.",
+      "You will lead the accounting team, support audits, and drive continuous improvements in financial processes and reporting."
+    ],
+    "skillList": [
+      "Accounting",
+      "Financial Reporting",
+      "Team Supervision",
+      "Audit Coordination",
+      "Leadership",
+      "Budgeting",
+      "Compliance Management",
+      "Bank Reconciliation",
+      "Advanced MS Excel",
+      "ERP Systems",
+      "Tally ERP",
+      "Financial Analysis",
+      "Internal Controls",
+      "MIS Reporting",
+      "Taxation",
+      "Communication Skills",
+      "Organizational Skills",
+      "Decision Making",
+      "Problem Solving",
+      "Process Improvement"
+    ],
+    "skillResponsibilities": [
+      "Supervise daily accounting activities and monitor team performance.",
+      "Review accounting entries, financial statements, and supporting documents.",
+      "Coordinate statutory and internal audits with auditors and stakeholders.",
+      "Monitor compliance with accounting standards and financial regulations.",
+      "Analyze financial reports and identify opportunities for process improvement.",
+      "Mentor accounting staff and provide technical guidance on financial procedures.",
+      "Resolve accounting discrepancies and ensure timely financial reporting."
+    ],
+    "fixedResponsibilities": [
+      "Ensure compliance with organizational accounting policies and statutory requirements.",
+      "Maintain confidentiality, integrity, and accuracy of financial information.",
+      "Collaborate with management to improve accounting controls and operational efficiency."
+    ]
+  },
+  {
+    "title": "Accounts Trainee",
+    "industry": "Finance & Accounting",
+    "summary": [
+      "Join our finance team as an Accounts Trainee to gain practical exposure to accounting operations, financial reporting, and compliance processes.",
+      "You will assist experienced professionals while developing hands-on knowledge of bookkeeping, reconciliations, and financial documentation."
+    ],
+    "skillList": [
+      "Accounting Basics",
+      "Bookkeeping",
+      "Data Entry",
+      "MS Excel",
+      "Tally ERP",
+      "Invoice Processing",
+      "Voucher Entry",
+      "Bank Reconciliation",
+      "Financial Documentation",
+      "Accounts Payable",
+      "Accounts Receivable",
+      "Ledger Maintenance",
+      "Report Preparation",
+      "GST Basics",
+      "Microsoft Office",
+      "Learning Agility",
+      "Attention to Detail",
+      "Communication Skills",
+      "Organizational Skills",
+      "Time Management"
+    ],
+    "skillResponsibilities": [
+      "Assist in recording daily accounting transactions and maintaining ledgers.",
+      "Process invoices, vouchers, and financial documents accurately.",
+      "Perform data entry and update accounting records in ERP software.",
+      "Support bank reconciliations and ledger verification activities.",
+      "Assist in preparing financial reports and MIS statements.",
+      "Learn accounting procedures, taxation basics, and company financial policies.",
+      "Support senior accountants with documentation and routine finance operations."
+    ],
+    "fixedResponsibilities": [
+      "Follow company accounting policies and financial procedures.",
+      "Maintain confidentiality of financial records and organizational information.",
+      "Complete assigned accounting tasks and learning objectives within defined timelines."
+    ]
+  },
+  {
+    "title": "Acquisition Manager",
+    "industry": "Sales & BD",
+    "summary": [
+      "Join our business development team to identify new business opportunities, acquire clients, and drive sustainable revenue growth.",
+      "You will develop acquisition strategies, negotiate business deals, and manage the complete client onboarding lifecycle."
+    ],
+    "skillList": [
+      "Business Development",
+      "Client Acquisition",
+      "Lead Generation",
+      "Sales Strategy",
+      "Market Research",
+      "Negotiation",
+      "CRM Software",
+      "Relationship Management",
+      "Strategic Planning",
+      "Networking",
+      "Prospecting",
+      "Customer Acquisition",
+      "Presentation Skills",
+      "Communication Skills",
+      "Revenue Growth",
+      "Pipeline Management",
+      "Stakeholder Management",
+      "Time Management",
+      "Problem Solving",
+      "Decision Making"
+    ],
+    "skillResponsibilities": [
+      "Identify and acquire new business opportunities through market research and networking.",
+      "Generate qualified leads and convert prospects into long-term clients.",
+      "Conduct client meetings, presentations, and business negotiations.",
+      "Develop acquisition strategies to achieve revenue and growth targets.",
+      "Manage the complete onboarding process for newly acquired clients.",
+      "Maintain accurate sales pipelines and customer information in CRM systems.",
+      "Build strong client relationships to maximize retention and business growth."
+    ],
+    "fixedResponsibilities": [
+      "Achieve business acquisition targets while maintaining high customer satisfaction.",
+      "Collaborate with sales, marketing, and operations teams to support business growth.",
+      "Prepare regular business development reports and market insights for management."
+    ]
+  },
+  {
+    "title": "Activities Coordinator",
+    "industry": "Teaching & Training",
+    "summary": [
+      "Join our institution to plan and coordinate engaging academic, cultural, and extracurricular activities for students and participants.",
+      "You will organize events that promote learning, creativity, and overall student development while ensuring smooth program execution."
+    ],
+    "skillList": [
+      "Event Planning",
+      "Activity Coordination",
+      "Communication Skills",
+      "Organizational Skills",
+      "Leadership",
+      "Creativity",
+      "Scheduling",
+      "Time Management",
+      "Team Coordination",
+      "Budget Management",
+      "Public Speaking",
+      "Student Engagement",
+      "Problem Solving",
+      "Documentation",
+      "Microsoft Office",
+      "Vendor Coordination",
+      "Presentation Skills",
+      "Multitasking",
+      "Attention to Detail",
+      "Safety Management"
+    ],
+    "skillResponsibilities": [
+      "Plan, organize, and coordinate academic, cultural, and extracurricular activities.",
+      "Develop activity schedules and manage event logistics efficiently.",
+      "Coordinate with faculty, students, vendors, and external partners.",
+      "Monitor event budgets, resources, and participant registrations.",
+      "Ensure activities comply with institutional guidelines and safety standards.",
+      "Promote events and encourage active student participation.",
+      "Evaluate event outcomes and recommend improvements for future programs."
+    ],
+    "fixedResponsibilities": [
+      "Maintain proper documentation and reports for all activities and events.",
+      "Ensure smooth execution of programs while adhering to organizational policies.",
+      "Foster a positive, engaging, and safe environment for participants."
+    ]
+  },
+  {
+    "title": "Admin Executive",
+    "industry": "Admin / Back Office / Computer Operator",
+    "summary": [
+      "Join our administration team to manage daily office operations, documentation, scheduling, and administrative support functions.",
+      "You will ensure efficient workflow by coordinating office activities, maintaining records, and supporting various departments."
+    ],
+    "skillList": [
+      "Administration",
+      "Office Management",
+      "Scheduling",
+      "MS Office",
+      "Microsoft Excel",
+      "Data Entry",
+      "Document Management",
+      "Filing",
+      "Record Management",
+      "Email Management",
+      "Calendar Management",
+      "Vendor Coordination",
+      "Communication Skills",
+      "Organizational Skills",
+      "Multitasking",
+      "Time Management",
+      "Problem Solving",
+      "Attention to Detail",
+      "Google Workspace",
+      "Administrative Support"
+    ],
+    "skillResponsibilities": [
+      "Manage office administration, scheduling, and daily operational activities.",
+      "Maintain documents, records, files, and office correspondence systematically.",
+      "Coordinate meetings, appointments, and calendar schedules.",
+      "Prepare reports, presentations, and administrative documentation.",
+      "Handle data entry and maintain office databases accurately.",
+      "Coordinate with vendors and internal departments for administrative requirements.",
+      "Monitor office supplies and ensure uninterrupted administrative support."
+    ],
+    "fixedResponsibilities": [
+      "Ensure compliance with company administrative policies and procedures.",
+      "Maintain confidentiality of organizational documents and information.",
+      "Support smooth office operations by coordinating effectively across departments."
+    ]
+  },
+  {
+    "title": "Admin Incharge",
+    "industry": "Admin / Back Office / Computer Operator",
+    "summary": [
+      "Join our administration team to oversee daily office operations, manage administrative staff, and ensure efficient utilization of office resources.",
+      "You will supervise administrative functions, maintain compliance with company policies, and support smooth organizational workflow."
+    ],
+    "skillList": [
+      "Administration",
+      "Office Management",
+      "Staff Supervision",
+      "Resource Allocation",
+      "Communication Skills",
+      "Leadership",
+      "Team Management",
+      "MS Office",
+      "Microsoft Excel",
+      "Vendor Management",
+      "Record Management",
+      "Document Control",
+      "Facility Management",
+      "Inventory Management",
+      "Scheduling",
+      "Organizational Skills",
+      "Problem Solving",
+      "Time Management",
+      "Attention to Detail",
+      "Decision Making"
+    ],
+    "skillResponsibilities": [
+      "Supervise daily administrative operations and office support staff.",
+      "Manage office resources, facilities, and inventory efficiently.",
+      "Coordinate with departments to ensure smooth administrative support.",
+      "Monitor office maintenance, vendor services, and facility requirements.",
+      "Maintain office records, documentation, and administrative reports.",
+      "Implement company policies and resolve administrative issues promptly.",
+      "Evaluate administrative processes and recommend operational improvements."
+    ],
+    "fixedResponsibilities": [
+      "Ensure compliance with company policies and administrative procedures.",
+      "Maintain confidentiality of organizational documents and sensitive information.",
+      "Support business operations by ensuring efficient office administration."
+    ]
+  },
+  {
+    "title": "Admin Manager",
+    "industry": "Admin / Back Office / Computer Operator",
+    "summary": [
+      "Join our leadership team to manage office administration, supervise administrative staff, and optimize business support operations.",
+      "You will develop administrative policies, improve operational efficiency, and ensure seamless coordination across departments."
+    ],
+    "skillList": [
+      "Leadership",
+      "Office Management",
+      "Administration",
+      "Team Management",
+      "Policy Implementation",
+      "Strategic Planning",
+      "Communication Skills",
+      "MS Office",
+      "Microsoft Excel",
+      "Vendor Management",
+      "Budget Management",
+      "Facility Management",
+      "Resource Planning",
+      "Compliance",
+      "Organizational Skills",
+      "Problem Solving",
+      "Decision Making",
+      "Time Management",
+      "Process Improvement",
+      "Stakeholder Management"
+    ],
+    "skillResponsibilities": [
+      "Lead and supervise the administrative team to achieve operational objectives.",
+      "Develop and implement office administration policies and procedures.",
+      "Manage office facilities, vendors, budgets, and resource allocation.",
+      "Coordinate with department heads to support business operations.",
+      "Monitor administrative performance and implement process improvements.",
+      "Review administrative reports and ensure operational efficiency.",
+      "Resolve complex administrative issues and support strategic initiatives."
+    ],
+    "fixedResponsibilities": [
+      "Ensure compliance with organizational policies and administrative standards.",
+      "Maintain confidentiality of company records and business information.",
+      "Collaborate with leadership to improve operational efficiency and workplace productivity."
+    ]
+  },
+  {
+    "title": "Administration Manager",
+    "industry": "Admin / Back Office / Computer Operator",
+    "summary": [
+      "Join our organization to oversee all administrative functions and ensure efficient office operations across departments.",
+      "You will lead administrative teams, enforce organizational policies, and drive continuous improvement in administrative processes."
+    ],
+    "skillList": [
+      "Administration",
+      "Office Management",
+      "Staff Management",
+      "Leadership",
+      "Policy Development",
+      "Compliance Management",
+      "Team Management",
+      "Communication Skills",
+      "MS Office",
+      "Microsoft Excel",
+      "Budget Management",
+      "Vendor Management",
+      "Facility Management",
+      "Documentation",
+      "Resource Planning",
+      "Organizational Skills",
+      "Problem Solving",
+      "Time Management",
+      "Decision Making",
+      "Process Improvement"
+    ],
+    "skillResponsibilities": [
+      "Manage organization-wide administrative operations and office facilities.",
+      "Supervise administrative staff and allocate responsibilities effectively.",
+      "Develop, implement, and monitor office policies and administrative procedures.",
+      "Coordinate vendor contracts, office maintenance, and procurement activities.",
+      "Monitor administrative budgets and optimize operational resources.",
+      "Ensure compliance with company policies and regulatory requirements.",
+      "Evaluate administrative performance and recommend process enhancements."
+    ],
+    "fixedResponsibilities": [
+      "Maintain confidentiality of organizational records and sensitive information.",
+      "Ensure efficient administrative support for all business functions.",
+      "Collaborate with management to achieve operational excellence and organizational goals."
+    ]
+  },
+  {
+    "title": "Administrative Assistant",
+    "industry": "Admin / Back Office / Computer Operator",
+    "summary": [
+      "Join our administration team to provide clerical and administrative support while ensuring smooth day-to-day office operations.",
+      "You will manage schedules, correspondence, documentation, and office coordination to support organizational efficiency."
+    ],
+    "skillList": [
+      "Administration",
+      "Administrative Support",
+      "Scheduling",
+      "Calendar Management",
+      "Data Entry",
+      "MS Office",
+      "Microsoft Excel",
+      "Document Management",
+      "Filing",
+      "Record Management",
+      "Email Management",
+      "Office Coordination",
+      "Communication Skills",
+      "Organizational Skills",
+      "Multitasking",
+      "Time Management",
+      "Attention to Detail",
+      "Google Workspace",
+      "Customer Service",
+      "Problem Solving"
+    ],
+    "skillResponsibilities": [
+      "Manage calendars, appointments, meetings, and travel schedules.",
+      "Prepare, organize, and maintain office documents and records.",
+      "Handle correspondence through email, phone, and internal communication channels.",
+      "Perform data entry and maintain administrative databases accurately.",
+      "Coordinate office meetings and prepare reports, presentations, and documentation.",
+      "Support administrative activities including filing, document control, and office coordination.",
+      "Assist various departments with routine administrative and operational tasks."
+    ],
+    "fixedResponsibilities": [
+      "Ensure compliance with company administrative policies and office procedures.",
+      "Maintain confidentiality of organizational information and documentation.",
+      "Support smooth office operations through effective coordination and administrative assistance."
+    ]
+  },
+  {
+    "title": "Administrative Clerk",
+    "industry": "Admin / Back Office / Computer Operator",
+    "summary": [
+      "Join our administration team to perform clerical duties, maintain office records, and support daily administrative operations.",
+      "You will ensure accurate documentation, efficient data management, and smooth office workflow through organized administrative support."
+    ],
+    "skillList": [
+      "Clerical Work",
+      "Administration",
+      "Data Entry",
+      "Filing",
+      "Record Management",
+      "Document Management",
+      "MS Office",
+      "Microsoft Excel",
+      "Email Management",
+      "Office Coordination",
+      "Documentation",
+      "Communication Skills",
+      "Organizational Skills",
+      "Attention to Detail",
+      "Time Management",
+      "Multitasking",
+      "Customer Service",
+      "Google Workspace",
+      "Problem Solving",
+      "Administrative Support"
+    ],
+    "skillResponsibilities": [
+      "Perform data entry and maintain accurate administrative records.",
+      "Organize, file, and retrieve office documents systematically.",
+      "Handle office correspondence, emails, and document distribution.",
+      "Assist with preparation of reports, letters, and administrative documents.",
+      "Maintain databases and update office records regularly.",
+      "Support office staff with day-to-day clerical and administrative tasks.",
+      "Ensure proper documentation and filing in accordance with company procedures."
+    ],
+    "fixedResponsibilities": [
+      "Maintain confidentiality of office records and organizational information.",
+      "Follow company administrative policies and documentation standards.",
+      "Support smooth office operations through timely administrative assistance."
+    ]
+  },
+  {
+    "title": "Administrative Coordinator",
+    "industry": "Admin / Back Office / Computer Operator",
+    "summary": [
+      "Join our administration team to coordinate office operations, manage schedules, and facilitate effective communication across departments.",
+      "You will support project logistics, administrative planning, and operational coordination to ensure organizational efficiency."
+    ],
+    "skillList": [
+      "Administration",
+      "Coordination",
+      "Scheduling",
+      "Office Management",
+      "Communication Skills",
+      "Project Coordination",
+      "MS Office",
+      "Microsoft Excel",
+      "Calendar Management",
+      "Documentation",
+      "Record Management",
+      "Team Coordination",
+      "Vendor Coordination",
+      "Organizational Skills",
+      "Problem Solving",
+      "Time Management",
+      "Multitasking",
+      "Google Workspace",
+      "Attention to Detail",
+      "Administrative Support"
+    ],
+    "skillResponsibilities": [
+      "Coordinate administrative activities and support day-to-day office operations.",
+      "Manage calendars, meetings, appointments, and project schedules.",
+      "Coordinate communication between departments and external stakeholders.",
+      "Prepare reports, presentations, and administrative documentation.",
+      "Support project logistics, vendor coordination, and resource planning.",
+      "Monitor administrative tasks and ensure timely completion of assigned activities.",
+      "Maintain organized records and improve administrative workflows."
+    ],
+    "fixedResponsibilities": [
+      "Ensure compliance with company administrative policies and procedures.",
+      "Maintain confidentiality of organizational records and business information.",
+      "Collaborate with departments to support efficient office operations and project execution."
+    ]
+  },
+  {
+    "title": "Administrative Manager",
+    "industry": "Admin / Back Office / Computer Operator",
+    "summary": [
+      "Join our leadership team to oversee administrative operations, manage office processes, and lead administrative staff effectively.",
+      "You will implement organizational policies, optimize workflows, and support strategic initiatives that enhance business operations."
+    ],
+    "skillList": [
+      "Leadership",
+      "Administration",
+      "Office Management",
+      "Team Management",
+      "Policy Implementation",
+      "Compliance Management",
+      "Strategic Planning",
+      "Vendor Management",
+      "Budget Management",
+      "Facility Management",
+      "MS Office",
+      "Microsoft Excel",
+      "Communication Skills",
+      "Organizational Skills",
+      "Resource Planning",
+      "Process Improvement",
+      "Decision Making",
+      "Problem Solving",
+      "Time Management",
+      "Stakeholder Management"
+    ],
+    "skillResponsibilities": [
+      "Lead and supervise administrative staff to ensure efficient office operations.",
+      "Develop and implement office policies, procedures, and operational standards.",
+      "Manage office facilities, vendors, procurement, and administrative budgets.",
+      "Coordinate with department heads to support organizational objectives.",
+      "Monitor administrative performance and implement process improvements.",
+      "Prepare administrative reports and analyze operational efficiency.",
+      "Resolve administrative challenges and support strategic business initiatives."
+    ],
+    "fixedResponsibilities": [
+      "Ensure compliance with organizational policies and administrative standards.",
+      "Maintain confidentiality of company records and sensitive information.",
+      "Collaborate with senior management to improve operational effectiveness and workplace productivity."
+    ]
+  },
+  {
+    "title": "Administrative Officer",
+    "industry": "Admin / Back Office / Computer Operator",
+    "summary": [
+      "Join our administration team to manage office records, administrative processes, and operational support activities.",
+      "You will ensure efficient office administration while maintaining compliance with company policies and supporting organizational reporting requirements."
+    ],
+    "skillList": [
+      "Administration",
+      "Record Management",
+      "Compliance",
+      "Data Entry",
+      "Documentation",
+      "MS Office",
+      "Microsoft Excel",
+      "Reporting",
+      "Office Coordination",
+      "Filing",
+      "Email Management",
+      "Communication Skills",
+      "Organizational Skills",
+      "Time Management",
+      "Problem Solving",
+      "Attention to Detail",
+      "Administrative Support",
+      "Google Workspace",
+      "Vendor Coordination",
+      "Multitasking"
+    ],
+    "skillResponsibilities": [
+      "Manage administrative records, documents, and office databases accurately.",
+      "Prepare administrative reports and maintain organizational documentation.",
+      "Coordinate office operations, meetings, and departmental communication.",
+      "Ensure compliance with administrative procedures and company policies.",
+      "Perform data entry and maintain accurate office records.",
+      "Coordinate with vendors and internal departments for administrative support.",
+      "Monitor office activities and recommend improvements to administrative processes."
+    ],
+    "fixedResponsibilities": [
+      "Maintain confidentiality of organizational records and sensitive information.",
+      "Ensure compliance with company administrative standards and procedures.",
+      "Support efficient office operations through effective coordination and documentation."
+    ]
+  },
+  {
+    "title": "Administrative Operations Manager",
+    "industry": "Admin / Back Office / Computer Operator",
+    "summary": [
+      "Join our leadership team to manage administrative operations, optimize office processes, and ensure seamless coordination across departments.",
+      "You will drive operational efficiency through process improvements, resource planning, and effective administration while supporting organizational goals."
+    ],
+    "skillList": [
+      "Operations Management",
+      "Administration",
+      "Office Management",
+      "Process Improvement",
+      "Resource Allocation",
+      "Team Leadership",
+      "Department Coordination",
+      "Vendor Management",
+      "Budget Management",
+      "Facility Management",
+      "MS Office",
+      "Microsoft Excel",
+      "Communication Skills",
+      "Organizational Skills",
+      "Strategic Planning",
+      "Problem Solving",
+      "Decision Making",
+      "Time Management",
+      "Compliance Management",
+      "Stakeholder Management"
+    ],
+    "skillResponsibilities": [
+      "Manage end-to-end administrative operations and office support functions.",
+      "Identify and implement process improvements to enhance operational efficiency.",
+      "Coordinate with departments to ensure smooth business operations.",
+      "Manage office resources, facilities, vendors, and administrative budgets.",
+      "Monitor administrative performance and prepare operational reports.",
+      "Lead administrative teams and allocate responsibilities effectively.",
+      "Resolve operational issues while ensuring uninterrupted office workflow."
+    ],
+    "fixedResponsibilities": [
+      "Ensure compliance with organizational policies and administrative procedures.",
+      "Maintain confidentiality of business information and organizational records.",
+      "Collaborate with leadership to improve administrative efficiency and operational excellence."
+    ]
+  },
+  {
+    "title": "Administrative Receptionist",
+    "industry": "Admin / Back Office / Computer Operator",
+    "summary": [
+      "Join our front office team to manage reception activities, welcome visitors, and provide professional administrative support.",
+      "You will create a positive first impression while ensuring efficient front desk operations and effective communication across the organization."
+    ],
+    "skillList": [
+      "Reception Management",
+      "Front Desk Operations",
+      "Customer Service",
+      "Communication Skills",
+      "Telephone Etiquette",
+      "Visitor Management",
+      "Scheduling",
+      "MS Office",
+      "Microsoft Excel",
+      "Email Management",
+      "Record Management",
+      "Appointment Coordination",
+      "Administrative Support",
+      "Organizational Skills",
+      "Multitasking",
+      "Time Management",
+      "Attention to Detail",
+      "Problem Solving",
+      "Professional Etiquette",
+      "Documentation"
+    ],
+    "skillResponsibilities": [
+      "Welcome visitors and maintain a professional front office environment.",
+      "Handle incoming calls, emails, and general inquiries efficiently.",
+      "Schedule appointments, meetings, and manage visitor records.",
+      "Coordinate courier services, mail handling, and office correspondence.",
+      "Maintain reception logs and administrative documentation accurately.",
+      "Assist departments with routine administrative and front desk activities.",
+      "Ensure the reception area remains organized and presentable at all times."
+    ],
+    "fixedResponsibilities": [
+      "Maintain confidentiality of visitor and organizational information.",
+      "Follow company reception and administrative procedures consistently.",
+      "Support smooth office operations through efficient front desk coordination."
+    ]
+  },
+  {
+    "title": "Administrative Secretary",
+    "industry": "Admin / Back Office / Computer Operator",
+    "summary": [
+      "Join our administration team to provide comprehensive secretarial and administrative support to executives and office operations.",
+      "You will manage correspondence, schedules, records, and confidential documentation while ensuring efficient executive assistance."
+    ],
+    "skillList": [
+      "Secretarial Support",
+      "Executive Assistance",
+      "Scheduling",
+      "Calendar Management",
+      "Correspondence",
+      "Record Keeping",
+      "Document Management",
+      "MS Office",
+      "Microsoft Excel",
+      "Email Management",
+      "Meeting Coordination",
+      "Filing",
+      "Administrative Support",
+      "Communication Skills",
+      "Organizational Skills",
+      "Time Management",
+      "Multitasking",
+      "Attention to Detail",
+      "Confidentiality",
+      "Documentation"
+    ],
+    "skillResponsibilities": [
+      "Manage executive calendars, appointments, and meeting schedules.",
+      "Prepare and handle correspondence, reports, and official documentation.",
+      "Organize meetings, prepare agendas, and record meeting minutes.",
+      "Maintain confidential files, records, and executive documents.",
+      "Coordinate travel arrangements and administrative logistics when required.",
+      "Handle incoming communications and prioritize executive requests.",
+      "Support executives with day-to-day administrative and secretarial tasks."
+    ],
+    "fixedResponsibilities": [
+      "Maintain strict confidentiality of executive and organizational information.",
+      "Ensure compliance with company administrative procedures and documentation standards.",
+      "Support smooth executive and office operations through efficient coordination."
+    ]
+  },
+  {
+    "title": "Administrative Supervisor",
+    "industry": "Admin / Back Office / Computer Operator",
+    "summary": [
+      "Join our administration team to supervise office operations, coordinate administrative staff, and ensure efficient execution of organizational procedures.",
+      "You will oversee administrative workflows, enforce company policies, and support continuous improvement in office management."
+    ],
+    "skillList": [
+      "Administration",
+      "Office Management",
+      "Staff Supervision",
+      "Leadership",
+      "Policy Compliance",
+      "Scheduling",
+      "Team Coordination",
+      "MS Office",
+      "Microsoft Excel",
+      "Vendor Management",
+      "Facility Management",
+      "Documentation",
+      "Record Management",
+      "Communication Skills",
+      "Organizational Skills",
+      "Problem Solving",
+      "Decision Making",
+      "Time Management",
+      "Process Improvement",
+      "Resource Planning"
+    ],
+    "skillResponsibilities": [
+      "Supervise administrative staff and monitor daily office operations.",
+      "Allocate work schedules and ensure timely completion of administrative tasks.",
+      "Monitor compliance with company policies and office procedures.",
+      "Coordinate office facilities, vendors, and resource management activities.",
+      "Prepare administrative reports and evaluate operational performance.",
+      "Resolve administrative issues and recommend process improvements.",
+      "Train and guide team members to improve administrative efficiency."
+    ],
+    "fixedResponsibilities": [
+      "Ensure compliance with organizational policies and administrative standards.",
+      "Maintain confidentiality of company records and operational information.",
+      "Support management by ensuring smooth, efficient, and well-coordinated office operations."
+    ]
+  },
+  {
+    "title": "Administrator",
+    "industry": "Admin / Back Office / Computer Operator",
+    "summary": [
+      "Join our administration team to oversee office operations, manage administrative functions, and ensure efficient organizational workflow.",
+      "You will coordinate with multiple departments, manage office resources, and support business objectives through effective administration."
+    ],
+    "skillList": [
+      "Administration",
+      "Office Management",
+      "Communication Skills",
+      "MS Office",
+      "Microsoft Excel",
+      "Scheduling",
+      "Record Management",
+      "Document Management",
+      "Policy Implementation",
+      "Vendor Management",
+      "Facility Management",
+      "Team Coordination",
+      "Resource Planning",
+      "Administrative Support",
+      "Organizational Skills",
+      "Leadership",
+      "Problem Solving",
+      "Time Management",
+      "Attention to Detail",
+      "Decision Making"
+    ],
+    "skillResponsibilities": [
+      "Oversee daily office administration and ensure smooth operational workflow.",
+      "Coordinate with departments to provide effective administrative support.",
+      "Manage office records, documentation, and company correspondence.",
+      "Supervise office resources, facilities, and vendor-related activities.",
+      "Implement administrative policies and improve office processes.",
+      "Prepare administrative reports and monitor operational performance.",
+      "Resolve administrative issues and support organizational efficiency."
+    ],
+    "fixedResponsibilities": [
+      "Ensure compliance with company administrative policies and procedures.",
+      "Maintain confidentiality of organizational documents and business information.",
+      "Support management in achieving efficient office operations and business objectives."
+    ]
+  },
+  {
+    "title": "Admission Counsellor",
+    "industry": "Teaching & Training",
+    "summary": [
+      "Join our admissions team to guide prospective students through the enrollment process and help them choose suitable academic programs.",
+      "You will support student recruitment initiatives, provide career guidance, and contribute to achieving admission targets through effective counseling."
+    ],
+    "skillList": [
+      "Student Counseling",
+      "Admissions",
+      "Student Recruitment",
+      "Career Counseling",
+      "Communication Skills",
+      "Presentation Skills",
+      "Relationship Building",
+      "Customer Service",
+      "CRM Software",
+      "Data Entry",
+      "Lead Management",
+      "Counseling Techniques",
+      "Educational Programs",
+      "Follow-up Management",
+      "Organizational Skills",
+      "Time Management",
+      "Problem Solving",
+      "Microsoft Office",
+      "Negotiation Skills",
+      "Sales Orientation"
+    ],
+    "skillResponsibilities": [
+      "Counsel prospective students regarding courses, admissions, and career opportunities.",
+      "Handle admission inquiries through calls, emails, and face-to-face interactions.",
+      "Assist students with application forms and admission documentation.",
+      "Conduct follow-ups with prospective students to maximize enrollments.",
+      "Organize admission seminars, education fairs, and counseling sessions.",
+      "Maintain student records and update admission data in CRM systems.",
+      "Achieve admission targets through effective student engagement and relationship management."
+    ],
+    "fixedResponsibilities": [
+      "Ensure compliance with institutional admission policies and procedures.",
+      "Maintain accurate student records and admission documentation.",
+      "Collaborate with academic and administrative teams to provide a seamless admission experience."
+    ]
+  },
+  {
+    "title": "Advertising Sales Executive",
+    "industry": "Sales & BD",
+    "summary": [
+      "Join our sales team to promote advertising solutions, acquire new clients, and build long-term business relationships.",
+      "You will develop sales strategies, generate revenue, and help clients maximize their advertising reach through effective media solutions."
+    ],
+    "skillList": [
+      "Sales",
+      "Advertising Sales",
+      "Client Management",
+      "Business Development",
+      "Lead Generation",
+      "CRM Software",
+      "Market Research",
+      "Negotiation",
+      "Communication Skills",
+      "Presentation Skills",
+      "Relationship Management",
+      "Media Planning",
+      "Prospecting",
+      "Revenue Generation",
+      "Customer Service",
+      "Strategic Selling",
+      "Networking",
+      "Time Management",
+      "Problem Solving",
+      "Closing Skills"
+    ],
+    "skillResponsibilities": [
+      "Identify prospective clients and generate new advertising business opportunities.",
+      "Present advertising solutions and media packages to potential clients.",
+      "Negotiate pricing, contracts, and advertising agreements professionally.",
+      "Build and maintain long-term relationships with advertisers and agencies.",
+      "Conduct market research to identify emerging business opportunities.",
+      "Manage sales pipelines and update client information in CRM systems.",
+      "Achieve monthly sales targets while maximizing advertising revenue."
+    ],
+    "fixedResponsibilities": [
+      "Maintain excellent customer relationships through professional communication.",
+      "Prepare sales reports, forecasts, and business development updates.",
+      "Collaborate with internal teams to ensure successful campaign execution and client satisfaction."
+    ]
+  },
+  {
+    "title": "Advisor",
+    "industry": "Consulting",
+    "summary": [
+      "Join our consulting team to provide expert advice, strategic recommendations, and customized solutions that help clients achieve their business objectives.",
+      "You will analyze client requirements, conduct research, and deliver actionable insights that drive informed decision-making and long-term success."
+    ],
+    "skillList": [
+      "Consulting",
+      "Business Analysis",
+      "Strategic Planning",
+      "Industry Knowledge",
+      "Client Management",
+      "Relationship Management",
+      "Research",
+      "Communication Skills",
+      "Presentation Skills",
+      "Problem Solving",
+      "Analytical Thinking",
+      "Data Analysis",
+      "Stakeholder Management",
+      "Report Preparation",
+      "Decision Making",
+      "Risk Assessment",
+      "Project Management",
+      "Microsoft Office",
+      "Negotiation",
+      "Time Management"
+    ],
+    "skillResponsibilities": [
+      "Analyze client requirements and identify opportunities for improvement.",
+      "Conduct industry research and gather relevant business insights.",
+      "Develop customized strategies and practical recommendations for clients.",
+      "Present consulting findings and solutions through professional presentations.",
+      "Build strong client relationships and provide ongoing advisory support.",
+      "Monitor project progress and recommend corrective actions where necessary.",
+      "Prepare consulting reports, documentation, and strategic business proposals."
+    ],
+    "fixedResponsibilities": [
+      "Maintain confidentiality of client information and consulting assignments.",
+      "Ensure consulting recommendations align with industry standards and business objectives.",
+      "Collaborate with internal teams to deliver high-quality consulting services and measurable client outcomes."
+    ]
+  },
+  {
+    "title": "Advisor / Consultant",
+    "industry": "Consulting",
+    "summary": [
+      "Join our consulting team to provide specialized advisory services, evaluate client requirements, and deliver strategic business solutions.",
+      "You will help clients make informed decisions by conducting research, analyzing business challenges, and recommending actionable improvements."
+    ],
+    "skillList": [
+      "Consulting",
+      "Business Consulting",
+      "Strategic Planning",
+      "Business Analysis",
+      "Industry Knowledge",
+      "Client Management",
+      "Relationship Management",
+      "Research",
+      "Data Analysis",
+      "Communication Skills",
+      "Presentation Skills",
+      "Problem Solving",
+      "Decision Making",
+      "Stakeholder Management",
+      "Project Management",
+      "Risk Assessment",
+      "Report Preparation",
+      "Microsoft Office",
+      "Negotiation",
+      "Time Management"
+    ],
+    "skillResponsibilities": [
+      "Evaluate client requirements and identify business improvement opportunities.",
+      "Conduct industry research and analyze business challenges.",
+      "Develop customized consulting strategies and practical recommendations.",
+      "Present consulting reports, proposals, and business insights to clients.",
+      "Build long-term client relationships through proactive advisory support.",
+      "Monitor project implementation and recommend process improvements.",
+      "Support clients in strategic planning and informed decision-making."
+    ],
+    "fixedResponsibilities": [
+      "Maintain confidentiality of client information and consulting engagements.",
+      "Ensure consulting recommendations align with business objectives and industry standards.",
+      "Collaborate with internal teams to deliver high-quality consulting solutions."
+    ]
+  },
+  {
+    "title": "Advocate",
+    "industry": "Legal & Regulatory",
+    "summary": [
+      "Join our legal team to represent clients in legal proceedings, provide professional legal advice, and ensure compliance with applicable laws and regulations.",
+      "You will prepare legal documentation, conduct legal research, and advocate for client interests across various legal matters."
+    ],
+    "skillList": [
+      "Legal Research",
+      "Litigation",
+      "Legal Drafting",
+      "Advocacy",
+      "Court Representation",
+      "Contract Drafting",
+      "Civil Law",
+      "Criminal Law",
+      "Corporate Law",
+      "Legal Compliance",
+      "Negotiation",
+      "Case Management",
+      "Legal Documentation",
+      "Client Counseling",
+      "Analytical Skills",
+      "Communication Skills",
+      "Legal Writing",
+      "Problem Solving",
+      "Time Management",
+      "Attention to Detail"
+    ],
+    "skillResponsibilities": [
+      "Represent clients before courts, tribunals, and legal authorities.",
+      "Conduct legal research and analyze relevant laws and case precedents.",
+      "Draft legal notices, agreements, contracts, and court documents.",
+      "Provide legal opinions and strategic advice to clients.",
+      "Negotiate settlements and resolve legal disputes effectively.",
+      "Prepare case files and maintain complete legal documentation.",
+      "Ensure compliance with legal procedures and regulatory requirements."
+    ],
+    "fixedResponsibilities": [
+      "Maintain confidentiality of client information and legal documents.",
+      "Ensure ethical legal practice while complying with professional standards.",
+      "Coordinate with clients, courts, and regulatory authorities for effective case management."
+    ]
+  },
+  {
+    "title": "Agency Development Manager",
+    "industry": "Sales & BD",
+    "summary": [
+      "Join our sales leadership team to expand agency networks, recruit high-performing agents, and drive sustainable business growth.",
+      "You will develop agency partners, implement growth strategies, and lead market expansion initiatives while achieving sales objectives."
+    ],
+    "skillList": [
+      "Agency Development",
+      "Sales Management",
+      "Business Development",
+      "Agency Recruitment",
+      "Leadership",
+      "Market Expansion",
+      "Performance Management",
+      "CRM Software",
+      "Training & Development",
+      "Relationship Management",
+      "Strategic Planning",
+      "Networking",
+      "Communication Skills",
+      "Target Achievement",
+      "Team Management",
+      "Coaching",
+      "Negotiation",
+      "Presentation Skills",
+      "Problem Solving",
+      "Decision Making"
+    ],
+    "skillResponsibilities": [
+      "Recruit and onboard new agency partners to expand the distribution network.",
+      "Develop and execute agency growth strategies to increase market presence.",
+      "Train, mentor, and motivate agents to improve sales performance.",
+      "Monitor agency productivity and implement performance improvement plans.",
+      "Build strong relationships with agency partners and key stakeholders.",
+      "Analyze market trends and identify new business opportunities.",
+      "Achieve agency development and sales targets through effective leadership."
+    ],
+    "fixedResponsibilities": [
+      "Ensure compliance with company policies and sales processes.",
+      "Prepare agency performance reports and business development updates.",
+      "Collaborate with sales and marketing teams to maximize agency growth."
+    ]
+  },
+  {
+    "title": "Agency Manager",
+    "industry": "Sales & BD",
+    "summary": [
+      "Join our sales team to lead agency operations, manage sales teams, and drive business growth through effective leadership and strategic planning.",
+      "You will oversee agency performance, recruit and develop agents, and ensure achievement of organizational sales objectives."
+    ],
+    "skillList": [
+      "Agency Management",
+      "Sales Management",
+      "Team Leadership",
+      "Business Development",
+      "CRM Software",
+      "Recruitment",
+      "Training & Development",
+      "Performance Management",
+      "Strategic Planning",
+      "Communication Skills",
+      "Market Development",
+      "Relationship Management",
+      "Coaching",
+      "Target Achievement",
+      "Negotiation",
+      "Customer Relationship Management",
+      "Leadership",
+      "Decision Making",
+      "Problem Solving",
+      "Time Management"
+    ],
+    "skillResponsibilities": [
+      "Manage agency operations and supervise the performance of sales teams.",
+      "Recruit, train, and develop agency partners to improve productivity.",
+      "Develop and implement sales strategies to achieve business targets.",
+      "Monitor sales performance and provide coaching to team members.",
+      "Build strong relationships with agency partners and key clients.",
+      "Analyze business performance and identify opportunities for market expansion.",
+      "Ensure effective utilization of CRM systems and sales reporting tools."
+    ],
+    "fixedResponsibilities": [
+      "Ensure compliance with organizational policies and sales guidelines.",
+      "Prepare performance reports and business reviews for management.",
+      "Collaborate with cross-functional teams to achieve business growth and operational excellence."
+    ]
+  },
+  {
+    "title": "Agency Partner",
+    "industry": "Sales & BD",
+    "summary": [
+      "Join our agency network to collaborate with business leaders, expand market presence, and drive sustainable revenue growth.",
+      "You will develop strategic client relationships, identify new business opportunities, and contribute to the overall success and profitability of the agency."
+    ],
+    "skillList": [
+      "Partnership Management",
+      "Business Development",
+      "Sales",
+      "Client Relationship Management",
+      "Strategic Planning",
+      "CRM Software",
+      "Lead Generation",
+      "Networking",
+      "Negotiation",
+      "Market Expansion",
+      "Revenue Growth",
+      "Account Management",
+      "Stakeholder Management",
+      "Presentation Skills",
+      "Communication Skills",
+      "Business Strategy",
+      "Customer Retention",
+      "Leadership",
+      "Problem Solving",
+      "Decision Making"
+    ],
+    "skillResponsibilities": [
+      "Develop and strengthen long-term partnerships with clients and business associates.",
+      "Identify new business opportunities to increase agency revenue.",
+      "Manage key client accounts and ensure exceptional customer satisfaction.",
+      "Negotiate commercial agreements and partnership contracts effectively.",
+      "Collaborate with agency leadership to execute business growth strategies.",
+      "Maintain CRM records and monitor partnership performance metrics.",
+      "Represent the agency at networking events and business meetings."
+    ],
+    "fixedResponsibilities": [
+      "Ensure compliance with company policies and partnership guidelines.",
+      "Prepare business development reports and partnership performance updates.",
+      "Collaborate with internal teams to achieve agency growth and profitability objectives."
+    ]
+  },
+  {
+    "title": "Air Hostess",
+    "industry": "Restaurant / Hospitality / Tourism",
+    "summary": [
+      "Join our cabin crew team to ensure passenger safety, comfort, and exceptional in-flight service throughout every journey.",
+      "You will deliver outstanding hospitality, conduct safety procedures, and respond professionally to passenger needs and emergency situations."
+    ],
+    "skillList": [
+      "Customer Service",
+      "Cabin Crew Operations",
+      "Aviation Safety",
+      "Passenger Handling",
+      "Communication Skills",
+      "Hospitality",
+      "Emergency Response",
+      "Safety Demonstration",
+      "First Aid",
+      "Conflict Resolution",
+      "Grooming Standards",
+      "Teamwork",
+      "Multitasking",
+      "Presentation Skills",
+      "Cultural Awareness",
+      "Time Management",
+      "Problem Solving",
+      "Attention to Detail",
+      "Interpersonal Skills",
+      "Service Excellence"
+    ],
+    "skillResponsibilities": [
+      "Welcome passengers and provide exceptional onboard customer service.",
+      "Conduct safety demonstrations and ensure compliance with aviation safety procedures.",
+      "Assist passengers with seating, baggage, and in-flight requirements.",
+      "Serve meals and beverages while maintaining high hospitality standards.",
+      "Respond effectively to medical emergencies and unexpected situations onboard.",
+      "Resolve passenger concerns professionally to ensure a pleasant travel experience.",
+      "Coordinate with cabin crew members to maintain efficient flight operations."
+    ],
+    "fixedResponsibilities": [
+      "Follow airline safety regulations and standard operating procedures.",
+      "Maintain professional appearance and exceptional service standards at all times.",
+      "Ensure passenger safety, comfort, and satisfaction throughout the flight."
+    ]
+  },
+  {
+    "title": "Aircraft Maintenance Executive",
+    "industry": "Aviation & Aerospace",
+    "summary": [
+      "Join our aviation engineering team to oversee aircraft maintenance activities, inspections, and repair operations while ensuring the highest safety standards.",
+      "You will coordinate maintenance schedules, monitor regulatory compliance, and support the airworthiness of aircraft through efficient technical operations."
+    ],
+    "skillList": [
+      "Aircraft Maintenance",
+      "Aircraft Inspection",
+      "Aviation Safety",
+      "Troubleshooting",
+      "Preventive Maintenance",
+      "Corrective Maintenance",
+      "DGCA Regulations",
+      "Technical Documentation",
+      "Engineering Drawings",
+      "Maintenance Planning",
+      "Safety Compliance",
+      "Quality Assurance",
+      "Regulatory Compliance",
+      "Team Coordination",
+      "MS Office",
+      "Time Management",
+      "Problem Solving",
+      "Attention to Detail",
+      "Communication Skills",
+      "Technical Reporting"
+    ],
+    "skillResponsibilities": [
+      "Plan and supervise aircraft maintenance, inspection, and repair activities.",
+      "Diagnose technical issues and coordinate corrective maintenance actions.",
+      "Ensure compliance with aviation safety regulations and maintenance standards.",
+      "Prepare and maintain aircraft maintenance logs and technical documentation.",
+      "Coordinate with engineering teams for scheduled inspections and servicing.",
+      "Monitor maintenance quality and ensure aircraft airworthiness.",
+      "Investigate technical issues and recommend preventive maintenance solutions."
+    ],
+    "fixedResponsibilities": [
+      "Ensure strict compliance with aviation regulations and safety procedures.",
+      "Maintain accurate maintenance records and technical documentation.",
+      "Collaborate with engineering and operations teams to ensure timely aircraft availability."
+    ]
+  },
+  {
+    "title": "Allied Health Manager",
+    "industry": "Healthcare / Doctor / Hospital Staff",
+    "summary": [
+      "Join our healthcare leadership team to manage allied health services, coordinate multidisciplinary teams, and enhance patient care delivery.",
+      "You will oversee clinical operations, ensure regulatory compliance, and support continuous improvement in healthcare quality and staff performance."
+    ],
+    "skillList": [
+      "Healthcare Management",
+      "Allied Health Services",
+      "Leadership",
+      "Team Coordination",
+      "Patient Care Management",
+      "Compliance Management",
+      "Hospital Operations",
+      "Quality Assurance",
+      "Staff Training",
+      "Scheduling",
+      "Performance Management",
+      "Clinical Documentation",
+      "Healthcare Regulations",
+      "Resource Management",
+      "Communication Skills",
+      "Decision Making",
+      "Problem Solving",
+      "Microsoft Office",
+      "Time Management",
+      "Stakeholder Management"
+    ],
+    "skillResponsibilities": [
+      "Supervise allied health professionals and coordinate patient care services.",
+      "Develop staff schedules and ensure optimal workforce allocation.",
+      "Monitor compliance with healthcare standards, policies, and regulations.",
+      "Implement quality improvement initiatives to enhance patient outcomes.",
+      "Conduct staff training, performance evaluations, and professional development programs.",
+      "Coordinate with doctors, nurses, and hospital departments for integrated patient care.",
+      "Prepare operational reports and analyze departmental performance metrics."
+    ],
+    "fixedResponsibilities": [
+      "Ensure compliance with healthcare regulations, accreditation standards, and hospital policies.",
+      "Maintain confidentiality of patient information and clinical records.",
+      "Support continuous improvement in healthcare services through effective leadership and interdisciplinary collaboration."
+    ]
+  },
+  {
+    "title": "Ambulance Driver",
+    "industry": "Delivery / Driver / Logistics",
+    "summary": [
+      "Join our emergency medical services team to safely transport patients while ensuring timely response to emergency and non-emergency medical situations.",
+      "You will operate ambulances responsibly, assist healthcare professionals, and prioritize patient safety throughout every journey."
+    ],
+    "skillList": [
+      "Safe Driving",
+      "Emergency Response",
+      "Defensive Driving",
+      "Navigation",
+      "GPS Navigation",
+      "First Aid",
+      "Basic Life Support (BLS)",
+      "Patient Transportation",
+      "Vehicle Maintenance",
+      "Communication Skills",
+      "Stress Management",
+      "Time Management",
+      "Traffic Regulations",
+      "Route Planning",
+      "Teamwork",
+      "Emergency Protocols",
+      "Record Keeping",
+      "Attention to Detail",
+      "Physical Fitness",
+      "Problem Solving"
+    ],
+    "skillResponsibilities": [
+      "Safely transport patients to and from hospitals, clinics, and emergency locations.",
+      "Respond promptly to emergency calls while following traffic and safety regulations.",
+      "Assist medical personnel during patient loading and unloading procedures.",
+      "Perform routine vehicle inspections and ensure ambulance readiness.",
+      "Maintain accurate transport logs and emergency documentation.",
+      "Use GPS and route planning tools to reach destinations efficiently.",
+      "Communicate effectively with dispatch teams, hospitals, and emergency responders."
+    ],
+    "fixedResponsibilities": [
+      "Ensure compliance with healthcare transport regulations and safety protocols.",
+      "Maintain cleanliness, readiness, and proper functioning of the ambulance.",
+      "Deliver compassionate and professional service while ensuring patient safety."
+    ]
+  },
+  {
+    "title": "Ambulance Operator",
+    "industry": "Delivery / Driver / Logistics",
+    "summary": [
+      "Join our emergency response team to manage ambulance operations, coordinate dispatch activities, and ensure efficient patient transportation services.",
+      "You will oversee ambulance readiness, maintain operational records, and support emergency medical services through effective coordination."
+    ],
+    "skillList": [
+      "Ambulance Operations",
+      "Dispatch Coordination",
+      "Emergency Response",
+      "Patient Transportation",
+      "Vehicle Maintenance",
+      "Communication Skills",
+      "Record Keeping",
+      "Compliance Management",
+      "Route Planning",
+      "GPS Navigation",
+      "Healthcare Coordination",
+      "Documentation",
+      "Time Management",
+      "Problem Solving",
+      "Teamwork",
+      "Stress Management",
+      "MS Office",
+      "Scheduling",
+      "Attention to Detail",
+      "Operational Coordination"
+    ],
+    "skillResponsibilities": [
+      "Coordinate ambulance dispatch and patient transportation requests efficiently.",
+      "Ensure ambulance readiness through regular inspections and maintenance coordination.",
+      "Maintain transport records, operational logs, and dispatch documentation.",
+      "Coordinate with hospitals, emergency responders, and medical staff during emergencies.",
+      "Monitor compliance with healthcare transportation and safety standards.",
+      "Optimize vehicle schedules to ensure prompt emergency response.",
+      "Resolve operational issues to maintain uninterrupted ambulance services."
+    ],
+    "fixedResponsibilities": [
+      "Ensure compliance with healthcare regulations and emergency response procedures.",
+      "Maintain accurate operational documentation and dispatch records.",
+      "Support emergency medical teams through effective coordination and communication."
+    ]
+  },
+  {
+    "title": "Analytical Chemist",
+    "industry": "Research & Development",
+    "summary": [
+      "Join our research and quality team to perform advanced chemical analyses that support product development, quality assurance, and scientific research.",
+      "You will conduct laboratory testing, interpret analytical data, and ensure compliance with laboratory quality and safety standards."
+    ],
+    "skillList": [
+      "Analytical Chemistry",
+      "Laboratory Techniques",
+      "Instrumentation",
+      "HPLC",
+      "GC",
+      "UV-Vis Spectroscopy",
+      "FTIR",
+      "Titration",
+      "Chemical Analysis",
+      "Quality Control",
+      "Data Analysis",
+      "Research Methodology",
+      "Sample Preparation",
+      "Report Writing",
+      "Laboratory Safety",
+      "GLP",
+      "GMP",
+      "Problem Solving",
+      "Attention to Detail",
+      "Scientific Documentation"
+    ],
+    "skillResponsibilities": [
+      "Perform qualitative and quantitative chemical analysis using laboratory instruments.",
+      "Prepare samples and conduct laboratory experiments following standard procedures.",
+      "Operate and maintain analytical instruments such as HPLC, GC, and spectrometers.",
+      "Analyze laboratory data and prepare scientific reports with accurate interpretations.",
+      "Support product development and quality control through analytical testing.",
+      "Ensure compliance with GLP, GMP, and laboratory safety standards.",
+      "Investigate analytical deviations and recommend corrective actions."
+    ],
+    "fixedResponsibilities": [
+      "Maintain accurate laboratory records and scientific documentation.",
+      "Ensure compliance with quality assurance standards and regulatory guidelines.",
+      "Collaborate with R&D and quality teams to support product innovation and validation."
+    ]
+  },
+  {
+    "title": "Android App Engineer",
+    "industry": "Software Engineering",
+    "summary": [
+      "Join our development team to design, develop, and maintain innovative Android applications that deliver outstanding user experiences.",
+      "You will build scalable mobile solutions, optimize application performance, and collaborate with cross-functional teams throughout the development lifecycle."
+    ],
+    "skillList": [
+      "Android SDK",
+      "Kotlin",
+      "Java",
+      "Android Studio",
+      "REST APIs",
+      "MVVM Architecture",
+      "Jetpack Components",
+      "Firebase",
+      "SQLite",
+      "Room Database",
+      "Material Design",
+      "Git",
+      "UI/UX Implementation",
+      "Mobile Testing",
+      "Debugging",
+      "Performance Optimization",
+      "Agile Methodology",
+      "Version Control",
+      "Problem Solving",
+      "API Integration"
+    ],
+    "skillResponsibilities": [
+      "Design and develop Android applications using Kotlin and Java.",
+      "Build responsive user interfaces following Material Design guidelines.",
+      "Integrate REST APIs and third-party services into mobile applications.",
+      "Debug, test, and optimize applications for performance and stability.",
+      "Implement secure coding practices and reusable application components.",
+      "Collaborate with designers, QA engineers, and backend developers throughout development.",
+      "Publish updates and maintain applications on the Google Play Store."
+    ],
+    "fixedResponsibilities": [
+      "Follow coding standards, Agile methodologies, and version control best practices.",
+      "Maintain technical documentation and support continuous application improvements.",
+      "Collaborate with cross-functional teams to deliver high-quality mobile applications on schedule."
+    ]
+  },
+  {
+    "title": "Android Application Developer",
+    "industry": "Software Engineering",
+    "summary": [
+      "Join our mobile development team to build, maintain, and enhance high-quality Android applications from concept to deployment.",
+      "You will collaborate with designers, product managers, and backend developers to deliver intuitive, scalable, and high-performing mobile experiences."
+    ],
+    "skillList": [
+      "Android SDK",
+      "Kotlin",
+      "Java",
+      "Android Studio",
+      "XML",
+      "REST APIs",
+      "MVVM Architecture",
+      "Jetpack Components",
+      "Firebase",
+      "SQLite",
+      "Room Database",
+      "Material Design",
+      "Google Play Console",
+      "Git",
+      "UI/UX Implementation",
+      "Debugging",
+      "Performance Optimization",
+      "Unit Testing",
+      "Agile Methodology",
+      "Problem Solving"
+    ],
+    "skillResponsibilities": [
+      "Develop Android applications using Kotlin and Java following industry best practices.",
+      "Build responsive user interfaces based on UI/UX designs and Material Design guidelines.",
+      "Integrate REST APIs, Firebase, and third-party services into applications.",
+      "Debug, optimize, and improve application performance across Android devices.",
+      "Implement secure, reusable, and maintainable application architecture.",
+      "Conduct testing, resolve bugs, and prepare applications for Google Play deployment.",
+      "Collaborate with cross-functional teams throughout the software development lifecycle."
+    ],
+    "fixedResponsibilities": [
+      "Follow coding standards, Agile practices, and version control procedures.",
+      "Maintain technical documentation and support application maintenance activities.",
+      "Collaborate with development teams to deliver high-quality mobile applications within project timelines."
+    ]
+  },
+  {
+    "title": "Android Developer",
+    "industry": "Software Engineering",
+    "summary": [
+      "Join our development team to design, develop, and maintain feature-rich Android applications that deliver exceptional user experiences.",
+      "You will write clean, efficient code, integrate APIs, and optimize application performance across a wide range of Android devices."
+    ],
+    "skillList": [
+      "Android SDK",
+      "Kotlin",
+      "Java",
+      "Android Studio",
+      "Mobile Application Development",
+      "REST APIs",
+      "API Integration",
+      "Firebase",
+      "SQLite",
+      "Room Database",
+      "Material Design",
+      "Git",
+      "UI/UX Implementation",
+      "Debugging",
+      "Unit Testing",
+      "Performance Optimization",
+      "Agile Methodology",
+      "Version Control",
+      "Problem Solving",
+      "Object-Oriented Programming"
+    ],
+    "skillResponsibilities": [
+      "Develop Android applications using Kotlin and Java programming languages.",
+      "Integrate REST APIs and backend services into mobile applications.",
+      "Design intuitive user interfaces following Android design principles.",
+      "Debug application issues and optimize performance for different devices.",
+      "Conduct testing to ensure application quality and stability.",
+      "Maintain source code using Git and participate in code reviews.",
+      "Collaborate with designers and backend developers to implement new features."
+    ],
+    "fixedResponsibilities": [
+      "Follow coding standards and software development best practices.",
+      "Maintain project documentation and ensure timely application updates.",
+      "Participate in Agile development processes and cross-functional collaboration."
+    ]
+  },
+  {
+    "title": "Android Developer Trainee",
+    "industry": "Software Engineering",
+    "summary": [
+      "Join our development team as an Android Developer Trainee to gain practical experience in building and maintaining Android applications.",
+      "You will work under the guidance of experienced developers while learning modern Android technologies and software development practices."
+    ],
+    "skillList": [
+      "Android SDK",
+      "Java",
+      "Kotlin",
+      "Android Studio",
+      "XML",
+      "UI/UX Basics",
+      "Git",
+      "Version Control",
+      "REST APIs",
+      "SQLite",
+      "Firebase Basics",
+      "Mobile Testing",
+      "Debugging",
+      "Object-Oriented Programming",
+      "Material Design",
+      "Learning Agility",
+      "Teamwork",
+      "Problem Solving",
+      "Communication Skills",
+      "Time Management"
+    ],
+    "skillResponsibilities": [
+      "Assist senior developers in developing Android applications and features.",
+      "Write basic application code using Java and Kotlin under supervision.",
+      "Support testing, debugging, and bug fixing for mobile applications.",
+      "Learn Android SDK, UI components, and application architecture concepts.",
+      "Assist with API integration and database implementation tasks.",
+      "Maintain source code using Git and follow coding guidelines.",
+      "Participate in project discussions and continuously improve technical skills."
+    ],
+    "fixedResponsibilities": [
+      "Follow company coding standards and software development processes.",
+      "Complete assigned learning modules and development tasks within timelines.",
+      "Collaborate with senior developers and QA teams throughout project execution."
+    ]
+  },
+  {
+    "title": "Android Software Developer",
+    "industry": "Software Engineering",
+    "summary": [
+      "Join our software engineering team to design, develop, and maintain robust Android applications focused on performance, scalability, and user satisfaction.",
+      "You will build reliable mobile solutions, resolve technical issues, and collaborate with cross-functional teams to deliver successful product releases."
+    ],
+    "skillList": [
+      "Android SDK",
+      "Kotlin",
+      "Java",
+      "Android Studio",
+      "App Architecture",
+      "MVVM",
+      "REST APIs",
+      "Firebase",
+      "SQLite",
+      "Room Database",
+      "Material Design",
+      "Git",
+      "UI/UX Development",
+      "Mobile Testing",
+      "Debugging",
+      "Performance Optimization",
+      "Agile Methodology",
+      "Version Control",
+      "Unit Testing",
+      "Problem Solving"
+    ],
+    "skillResponsibilities": [
+      "Design and implement Android applications using modern development frameworks.",
+      "Develop scalable application architecture following MVVM and clean coding principles.",
+      "Integrate REST APIs and cloud-based services into mobile applications.",
+      "Debug application issues and optimize application speed and stability.",
+      "Conduct unit testing and participate in application quality assurance activities.",
+      "Collaborate with product, design, and QA teams to deliver feature enhancements.",
+      "Support application deployment, maintenance, and release management processes."
+    ],
+    "fixedResponsibilities": [
+      "Follow software engineering standards, coding guidelines, and Agile methodologies.",
+      "Maintain project documentation and version control throughout development.",
+      "Collaborate with cross-functional teams to deliver secure, high-quality Android applications on schedule."
+    ]
+  },
+  {
+    "title": "Android Software Engineer",
+    "industry": "Software Engineering",
+    "summary": [
+      "Join our engineering team to develop scalable, secure, and high-performance Android applications using modern development frameworks.",
+      "You will ensure code quality, integrate third-party services, and contribute to continuous product improvements through collaborative software development."
+    ],
+    "skillList": [
+      "Android SDK",
+      "Kotlin",
+      "Java",
+      "Android Studio",
+      "OOP",
+      "MVVM Architecture",
+      "REST APIs",
+      "API Integration",
+      "Firebase",
+      "SQLite",
+      "Room Database",
+      "Jetpack Components",
+      "Material Design",
+      "Git",
+      "Debugging",
+      "Unit Testing",
+      "Agile Methodology",
+      "Code Review",
+      "Performance Optimization",
+      "Problem Solving"
+    ],
+    "skillResponsibilities": [
+      "Develop scalable Android applications using Kotlin and Java.",
+      "Integrate REST APIs and third-party services into mobile applications.",
+      "Design maintainable application architecture following best practices.",
+      "Debug, optimize, and improve application performance across devices.",
+      "Participate in code reviews to ensure coding quality and consistency.",
+      "Implement unit testing and support application stability improvements.",
+      "Collaborate with cross-functional teams to deliver high-quality mobile solutions."
+    ],
+    "fixedResponsibilities": [
+      "Follow software engineering standards and Agile development practices.",
+      "Maintain technical documentation and version-controlled source code.",
+      "Collaborate with development, QA, and product teams to deliver successful releases."
+    ]
+  },
+  {
+    "title": "Angular Developer",
+    "industry": "Software Engineering",
+    "summary": [
+      "Join our web development team to design and build dynamic, responsive, and scalable web applications using the Angular framework.",
+      "You will develop interactive user interfaces, integrate backend services, and optimize application performance for an exceptional user experience."
+    ],
+    "skillList": [
+      "Angular",
+      "TypeScript",
+      "JavaScript",
+      "HTML5",
+      "CSS3",
+      "Angular Material",
+      "RxJS",
+      "REST APIs",
+      "API Integration",
+      "Bootstrap",
+      "Responsive Design",
+      "Git",
+      "NPM",
+      "JSON",
+      "UI/UX Development",
+      "Debugging",
+      "Unit Testing",
+      "Agile Methodology",
+      "Performance Optimization",
+      "Problem Solving"
+    ],
+    "skillResponsibilities": [
+      "Develop responsive web applications using Angular and TypeScript.",
+      "Build reusable UI components following modern frontend standards.",
+      "Integrate RESTful APIs and backend services into applications.",
+      "Optimize application performance, responsiveness, and browser compatibility.",
+      "Debug frontend issues and implement effective technical solutions.",
+      "Write clean, maintainable, and scalable code following coding standards.",
+      "Collaborate with UI/UX designers and backend developers throughout development."
+    ],
+    "fixedResponsibilities": [
+      "Follow Agile development methodologies and version control practices.",
+      "Maintain technical documentation and application source code.",
+      "Participate in code reviews and deliver high-quality software within project timelines."
+    ]
+  },
+  {
+    "title": "App Developer",
+    "industry": "Software Engineering",
+    "summary": [
+      "Join our development team to create innovative mobile and web applications that deliver seamless user experiences across multiple platforms.",
+      "You will develop, test, and maintain applications while collaborating with stakeholders to build reliable and scalable software solutions."
+    ],
+    "skillList": [
+      "Application Development",
+      "Java",
+      "Kotlin",
+      "Swift",
+      "React Native",
+      "Flutter",
+      "REST APIs",
+      "API Integration",
+      "UI/UX Design",
+      "Firebase",
+      "SQLite",
+      "Git",
+      "Version Control",
+      "Mobile Testing",
+      "Web Development",
+      "Debugging",
+      "Agile Methodology",
+      "Performance Optimization",
+      "Problem Solving",
+      "Cross-Platform Development"
+    ],
+    "skillResponsibilities": [
+      "Design, develop, and maintain mobile and web applications.",
+      "Integrate APIs and backend services into application features.",
+      "Build responsive and user-friendly interfaces across platforms.",
+      "Test, debug, and optimize applications for performance and stability.",
+      "Implement secure and scalable application architecture.",
+      "Collaborate with designers, testers, and product teams during development.",
+      "Support application deployment, updates, and ongoing maintenance."
+    ],
+    "fixedResponsibilities": [
+      "Follow coding standards and software development best practices.",
+      "Maintain technical documentation and application version control.",
+      "Collaborate with cross-functional teams to ensure timely software delivery."
+    ]
+  },
+  {
+    "title": "Appliance Repair Specialist",
+    "industry": "Maintenance Services",
+    "summary": [
+      "Join our service team to diagnose, repair, and maintain household and commercial appliances while delivering exceptional customer service.",
+      "You will troubleshoot electrical and mechanical issues, perform preventive maintenance, and ensure appliances operate safely and efficiently."
+    ],
+    "skillList": [
+      "Appliance Repair",
+      "Troubleshooting",
+      "Electrical Repair",
+      "Mechanical Repair",
+      "Preventive Maintenance",
+      "Fault Diagnosis",
+      "Electrical Wiring",
+      "Power Tools",
+      "Hand Tools",
+      "Safety Compliance",
+      "Customer Service",
+      "Installation",
+      "Testing Equipment",
+      "Technical Documentation",
+      "Communication Skills",
+      "Time Management",
+      "Problem Solving",
+      "Attention to Detail",
+      "Field Service",
+      "Equipment Maintenance"
+    ],
+    "skillResponsibilities": [
+      "Diagnose electrical and mechanical faults in household and commercial appliances.",
+      "Repair and replace defective components using appropriate tools and equipment.",
+      "Perform preventive maintenance to improve appliance performance and reliability.",
+      "Install and test appliances to ensure proper functionality.",
+      "Provide on-site customer support and explain repair recommendations.",
+      "Maintain service records and prepare repair documentation accurately.",
+      "Ensure compliance with safety procedures during installation and repair activities."
+    ],
+    "fixedResponsibilities": [
+      "Follow company service standards and workplace safety regulations.",
+      "Maintain tools, equipment, and service vehicles in good working condition.",
+      "Deliver timely, professional, and customer-focused repair services."
+    ]
+  },
+  {
+    "title": "Application Analyst",
+    "industry": "Software Engineering",
+    "summary": [
+      "Join our technology team to analyze business applications, monitor system performance, and ensure seamless application support for end users.",
+      "You will collaborate with business stakeholders and development teams to troubleshoot issues, optimize applications, and enhance overall system functionality."
+    ],
+    "skillList": [
+      "Application Analysis",
+      "Application Support",
+      "SQL",
+      "Data Analysis",
+      "Troubleshooting",
+      "Root Cause Analysis",
+      "Incident Management",
+      "Technical Documentation",
+      "Requirements Gathering",
+      "User Support",
+      "Software Testing",
+      "Performance Monitoring",
+      "API Integration",
+      "Microsoft Excel",
+      "Jira",
+      "Agile Methodology",
+      "Communication Skills",
+      "Analytical Thinking",
+      "Problem Solving",
+      "Stakeholder Management"
+    ],
+    "skillResponsibilities": [
+      "Analyze application performance and identify functional or technical issues.",
+      "Investigate incidents and perform root cause analysis for application defects.",
+      "Gather business requirements and recommend application enhancements.",
+      "Execute functional testing and validate application changes before deployment.",
+      "Prepare technical documentation, user guides, and support reports.",
+      "Coordinate with developers to resolve application bugs and performance issues.",
+      "Provide technical support and training to end users when required."
+    ],
+    "fixedResponsibilities": [
+      "Ensure application availability and adherence to organizational standards.",
+      "Maintain accurate documentation of application changes and support activities.",
+      "Collaborate with development and business teams to deliver reliable software solutions."
+    ]
+  },
+  {
+    "title": "Application Developer",
+    "industry": "Software Engineering",
+    "summary": [
+      "Join our software development team to design, build, and maintain high-quality web and mobile applications that meet business requirements.",
+      "You will develop scalable software solutions, integrate APIs, and collaborate with cross-functional teams to deliver exceptional user experiences."
+    ],
+    "skillList": [
+      "Programming",
+      "Java",
+      "C#",
+      "Python",
+      "Web Development",
+      "Mobile Development",
+      "REST APIs",
+      "API Integration",
+      "HTML5",
+      "CSS3",
+      "JavaScript",
+      "SQL",
+      "Git",
+      "UI/UX Development",
+      "Software Testing",
+      "Debugging",
+      "Agile Methodology",
+      "Object-Oriented Programming",
+      "Version Control",
+      "Problem Solving"
+    ],
+    "skillResponsibilities": [
+      "Design and develop web and mobile applications using modern programming languages.",
+      "Build secure and scalable application modules based on business requirements.",
+      "Integrate REST APIs and third-party services into software applications.",
+      "Debug application issues and optimize system performance and reliability.",
+      "Develop responsive user interfaces with excellent user experience.",
+      "Conduct unit testing and participate in code reviews to maintain code quality.",
+      "Collaborate with designers, QA engineers, and product teams throughout development."
+    ],
+    "fixedResponsibilities": [
+      "Follow software development standards and Agile methodologies.",
+      "Maintain technical documentation and version-controlled source code.",
+      "Deliver high-quality applications within project timelines and quality standards."
+    ]
+  },
+  {
+    "title": "Application Development Analyst",
+    "industry": "Software Engineering",
+    "summary": [
+      "Join our development team to analyze software applications, improve development processes, and support the delivery of reliable business solutions.",
+      "You will evaluate application performance, troubleshoot issues, and collaborate with project teams to enhance software quality and functionality."
+    ],
+    "skillList": [
+      "Application Analysis",
+      "Software Development",
+      "SQL",
+      "Requirements Analysis",
+      "Software Testing",
+      "Troubleshooting",
+      "Technical Documentation",
+      "Agile Methodology",
+      "API Integration",
+      "Data Analysis",
+      "Performance Monitoring",
+      "Root Cause Analysis",
+      "Jira",
+      "Version Control",
+      "Communication Skills",
+      "Analytical Thinking",
+      "Problem Solving",
+      "Stakeholder Management",
+      "Process Improvement",
+      "User Acceptance Testing"
+    ],
+    "skillResponsibilities": [
+      "Analyze application requirements and recommend technical improvements.",
+      "Evaluate software performance and identify optimization opportunities.",
+      "Perform functional, integration, and user acceptance testing activities.",
+      "Troubleshoot application issues and coordinate resolutions with development teams.",
+      "Prepare technical documentation, process flows, and system specifications.",
+      "Support Agile development activities including sprint planning and reviews.",
+      "Monitor application quality and recommend continuous improvement initiatives."
+    ],
+    "fixedResponsibilities": [
+      "Ensure compliance with software development standards and documentation practices.",
+      "Maintain accurate project documentation and application support records.",
+      "Collaborate with technical and business teams to deliver reliable software solutions."
+    ]
+  },
+  {
+    "title": "Application Development Associate",
+    "industry": "Software Engineering",
+    "summary": [
+      "Join our software development team to assist in designing, coding, testing, and maintaining business applications under the guidance of experienced developers.",
+      "You will contribute to feature development, bug fixing, and software enhancements while building strong technical expertise."
+    ],
+    "skillList": [
+      "Programming",
+      "Java",
+      "C#",
+      "Python",
+      "Application Development",
+      "Object-Oriented Programming",
+      "SQL",
+      "REST APIs",
+      "Git",
+      "Software Testing",
+      "Debugging",
+      "Version Control",
+      "HTML5",
+      "CSS3",
+      "JavaScript",
+      "Agile Methodology",
+      "Team Collaboration",
+      "Communication Skills",
+      "Learning Agility",
+      "Problem Solving"
+    ],
+    "skillResponsibilities": [
+      "Assist in developing software applications based on project requirements.",
+      "Write clean and maintainable code under the guidance of senior developers.",
+      "Debug application issues and implement bug fixes efficiently.",
+      "Perform unit testing and support software quality assurance activities.",
+      "Integrate APIs and assist in database-related development tasks.",
+      "Participate in code reviews and follow established coding standards.",
+      "Collaborate with cross-functional teams to support software delivery and enhancements."
+    ],
+    "fixedResponsibilities": [
+      "Follow software development processes and organizational coding standards.",
+      "Maintain technical documentation and version-controlled project files.",
+      "Continuously improve technical skills while contributing to successful project delivery."
+    ]
+  },
+  {
+    "title": "Application Development Intern",
+    "industry": "Software Engineering",
+    "summary": [
+      "Join our software development team as an intern to gain practical experience in designing, developing, testing, and maintaining software applications.",
+      "You will work under the guidance of experienced developers while building strong programming and software engineering skills through real-world projects."
+    ],
+    "skillList": [
+      "Programming Basics",
+      "Java",
+      "Python",
+      "Application Development",
+      "Object-Oriented Programming",
+      "SQL",
+      "REST APIs",
+      "Git",
+      "Version Control",
+      "Software Testing",
+      "Debugging",
+      "HTML",
+      "CSS",
+      "JavaScript",
+      "Technical Documentation",
+      "Agile Methodology",
+      "Learning Agility",
+      "Communication Skills",
+      "Teamwork",
+      "Problem Solving"
+    ],
+    "skillResponsibilities": [
+      "Assist in developing software applications under the guidance of senior developers.",
+      "Write basic application code and participate in feature implementation tasks.",
+      "Support software testing, debugging, and bug resolution activities.",
+      "Assist in API integration and database-related development tasks.",
+      "Prepare technical documentation and project-related reports.",
+      "Learn software development methodologies and coding best practices.",
+      "Participate in project discussions, sprint meetings, and continuous learning activities."
+    ],
+    "fixedResponsibilities": [
+      "Follow software development standards and organizational coding guidelines.",
+      "Maintain project documentation and version-controlled source code.",
+      "Collaborate with development teams to deliver assigned tasks within project timelines."
+    ]
+  },
+  {
+    "title": "Application Engineer",
+    "industry": "Software Engineering",
+    "summary": [
+      "Join our engineering team to design, develop, and support software applications that address business requirements and enhance operational efficiency.",
+      "You will provide technical expertise, troubleshoot application issues, and collaborate with stakeholders to deliver scalable software solutions."
+    ],
+    "skillList": [
+      "Application Engineering",
+      "Programming",
+      "System Analysis",
+      "Software Development",
+      "REST APIs",
+      "API Integration",
+      "SQL",
+      "Database Management",
+      "Software Testing",
+      "Debugging",
+      "Technical Documentation",
+      "Project Management",
+      "Version Control",
+      "Agile Methodology",
+      "Performance Optimization",
+      "Communication Skills",
+      "Analytical Thinking",
+      "Problem Solving",
+      "Stakeholder Management",
+      "Technical Support"
+    ],
+    "skillResponsibilities": [
+      "Design and develop software applications based on business requirements.",
+      "Analyze system requirements and recommend technical solutions.",
+      "Integrate APIs and backend services into business applications.",
+      "Troubleshoot application issues and optimize system performance.",
+      "Conduct software testing and validate application functionality.",
+      "Prepare technical documentation and implementation guides.",
+      "Collaborate with cross-functional teams to deliver reliable software solutions."
+    ],
+    "fixedResponsibilities": [
+      "Follow software engineering standards and development best practices.",
+      "Maintain technical documentation and application lifecycle records.",
+      "Support continuous improvement through collaboration with technical and business teams."
+    ]
+  },
+  {
+    "title": "Application Support Engineer",
+    "industry": "Software Engineering",
+    "summary": [
+      "Join our application support team to provide technical assistance, troubleshoot software issues, and ensure optimal application performance for end users.",
+      "You will work closely with development teams to resolve incidents, implement updates, and maintain high service availability."
+    ],
+    "skillList": [
+      "Application Support",
+      "Technical Support",
+      "SQL",
+      "Troubleshooting",
+      "Incident Management",
+      "Ticketing Systems",
+      "Root Cause Analysis",
+      "Software Testing",
+      "API Integration",
+      "Performance Monitoring",
+      "Database Management",
+      "Customer Service",
+      "Documentation",
+      "ITIL Basics",
+      "Communication Skills",
+      "Analytical Thinking",
+      "Problem Solving",
+      "Time Management",
+      "Stakeholder Management",
+      "Service Desk Tools"
+    ],
+    "skillResponsibilities": [
+      "Diagnose and resolve application-related issues reported by users.",
+      "Investigate incidents and perform root cause analysis to prevent recurring issues.",
+      "Monitor application performance and recommend system improvements.",
+      "Manage support tickets and ensure timely issue resolution within SLAs.",
+      "Coordinate with development teams to deploy application fixes and updates.",
+      "Maintain support documentation, knowledge base articles, and incident reports.",
+      "Provide technical guidance and user support for business applications."
+    ],
+    "fixedResponsibilities": [
+      "Ensure high application availability and service quality standards.",
+      "Maintain accurate support records and technical documentation.",
+      "Collaborate with development and business teams to deliver reliable application support services."
+    ]
+  },
+  {
+    "title": "Apprentice",
+    "industry": "Production / Manufacturing / Engineering",
+    "summary": [
+      "Join our apprenticeship program to gain hands-on technical experience while learning industry best practices under experienced professionals.",
+      "You will develop practical skills, participate in production activities, and build a strong foundation for a successful technical career."
+    ],
+    "skillList": [
+      "Technical Aptitude",
+      "Willingness to Learn",
+      "Manual Dexterity",
+      "Safety Awareness",
+      "Engineering Basics",
+      "Machine Operations",
+      "Equipment Handling",
+      "Quality Inspection",
+      "Preventive Maintenance",
+      "Workshop Practices",
+      "Blueprint Reading",
+      "Teamwork",
+      "Communication Skills",
+      "Adaptability",
+      "Time Management",
+      "Attention to Detail",
+      "Problem Solving",
+      "Basic Mathematics",
+      "Industrial Safety",
+      "Continuous Learning"
+    ],
+    "skillResponsibilities": [
+      "Learn technical processes and operating procedures under senior supervision.",
+      "Assist in machine operation, equipment setup, and production activities.",
+      "Follow safety guidelines and maintain a safe working environment.",
+      "Support preventive maintenance and routine equipment inspections.",
+      "Participate in quality checks and production improvement activities.",
+      "Maintain work records and complete assigned technical training modules.",
+      "Develop practical skills through hands-on learning and continuous guidance."
+    ],
+    "fixedResponsibilities": [
+      "Follow organizational safety standards and workplace procedures.",
+      "Maintain discipline, punctuality, and professionalism during training.",
+      "Collaborate with supervisors and team members to successfully complete apprenticeship objectives."
+    ]
+  },
+  {
+    "title": "Aptitude Coach",
+    "industry": "Teaching & Training",
+    "summary": [
+      "Join our academic team to prepare students for competitive exams, campus placements, and aptitude assessments through structured training programs.",
+      "You will enhance students' quantitative, logical reasoning, and analytical skills while tracking their progress and improving overall performance."
+    ],
+    "skillList": [
+      "Aptitude Training",
+      "Quantitative Aptitude",
+      "Logical Reasoning",
+      "Verbal Ability",
+      "Data Interpretation",
+      "Analytical Thinking",
+      "Problem Solving",
+      "Teaching",
+      "Communication Skills",
+      "Classroom Management",
+      "Test Preparation",
+      "Mock Test Design",
+      "Assessment Techniques",
+      "Curriculum Planning",
+      "Student Mentoring",
+      "Motivation",
+      "Time Management",
+      "Presentation Skills",
+      "Microsoft Office",
+      "Performance Evaluation"
+    ],
+    "skillResponsibilities": [
+      "Deliver engaging classroom and online aptitude training sessions.",
+      "Teach quantitative aptitude, logical reasoning, and analytical problem-solving techniques.",
+      "Design practice exercises, mock tests, and assessment materials.",
+      "Evaluate student performance and provide personalized feedback.",
+      "Develop study plans to improve individual student performance.",
+      "Motivate students and guide them for competitive examinations and placements.",
+      "Continuously update training content based on current examination patterns."
+    ],
+    "fixedResponsibilities": [
+      "Maintain student attendance, progress reports, and assessment records.",
+      "Ensure training quality aligns with institutional academic standards.",
+      "Collaborate with academic teams to improve student learning outcomes."
+    ]
+  }
+]
