@@ -170,7 +170,11 @@ export function buildJd(input: JdInput): { markdown: string; html: string } {
   md.push("", compClause, "");
   md.push("**Key Responsibilities:**");
   responsibilities.forEach((r) => md.push(`- ${r}`));
+  if (tpl?.fixedResponsibilities?.length) {
+    tpl.fixedResponsibilities.forEach((r) => md.push(`- ${r}`));
+  }
   md.push("");
+
   md.push("**Job Requirements:**");
   md.push(reqBits.join(" "));
   if (input.perks?.length) {
