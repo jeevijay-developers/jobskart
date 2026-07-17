@@ -92,6 +92,7 @@ function normSkill(s: string) {
  *  falling back to a generic line for unknown skills. */
 function responsibilitiesFor(skills: string[], tpl: RoleTemplate | null): string[] {
   if (!skills.length) {
+    if (tpl?.skillResponsibilities?.length) return tpl.skillResponsibilities;
     return tpl
       ? tpl.skills.slice(0, 5).map((s) => s.responsibility)
       : [
@@ -103,16 +104,26 @@ function responsibilitiesFor(skills: string[], tpl: RoleTemplate | null): string
   }
   const index = new Map<string, string>();
   tpl?.skills.forEach((s) => index.set(normSkill(s.skill), s.responsibility));
-  return skills.map((s) => {
+  const mapped = skills.map((s) => {
     const hit = index.get(normSkill(s));
     if (hit) return hit;
-    // fuzzy contains match
     for (const [k, v] of index) {
       if (k.includes(normSkill(s)) || normSkill(s).includes(k)) return v;
     }
     return `Handle day-to-day tasks related to ${s}.`;
   });
+  // If the template came from the JD sheet (has skillResponsibilities but no
+  // real per-skill mapping), also surface a few of those authored bullets so
+  // the JD reads like the sheet examples rather than repetitive "handle X".
+  if (tpl?.skillResponsibilities?.length) {
+    const generic = mapped.filter((m) => m.startsWith("Handle day-to-day tasks related to "));
+    if (generic.length >= Math.max(1, Math.floor(mapped.length / 2))) {
+      return tpl.skillResponsibilities;
+    }
+  }
+  return mapped;
 }
+
 
 function summaryFor(input: JdInput, tpl: RoleTemplate | null): [string, string] {
   if (input.summaryOverride) {
