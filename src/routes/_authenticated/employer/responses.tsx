@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
+import * as XLSX from "xlsx";
 import {
   CheckCircle2,
   Filter,
@@ -12,11 +13,14 @@ import {
   XCircle,
   Calendar,
   ArrowUpRight,
+  Download,
+  AlertTriangle,
 } from "lucide-react";
 import { EmployerShell } from "@/components/employer/EmployerShell";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchMyCompanies, getActiveCompanyId } from "@/lib/employer";
 import { recommendShortlist } from "@/lib/ai-shortlist.functions";
+import { buildDownloadDataset } from "@/lib/downloads.functions";
 
 export const Route = createFileRoute("/_authenticated/employer/responses")({
   head: () => ({ meta: [{ title: "Responses · JobsKart Employer" }] }),
