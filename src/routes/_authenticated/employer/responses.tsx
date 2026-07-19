@@ -170,11 +170,21 @@ function ResponsesPage() {
       title="Responses"
       subtitle="One inbox for every candidate across your jobs."
       actions={
-        <button onClick={load} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold hover:bg-surface">
-          <RefreshCw className="h-3.5 w-3.5" /> Refresh
-        </button>
+        <div className="flex gap-2">
+          <button onClick={doDownload} disabled={downloading} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold hover:bg-surface disabled:opacity-50">
+            <Download className="h-3.5 w-3.5" /> Excel (max 300/day)
+          </button>
+          <button onClick={load} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold hover:bg-surface">
+            <RefreshCw className="h-3.5 w-3.5" /> Refresh
+          </button>
+        </div>
       }
     >
+      <div className="mb-4 flex items-start gap-2 rounded-xl border border-warning/30 bg-warning-light p-3 text-xs text-warning">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+        <span>Responses for expired jobs stay accessible for 7 days after expiry, then get locked. Download important candidates in time.{expiringCount > 0 ? ` (${expiringCount} job(s) expiring soon)` : ""}</span>
+      </div>
+
       <div className="mb-4 flex gap-1 rounded-xl border border-border bg-card p-1">
         <button
           onClick={() => setTab("inbox")}
