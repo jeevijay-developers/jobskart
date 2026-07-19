@@ -42,6 +42,7 @@ type Form = {
   shift: string; working_days: string;
 
   description: string; description_html: string;
+  hiring_for_company: string;
 };
 
 const initialForm: Form = {
@@ -60,6 +61,7 @@ const initialForm: Form = {
   perks: [], joining_fee_required: false,
   shift: "", working_days: "",
   description: "", description_html: "",
+  hiring_for_company: "",
 };
 
 function NewJob() {
@@ -71,6 +73,8 @@ function NewJob() {
   const [companyLoading, setCompanyLoading] = useState(true);
   const [setupError, setSetupError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [isConsultant, setIsConsultant] = useState(false);
+  const [cityLaunched, setCityLaunched] = useState(true);
   const [form, setForm] = useState<Form>(initialForm);
 
   useEffect(() => {
@@ -88,6 +92,10 @@ function NewJob() {
         setActiveCompanyId(chosen.company_id);
         setCompanyId(chosen.company_id);
         setCompanyName(chosen.companies?.name || "our company");
+        // Load consultant flag
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: co } = await supabase.from("companies").select("is_consultant" as any).eq("id", chosen.company_id).maybeSingle();
+        setIsConsultant(Boolean((co as { is_consultant?: boolean } | null)?.is_consultant));
         if (chosen.companies?.industry) {
           setForm((f) => ({ ...f, industry: f.industry || chosen.companies!.industry! }));
         }
@@ -247,6 +255,7 @@ function NewJob() {
       if (form.degree) p.education = form.degree;
       if (form.shift) p.shift = form.shift;
       if (form.working_days) p.working_days = Number(form.working_days);
+      if (isConsultant && form.hiring_for_company.trim()) p.hiring_for_company = form.hiring_for_company.trim();
 
       const { data, error } = await supabase.from("jobs").insert(p as never).select("id").single();
       if (error) {
@@ -347,6 +356,11 @@ function NewJob() {
                       ))}
                     </div>
                   </Field>
+                  {isConsultant && (
+                    <Field label="Company you're hiring for" hint="Optional — shown to candidates so they know the actual employer.">
+                      <input value={form.hiring_for_company} onChange={(e) => set("hiring_for_company", e.target.value)} className="form-input" placeholder="e.g. Acme Retail Pvt Ltd" />
+                    </Field>
+                  )}
                 </div>
               )}
 

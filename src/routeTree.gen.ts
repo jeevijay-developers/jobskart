@@ -18,6 +18,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as USlugRouteImport } from './routes/u.$slug'
 import { Route as SignupEmployerRouteImport } from './routes/signup.employer'
 import { Route as SignupCandidateRouteImport } from './routes/signup.candidate'
+import { Route as LegalWhatsappExtensionRouteImport } from './routes/legal.whatsapp-extension'
 import { Route as JobsJobIdRouteImport } from './routes/jobs.$jobId'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as EmployerLoginRouteImport } from './routes/employer.login'
@@ -27,6 +28,7 @@ import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/admin/route'
 import { Route as AuthenticatedOnboardingEmployerRouteImport } from './routes/_authenticated/onboarding/employer'
 import { Route as AuthenticatedOnboardingCandidateRouteImport } from './routes/_authenticated/onboarding/candidate'
+import { Route as AuthenticatedEmployerVerificationRouteImport } from './routes/_authenticated/employer/verification'
 import { Route as AuthenticatedEmployerTeamRouteImport } from './routes/_authenticated/employer/team'
 import { Route as AuthenticatedEmployerResponsesRouteImport } from './routes/_authenticated/employer/responses'
 import { Route as AuthenticatedEmployerReportsRouteImport } from './routes/_authenticated/employer/reports'
@@ -104,6 +106,11 @@ const SignupCandidateRoute = SignupCandidateRouteImport.update({
   path: '/signup/candidate',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LegalWhatsappExtensionRoute = LegalWhatsappExtensionRouteImport.update({
+  id: '/legal/whatsapp-extension',
+  path: '/legal/whatsapp-extension',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const JobsJobIdRoute = JobsJobIdRouteImport.update({
   id: '/$jobId',
   path: '/$jobId',
@@ -149,6 +156,12 @@ const AuthenticatedOnboardingCandidateRoute =
   AuthenticatedOnboardingCandidateRouteImport.update({
     id: '/onboarding/candidate',
     path: '/onboarding/candidate',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedEmployerVerificationRoute =
+  AuthenticatedEmployerVerificationRouteImport.update({
+    id: '/employer/verification',
+    path: '/employer/verification',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedEmployerTeamRoute =
@@ -355,6 +368,7 @@ export interface FileRoutesByFullPath {
   '/employer/login': typeof EmployerLoginRoute
   '/invite/$token': typeof InviteTokenRoute
   '/jobs/$jobId': typeof JobsJobIdRoute
+  '/legal/whatsapp-extension': typeof LegalWhatsappExtensionRoute
   '/signup/candidate': typeof SignupCandidateRoute
   '/signup/employer': typeof SignupEmployerRoute
   '/u/$slug': typeof USlugRoute
@@ -386,6 +400,7 @@ export interface FileRoutesByFullPath {
   '/employer/reports': typeof AuthenticatedEmployerReportsRoute
   '/employer/responses': typeof AuthenticatedEmployerResponsesRoute
   '/employer/team': typeof AuthenticatedEmployerTeamRoute
+  '/employer/verification': typeof AuthenticatedEmployerVerificationRoute
   '/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
   '/onboarding/employer': typeof AuthenticatedOnboardingEmployerRoute
   '/employer/jobs/bulk': typeof AuthenticatedEmployerJobsBulkRoute
@@ -406,6 +421,7 @@ export interface FileRoutesByTo {
   '/employer/login': typeof EmployerLoginRoute
   '/invite/$token': typeof InviteTokenRoute
   '/jobs/$jobId': typeof JobsJobIdRoute
+  '/legal/whatsapp-extension': typeof LegalWhatsappExtensionRoute
   '/signup/candidate': typeof SignupCandidateRoute
   '/signup/employer': typeof SignupEmployerRoute
   '/u/$slug': typeof USlugRoute
@@ -437,6 +453,7 @@ export interface FileRoutesByTo {
   '/employer/reports': typeof AuthenticatedEmployerReportsRoute
   '/employer/responses': typeof AuthenticatedEmployerResponsesRoute
   '/employer/team': typeof AuthenticatedEmployerTeamRoute
+  '/employer/verification': typeof AuthenticatedEmployerVerificationRoute
   '/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
   '/onboarding/employer': typeof AuthenticatedOnboardingEmployerRoute
   '/employer/jobs/bulk': typeof AuthenticatedEmployerJobsBulkRoute
@@ -459,6 +476,7 @@ export interface FileRoutesById {
   '/employer/login': typeof EmployerLoginRoute
   '/invite/$token': typeof InviteTokenRoute
   '/jobs/$jobId': typeof JobsJobIdRoute
+  '/legal/whatsapp-extension': typeof LegalWhatsappExtensionRoute
   '/signup/candidate': typeof SignupCandidateRoute
   '/signup/employer': typeof SignupEmployerRoute
   '/u/$slug': typeof USlugRoute
@@ -490,6 +508,7 @@ export interface FileRoutesById {
   '/_authenticated/employer/reports': typeof AuthenticatedEmployerReportsRoute
   '/_authenticated/employer/responses': typeof AuthenticatedEmployerResponsesRoute
   '/_authenticated/employer/team': typeof AuthenticatedEmployerTeamRoute
+  '/_authenticated/employer/verification': typeof AuthenticatedEmployerVerificationRoute
   '/_authenticated/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
   '/_authenticated/onboarding/employer': typeof AuthenticatedOnboardingEmployerRoute
   '/_authenticated/employer/jobs/bulk': typeof AuthenticatedEmployerJobsBulkRoute
@@ -512,6 +531,7 @@ export interface FileRouteTypes {
     | '/employer/login'
     | '/invite/$token'
     | '/jobs/$jobId'
+    | '/legal/whatsapp-extension'
     | '/signup/candidate'
     | '/signup/employer'
     | '/u/$slug'
@@ -543,6 +563,7 @@ export interface FileRouteTypes {
     | '/employer/reports'
     | '/employer/responses'
     | '/employer/team'
+    | '/employer/verification'
     | '/onboarding/candidate'
     | '/onboarding/employer'
     | '/employer/jobs/bulk'
@@ -563,6 +584,7 @@ export interface FileRouteTypes {
     | '/employer/login'
     | '/invite/$token'
     | '/jobs/$jobId'
+    | '/legal/whatsapp-extension'
     | '/signup/candidate'
     | '/signup/employer'
     | '/u/$slug'
@@ -594,6 +616,7 @@ export interface FileRouteTypes {
     | '/employer/reports'
     | '/employer/responses'
     | '/employer/team'
+    | '/employer/verification'
     | '/onboarding/candidate'
     | '/onboarding/employer'
     | '/employer/jobs/bulk'
@@ -615,6 +638,7 @@ export interface FileRouteTypes {
     | '/employer/login'
     | '/invite/$token'
     | '/jobs/$jobId'
+    | '/legal/whatsapp-extension'
     | '/signup/candidate'
     | '/signup/employer'
     | '/u/$slug'
@@ -646,6 +670,7 @@ export interface FileRouteTypes {
     | '/_authenticated/employer/reports'
     | '/_authenticated/employer/responses'
     | '/_authenticated/employer/team'
+    | '/_authenticated/employer/verification'
     | '/_authenticated/onboarding/candidate'
     | '/_authenticated/onboarding/employer'
     | '/_authenticated/employer/jobs/bulk'
@@ -666,6 +691,7 @@ export interface RootRouteChildren {
   CandidateLoginRoute: typeof CandidateLoginRoute
   EmployerLoginRoute: typeof EmployerLoginRoute
   InviteTokenRoute: typeof InviteTokenRoute
+  LegalWhatsappExtensionRoute: typeof LegalWhatsappExtensionRoute
   SignupCandidateRoute: typeof SignupCandidateRoute
   SignupEmployerRoute: typeof SignupEmployerRoute
   USlugRoute: typeof USlugRoute
@@ -737,6 +763,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignupCandidateRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/legal/whatsapp-extension': {
+      id: '/legal/whatsapp-extension'
+      path: '/legal/whatsapp-extension'
+      fullPath: '/legal/whatsapp-extension'
+      preLoaderRoute: typeof LegalWhatsappExtensionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/jobs/$jobId': {
       id: '/jobs/$jobId'
       path: '/$jobId'
@@ -798,6 +831,13 @@ declare module '@tanstack/react-router' {
       path: '/onboarding/candidate'
       fullPath: '/onboarding/candidate'
       preLoaderRoute: typeof AuthenticatedOnboardingCandidateRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/employer/verification': {
+      id: '/_authenticated/employer/verification'
+      path: '/employer/verification'
+      fullPath: '/employer/verification'
+      preLoaderRoute: typeof AuthenticatedEmployerVerificationRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/employer/team': {
@@ -1097,6 +1137,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedEmployerReportsRoute: typeof AuthenticatedEmployerReportsRoute
   AuthenticatedEmployerResponsesRoute: typeof AuthenticatedEmployerResponsesRoute
   AuthenticatedEmployerTeamRoute: typeof AuthenticatedEmployerTeamRoute
+  AuthenticatedEmployerVerificationRoute: typeof AuthenticatedEmployerVerificationRoute
   AuthenticatedOnboardingCandidateRoute: typeof AuthenticatedOnboardingCandidateRoute
   AuthenticatedOnboardingEmployerRoute: typeof AuthenticatedOnboardingEmployerRoute
 }
@@ -1124,6 +1165,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedEmployerReportsRoute: AuthenticatedEmployerReportsRoute,
   AuthenticatedEmployerResponsesRoute: AuthenticatedEmployerResponsesRoute,
   AuthenticatedEmployerTeamRoute: AuthenticatedEmployerTeamRoute,
+  AuthenticatedEmployerVerificationRoute:
+    AuthenticatedEmployerVerificationRoute,
   AuthenticatedOnboardingCandidateRoute: AuthenticatedOnboardingCandidateRoute,
   AuthenticatedOnboardingEmployerRoute: AuthenticatedOnboardingEmployerRoute,
 }
@@ -1153,6 +1196,7 @@ const rootRouteChildren: RootRouteChildren = {
   CandidateLoginRoute: CandidateLoginRoute,
   EmployerLoginRoute: EmployerLoginRoute,
   InviteTokenRoute: InviteTokenRoute,
+  LegalWhatsappExtensionRoute: LegalWhatsappExtensionRoute,
   SignupCandidateRoute: SignupCandidateRoute,
   SignupEmployerRoute: SignupEmployerRoute,
   USlugRoute: USlugRoute,
@@ -1161,13 +1205,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

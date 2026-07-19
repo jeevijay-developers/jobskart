@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
+import * as XLSX from "xlsx";
 import {
   CheckCircle2,
   Filter,
@@ -12,11 +13,14 @@ import {
   XCircle,
   Calendar,
   ArrowUpRight,
+  Download,
+  AlertTriangle,
 } from "lucide-react";
 import { EmployerShell } from "@/components/employer/EmployerShell";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchMyCompanies, getActiveCompanyId } from "@/lib/employer";
 import { recommendShortlist } from "@/lib/ai-shortlist.functions";
+import { buildDownloadDataset } from "@/lib/downloads.functions";
 
 export const Route = createFileRoute("/_authenticated/employer/responses")({
   head: () => ({ meta: [{ title: "Responses · JobsKart Employer" }] }),
@@ -65,8 +69,25 @@ function ResponsesPage() {
   const [aiRows, setAiRows] = useState<AiRow[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [downloading, setDownloading] = useState(false);
+  const [expiringCount, setExpiringCount] = useState(0);
 
   const recommend = useServerFn(recommendShortlist);
+  const buildDownload = useServerFn(buildDownloadDataset);
+
+  const doDownload = async () => {
+    if (!cid) return;
+    setDownloading(true);
+    try {
+      const { rows: dl, todayCount } = await buildDownload({ data: { companyId: cid, kind: "responses", jobId: jobFilter || undefined } });
+      const ws = XLSX.utils.json_to_sheet(dl);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Responses");
+      XLSX.writeFile(wb, `jobskart-responses-${new Date().toISOString().slice(0, 10)}.xlsx`);
+      toast.success(`Downloaded ${dl.length} rows · ${todayCount}/300 today`);
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Download failed"); }
+    finally { setDownloading(false); }
+  };
 
   useEffect(() => {
     (async () => {
@@ -149,11 +170,21 @@ function ResponsesPage() {
       title="Responses"
       subtitle="One inbox for every candidate across your jobs."
       actions={
-        <button onClick={load} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold hover:bg-surface">
-          <RefreshCw className="h-3.5 w-3.5" /> Refresh
-        </button>
+        <div className="flex gap-2">
+          <button onClick={doDownload} disabled={downloading} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold hover:bg-surface disabled:opacity-50">
+            <Download className="h-3.5 w-3.5" /> Excel (max 300/day)
+          </button>
+          <button onClick={load} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold hover:bg-surface">
+            <RefreshCw className="h-3.5 w-3.5" /> Refresh
+          </button>
+        </div>
       }
     >
+      <div className="mb-4 flex items-start gap-2 rounded-xl border border-warning/30 bg-warning-light p-3 text-xs text-warning">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+        <span>Responses for expired jobs stay accessible for 7 days after expiry, then get locked. Download important candidates in time.{expiringCount > 0 ? ` (${expiringCount} job(s) expiring soon)` : ""}</span>
+      </div>
+
       <div className="mb-4 flex gap-1 rounded-xl border border-border bg-card p-1">
         <button
           onClick={() => setTab("inbox")}

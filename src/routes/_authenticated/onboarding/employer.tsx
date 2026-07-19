@@ -63,6 +63,7 @@ function EmployerOnboarding() {
   const [website, setWebsite] = useState("");
   const [about, setAbout] = useState("");
   const [gst, setGst] = useState("");
+  const [isConsultant, setIsConsultant] = useState(false);
   const [postNow, setPostNow] = useState<"yes" | "later">("yes");
 
   const submit = async () => {
@@ -90,6 +91,9 @@ function EmployerOnboarding() {
       );
       if (rpcErr || !companyId) throw rpcErr ?? new Error("Could not create company.");
       const cid = companyId as unknown as string;
+      if (isConsultant) {
+        await supabase.from("companies").update({ is_consultant: true } as never).eq("id", cid);
+      }
 
       if (logoFile) {
         const path = `${cid}/logo-${Date.now()}-${logoFile.name}`;
@@ -144,6 +148,13 @@ function EmployerOnboarding() {
               placeholder="Optional"
             />
           </Field>
+          <label className="flex items-start gap-3 rounded-xl border border-border bg-surface p-3 text-sm">
+            <input type="checkbox" checked={isConsultant} onChange={(e) => setIsConsultant(e.target.checked)} className="mt-0.5 h-4 w-4 accent-primary" />
+            <span>
+              <span className="font-semibold text-foreground">I'm a hiring consultant / recruiter</span>
+              <span className="mt-0.5 block text-xs text-muted-foreground">You'll be asked (optionally) which company each job is for when posting.</span>
+            </span>
+          </label>
         </div>
       ),
     },

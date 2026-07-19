@@ -645,6 +645,7 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean
+          is_launched: boolean
           name: string
           slug: string
           state: string | null
@@ -654,6 +655,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          is_launched?: boolean
           name: string
           slug: string
           state?: string | null
@@ -663,6 +665,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          is_launched?: boolean
           name?: string
           slug?: string
           state?: string | null
@@ -673,6 +676,7 @@ export type Database = {
       companies: {
         Row: {
           about: string | null
+          allow_brand_display: boolean
           company_type: Database["public"]["Enums"]["company_type"] | null
           cover_url: string | null
           created_at: string
@@ -683,6 +687,7 @@ export type Database = {
           hq_city: string | null
           id: string
           industry: string | null
+          is_consultant: boolean
           is_verified: boolean
           logo_url: string | null
           name: string
@@ -693,6 +698,7 @@ export type Database = {
           size: Database["public"]["Enums"]["company_size"] | null
           slug: string | null
           social_links: Json
+          spam_suspected: boolean
           updated_at: string
           verification_notes: string | null
           verification_status: string
@@ -700,6 +706,7 @@ export type Database = {
         }
         Insert: {
           about?: string | null
+          allow_brand_display?: boolean
           company_type?: Database["public"]["Enums"]["company_type"] | null
           cover_url?: string | null
           created_at?: string
@@ -710,6 +717,7 @@ export type Database = {
           hq_city?: string | null
           id?: string
           industry?: string | null
+          is_consultant?: boolean
           is_verified?: boolean
           logo_url?: string | null
           name: string
@@ -720,6 +728,7 @@ export type Database = {
           size?: Database["public"]["Enums"]["company_size"] | null
           slug?: string | null
           social_links?: Json
+          spam_suspected?: boolean
           updated_at?: string
           verification_notes?: string | null
           verification_status?: string
@@ -727,6 +736,7 @@ export type Database = {
         }
         Update: {
           about?: string | null
+          allow_brand_display?: boolean
           company_type?: Database["public"]["Enums"]["company_type"] | null
           cover_url?: string | null
           created_at?: string
@@ -737,6 +747,7 @@ export type Database = {
           hq_city?: string | null
           id?: string
           industry?: string | null
+          is_consultant?: boolean
           is_verified?: boolean
           logo_url?: string | null
           name?: string
@@ -747,6 +758,7 @@ export type Database = {
           size?: Database["public"]["Enums"]["company_size"] | null
           slug?: string | null
           social_links?: Json
+          spam_suspected?: boolean
           updated_at?: string
           verification_notes?: string | null
           verification_status?: string
@@ -791,6 +803,59 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "company_documents_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_verifications: {
+        Row: {
+          company_id: string
+          created_at: string
+          docs: Json
+          id: string
+          method: Database["public"]["Enums"]["kyc_method"]
+          notes: string | null
+          reference: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["kyc_status"]
+          submitted_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          docs?: Json
+          id?: string
+          method: Database["public"]["Enums"]["kyc_method"]
+          notes?: string | null
+          reference?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["kyc_status"]
+          submitted_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          docs?: Json
+          id?: string
+          method?: Database["public"]["Enums"]["kyc_method"]
+          notes?: string | null
+          reference?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["kyc_status"]
+          submitted_by?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_verifications_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
@@ -898,6 +963,62 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      download_events: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          id: string
+          kind: string
+          row_count: number
+          user_id: string
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          kind: string
+          row_count?: number
+          user_id: string
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          row_count?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "download_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      download_ledger: {
+        Row: {
+          count: number
+          day: string
+          kind: string
+          user_id: string
+        }
+        Insert: {
+          count?: number
+          day: string
+          kind: string
+          user_id: string
+        }
+        Update: {
+          count?: number
+          day?: string
+          kind?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       employer_activity: {
         Row: {
@@ -1269,6 +1390,7 @@ export type Database = {
           expires_at: string | null
           fixed_pay: boolean | null
           gender_pref: string | null
+          hiring_for_company: string | null
           id: string
           incentives_text: string | null
           industry: string | null
@@ -1294,6 +1416,7 @@ export type Database = {
           preferred_languages: string[] | null
           quality_score: number | null
           required_assets: string[] | null
+          responses_locked_after: string | null
           role_type: string | null
           salary_period: string | null
           screening_questions: Json
@@ -1333,6 +1456,7 @@ export type Database = {
           expires_at?: string | null
           fixed_pay?: boolean | null
           gender_pref?: string | null
+          hiring_for_company?: string | null
           id?: string
           incentives_text?: string | null
           industry?: string | null
@@ -1358,6 +1482,7 @@ export type Database = {
           preferred_languages?: string[] | null
           quality_score?: number | null
           required_assets?: string[] | null
+          responses_locked_after?: string | null
           role_type?: string | null
           salary_period?: string | null
           screening_questions?: Json
@@ -1397,6 +1522,7 @@ export type Database = {
           expires_at?: string | null
           fixed_pay?: boolean | null
           gender_pref?: string | null
+          hiring_for_company?: string | null
           id?: string
           incentives_text?: string | null
           industry?: string | null
@@ -1422,6 +1548,7 @@ export type Database = {
           preferred_languages?: string[] | null
           quality_score?: number | null
           required_assets?: string[] | null
+          responses_locked_after?: string | null
           role_type?: string | null
           salary_period?: string | null
           screening_questions?: Json
@@ -1523,6 +1650,7 @@ export type Database = {
           body: string | null
           created_at: string
           id: string
+          image_url: string | null
           link: string | null
           read_at: string | null
           title: string
@@ -1533,6 +1661,7 @@ export type Database = {
           body?: string | null
           created_at?: string
           id?: string
+          image_url?: string | null
           link?: string | null
           read_at?: string | null
           title: string
@@ -1543,11 +1672,51 @@ export type Database = {
           body?: string | null
           created_at?: string
           id?: string
+          image_url?: string | null
           link?: string | null
           read_at?: string | null
           title?: string
           type?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      plan_settings: {
+        Row: {
+          credits_per_unlock: number
+          custom_plan_min_amount: number
+          free_post_enabled: boolean
+          free_response_cap: number
+          free_validity_days: number
+          free_whatsapp_cap_per_post: number
+          free_whatsapp_rajasthan_only: boolean
+          id: number
+          spam_jobs_per_hour: number
+          updated_at: string
+        }
+        Insert: {
+          credits_per_unlock?: number
+          custom_plan_min_amount?: number
+          free_post_enabled?: boolean
+          free_response_cap?: number
+          free_validity_days?: number
+          free_whatsapp_cap_per_post?: number
+          free_whatsapp_rajasthan_only?: boolean
+          id?: number
+          spam_jobs_per_hour?: number
+          updated_at?: string
+        }
+        Update: {
+          credits_per_unlock?: number
+          custom_plan_min_amount?: number
+          free_post_enabled?: boolean
+          free_response_cap?: number
+          free_validity_days?: number
+          free_whatsapp_cap_per_post?: number
+          free_whatsapp_rajasthan_only?: boolean
+          id?: number
+          spam_jobs_per_hour?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -1778,6 +1947,24 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_send_ledger: {
+        Row: {
+          count: number
+          day: string
+          user_id: string
+        }
+        Insert: {
+          count?: number
+          day: string
+          user_id: string
+        }
+        Update: {
+          count?: number
+          day?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       public_candidate_view: {
@@ -1815,6 +2002,7 @@ export type Database = {
         }
         Returns: number
       }
+      can_access_job_responses: { Args: { _job_id: string }; Returns: boolean }
       create_company_with_owner: {
         Args: {
           _about: string
@@ -1918,6 +2106,11 @@ export type Database = {
         }
         Returns: undefined
       }
+      register_download: {
+        Args: { _company_id: string; _count: number; _kind: string }
+        Returns: number
+      }
+      register_whatsapp_send: { Args: { _count: number }; Returns: number }
       remove_member: {
         Args: { _company_id: string; _user_id: string }
         Returns: undefined
@@ -1979,6 +2172,8 @@ export type Database = {
         | "contract"
         | "internship"
         | "temporary"
+      kyc_method: "gst" | "email" | "manual"
+      kyc_status: "pending" | "verified" | "rejected"
       user_type: "candidate" | "employer"
       work_mode: "onsite" | "remote" | "hybrid" | "field"
     }
@@ -2146,6 +2341,8 @@ export const Constants = {
         "internship",
         "temporary",
       ],
+      kyc_method: ["gst", "email", "manual"],
+      kyc_status: ["pending", "verified", "rejected"],
       user_type: ["candidate", "employer"],
       work_mode: ["onsite", "remote", "hybrid", "field"],
     },
