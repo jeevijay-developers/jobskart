@@ -27,6 +27,7 @@ import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/admin/route'
 import { Route as AuthenticatedOnboardingEmployerRouteImport } from './routes/_authenticated/onboarding/employer'
 import { Route as AuthenticatedOnboardingCandidateRouteImport } from './routes/_authenticated/onboarding/candidate'
+import { Route as AuthenticatedEmployerVerificationRouteImport } from './routes/_authenticated/employer/verification'
 import { Route as AuthenticatedEmployerTeamRouteImport } from './routes/_authenticated/employer/team'
 import { Route as AuthenticatedEmployerResponsesRouteImport } from './routes/_authenticated/employer/responses'
 import { Route as AuthenticatedEmployerReportsRouteImport } from './routes/_authenticated/employer/reports'
@@ -149,6 +150,12 @@ const AuthenticatedOnboardingCandidateRoute =
   AuthenticatedOnboardingCandidateRouteImport.update({
     id: '/onboarding/candidate',
     path: '/onboarding/candidate',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedEmployerVerificationRoute =
+  AuthenticatedEmployerVerificationRouteImport.update({
+    id: '/employer/verification',
+    path: '/employer/verification',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedEmployerTeamRoute =
@@ -386,6 +393,7 @@ export interface FileRoutesByFullPath {
   '/employer/reports': typeof AuthenticatedEmployerReportsRoute
   '/employer/responses': typeof AuthenticatedEmployerResponsesRoute
   '/employer/team': typeof AuthenticatedEmployerTeamRoute
+  '/employer/verification': typeof AuthenticatedEmployerVerificationRoute
   '/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
   '/onboarding/employer': typeof AuthenticatedOnboardingEmployerRoute
   '/employer/jobs/bulk': typeof AuthenticatedEmployerJobsBulkRoute
@@ -437,6 +445,7 @@ export interface FileRoutesByTo {
   '/employer/reports': typeof AuthenticatedEmployerReportsRoute
   '/employer/responses': typeof AuthenticatedEmployerResponsesRoute
   '/employer/team': typeof AuthenticatedEmployerTeamRoute
+  '/employer/verification': typeof AuthenticatedEmployerVerificationRoute
   '/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
   '/onboarding/employer': typeof AuthenticatedOnboardingEmployerRoute
   '/employer/jobs/bulk': typeof AuthenticatedEmployerJobsBulkRoute
@@ -490,6 +499,7 @@ export interface FileRoutesById {
   '/_authenticated/employer/reports': typeof AuthenticatedEmployerReportsRoute
   '/_authenticated/employer/responses': typeof AuthenticatedEmployerResponsesRoute
   '/_authenticated/employer/team': typeof AuthenticatedEmployerTeamRoute
+  '/_authenticated/employer/verification': typeof AuthenticatedEmployerVerificationRoute
   '/_authenticated/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
   '/_authenticated/onboarding/employer': typeof AuthenticatedOnboardingEmployerRoute
   '/_authenticated/employer/jobs/bulk': typeof AuthenticatedEmployerJobsBulkRoute
@@ -543,6 +553,7 @@ export interface FileRouteTypes {
     | '/employer/reports'
     | '/employer/responses'
     | '/employer/team'
+    | '/employer/verification'
     | '/onboarding/candidate'
     | '/onboarding/employer'
     | '/employer/jobs/bulk'
@@ -594,6 +605,7 @@ export interface FileRouteTypes {
     | '/employer/reports'
     | '/employer/responses'
     | '/employer/team'
+    | '/employer/verification'
     | '/onboarding/candidate'
     | '/onboarding/employer'
     | '/employer/jobs/bulk'
@@ -646,6 +658,7 @@ export interface FileRouteTypes {
     | '/_authenticated/employer/reports'
     | '/_authenticated/employer/responses'
     | '/_authenticated/employer/team'
+    | '/_authenticated/employer/verification'
     | '/_authenticated/onboarding/candidate'
     | '/_authenticated/onboarding/employer'
     | '/_authenticated/employer/jobs/bulk'
@@ -798,6 +811,13 @@ declare module '@tanstack/react-router' {
       path: '/onboarding/candidate'
       fullPath: '/onboarding/candidate'
       preLoaderRoute: typeof AuthenticatedOnboardingCandidateRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/employer/verification': {
+      id: '/_authenticated/employer/verification'
+      path: '/employer/verification'
+      fullPath: '/employer/verification'
+      preLoaderRoute: typeof AuthenticatedEmployerVerificationRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/employer/team': {
@@ -1097,6 +1117,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedEmployerReportsRoute: typeof AuthenticatedEmployerReportsRoute
   AuthenticatedEmployerResponsesRoute: typeof AuthenticatedEmployerResponsesRoute
   AuthenticatedEmployerTeamRoute: typeof AuthenticatedEmployerTeamRoute
+  AuthenticatedEmployerVerificationRoute: typeof AuthenticatedEmployerVerificationRoute
   AuthenticatedOnboardingCandidateRoute: typeof AuthenticatedOnboardingCandidateRoute
   AuthenticatedOnboardingEmployerRoute: typeof AuthenticatedOnboardingEmployerRoute
 }
@@ -1124,6 +1145,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedEmployerReportsRoute: AuthenticatedEmployerReportsRoute,
   AuthenticatedEmployerResponsesRoute: AuthenticatedEmployerResponsesRoute,
   AuthenticatedEmployerTeamRoute: AuthenticatedEmployerTeamRoute,
+  AuthenticatedEmployerVerificationRoute:
+    AuthenticatedEmployerVerificationRoute,
   AuthenticatedOnboardingCandidateRoute: AuthenticatedOnboardingCandidateRoute,
   AuthenticatedOnboardingEmployerRoute: AuthenticatedOnboardingEmployerRoute,
 }
