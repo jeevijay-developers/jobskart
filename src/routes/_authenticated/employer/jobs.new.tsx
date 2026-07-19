@@ -356,6 +356,11 @@ function NewJob() {
                       ))}
                     </div>
                   </Field>
+                  {isConsultant && (
+                    <Field label="Company you're hiring for" hint="Optional — shown to candidates so they know the actual employer.">
+                      <input value={form.hiring_for_company} onChange={(e) => set("hiring_for_company", e.target.value)} className="form-input" placeholder="e.g. Acme Retail Pvt Ltd" />
+                    </Field>
+                  )}
                 </div>
               )}
 
