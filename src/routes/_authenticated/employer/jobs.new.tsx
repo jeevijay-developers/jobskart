@@ -92,6 +92,10 @@ function NewJob() {
         setActiveCompanyId(chosen.company_id);
         setCompanyId(chosen.company_id);
         setCompanyName(chosen.companies?.name || "our company");
+        // Load consultant flag
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: co } = await supabase.from("companies").select("is_consultant" as any).eq("id", chosen.company_id).maybeSingle();
+        setIsConsultant(Boolean((co as { is_consultant?: boolean } | null)?.is_consultant));
         if (chosen.companies?.industry) {
           setForm((f) => ({ ...f, industry: f.industry || chosen.companies!.industry! }));
         }
