@@ -14,6 +14,7 @@ import {
   X,
   CalendarCheck,
   FileSpreadsheet,
+  BadgeCheck,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
@@ -29,6 +30,7 @@ const nav = [
   { to: "/employer/interviews", label: "Interviews", icon: CalendarCheck },
   { to: "/employer/database", label: "Database", icon: Database },
   { to: "/employer/jobs/bulk", label: "Bulk post", icon: FileSpreadsheet },
+  { to: "/employer/verification", label: "Verification", icon: BadgeCheck },
   { to: "/employer/reports", label: "Reports", icon: BarChart3 },
   { to: "/employer/activity", label: "Activity", icon: Activity },
   { to: "/employer/credits", label: "Credits", icon: Coins },
