@@ -42,6 +42,7 @@ type Form = {
   shift: string; working_days: string;
 
   description: string; description_html: string;
+  hiring_for_company: string;
 };
 
 const initialForm: Form = {
@@ -60,6 +61,7 @@ const initialForm: Form = {
   perks: [], joining_fee_required: false,
   shift: "", working_days: "",
   description: "", description_html: "",
+  hiring_for_company: "",
 };
 
 function NewJob() {
