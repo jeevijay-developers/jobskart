@@ -63,6 +63,7 @@ function EmployerOnboarding() {
   const [website, setWebsite] = useState("");
   const [about, setAbout] = useState("");
   const [gst, setGst] = useState("");
+  const [isConsultant, setIsConsultant] = useState(false);
   const [postNow, setPostNow] = useState<"yes" | "later">("yes");
 
   const submit = async () => {

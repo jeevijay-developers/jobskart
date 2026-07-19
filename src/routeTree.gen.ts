@@ -18,6 +18,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as USlugRouteImport } from './routes/u.$slug'
 import { Route as SignupEmployerRouteImport } from './routes/signup.employer'
 import { Route as SignupCandidateRouteImport } from './routes/signup.candidate'
+import { Route as LegalWhatsappExtensionRouteImport } from './routes/legal.whatsapp-extension'
 import { Route as JobsJobIdRouteImport } from './routes/jobs.$jobId'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as EmployerLoginRouteImport } from './routes/employer.login'
@@ -103,6 +104,11 @@ const SignupEmployerRoute = SignupEmployerRouteImport.update({
 const SignupCandidateRoute = SignupCandidateRouteImport.update({
   id: '/signup/candidate',
   path: '/signup/candidate',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LegalWhatsappExtensionRoute = LegalWhatsappExtensionRouteImport.update({
+  id: '/legal/whatsapp-extension',
+  path: '/legal/whatsapp-extension',
   getParentRoute: () => rootRouteImport,
 } as any)
 const JobsJobIdRoute = JobsJobIdRouteImport.update({
@@ -362,6 +368,7 @@ export interface FileRoutesByFullPath {
   '/employer/login': typeof EmployerLoginRoute
   '/invite/$token': typeof InviteTokenRoute
   '/jobs/$jobId': typeof JobsJobIdRoute
+  '/legal/whatsapp-extension': typeof LegalWhatsappExtensionRoute
   '/signup/candidate': typeof SignupCandidateRoute
   '/signup/employer': typeof SignupEmployerRoute
   '/u/$slug': typeof USlugRoute
@@ -414,6 +421,7 @@ export interface FileRoutesByTo {
   '/employer/login': typeof EmployerLoginRoute
   '/invite/$token': typeof InviteTokenRoute
   '/jobs/$jobId': typeof JobsJobIdRoute
+  '/legal/whatsapp-extension': typeof LegalWhatsappExtensionRoute
   '/signup/candidate': typeof SignupCandidateRoute
   '/signup/employer': typeof SignupEmployerRoute
   '/u/$slug': typeof USlugRoute
@@ -468,6 +476,7 @@ export interface FileRoutesById {
   '/employer/login': typeof EmployerLoginRoute
   '/invite/$token': typeof InviteTokenRoute
   '/jobs/$jobId': typeof JobsJobIdRoute
+  '/legal/whatsapp-extension': typeof LegalWhatsappExtensionRoute
   '/signup/candidate': typeof SignupCandidateRoute
   '/signup/employer': typeof SignupEmployerRoute
   '/u/$slug': typeof USlugRoute
@@ -522,6 +531,7 @@ export interface FileRouteTypes {
     | '/employer/login'
     | '/invite/$token'
     | '/jobs/$jobId'
+    | '/legal/whatsapp-extension'
     | '/signup/candidate'
     | '/signup/employer'
     | '/u/$slug'
@@ -574,6 +584,7 @@ export interface FileRouteTypes {
     | '/employer/login'
     | '/invite/$token'
     | '/jobs/$jobId'
+    | '/legal/whatsapp-extension'
     | '/signup/candidate'
     | '/signup/employer'
     | '/u/$slug'
@@ -627,6 +638,7 @@ export interface FileRouteTypes {
     | '/employer/login'
     | '/invite/$token'
     | '/jobs/$jobId'
+    | '/legal/whatsapp-extension'
     | '/signup/candidate'
     | '/signup/employer'
     | '/u/$slug'
@@ -679,6 +691,7 @@ export interface RootRouteChildren {
   CandidateLoginRoute: typeof CandidateLoginRoute
   EmployerLoginRoute: typeof EmployerLoginRoute
   InviteTokenRoute: typeof InviteTokenRoute
+  LegalWhatsappExtensionRoute: typeof LegalWhatsappExtensionRoute
   SignupCandidateRoute: typeof SignupCandidateRoute
   SignupEmployerRoute: typeof SignupEmployerRoute
   USlugRoute: typeof USlugRoute
@@ -748,6 +761,13 @@ declare module '@tanstack/react-router' {
       path: '/signup/candidate'
       fullPath: '/signup/candidate'
       preLoaderRoute: typeof SignupCandidateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/legal/whatsapp-extension': {
+      id: '/legal/whatsapp-extension'
+      path: '/legal/whatsapp-extension'
+      fullPath: '/legal/whatsapp-extension'
+      preLoaderRoute: typeof LegalWhatsappExtensionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/jobs/$jobId': {
@@ -1176,6 +1196,7 @@ const rootRouteChildren: RootRouteChildren = {
   CandidateLoginRoute: CandidateLoginRoute,
   EmployerLoginRoute: EmployerLoginRoute,
   InviteTokenRoute: InviteTokenRoute,
+  LegalWhatsappExtensionRoute: LegalWhatsappExtensionRoute,
   SignupCandidateRoute: SignupCandidateRoute,
   SignupEmployerRoute: SignupEmployerRoute,
   USlugRoute: USlugRoute,
