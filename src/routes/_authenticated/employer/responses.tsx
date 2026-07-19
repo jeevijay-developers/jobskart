@@ -69,8 +69,25 @@ function ResponsesPage() {
   const [aiRows, setAiRows] = useState<AiRow[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [downloading, setDownloading] = useState(false);
+  const [expiringCount, setExpiringCount] = useState(0);
 
   const recommend = useServerFn(recommendShortlist);
+  const buildDownload = useServerFn(buildDownloadDataset);
+
+  const doDownload = async () => {
+    if (!cid) return;
+    setDownloading(true);
+    try {
+      const { rows: dl, todayCount } = await buildDownload({ data: { companyId: cid, kind: "responses", jobId: jobFilter || undefined } });
+      const ws = XLSX.utils.json_to_sheet(dl);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Responses");
+      XLSX.writeFile(wb, `jobskart-responses-${new Date().toISOString().slice(0, 10)}.xlsx`);
+      toast.success(`Downloaded ${dl.length} rows · ${todayCount}/300 today`);
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Download failed"); }
+    finally { setDownloading(false); }
+  };
 
   useEffect(() => {
     (async () => {
