@@ -73,6 +73,8 @@ function NewJob() {
   const [companyLoading, setCompanyLoading] = useState(true);
   const [setupError, setSetupError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [isConsultant, setIsConsultant] = useState(false);
+  const [cityLaunched, setCityLaunched] = useState(true);
   const [form, setForm] = useState<Form>(initialForm);
 
   useEffect(() => {
