@@ -255,6 +255,7 @@ function NewJob() {
       if (form.degree) p.education = form.degree;
       if (form.shift) p.shift = form.shift;
       if (form.working_days) p.working_days = Number(form.working_days);
+      if (isConsultant && form.hiring_for_company.trim()) p.hiring_for_company = form.hiring_for_company.trim();
 
       const { data, error } = await supabase.from("jobs").insert(p as never).select("id").single();
       if (error) {
