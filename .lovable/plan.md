@@ -1,88 +1,74 @@
-## Scope
-Apply every item in Vikas' 18/07/26 doc across employer, admin, candidate, and public surfaces. Grouped by system, each item ties to a concrete change.
+## What's already done
+- Schema: `is_consultant`, `hiring_for_company`, `responses_locked_after`, `allow_brand_display`, `spam_suspected`, `plan_settings`, `company_verifications`, `download_ledger/events`, `whatsapp_send_ledger`, Rajasthan `is_launched`, 5-credits unlock.
+- Employer verification page (GST / email / manual upload).
+- Employer responses: 7-day lock banner + Excel download (300/day server cap).
+- WhatsApp extension T&C page.
+- Consultant checkbox in employer onboarding + "hiring for company" field in job wizard.
 
-## 1. Consultant accounts
-- Add `is_consultant` flag on `companies` (asked during employer onboarding: "Are you a hiring consultant?").
-- On job-post wizard (`employer/jobs.new.tsx`, `jobs.bulk.tsx`): if consultant, show **optional** "Company you're hiring for" field → stored on `jobs.hiring_for_company`.
-- T&C toggle: consultant may show their own brand/logo on job cards "at their own risk" (checkbox on company profile). Show a disclaimer chip on public JD when consultant.
+## Still pending from the doc
 
-## 2. Job-post lifecycle & database access
-- New column `jobs.responses_locked_after` (= `expires_at + 7 days`). After that date:
-  - Employer cannot open responses or database rows tied to that job.
-  - Show a red banner on `/employer/responses` and `/employer/database`: "Access to responses & database ended 7 days after job expiry. Renew the post to unlock."
-- Database tab (`employer/database.tsx`) is **only** reachable if the employer has ≥1 live (active + non-expired) job. Otherwise show empty-state CTA "Post a job to search the database". Remove any standalone entry point.
+### 1. Database tab gating & lock
+- `employer/database.tsx`: only reachable when the company has ≥1 live (active + non-expired) job — otherwise empty state with "Post a job to search the database".
+- Same red 7-day-after-expiry banner as responses; hide rows whose source job is past `responses_locked_after`.
+- Add "Download Excel" button (uses `unlocked_profiles` kind already wired in `downloads.functions.ts`).
 
-## 3. Excel downloads + audit
-- Add "Download Excel" on responses and unlocked-profiles views. Per-account cap **300 rows/day** enforced in a server fn (`downloads.functions.ts`) reading a new `download_ledger` table (user_id, kind, count, day).
-- Every download inserts into `download_events` (user_id, company_id, kind, count, ip). Super admin dashboard gets a live feed (`admin/downloads.tsx`) + realtime toast via Supabase channel.
+### 2. Admin surfaces (all missing)
+- `admin/verifications.tsx` — queue of `company_verifications` rows with approve/reject; on approve set `companies.verification_status = 'verified'`.
+- `admin/downloads.tsx` — live feed of `download_events` with realtime subscribe + toast; filter by company/day.
+- `admin/spam-review.tsx` — list companies with `spam_suspected = true`, un-flag / confirm-suspend actions.
+- `admin/plans.tsx` — edit `plan_settings` singleton (free-post on/off, response cap, WA cap, Rajasthan-only toggle, spam threshold, credits/unlock).
+- `admin/masters.tsx` — add a "Launch all Rajasthan cities" button (bulk `is_launched=true` where state = Rajasthan) plus per-city toggle.
 
-## 4. Notifications (web + WhatsApp) with image
-- Extend `notifications` schema with `image_url`. NotificationBell renders thumbnail.
-- WhatsApp send helper (`lib/whatsapp.functions.ts`) accepts `mediaUrl`; used by job-alert + response alerts.
-- Social sharing: add OpenGraph tags on `/jobs/$jobId` head() (title, description, `og:image` from company logo or generated card) so shared links auto-format on WhatsApp/LinkedIn. Add "Share" menu with pre-filled text.
+### 3. Notifications with image
+- Extend `NotificationBell.tsx` to render `notifications.image_url` thumbnail.
+- `lib/whatsapp.functions.ts` (new): send helper that accepts `mediaUrl`, enforces per-user 50/day via `whatsapp_send_ledger` (429 on exceed), and skips PAN-India numbers when `plan_settings.free_whatsapp_rajasthan_only` and account is on free plan.
 
-## 5. Chrome-extension T&C
-- Static `/legal/whatsapp-extension` page with T&C; the extension itself is out of scope but the app enforces the 50 msg/day/user cap via `whatsapp_send_ledger` and returns 429 when exceeded.
+### 4. Public JD social + consultant disclaimer
+- `jobs.$jobId.tsx`: add `og:title` / `og:description` / `og:image` (company logo or generated card) in `head()`, Twitter card tags, and a Share menu (WhatsApp / LinkedIn / copy link) with pre-filled text.
+- If job's company `is_consultant = true` and `allow_brand_display = false`, mask brand ("Confidential client — via {consultant}"); if `allow_brand_display = true`, show a small "Posted by consultant" chip.
+- Company profile: consent checkbox for `allow_brand_display` with "at your own risk" copy.
 
-## 6. KYC / verification
-- New `/employer/verification` route with three tabs:
-  - **A. GST/PAN/CIN** — instant form (GST number lookup stub → auto-fills company name/address; writes to `company_verifications`).
-  - **B. Business email OTP** — send OTP to work email via existing OTP infra.
-  - **C. Manual KYC** — upload LLP/license/address proof/Aadhaar; goes to admin queue (`admin/verifications.tsx`) for approve/reject.
-- Company profile shows verification badge state (Pending / Verified / Rejected).
+### 5. Custom plan builder (≥ ₹10,000)
+- New `plans` table (name, price, limits jsonb, is_custom).
+- `employer/plans/custom.tsx` — sliders for job slots, DB unlocks, WA alerts, downloads/day, validity; visible only when the buyer's cart/subscription total ≥ ₹10,000. Admin can also seed named packs.
+- Server fn `customPlan.functions.ts` creates a `plans` row + Razorpay order.
 
-## 7. Plans, top-ups & credit rules
-- `plans` table (name, price, includes: job_slots, db_unlocks, whatsapp_alerts, downloads_per_day, custom flag).
-- Purchases ≥ ₹10,000 unlock a **Custom Plan Builder** (`employer/plans/custom.tsx`) — admin-set sliders for each limit.
-- Coin exhaustion: unlocking a candidate profile deducts **5 credits** (constant in `lib/credits.functions.ts`, enforced server-side).
-- Free-plan matrix in DB (`plan_settings` singleton row, editable in `admin/plans.tsx`):
-  - Free job-post ON/OFF, response cap (variable), WhatsApp cap 500/post over 30 days, RM support = true, validity 30 days.
-  - Free plan: responses free, DB unlocks disabled (button shows upsell).
-  - Free WhatsApp alerts 1000 for **Rajasthan only** (not PAN India). Enforced by candidate-city check in the alert dispatcher.
+### 6. Anti-spam + inactivity gating
+- Server fn `spamDetect.functions.ts` (invoked hourly via `pg_cron` → `api/public/cron/spam-detect`): if `> plan_settings.spam_jobs_per_hour` posts in the last hour by a company, set `spam_suspected = true` and stop WA dispatch for its jobs.
+- Inactivity check: if employer hasn't opened responses within 7 days of posting, dispatcher stops candidate WA alerts for that job and inserts a "Check your responses first" notification for the employer.
 
-## 8. Anti-spam / unauthorised access
-- Cron server-fn `detectSpamPosting` runs hourly: if a client posts > N jobs/hour (admin-set threshold), auto-suspend WhatsApp alerts for that client and flag `companies.spam_suspected=true`. Admin sees them under `admin/spam-review.tsx`.
-- If client has not opened responses within 7 days of posting, dispatcher stops candidate WhatsApp alerts for that job and sends the employer a reminder ("Check your responses first"). Admin can override.
+### 7. Serviceability + PAN-India free posting
+- `jobs.new.tsx` city step: if selected city has `is_launched = false`, show serviceability warning + "Receive applications from anywhere in India" checkbox (persists to `jobs.pan_india_ok`).
+- `credits.functions.ts`: skip credit deduction when every posting city is un-launched (per doc: "no deduction on unlaunched cities on any paid plan").
 
-## 9. Invoicing
-- Placeholder module `employer/invoices.tsx` showing existing Razorpay invoices with download PDF. **In-app vs Zoho decision noted as pending on Vikas** — leave interface stubbed with a TODO note (no fake integration).
+### 8. Invoices stub
+- `employer/invoices.tsx` — list existing `razorpay_orders` with amount / status / download-PDF link. TODO banner: "Zoho vs in-app decision pending."
 
-## 10. Cities & serviceability
-- Master data: mark all Rajasthan cities `launched=true` in one migration (single "Launch Rajasthan" toggle in `admin/masters.tsx`).
-- PAN India job posting stays open and free: no credit deduction for jobs posted in un-launched cities on any paid plan (skip in `credits.functions.ts`).
-- Onboarding city picker (`employer/company.tsx`, `jobs.new.tsx`): if city not launched, show serviceability warning + "Receive applications from anywhere in India" checkbox that widens matching.
+### 9. Relevance scoring placeholder
+- New `match_scoring_config` (id=1, weights jsonb). Admin panel stub only — no algorithm yet (owner: Vikas team).
 
-## 11. Relevance scoring
-- Add stub score column + weight config placeholder (`match_scoring_config`) — leaves room for Vikas's team without shipping the algorithm.
+### 10. Small alignment items
+- Add `pan_india_ok bool` on `jobs` (for #7).
+- Add `plans` + `match_scoring_config` tables (with GRANT + RLS).
+- Extend `plan_settings` if missing: `free_post_enabled`, `free_response_cap`, `free_whatsapp_per_post`, `free_plan_validity_days`.
 
-## Schema changes (single migration)
+## Migration (single)
 ```
-companies: is_consultant bool, allow_brand_display bool, spam_suspected bool
-jobs: hiring_for_company text, responses_locked_after timestamptz
-company_verifications (id, company_id, method enum, status enum, docs jsonb, notes, created_at)
-download_ledger (user_id, kind, day, count)  -- PK (user_id,kind,day)
-download_events (id, user_id, company_id, kind, count, created_at, ip)
-whatsapp_send_ledger (user_id, day, count)   -- PK (user_id,day)
-plans (id, name, price, limits jsonb, is_custom)
-plan_settings (id=1, free_post_enabled bool, free_response_cap int, ...)
-match_scoring_config (id=1, weights jsonb)
-notifications: add image_url text
+ALTER TABLE jobs ADD COLUMN pan_india_ok boolean NOT NULL DEFAULT false;
+CREATE TABLE plans (id uuid pk, name text, price_inr int, limits jsonb, is_custom bool, created_at, updated_at);
+CREATE TABLE match_scoring_config (id int pk default 1, weights jsonb, updated_at);
+ALTER TABLE plan_settings ADD COLUMN IF NOT EXISTS free_post_enabled bool DEFAULT true,
+  ADD COLUMN IF NOT EXISTS free_response_cap int DEFAULT 50,
+  ADD COLUMN IF NOT EXISTS free_whatsapp_per_post int DEFAULT 500,
+  ADD COLUMN IF NOT EXISTS free_plan_validity_days int DEFAULT 30;
+-- GRANTs + RLS for each new table per project rules.
 ```
-All tables get GRANTs + RLS + policies per project rules.
 
-## Server functions
-`downloads.functions.ts`, `whatsapp.functions.ts`, `verification.functions.ts`, `spamDetect.functions.ts`, `customPlan.functions.ts`, `consultantJob.functions.ts`.
-
-## UI additions
-- Employer: `/employer/verification`, `/employer/invoices`, `/employer/plans/custom`, banners on responses/database, consultant fields on job wizard, share menu on JD.
-- Admin: `/admin/verifications`, `/admin/downloads`, `/admin/spam-review`, plan-settings panel on `/admin/plans`, "Launch Rajasthan" toggle on masters.
-- Candidate: unchanged UI (backend gating only for WhatsApp alerts).
-
-## Out of scope (called out to user)
+## Out of scope (per doc)
 - Actual Chrome extension build.
-- Zoho vs custom invoice decision (Vikas pending).
-- Final relevance-scoring algorithm (Vikas team).
+- Zoho vs custom invoice engine choice (Vikas pending).
+- Real relevance-scoring algorithm.
 
 ## Verification
-- Typecheck; migration lint.
-- Playwright smoke: consultant post → hiring-for field visible; expiry-plus-7 gating; free-plan Rajasthan alert allowed vs Delhi blocked; 300/day download cap; GST verify flow submits; custom-plan builder shows only for ₹10k+ purchases.
+- Typecheck.
+- Playwright smoke: consultant post → hiring-for visible, disclaimer on JD; expired-job responses/database locked; 300/day cap; free-plan WA blocked for non-Rajasthan; custom-plan builder appears at ≥ ₹10k; Rajasthan-launch toggle enables all state cities.

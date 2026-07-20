@@ -60,6 +60,7 @@ function maskMobile(m: string | null) {
 function DatabasePage() {
   const [active, setActive] = useState<EmployerMembership | null>(null);
   const [loading, setLoading] = useState(true);
+  const [gated, setGated] = useState(false);
   const [searching, setSearching] = useState(false);
   const [balance, setBalance] = useState(0);
   const [unlocked, setUnlocked] = useState<Set<string>>(new Set());
@@ -82,6 +83,19 @@ function DatabasePage() {
       const chosen = ms.find((m) => m.company_id === storedId) ?? ms[0] ?? null;
       setActive(chosen);
       if (chosen) {
+        // Gate: require ≥1 active, non-expired job
+        const nowIso = new Date().toISOString();
+        const { count } = await supabase
+          .from("jobs")
+          .select("id", { count: "exact", head: true })
+          .eq("company_id", chosen.company_id)
+          .eq("status", "active" as never)
+          .or(`expires_at.is.null,expires_at.gt.${nowIso}`);
+        if (!count) {
+          setGated(true);
+          setLoading(false);
+          return;
+        }
         const [w, ids] = await Promise.all([
           getCompanyWallet({ data: { companyId: chosen.company_id } }),
           listUnlockedCandidateIds({ data: { companyId: chosen.company_id } }),
@@ -153,6 +167,21 @@ function DatabasePage() {
     return (
       <EmployerShell title="Candidate database">
         <div className="h-40 animate-pulse rounded-2xl bg-card" />
+      </EmployerShell>
+    );
+  }
+
+  if (gated) {
+    return (
+      <EmployerShell title="Candidate database" subtitle="Unlock the database by posting your first job.">
+        <div className="rounded-2xl border border-dashed border-border bg-surface/40 p-10 text-center">
+          <UserRound className="mx-auto h-12 w-12 text-muted-foreground/50" />
+          <h3 className="mt-4 text-lg font-bold">Post a job to search the database</h3>
+          <p className="mt-1 text-sm text-muted-foreground">Access to our candidate database is available to employers with at least one live job post.</p>
+          <a href="/employer/jobs/new" className="mt-5 inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark">
+            <Briefcase className="h-4 w-4" /> Post your first job
+          </a>
+        </div>
       </EmployerShell>
     );
   }

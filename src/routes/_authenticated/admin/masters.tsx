@@ -167,9 +167,31 @@ function TableSection({ spec }: { spec: ColSpec }) {
   );
 }
 
+function LaunchStateAction() {
+  const [busy, setBusy] = useState(false);
+  const [state, setState] = useState("Rajasthan");
+  const run = async () => {
+    if (!confirm(`Mark all cities in "${state}" as launched?`)) return;
+    setBusy(true);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any).rpc("admin_launch_state", { _state: state });
+    setBusy(false);
+    if (error) toast.error(error.message);
+    else toast.success(`Launched ${data ?? 0} cities in ${state}`);
+  };
+  return (
+    <div className="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-card p-3">
+      <span className="text-xs font-semibold text-muted-foreground">Bulk launch:</span>
+      <Input value={state} onChange={(e) => setState(e.target.value)} className="h-9 max-w-[180px]" placeholder="State" />
+      <Button size="sm" onClick={run} disabled={busy}>{busy ? "Launching…" : `Launch ${state}`}</Button>
+    </div>
+  );
+}
+
 function Page() {
   return (
     <AdminShell title="Master Data" subtitle="Cities, skills, industries, job titles, assets & languages">
+      <LaunchStateAction />
       <Tabs defaultValue={SPECS[0].table}>
         <TabsList className="mb-4 flex w-full flex-wrap justify-start">
           {SPECS.map((s) => (

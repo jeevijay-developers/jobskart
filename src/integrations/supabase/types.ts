@@ -1408,6 +1408,7 @@ export type Database = {
           min_experience_years: number | null
           min_salary: number | null
           openings: number | null
+          pan_india_ok: boolean
           pay_type: string | null
           perks: string[] | null
           pincode: string | null
@@ -1474,6 +1475,7 @@ export type Database = {
           min_experience_years?: number | null
           min_salary?: number | null
           openings?: number | null
+          pan_india_ok?: boolean
           pay_type?: string | null
           perks?: string[] | null
           pincode?: string | null
@@ -1540,6 +1542,7 @@ export type Database = {
           min_experience_years?: number | null
           min_salary?: number | null
           openings?: number | null
+          pan_india_ok?: boolean
           pay_type?: string | null
           perks?: string[] | null
           pincode?: string | null
@@ -1645,6 +1648,24 @@ export type Database = {
         }
         Relationships: []
       }
+      match_scoring_config: {
+        Row: {
+          id: number
+          updated_at: string
+          weights: Json
+        }
+        Insert: {
+          id?: number
+          updated_at?: string
+          weights?: Json
+        }
+        Update: {
+          id?: number
+          updated_at?: string
+          weights?: Json
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           body: string | null
@@ -1685,10 +1706,12 @@ export type Database = {
         Row: {
           credits_per_unlock: number
           custom_plan_min_amount: number
+          free_plan_validity_days: number | null
           free_post_enabled: boolean
           free_response_cap: number
           free_validity_days: number
           free_whatsapp_cap_per_post: number
+          free_whatsapp_per_post: number | null
           free_whatsapp_rajasthan_only: boolean
           id: number
           spam_jobs_per_hour: number
@@ -1697,10 +1720,12 @@ export type Database = {
         Insert: {
           credits_per_unlock?: number
           custom_plan_min_amount?: number
+          free_plan_validity_days?: number | null
           free_post_enabled?: boolean
           free_response_cap?: number
           free_validity_days?: number
           free_whatsapp_cap_per_post?: number
+          free_whatsapp_per_post?: number | null
           free_whatsapp_rajasthan_only?: boolean
           id?: number
           spam_jobs_per_hour?: number
@@ -1709,13 +1734,48 @@ export type Database = {
         Update: {
           credits_per_unlock?: number
           custom_plan_min_amount?: number
+          free_plan_validity_days?: number | null
           free_post_enabled?: boolean
           free_response_cap?: number
           free_validity_days?: number
           free_whatsapp_cap_per_post?: number
+          free_whatsapp_per_post?: number | null
           free_whatsapp_rajasthan_only?: boolean
           id?: number
           spam_jobs_per_hour?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      plans: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          is_custom: boolean
+          limits: Json
+          name: string
+          price_inr: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_custom?: boolean
+          limits?: Json
+          name: string
+          price_inr?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_custom?: boolean
+          limits?: Json
+          name?: string
+          price_inr?: number
           updated_at?: string
         }
         Relationships: []
@@ -1992,6 +2052,11 @@ export type Database = {
     }
     Functions: {
       accept_invite: { Args: { _token: string }; Returns: string }
+      admin_launch_state: { Args: { _state: string }; Returns: number }
+      admin_set_verification: {
+        Args: { _id: string; _notes: string; _status: string }
+        Returns: undefined
+      }
       apply_credit_delta: {
         Args: {
           _actor?: string

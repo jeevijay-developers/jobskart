@@ -48,8 +48,10 @@ import { Route as AuthenticatedCandidateDocumentsRouteImport } from './routes/_a
 import { Route as AuthenticatedCandidateDashboardRouteImport } from './routes/_authenticated/candidate/dashboard'
 import { Route as AuthenticatedCandidateApplicationsRouteImport } from './routes/_authenticated/candidate/applications'
 import { Route as AuthenticatedCandidateAlertsRouteImport } from './routes/_authenticated/candidate/alerts'
+import { Route as AuthenticatedAdminVerificationsRouteImport } from './routes/_authenticated/admin/verifications'
 import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin/users'
 import { Route as AuthenticatedAdminResumesRouteImport } from './routes/_authenticated/admin/resumes'
+import { Route as AuthenticatedAdminPlansRouteImport } from './routes/_authenticated/admin/plans'
 import { Route as AuthenticatedAdminMastersRouteImport } from './routes/_authenticated/admin/masters'
 import { Route as AuthenticatedAdminLearningRouteImport } from './routes/_authenticated/admin/learning'
 import { Route as AuthenticatedAdminJobsRouteImport } from './routes/_authenticated/admin/jobs'
@@ -278,6 +280,12 @@ const AuthenticatedCandidateAlertsRoute =
     path: '/candidate/alerts',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAdminVerificationsRoute =
+  AuthenticatedAdminVerificationsRouteImport.update({
+    id: '/verifications',
+    path: '/verifications',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 const AuthenticatedAdminUsersRoute = AuthenticatedAdminUsersRouteImport.update({
   id: '/users',
   path: '/users',
@@ -289,6 +297,11 @@ const AuthenticatedAdminResumesRoute =
     path: '/resumes',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const AuthenticatedAdminPlansRoute = AuthenticatedAdminPlansRouteImport.update({
+  id: '/plans',
+  path: '/plans',
+  getParentRoute: () => AuthenticatedAdminRouteRoute,
+} as any)
 const AuthenticatedAdminMastersRoute =
   AuthenticatedAdminMastersRouteImport.update({
     id: '/masters',
@@ -379,8 +392,10 @@ export interface FileRoutesByFullPath {
   '/admin/jobs': typeof AuthenticatedAdminJobsRoute
   '/admin/learning': typeof AuthenticatedAdminLearningRoute
   '/admin/masters': typeof AuthenticatedAdminMastersRoute
+  '/admin/plans': typeof AuthenticatedAdminPlansRoute
   '/admin/resumes': typeof AuthenticatedAdminResumesRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
+  '/admin/verifications': typeof AuthenticatedAdminVerificationsRoute
   '/candidate/alerts': typeof AuthenticatedCandidateAlertsRoute
   '/candidate/applications': typeof AuthenticatedCandidateApplicationsRoute
   '/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
@@ -432,8 +447,10 @@ export interface FileRoutesByTo {
   '/admin/jobs': typeof AuthenticatedAdminJobsRoute
   '/admin/learning': typeof AuthenticatedAdminLearningRoute
   '/admin/masters': typeof AuthenticatedAdminMastersRoute
+  '/admin/plans': typeof AuthenticatedAdminPlansRoute
   '/admin/resumes': typeof AuthenticatedAdminResumesRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
+  '/admin/verifications': typeof AuthenticatedAdminVerificationsRoute
   '/candidate/alerts': typeof AuthenticatedCandidateAlertsRoute
   '/candidate/applications': typeof AuthenticatedCandidateApplicationsRoute
   '/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
@@ -487,8 +504,10 @@ export interface FileRoutesById {
   '/_authenticated/admin/jobs': typeof AuthenticatedAdminJobsRoute
   '/_authenticated/admin/learning': typeof AuthenticatedAdminLearningRoute
   '/_authenticated/admin/masters': typeof AuthenticatedAdminMastersRoute
+  '/_authenticated/admin/plans': typeof AuthenticatedAdminPlansRoute
   '/_authenticated/admin/resumes': typeof AuthenticatedAdminResumesRoute
   '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
+  '/_authenticated/admin/verifications': typeof AuthenticatedAdminVerificationsRoute
   '/_authenticated/candidate/alerts': typeof AuthenticatedCandidateAlertsRoute
   '/_authenticated/candidate/applications': typeof AuthenticatedCandidateApplicationsRoute
   '/_authenticated/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
@@ -542,8 +561,10 @@ export interface FileRouteTypes {
     | '/admin/jobs'
     | '/admin/learning'
     | '/admin/masters'
+    | '/admin/plans'
     | '/admin/resumes'
     | '/admin/users'
+    | '/admin/verifications'
     | '/candidate/alerts'
     | '/candidate/applications'
     | '/candidate/dashboard'
@@ -595,8 +616,10 @@ export interface FileRouteTypes {
     | '/admin/jobs'
     | '/admin/learning'
     | '/admin/masters'
+    | '/admin/plans'
     | '/admin/resumes'
     | '/admin/users'
+    | '/admin/verifications'
     | '/candidate/alerts'
     | '/candidate/applications'
     | '/candidate/dashboard'
@@ -649,8 +672,10 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/jobs'
     | '/_authenticated/admin/learning'
     | '/_authenticated/admin/masters'
+    | '/_authenticated/admin/plans'
     | '/_authenticated/admin/resumes'
     | '/_authenticated/admin/users'
+    | '/_authenticated/admin/verifications'
     | '/_authenticated/candidate/alerts'
     | '/_authenticated/candidate/applications'
     | '/_authenticated/candidate/dashboard'
@@ -973,6 +998,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCandidateAlertsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/verifications': {
+      id: '/_authenticated/admin/verifications'
+      path: '/verifications'
+      fullPath: '/admin/verifications'
+      preLoaderRoute: typeof AuthenticatedAdminVerificationsRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/admin/users': {
       id: '/_authenticated/admin/users'
       path: '/users'
@@ -985,6 +1017,13 @@ declare module '@tanstack/react-router' {
       path: '/resumes'
       fullPath: '/admin/resumes'
       preLoaderRoute: typeof AuthenticatedAdminResumesRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/admin/plans': {
+      id: '/_authenticated/admin/plans'
+      path: '/plans'
+      fullPath: '/admin/plans'
+      preLoaderRoute: typeof AuthenticatedAdminPlansRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
     '/_authenticated/admin/masters': {
@@ -1075,8 +1114,10 @@ interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminJobsRoute: typeof AuthenticatedAdminJobsRoute
   AuthenticatedAdminLearningRoute: typeof AuthenticatedAdminLearningRoute
   AuthenticatedAdminMastersRoute: typeof AuthenticatedAdminMastersRoute
+  AuthenticatedAdminPlansRoute: typeof AuthenticatedAdminPlansRoute
   AuthenticatedAdminResumesRoute: typeof AuthenticatedAdminResumesRoute
   AuthenticatedAdminUsersRoute: typeof AuthenticatedAdminUsersRoute
+  AuthenticatedAdminVerificationsRoute: typeof AuthenticatedAdminVerificationsRoute
 }
 
 const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren =
@@ -1088,8 +1129,10 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
     AuthenticatedAdminJobsRoute: AuthenticatedAdminJobsRoute,
     AuthenticatedAdminLearningRoute: AuthenticatedAdminLearningRoute,
     AuthenticatedAdminMastersRoute: AuthenticatedAdminMastersRoute,
+    AuthenticatedAdminPlansRoute: AuthenticatedAdminPlansRoute,
     AuthenticatedAdminResumesRoute: AuthenticatedAdminResumesRoute,
     AuthenticatedAdminUsersRoute: AuthenticatedAdminUsersRoute,
+    AuthenticatedAdminVerificationsRoute: AuthenticatedAdminVerificationsRoute,
   }
 
 const AuthenticatedAdminRouteRouteWithChildren =
@@ -1205,13 +1248,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
