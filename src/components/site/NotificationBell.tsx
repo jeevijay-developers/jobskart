@@ -1,6 +1,5 @@
 import { Bell, Check } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 
@@ -10,6 +9,7 @@ type Notification = {
   title: string;
   body: string | null;
   link: string | null;
+  image_url: string | null;
   read_at: string | null;
   created_at: string;
 };
@@ -26,7 +26,7 @@ export function NotificationBell() {
         .select("*")
         .order("created_at", { ascending: false })
         .limit(15);
-      if (mounted) setItems(data || []);
+      if (mounted) setItems((data || []) as Notification[]);
     };
     load();
 
@@ -68,7 +68,7 @@ export function NotificationBell() {
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-card)]">
+          <div className="absolute right-0 z-50 mt-2 w-96 overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-card)]">
             <div className="flex items-center justify-between border-b border-border p-3">
               <p className="text-sm font-semibold">Notifications</p>
               {unread > 0 && (
@@ -83,10 +83,17 @@ export function NotificationBell() {
               ) : (
                 items.map((n) => {
                   const inner = (
-                    <div className={`flex flex-col gap-1 border-b border-border/60 p-3 text-sm hover:bg-surface ${!n.read_at ? "bg-primary-light/30" : ""}`}>
-                      <p className="font-medium text-foreground">{n.title}</p>
-                      {n.body && <p className="text-xs text-muted-foreground">{n.body}</p>}
-                      <p className="text-[10px] text-muted-foreground">{formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}</p>
+                    <div className={`flex gap-3 border-b border-border/60 p-3 text-sm hover:bg-surface ${!n.read_at ? "bg-primary-light/30" : ""}`}>
+                      {n.image_url ? (
+                        <img src={n.image_url} alt="" className="h-12 w-12 shrink-0 rounded-lg object-cover" />
+                      ) : (
+                        <div className="h-12 w-12 shrink-0 rounded-lg bg-primary-light" />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium text-foreground">{n.title}</p>
+                        {n.body && <p className="line-clamp-2 text-xs text-muted-foreground">{n.body}</p>}
+                        <p className="mt-1 text-[10px] text-muted-foreground">{formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}</p>
+                      </div>
                     </div>
                   );
                   return n.link ? (
