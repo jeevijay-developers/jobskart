@@ -316,6 +316,78 @@ function CreditsPage() {
           )}
         </div>
       </section>
+
+      {/* Invoices */}
+      <section className="mt-8">
+        <header className="mb-3 flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <h2 className="text-lg font-bold text-foreground">Invoices</h2>
+            <p className="text-sm text-muted-foreground">
+              GST tax invoices are issued automatically for every successful payment.
+            </p>
+          </div>
+        </header>
+        <div className="overflow-hidden rounded-2xl border border-border bg-card">
+          {invoices.length === 0 ? (
+            <div className="p-8 text-center">
+              <FileText className="mx-auto h-8 w-8 text-muted-foreground/50" />
+              <p className="mt-2 text-sm text-muted-foreground">
+                No invoices yet — your first invoice appears here right after a purchase.
+              </p>
+            </div>
+          ) : (
+            <ul className="divide-y divide-border">
+              {invoices.map((inv) => {
+                const items = Array.isArray(inv.line_items)
+                  ? (inv.line_items as Array<{ description?: string }>)
+                  : [];
+                return (
+                  <li
+                    key={inv.id}
+                    className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-semibold text-foreground">{inv.invoice_number}</p>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                            inv.payment_status === "Paid"
+                              ? "bg-success-light text-success"
+                              : "bg-surface text-muted-foreground"
+                          }`}
+                        >
+                          {inv.payment_status}
+                        </span>
+                      </div>
+                      <p className="mt-1 truncate text-sm text-muted-foreground">
+                        {items[0]?.description ?? "Billing transaction"}
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {new Date(inv.issue_date).toLocaleDateString("en-IN", {
+                          dateStyle: "medium",
+                        })}
+                        {" · "}
+                        {inv.payment_method}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-4">
+                      <p className="text-lg font-bold tabular-nums text-foreground">
+                        ₹{Number(inv.total_inr).toLocaleString("en-IN")}
+                      </p>
+                      <button
+                        onClick={() => handleDownloadInvoice(inv)}
+                        className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-background px-3 text-sm font-semibold text-foreground hover:bg-surface"
+                      >
+                        <Download className="h-4 w-4" /> Download PDF
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      </section>
     </EmployerShell>
   );
 }
