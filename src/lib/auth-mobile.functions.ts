@@ -137,9 +137,11 @@ export const loginOrCreateWithMobile = createServerFn({ method: "POST" })
     return {
       email: profile.email,
       tokenHash,
-      userType: profile.user_type,
+      userType: profile.user_type as "candidate" | "employer",
       isNew,
+      roleSwitched,
     };
+
   });
 
 // Backwards-compat alias for existing callers
