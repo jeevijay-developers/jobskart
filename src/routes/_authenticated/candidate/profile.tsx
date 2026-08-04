@@ -119,8 +119,9 @@ function ProfilePage() {
     >
       <div className="grid gap-6 lg:grid-cols-[280px,1fr]">
         {/* Sticky summary */}
-        <aside className="lg:sticky lg:top-20 lg:self-start">
+        <aside className="relative z-20 lg:sticky lg:top-20 lg:z-20 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
           <div className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
+
             <div className="flex items-center gap-3">
               <div className="grid h-14 w-14 place-items-center rounded-full bg-primary-light text-lg font-bold text-primary">{initials}</div>
               <div className="min-w-0">
