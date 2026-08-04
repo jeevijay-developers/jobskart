@@ -1,4 +1,6 @@
 import { Facebook, Instagram, Linkedin, Twitter, Youtube } from "lucide-react";
+import logoAsset from "@/assets/jobskart-logo.png.asset.json";
+
 
 const cols = [
   {
