@@ -56,7 +56,7 @@ function ProfilePage() {
       supabase.from("candidate_languages").select("*").eq("user_id", u),
       supabase.from("applications").select("id", { count: "exact", head: true }).eq("candidate_id", u),
       supabase.from("interviews").select("id", { count: "exact", head: true }).eq("candidate_id", u),
-      supabase.from("saved_jobs").select("id", { count: "exact", head: true }).eq("candidate_id", u),
+      supabase.from("saved_jobs").select("id", { count: "exact", head: true }).eq("user_id", u),
     ]);
     setP(pr as Profile);
     setC(cp as unknown as Candidate);
