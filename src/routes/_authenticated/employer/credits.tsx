@@ -37,6 +37,22 @@ type Txn = {
   reference: unknown;
   created_at: string;
 };
+type Invoice = {
+  id: string;
+  invoice_number: string;
+  issue_date: string;
+  line_items: unknown;
+  subtotal_inr: number;
+  cgst_inr: number;
+  sgst_inr: number;
+  igst_inr: number;
+  total_inr: number;
+  buyer_snapshot: unknown;
+  payment_method: string;
+  payment_reference: string | null;
+  payment_status: string;
+  status: string;
+};
 
 declare global {
   interface Window {
@@ -50,6 +66,7 @@ function CreditsPage() {
   const [balance, setBalance] = useState(0);
   const [txns, setTxns] = useState<Txn[]>([]);
   const [packs, setPacks] = useState<Pack[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [buyingId, setBuyingId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -66,6 +83,12 @@ function CreditsPage() {
         const w = await getCompanyWallet({ data: { companyId: chosen.company_id } });
         setBalance(w.balance);
         setTxns(w.transactions as Txn[]);
+        try {
+          const inv = await listCompanyInvoices({ data: { companyId: chosen.company_id } });
+          setInvoices(inv as Invoice[]);
+        } catch {
+          setInvoices([]);
+        }
       }
       setLoading(false);
     })();
@@ -75,7 +98,22 @@ function CreditsPage() {
     const w = await getCompanyWallet({ data: { companyId: cid } });
     setBalance(w.balance);
     setTxns(w.transactions as Txn[]);
+    try {
+      const inv = await listCompanyInvoices({ data: { companyId: cid } });
+      setInvoices(inv as Invoice[]);
+    } catch {
+      /* invoices are non-critical */
+    }
   };
+
+  const handleDownloadInvoice = (inv: Invoice) => {
+    try {
+      downloadInvoicePdf(buildStoredInvoiceData(inv));
+    } catch {
+      toast.error("Could not open the invoice. Allow pop-ups and try again.");
+    }
+  };
+
 
   const handleBuy = async (pack: Pack) => {
     if (!active) return;
