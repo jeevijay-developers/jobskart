@@ -54,6 +54,14 @@ export const Route = createFileRoute("/api/public/webhooks/razorpay")({
           _actor: undefined,
         });
 
+        // Issue the GST tax invoice (idempotent per order).
+        const { error: invErr } = await supabaseAdmin.rpc("issue_credit_pack_invoice", {
+          _order_id: order.id,
+          _razorpay_payment_id: paymentId,
+        });
+        if (invErr) console.error("issue_credit_pack_invoice failed", invErr.message);
+
+
         await supabaseAdmin
           .from("razorpay_orders")
           .update({ status: "paid", razorpay_payment_id: paymentId })
