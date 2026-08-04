@@ -56,15 +56,16 @@ function AuthPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<SignupUserType>(search.tab ?? "candidate");
 
-  const onSuccess = async (isNew: boolean) => {
+  const onSuccess = async (isNew: boolean, resolvedRole: SignupUserType = tab) => {
     if (search.redirect) {
       window.location.assign(search.redirect);
       return;
     }
-    if (tab === "candidate") {
+    if (resolvedRole === "candidate") {
       navigate({ to: isNew ? "/onboarding/candidate" : "/candidate/dashboard" });
       return;
     }
+
     // Employer: route to onboarding if they have no company yet (or onboarding incomplete).
     try {
       const { data: u } = await supabase.auth.getUser();
@@ -174,7 +175,9 @@ function MobileLoginForm({
   onSuccess,
 }: {
   userType: SignupUserType;
-  onSuccess: (isNew: boolean) => Promise<void> | void;
+  onSuccess: (isNew: boolean, resolvedRole?: SignupUserType) => Promise<void> | void;
+
+
 }) {
   const [step, setStep] = useState<"mobile" | "otp">("mobile");
   const [mobile, setMobile] = useState("");
@@ -211,8 +214,13 @@ function MobileLoginForm({
         type: "magiclink",
       });
       if (verifyErr) throw verifyErr;
-      toast.success(res.isNew ? "Welcome to JobsKart!" : "Welcome back!");
-      await onSuccess(res.isNew);
+      if (res.roleSwitched) {
+        toast.info(`This number is registered as a ${res.userType} — taking you to your ${res.userType} space.`);
+      } else {
+        toast.success(res.isNew ? "Welcome to JobsKart!" : "Welcome back!");
+      }
+      await onSuccess(res.isNew, res.userType);
+
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Could not log in.";
       setError(msg);
