@@ -39,24 +39,31 @@ function ProfilePage() {
   const [educations, setEducations] = useState<Edu[]>([]);
   const [languages, setLanguages] = useState<Lang[]>([]);
   const [open, setOpen] = useState<null | "personal" | "headline" | "career" | "experience" | "education" | "skills" | "languages" | "resume" | "kyc">(null);
+  const [email, setEmail] = useState<string | null>(null);
+  const [counts, setCounts] = useState({ applications: 0, interviews: 0, saved: 0 });
 
   const load = async () => {
     const { data: sess } = await supabase.auth.getSession();
     const u = sess.session?.user.id;
     if (!u) return;
     setUid(u);
-    const [{ data: pr }, { data: cp }, { data: ex }, { data: ed }, { data: lg }] = await Promise.all([
+    setEmail(sess.session?.user.email ?? null);
+    const [{ data: pr }, { data: cp }, { data: ex }, { data: ed }, { data: lg }, apps, ivs, saved] = await Promise.all([
       supabase.from("profiles").select("full_name, mobile, city, avatar_url").eq("id", u).maybeSingle(),
       supabase.from("candidate_profiles").select("*").eq("user_id", u).maybeSingle(),
       supabase.from("candidate_experiences").select("*").eq("user_id", u).order("start_date", { ascending: false }),
       supabase.from("candidate_education").select("*").eq("user_id", u).order("year_of_passing", { ascending: false }),
       supabase.from("candidate_languages").select("*").eq("user_id", u),
+      supabase.from("applications").select("id", { count: "exact", head: true }).eq("candidate_id", u),
+      supabase.from("interviews").select("id", { count: "exact", head: true }).eq("candidate_id", u),
+      supabase.from("saved_jobs").select("id", { count: "exact", head: true }).eq("candidate_id", u),
     ]);
     setP(pr as Profile);
     setC(cp as unknown as Candidate);
     setExperiences((ex || []).map((e) => ({ ...e, start_date: e.start_date || "", end_date: e.end_date || "", description: e.description || "" })) as Exp[]);
     setEducations((ed || []).map((e) => ({ ...e, board_or_university: e.board_or_university || "", institute: e.institute || "", year_of_passing: e.year_of_passing ?? "", marks: e.marks || "" })) as Edu[]);
     setLanguages((lg || []) as Lang[]);
+    setCounts({ applications: apps.count ?? 0, interviews: ivs.count ?? 0, saved: saved.count ?? 0 });
     setLoading(false);
   };
 
