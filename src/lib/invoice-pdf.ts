@@ -375,3 +375,56 @@ export function buildCreditPackInvoiceData(args: {
       SELLER.email + ".",
   };
 }
+
+// ---------------------------------------------------------------------
+// Build InvoiceData from a stored public.invoices row. Historical
+// invoices print exactly as they were issued, even if pricing, pack
+// names, or company details change later.
+// ---------------------------------------------------------------------
+export type StoredInvoiceRow = {
+  invoice_number: string;
+  issue_date: string;
+  line_items: unknown;
+  buyer_snapshot: unknown;
+  payment_method: string;
+  payment_reference: string | null;
+  payment_status: string;
+};
+
+export function buildStoredInvoiceData(row: StoredInvoiceRow): InvoiceData {
+  const buyer = (row.buyer_snapshot ?? {}) as Record<string, unknown>;
+  const rawItems = Array.isArray(row.line_items) ? (row.line_items as Record<string, unknown>[]) : [];
+
+  const items: InvoiceLineItem[] = rawItems.map((i) => ({
+    description: String(i.description ?? "Service"),
+    hsnSac: i.hsn_sac ? String(i.hsn_sac) : undefined,
+    qty: Number(i.qty ?? 1),
+    rateInr: Number(i.rate_inr ?? 0),
+  }));
+
+  const state = buyer.state ? String(buyer.state) : null;
+
+  return {
+    invoiceNumber: row.invoice_number,
+    issueDate: row.issue_date,
+    placeOfSupply: `${state || buyer.city || "India"}`,
+    buyer: {
+      companyName: String(buyer.name ?? "—"),
+      gstin: buyer.gstin ? String(buyer.gstin) : null,
+      pan: buyer.pan ? String(buyer.pan) : null,
+      city: buyer.city ? String(buyer.city) : null,
+      billingAddress: buyer.address ? String(buyer.address) : null,
+      buyerState: state,
+    },
+    items,
+    payment: {
+      method: (row.payment_method as InvoicePayment["method"]) ?? "Razorpay",
+      razorpayPaymentId: row.payment_reference ?? undefined,
+      paidAt: row.issue_date,
+      status: (row.payment_status as InvoicePayment["status"]) ?? "Paid",
+    },
+    notes:
+      "Credits are non-refundable once a candidate is unlocked. For billing queries, contact " +
+      SELLER.email + ".",
+  };
+}
