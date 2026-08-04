@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Briefcase, CheckCircle2, Eye, ExternalLink, FileText, GraduationCap, Languages as LangIcon, Loader2, Pencil, Plus, ShieldCheck, Trash2, Upload, UserRound } from "lucide-react";
+import { ArrowRight, BadgeCheck, Bookmark, Briefcase, CalendarCheck, Camera, CheckCircle2, Clock, Eye, ExternalLink, FileText, GraduationCap, HelpCircle, Languages as LangIcon, Loader2, MapPin, Pencil, Plus, ShieldCheck, Trash2, Upload, UserRound } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { CandidateShell } from "@/components/candidate/CandidateShell";
 import { SectionCard, EmptyHint, Chip, ChipInput, Field } from "@/components/candidate/primitives";
