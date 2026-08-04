@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Briefcase, CheckCircle2, Eye, ExternalLink, FileText, GraduationCap, Languages as LangIcon, Loader2, Pencil, Plus, ShieldCheck, Trash2, Upload, UserRound } from "lucide-react";
+import { ArrowRight, BadgeCheck, Bookmark, Briefcase, CalendarCheck, Camera, CheckCircle2, Clock, Eye, ExternalLink, FileText, GraduationCap, HelpCircle, Languages as LangIcon, Loader2, MapPin, Pencil, Plus, ShieldCheck, Trash2, Upload, UserRound } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { CandidateShell } from "@/components/candidate/CandidateShell";
 import { SectionCard, EmptyHint, Chip, ChipInput, Field } from "@/components/candidate/primitives";
@@ -39,24 +40,31 @@ function ProfilePage() {
   const [educations, setEducations] = useState<Edu[]>([]);
   const [languages, setLanguages] = useState<Lang[]>([]);
   const [open, setOpen] = useState<null | "personal" | "headline" | "career" | "experience" | "education" | "skills" | "languages" | "resume" | "kyc">(null);
+  const [email, setEmail] = useState<string | null>(null);
+  const [counts, setCounts] = useState({ applications: 0, interviews: 0, saved: 0 });
 
   const load = async () => {
     const { data: sess } = await supabase.auth.getSession();
     const u = sess.session?.user.id;
     if (!u) return;
     setUid(u);
-    const [{ data: pr }, { data: cp }, { data: ex }, { data: ed }, { data: lg }] = await Promise.all([
+    setEmail(sess.session?.user.email ?? null);
+    const [{ data: pr }, { data: cp }, { data: ex }, { data: ed }, { data: lg }, apps, ivs, saved] = await Promise.all([
       supabase.from("profiles").select("full_name, mobile, city, avatar_url").eq("id", u).maybeSingle(),
       supabase.from("candidate_profiles").select("*").eq("user_id", u).maybeSingle(),
       supabase.from("candidate_experiences").select("*").eq("user_id", u).order("start_date", { ascending: false }),
       supabase.from("candidate_education").select("*").eq("user_id", u).order("year_of_passing", { ascending: false }),
       supabase.from("candidate_languages").select("*").eq("user_id", u),
+      supabase.from("applications").select("id", { count: "exact", head: true }).eq("candidate_id", u),
+      supabase.from("interviews").select("id", { count: "exact", head: true }).eq("candidate_id", u),
+      supabase.from("saved_jobs").select("id", { count: "exact", head: true }).eq("user_id", u),
     ]);
     setP(pr as Profile);
     setC(cp as unknown as Candidate);
     setExperiences((ex || []).map((e) => ({ ...e, start_date: e.start_date || "", end_date: e.end_date || "", description: e.description || "" })) as Exp[]);
     setEducations((ed || []).map((e) => ({ ...e, board_or_university: e.board_or_university || "", institute: e.institute || "", year_of_passing: e.year_of_passing ?? "", marks: e.marks || "" })) as Edu[]);
     setLanguages((lg || []) as Lang[]);
+    setCounts({ applications: apps.count ?? 0, interviews: ivs.count ?? 0, saved: saved.count ?? 0 });
     setLoading(false);
   };
 
@@ -105,70 +113,168 @@ function ProfilePage() {
   const initials = (p.full_name || "U").split(" ").map((x) => x[0]).slice(0, 2).join("").toUpperCase();
   const sLabel = strengthLabel(strength);
 
+  const tips = [
+    { label: "Add a professional headline", done: !!c.headline },
+    { label: "Add work experience", done: experiences.length > 0 },
+    { label: "Add skills", done: c.skills.length > 0 },
+    { label: "Upload resume", done: !!c.resume_url },
+    { label: "Verify your identity", done: c.kyc_status === "verified" },
+  ];
+
   return (
     <CandidateShell
       title="My Profile"
       subtitle="Keep your profile sharp — complete profiles get 3× more responses."
       actions={
         c.profile_slug ? (
-          <Link to="/u/$slug" params={{ slug: c.profile_slug }} className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground hover:border-primary">
-            <ExternalLink className="h-4 w-4" /> Preview public profile
+          <Link to="/u/$slug" params={{ slug: c.profile_slug }} className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-surface">
+            <Eye className="h-4 w-4" /> View public profile
           </Link>
         ) : null
       }
     >
-      <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
-        {/* Sticky summary */}
-        <aside className="relative z-20 lg:sticky lg:top-20 lg:z-20 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
-          <div className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        {/* Main column */}
+        <div className="space-y-6 xl:col-span-2">
+          {/* Profile overview */}
+          <div className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
+            <div className="flex flex-col gap-6 md:flex-row md:items-start">
+              <div className="relative shrink-0">
+                {p.avatar_url ? (
+                  <img src={p.avatar_url} alt={p.full_name || "Profile photo"} className="h-24 w-24 rounded-full object-cover" />
+                ) : (
+                  <div className="grid h-24 w-24 place-items-center rounded-full bg-primary/80 text-3xl font-medium text-primary-foreground">{initials}</div>
+                )}
+                <button onClick={() => setOpen("personal")} aria-label="Change photo" className="absolute bottom-0 right-0 rounded-full border border-border bg-card p-1.5 text-muted-foreground shadow-sm hover:bg-surface">
+                  <Camera className="h-4 w-4" />
+                </button>
+              </div>
 
-            <div className="flex items-center gap-3">
-              <div className="grid h-14 w-14 place-items-center rounded-full bg-primary-light text-lg font-bold text-primary">{initials}</div>
-              <div className="min-w-0">
-                <p className="truncate text-base font-semibold text-foreground">{p.full_name || "Add your name"}</p>
-                <p className="truncate text-xs text-muted-foreground">{c.headline || (c.last_role ? c.last_role : "Add a headline")}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{p.city || "—"}</p>
+              <div className="min-w-0 flex-1">
+                <h2 className="truncate text-xl font-bold text-foreground">{p.full_name || "Add your name"}</h2>
+                <button onClick={() => setOpen("personal")} className="mt-1 flex items-center gap-1 text-sm font-medium text-primary hover:underline">
+                  {c.headline || c.last_role || "Add a headline"} <Pencil className="h-3.5 w-3.5" />
+                </button>
+                <div className="mt-2 flex items-center gap-1 text-sm text-muted-foreground">
+                  <MapPin className="h-4 w-4" /> {p.city || "Add your city"}
+                </div>
+              </div>
+
+              <div className="w-full md:max-w-[220px]">
+                <div className="mb-2 flex items-center gap-1 text-sm font-bold text-foreground">
+                  Profile strength <HelpCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-surface">
+                    <div className="h-full rounded-full bg-gradient-to-r from-primary to-success transition-all" style={{ width: `${strength}%` }} />
+                  </div>
+                  <span className="text-lg font-bold text-foreground">{strength}%</span>
+                </div>
+                <p className={`mt-1 text-xs ${sLabel.color}`}>{sLabel.label}</p>
               </div>
             </div>
-            <div className="mt-4">
-              <div className="flex items-center justify-between text-sm">
-                <span className="font-semibold text-foreground">Profile strength</span>
-                <span className={`font-bold ${sLabel.color}`}>{strength}%</span>
+
+            <div className="mt-6 flex flex-col gap-4 border-t border-border pt-6 lg:flex-row lg:items-start">
+              <div className="flex flex-1 flex-wrap content-start items-center gap-4 rounded-lg border border-border bg-surface px-4 py-3 text-sm text-muted-foreground sm:gap-6">
+
+                <span className="flex items-center gap-2"><Eye className="h-4 w-4" /> {c.profile_views} profile views</span>
+                <span className="flex items-center gap-2 sm:border-l sm:border-border sm:pl-6"><Clock className="h-4 w-4" /> Profile last updated: Today</span>
               </div>
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-surface">
-                <div className="h-full rounded-full bg-gradient-to-r from-primary to-success transition-all" style={{ width: `${strength}%` }} />
-              </div>
-              <p className="mt-1 text-xs text-muted-foreground">{sLabel.label}</p>
+              {c.kyc_status === "verified" ? (
+                <div className="flex w-full items-center justify-center gap-2 rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-sm font-semibold text-success lg:w-64">
+                  <ShieldCheck className="h-4 w-4" /> Identity verified
+                </div>
+              ) : (
+                <div className="flex w-full flex-col items-center gap-2 rounded-lg border border-border bg-card px-4 py-4 text-center lg:w-64">
+                  <div className="grid h-10 w-10 place-items-center rounded-full bg-primary-light text-primary"><BadgeCheck className="h-5 w-5" /></div>
+                  <h3 className="text-[15px] font-bold text-foreground">Verify your identity</h3>
+                  <p className="text-[13px] text-muted-foreground">Build trust with recruiters by verifying your identity.</p>
+                  <button onClick={() => setOpen("kyc")} className="mt-1 w-full rounded-lg border border-primary py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary-light">
+                    Verify now
+                  </button>
+                </div>
+              )}
             </div>
-            <div className="mt-4 flex items-center gap-2 rounded-lg bg-surface px-3 py-2 text-xs text-muted-foreground">
-              <Eye className="h-3.5 w-3.5 text-primary" /> {c.profile_views} profile views
-            </div>
-            {c.kyc_status === "verified" ? (
-              <div className="mt-2 flex items-center gap-2 rounded-lg bg-success/10 px-3 py-2 text-xs font-medium text-success">
-                <ShieldCheck className="h-3.5 w-3.5" /> KYC verified
-              </div>
-            ) : (
-              <button onClick={() => setOpen("kyc")} className="mt-2 w-full rounded-lg border border-amber-500/30 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700 hover:bg-amber-100">
-                Verify your identity
-              </button>
-            )}
           </div>
-        </aside>
 
-        {/* Sections */}
-        <div className="space-y-6">
-          <SectionCard id="personal" title="Personal details" action={<EditBtn onClick={() => setOpen("personal")} />}>
-            <Grid>
-              <Info label="Full name" value={p.full_name} />
-              <Info label="Mobile" value={p.mobile} />
-              <Info label="City" value={p.city} />
-              <Info label="DOB" value={c.date_of_birth ? new Date(c.date_of_birth).toLocaleDateString() : null} />
-              <Info label="Gender" value={c.gender} />
-              <Info label="Bio" value={c.bio} wide />
-            </Grid>
-          </SectionCard>
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            {/* Personal details */}
+            <div id="personal" className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
+              <div className="mb-6 flex items-center justify-between">
+                <h3 className="text-lg font-bold text-foreground">Personal details</h3>
+                <EditBtn onClick={() => setOpen("personal")} />
+              </div>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                <Info label="Full name" value={p.full_name} />
+                <Info label="Mobile" value={p.mobile} />
+                <Info label="City" value={p.city} />
+                <Info label="Email" value={email} />
+                <Info label="Gender" value={c.gender} />
+                <Info label="DOB" value={c.date_of_birth ? new Date(c.date_of_birth).toLocaleDateString() : null} />
+                <Info label="Bio" value={c.bio} wide />
+              </div>
+            </div>
 
-          <SectionCard id="career" title="Career preferences" action={<EditBtn onClick={() => setOpen("career")} />}>
+            {/* Documents & resume */}
+            <div id="resume" className="flex flex-col rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
+              <div className="mb-6 flex items-center justify-between">
+                <h3 className="text-lg font-bold text-foreground">Documents &amp; resume</h3>
+                <Link to="/candidate/documents" className="text-sm font-semibold text-primary hover:underline">View all</Link>
+              </div>
+              {c.resume_url ? (
+                <div className="mb-4 flex items-start gap-3 rounded-lg border border-border bg-surface p-3">
+                  <div className="shrink-0 rounded border border-border bg-card p-2 text-muted-foreground"><FileText className="h-5 w-5" /></div>
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-1 flex items-center gap-2">
+                      <h4 className="truncate text-sm font-bold text-foreground">{c.resume_name || "Resume"}</h4>
+                      <span className="rounded bg-success/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-success">Latest</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Attached to your applications</p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      const { data } = await supabase.storage.from("candidate-docs").createSignedUrl(c.resume_url!, 60);
+                      if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+                    }}
+                    className="text-sm font-semibold text-primary hover:underline"
+                  >
+                    View
+                  </button>
+                </div>
+              ) : null}
+              <button
+                onClick={() => setOpen("resume")}
+                className="mt-auto flex flex-col items-center justify-center rounded-lg border border-dashed border-border bg-card p-6 text-center transition-colors hover:bg-surface"
+              >
+                <Upload className="mb-2 h-5 w-5 text-muted-foreground" />
+                <span className="text-sm font-bold text-foreground">{c.resume_url ? "Upload new resume" : "Upload your resume"}</span>
+                <span className="mt-1 text-xs text-muted-foreground">PDF, DOC, DOCX (Max 5MB)</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Skills */}
+          <div id="skills" className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-foreground">Skills</h3>
+              <button onClick={() => setOpen("skills")} className="text-sm font-semibold text-primary hover:underline">Edit</button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {c.skills.map((s) => (
+                <span key={s} className="rounded-full border border-border bg-surface px-3 py-1.5 text-sm text-foreground">{s}</span>
+              ))}
+              <button onClick={() => setOpen("skills")} className="flex items-center gap-1 rounded-full border border-dashed border-border px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-surface">
+                <Plus className="h-3.5 w-3.5" /> Add skill
+              </button>
+            </div>
+          </div>
+
+          {/* Career preferences */}
+          <div id="career" className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
+            <div className="mb-6 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-foreground">Career preferences</h3>
+              <EditBtn onClick={() => setOpen("career")} />
+            </div>
             <Grid>
               <Info label="Status" value={c.experience_status} />
               <Info label="Experience" value={c.years_experience ? `${c.years_experience} years` : null} />
@@ -179,77 +285,116 @@ function ProfilePage() {
               <Info label="Notice period" value={c.notice_period_days != null ? `${c.notice_period_days} days` : null} />
               <Info label="Preferred cities" value={c.preferred_cities?.join(", ") || null} wide />
             </Grid>
-          </SectionCard>
+          </div>
 
-          <SectionCard id="experience" title="Work experience" action={<EditBtn onClick={() => setOpen("experience")} label="Manage" />}>
-            {experiences.length === 0 ? <EmptyHint>No experience added yet.</EmptyHint> : (
-              <ul className="divide-y divide-border">
-                {experiences.map((e) => (
-                  <li key={e.id} className="py-3">
-                    <div className="flex items-start gap-3">
-                      <Briefcase className="mt-0.5 h-4 w-4 text-primary" />
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            {/* Work experience */}
+            <div id="experience" className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
+              <div className="mb-6 flex items-center justify-between">
+                <h3 className="text-[15px] font-bold text-foreground">Work experience</h3>
+                <button onClick={() => setOpen("experience")} className="text-sm font-semibold text-primary hover:underline">Manage</button>
+              </div>
+              {experiences.length === 0 ? (
+                <EmptyRow icon={Briefcase} title="No experience added" hint="Add your work history to get better matches." />
+              ) : (
+                <ul className="divide-y divide-border">
+                  {experiences.map((e) => (
+                    <li key={e.id} className="flex items-start gap-3 py-3">
+                      <Briefcase className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                       <div className="min-w-0">
                         <p className="font-semibold text-foreground">{e.job_title}</p>
                         <p className="text-sm text-muted-foreground">{e.company_name} · {fmtPeriod(e.start_date, e.end_date, e.is_current)}</p>
-                        {e.description && <p className="mt-1 text-sm text-foreground/80">{e.description}</p>}
                       </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </SectionCard>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
 
-          <SectionCard id="education" title="Education" action={<EditBtn onClick={() => setOpen("education")} label="Manage" />}>
-            {educations.length === 0 ? <EmptyHint>Add at least your 10th class.</EmptyHint> : (
-              <ul className="divide-y divide-border">
-                {educations.map((e) => (
-                  <li key={e.id} className="py-3 flex items-start gap-3">
-                    <GraduationCap className="mt-0.5 h-4 w-4 text-primary" />
-                    <div>
-                      <p className="font-semibold text-foreground">{e.level}{e.year_of_passing ? ` · ${e.year_of_passing}` : ""}</p>
-                      <p className="text-sm text-muted-foreground">{[e.institute, e.board_or_university].filter(Boolean).join(" — ")}{e.marks ? ` · ${e.marks}` : ""}</p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </SectionCard>
-
-          <SectionCard id="skills" title="Skills" action={<EditBtn onClick={() => setOpen("skills")} />}>
-            {c.skills.length === 0 ? <EmptyHint>Add skills to get matched with jobs.</EmptyHint> :
-              <div className="flex flex-wrap gap-2">{c.skills.map((s) => <Chip key={s} label={s} />)}</div>}
-          </SectionCard>
-
-          <SectionCard id="languages" title="Languages" action={<EditBtn onClick={() => setOpen("languages")} label="Manage" />}>
-            {languages.length === 0 ? <EmptyHint>Add the languages you speak.</EmptyHint> :
-              <ul className="space-y-1.5">
-                {languages.map((l) => (
-                  <li key={l.id} className="flex items-center gap-2 text-sm">
-                    <LangIcon className="h-4 w-4 text-primary" />
-                    <span className="font-medium text-foreground">{l.language}</span>
-                    <span className="text-muted-foreground">· {l.proficiency}</span>
-                    {l.can_read && <span className="text-xs text-success">Read</span>}
-                    {l.can_write && <span className="text-xs text-success">Write</span>}
-                  </li>
-                ))}
-              </ul>}
-          </SectionCard>
-
-          <SectionCard id="resume" title="Resume" action={<EditBtn onClick={() => setOpen("resume")} label={c.resume_url ? "Replace" : "Upload"} />}>
-            {c.resume_url ? (
-              <div className="flex items-center gap-3 rounded-lg border border-border bg-surface p-3">
-                <FileText className="h-5 w-5 text-primary" />
-                <span className="text-sm font-medium text-foreground">{c.resume_name || "Resume"}</span>
-                <button onClick={async () => {
-                  const { data } = await supabase.storage.from("candidate-docs").createSignedUrl(c.resume_url!, 60);
-                  if (data?.signedUrl) window.open(data.signedUrl, "_blank");
-                }} className="ml-auto text-sm font-semibold text-primary hover:underline">View</button>
+            {/* Education */}
+            <div id="education" className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
+              <div className="mb-6 flex items-center justify-between">
+                <h3 className="text-[15px] font-bold text-foreground">Education</h3>
+                <button onClick={() => setOpen("education")} className="text-sm font-semibold text-primary hover:underline">Manage</button>
               </div>
-            ) : <EmptyHint>No resume uploaded yet.</EmptyHint>}
-          </SectionCard>
+              {educations.length === 0 ? (
+                <EmptyRow icon={GraduationCap} title="No education added" hint="Add at least your 10th class." />
+              ) : (
+                <ul className="divide-y divide-border">
+                  {educations.map((e) => (
+                    <li key={e.id} className="flex items-start gap-3 py-3">
+                      <GraduationCap className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                      <div className="min-w-0">
+                        <p className="font-semibold text-foreground">{e.level}{e.year_of_passing ? ` · ${e.year_of_passing}` : ""}</p>
+                        <p className="text-sm text-muted-foreground">{[e.institute, e.board_or_university].filter(Boolean).join(" — ")}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+
+          {/* Languages */}
+          <div id="languages" className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-[15px] font-bold text-foreground">Languages</h3>
+              <button onClick={() => setOpen("languages")} className="text-sm font-semibold text-primary hover:underline">Manage</button>
+            </div>
+            {languages.length === 0 ? (
+              <EmptyRow icon={LangIcon} title="No languages added" hint="Add the languages you speak." />
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {languages.map((l) => (
+                  <span key={l.id} className="flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-sm text-foreground">
+                    <LangIcon className="h-3.5 w-3.5 text-primary" /> {l.language} <span className="text-muted-foreground">· {l.proficiency}</span>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <SummaryCard title="Recent applications" to="/candidate/applications" icon={FileText} empty={counts.applications === 0} emptyTitle="No applications yet" emptyHint="Start applying to jobs and track them here." count={counts.applications} countLabel="applications submitted" />
+            <SummaryCard title="Saved jobs" to="/candidate/saved" icon={Bookmark} empty={counts.saved === 0} emptyTitle="No saved jobs yet" emptyHint="Save jobs you like and view them here." count={counts.saved} countLabel="jobs saved" />
+          </div>
+        </div>
+
+        {/* Right column */}
+        <div className="space-y-6">
+          <div className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="font-bold text-foreground">Profile completion tips</h3>
+              <span className="text-xs font-medium text-muted-foreground">{strength}% complete</span>
+            </div>
+            <div className="mb-6 h-1.5 w-full overflow-hidden rounded-full bg-surface">
+              <div className="h-full rounded-full bg-gradient-to-r from-primary to-success" style={{ width: `${strength}%` }} />
+            </div>
+            <ul className="mb-6 space-y-3">
+              {tips.map((t) => (
+                <li key={t.label} className="flex items-start gap-3 text-sm text-foreground/80">
+                  <CheckCircle2 className={`mt-0.5 h-4 w-4 shrink-0 ${t.done ? "text-success" : "text-muted-foreground/40"}`} />
+                  {t.label}
+                </li>
+              ))}
+            </ul>
+            <Link to="/candidate/dashboard" className="flex items-center gap-1 text-sm font-semibold text-primary hover:underline">
+              View all tips <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
+            <h3 className="mb-4 font-bold text-foreground">Profile highlights</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <Stat value={c.profile_views} label="Profile views" icon={Eye} tone="bg-primary-light text-primary" />
+              <Stat value={counts.applications} label="Applications" icon={FileText} tone="bg-success/15 text-success" />
+              <Stat value={counts.interviews} label="Interviews" icon={CalendarCheck} tone="bg-violet-100 text-violet-600" />
+              <Stat value={counts.saved} label="Saved jobs" icon={Bookmark} tone="bg-amber-100 text-amber-600" />
+            </div>
+          </div>
         </div>
       </div>
+
 
       {/* Editor dialogs */}
       <PersonalDialog open={open === "personal"} onClose={() => setOpen(null)} uid={uid!} p={p} c={c} onSaved={load} />
@@ -277,10 +422,61 @@ function Info({ label, value, wide }: { label: string; value?: string | null; wi
   return (
     <div className={wide ? "sm:col-span-2" : ""}>
       <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      <p className="text-sm text-foreground">{value || <span className="text-muted-foreground">—</span>}</p>
+      <p className="truncate text-sm text-foreground">{value || <span className="text-muted-foreground">—</span>}</p>
     </div>
   );
 }
+
+function EmptyRow({ icon: Icon, title, hint }: { icon: LucideIcon; title: string; hint: string }) {
+  return (
+    <div className="flex items-center gap-4">
+      <div className="grid h-12 w-12 shrink-0 place-items-center rounded-lg border border-border bg-surface text-muted-foreground"><Icon className="h-5 w-5" /></div>
+      <div>
+        <h4 className="text-[15px] font-bold text-foreground">{title}</h4>
+        <p className="text-[13px] text-muted-foreground">{hint}</p>
+      </div>
+    </div>
+  );
+}
+
+function SummaryCard({ title, to, icon, empty, emptyTitle, emptyHint, count, countLabel }: {
+  title: string; to: string; icon: LucideIcon; empty: boolean; emptyTitle: string; emptyHint: string; count: number; countLabel: string;
+}) {
+  const Icon = icon;
+  return (
+    <div className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
+      <div className="mb-6 flex items-center justify-between">
+        <h3 className="text-[15px] font-bold text-foreground">{title}</h3>
+        <Link to={to} className="text-sm font-semibold text-primary hover:underline">View all</Link>
+      </div>
+      {empty ? (
+        <EmptyRow icon={Icon} title={emptyTitle} hint={emptyHint} />
+      ) : (
+        <div className="flex items-center gap-4">
+          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-primary-light text-primary"><Icon className="h-5 w-5" /></div>
+          <div>
+            <h4 className="text-xl font-bold text-foreground">{count}</h4>
+            <p className="text-[13px] text-muted-foreground">{countLabel}</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Stat({ value, label, icon: Icon, tone }: { value: number; label: string; icon: LucideIcon; tone: string }) {
+  return (
+    <div className="flex items-start justify-between rounded-xl border border-border bg-surface p-4">
+      <div>
+        <div className="mb-1 text-xl font-extrabold leading-none text-foreground">{value}</div>
+        <div className="text-xs font-medium text-muted-foreground">{label}</div>
+      </div>
+      <div className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${tone}`}><Icon className="h-4 w-4" /></div>
+    </div>
+  );
+}
+
+
 
 // ----- Dialogs -----
 function DlgShell({ open, onClose, title, children, onSave, saving }: { open: boolean; onClose: () => void; title: string; children: React.ReactNode; onSave?: () => void; saving?: boolean }) {
