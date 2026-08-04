@@ -1,74 +1,35 @@
-## What's already done
-- Schema: `is_consultant`, `hiring_for_company`, `responses_locked_after`, `allow_brand_display`, `spam_suspected`, `plan_settings`, `company_verifications`, `download_ledger/events`, `whatsapp_send_ledger`, Rajasthan `is_launched`, 5-credits unlock.
-- Employer verification page (GST / email / manual upload).
-- Employer responses: 7-day lock banner + Excel download (300/day server cap).
-- WhatsApp extension T&C page.
-- Consultant checkbox in employer onboarding + "hiring for company" field in job wizard.
+# Built-in GST Invoicing for JobsKart
 
-## Still pending from the doc
+Every paid billing transaction gets a numbered tax invoice (JK/2026-27/0001), stored in the database and downloadable as a PDF from the employer Credits page.
 
-### 1. Database tab gating & lock
-- `employer/database.tsx`: only reachable when the company has ≥1 live (active + non-expired) job — otherwise empty state with "Post a job to search the database".
-- Same red 7-day-after-expiry banner as responses; hide rows whose source job is past `responses_locked_after`.
-- Add "Download Excel" button (uses `unlocked_profiles` kind already wired in `downloads.functions.ts`).
+## What gets built
 
-### 2. Admin surfaces (all missing)
-- `admin/verifications.tsx` — queue of `company_verifications` rows with approve/reject; on approve set `companies.verification_status = 'verified'`.
-- `admin/downloads.tsx` — live feed of `download_events` with realtime subscribe + toast; filter by company/day.
-- `admin/spam-review.tsx` — list companies with `spam_suspected = true`, un-flag / confirm-suspend actions.
-- `admin/plans.tsx` — edit `plan_settings` singleton (free-post on/off, response cap, WA cap, Rajasthan-only toggle, spam threshold, credits/unlock).
-- `admin/masters.tsx` — add a "Launch all Rajasthan cities" button (bulk `is_launched=true` where state = Rajasthan) plus per-city toggle.
+1. **Invoice storage + numbering (database)**
+   - Run the attached migration as-is: `invoice_counters` table, `current_financial_year()`, `next_invoice_number()` (atomic per-financial-year counter), the `invoices` table with GST breakup and buyer/line-item snapshots, and `issue_credit_pack_invoice()`.
+   - Invoices are read-only to company members (existing membership check) and fully managed by the system role.
+   - `issue_credit_pack_invoice` is idempotent per order, so the client verification and the Razorpay webhook can both fire without creating duplicates.
 
-### 3. Notifications with image
-- Extend `NotificationBell.tsx` to render `notifications.image_url` thumbnail.
-- `lib/whatsapp.functions.ts` (new): send helper that accepts `mediaUrl`, enforces per-user 50/day via `whatsapp_send_ledger` (429 on exceed), and skips PAN-India numbers when `plan_settings.free_whatsapp_rajasthan_only` and account is on free plan.
+2. **Invoice generator file**
+   - Add `src/lib/invoice-pdf.ts` exactly as attached (zero-dependency print-window PDF, same pattern as the existing JD PDF export).
 
-### 4. Public JD social + consultant disclaimer
-- `jobs.$jobId.tsx`: add `og:title` / `og:description` / `og:image` (company logo or generated card) in `head()`, Twitter card tags, and a Share menu (WhatsApp / LinkedIn / copy link) with pre-filled text.
-- If job's company `is_consultant = true` and `allow_brand_display = false`, mask brand ("Confidential client — via {consultant}"); if `allow_brand_display = true`, show a small "Posted by consultant" chip.
-- Company profile: consent checkbox for `allow_brand_display` with "at your own risk" copy.
+3. **Issue an invoice on every successful payment**
+   - `verifyRazorpayPayment()` in `src/lib/credits.functions.ts`: after `apply_credit_delta` succeeds, call `issue_credit_pack_invoice({ _order_id, _razorpay_payment_id })`. Invoice failures are logged, never block credit delivery.
+   - Razorpay webhook (`src/routes/api/public/webhooks/razorpay.ts`): same call after credits are applied, so invoices exist even if the buyer closes the tab.
 
-### 5. Custom plan builder (≥ ₹10,000)
-- New `plans` table (name, price, limits jsonb, is_custom).
-- `employer/plans/custom.tsx` — sliders for job slots, DB unlocks, WA alerts, downloads/day, validity; visible only when the buyer's cart/subscription total ≥ ₹10,000. Admin can also seed named packs.
-- Server fn `customPlan.functions.ts` creates a `plans` row + Razorpay order.
+4. **Invoices section on the Credits page**
+   - New section under Recent transactions on `/employer/credits`: invoice number, date, description, total, payment status, and a **Download PDF** button per row.
+   - Data is read through a new authenticated server function scoped to the caller's company.
+   - Download rebuilds the PDF from the stored snapshot (`invoice_number`, `line_items`, `buyer_snapshot`, GST amounts, payment reference) so historical invoices never change when pricing or company details are edited later.
+   - Empty state when no invoices exist yet.
 
-### 6. Anti-spam + inactivity gating
-- Server fn `spamDetect.functions.ts` (invoked hourly via `pg_cron` → `api/public/cron/spam-detect`): if `> plan_settings.spam_jobs_per_hour` posts in the last hour by a company, set `spam_suspected = true` and stop WA dispatch for its jobs.
-- Inactivity check: if employer hasn't opened responses within 7 days of posting, dispatcher stops candidate WA alerts for that job and inserts a "Check your responses first" notification for the employer.
+## Technical notes
 
-### 7. Serviceability + PAN-India free posting
-- `jobs.new.tsx` city step: if selected city has `is_launched = false`, show serviceability warning + "Receive applications from anywhere in India" checkbox (persists to `jobs.pan_india_ok`).
-- `credits.functions.ts`: skip credit deduction when every posting city is un-launched (per doc: "no deduction on unlaunched cities on any paid plan").
+- `issue_credit_pack_invoice` currently treats all sales as inter-state (IGST 18%) because `companies` has no state column; it snapshots `name`, `gst_number`, `pan_number`, `hq_city`. Seller GSTIN in `invoice-pdf.ts` is still the placeholder "GSTIN APPLIED FOR".
+- Download uses the stored invoice row directly (not `buildCreditPackInvoiceData`'s re-derivation) where the stored line items already carry ex-GST rates, keeping the printed totals identical to the recorded ones.
+- No new npm dependencies.
 
-### 8. Invoices stub
-- `employer/invoices.tsx` — list existing `razorpay_orders` with amount / status / download-PDF link. TODO banner: "Zoho vs in-app decision pending."
+## Open items for you
 
-### 9. Relevance scoring placeholder
-- New `match_scoring_config` (id=1, weights jsonb). Admin panel stub only — no algorithm yet (owner: Vikas team).
-
-### 10. Small alignment items
-- Add `pan_india_ok bool` on `jobs` (for #7).
-- Add `plans` + `match_scoring_config` tables (with GRANT + RLS).
-- Extend `plan_settings` if missing: `free_post_enabled`, `free_response_cap`, `free_whatsapp_per_post`, `free_plan_validity_days`.
-
-## Migration (single)
-```
-ALTER TABLE jobs ADD COLUMN pan_india_ok boolean NOT NULL DEFAULT false;
-CREATE TABLE plans (id uuid pk, name text, price_inr int, limits jsonb, is_custom bool, created_at, updated_at);
-CREATE TABLE match_scoring_config (id int pk default 1, weights jsonb, updated_at);
-ALTER TABLE plan_settings ADD COLUMN IF NOT EXISTS free_post_enabled bool DEFAULT true,
-  ADD COLUMN IF NOT EXISTS free_response_cap int DEFAULT 50,
-  ADD COLUMN IF NOT EXISTS free_whatsapp_per_post int DEFAULT 500,
-  ADD COLUMN IF NOT EXISTS free_plan_validity_days int DEFAULT 30;
--- GRANTs + RLS for each new table per project rules.
-```
-
-## Out of scope (per doc)
-- Actual Chrome extension build.
-- Zoho vs custom invoice engine choice (Vikas pending).
-- Real relevance-scoring algorithm.
-
-## Verification
-- Typecheck.
-- Playwright smoke: consultant post → hiring-for visible, disclaimer on JD; expired-job responses/database locked; 300/day cap; free-plan WA blocked for non-Rajasthan; custom-plan builder appears at ≥ ₹10k; Rajasthan-launch toggle enables all state cities.
+- Real GSTIN, PAN, billing email, and production domain in `invoice-pdf.ts` SELLER block.
+- Confirm SAC code `998313` with your CA.
+- If you want intra-state CGST/SGST split, a company state field is needed — say so and I'll add it.
