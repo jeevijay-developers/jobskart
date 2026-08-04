@@ -708,7 +708,7 @@ function OnboardingPage() {
             }>
               <div className="space-y-3">
                 {languages.map((l, i) => (
-                  <div key={i} className="grid items-end gap-3 rounded-xl border border-border bg-surface p-3 sm:grid-cols-[1.2fr,1fr,auto,auto,auto]">
+                  <div key={i} className="grid items-end gap-3 rounded-xl border border-border bg-surface p-3 sm:grid-cols-[1.2fr_1fr_auto_auto_auto]">
                     <Field label="Language">
                       <input className="form-input" list="lang-suggestions" value={l.language} onChange={(e) => setLanguages(languages.map((x, k) => k === i ? { ...x, language: e.target.value } : x))} />
                     </Field>
