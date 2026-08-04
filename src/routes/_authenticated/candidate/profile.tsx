@@ -174,8 +174,9 @@ function ProfilePage() {
               </div>
             </div>
 
-            <div className="mt-6 flex flex-col gap-4 border-t border-border pt-6 lg:flex-row lg:items-stretch">
-              <div className="flex flex-1 flex-wrap items-center gap-4 rounded-lg border border-border bg-surface px-4 py-3 text-sm text-muted-foreground sm:gap-6">
+            <div className="mt-6 flex flex-col gap-4 border-t border-border pt-6 lg:flex-row lg:items-start">
+              <div className="flex flex-1 flex-wrap content-start items-center gap-4 rounded-lg border border-border bg-surface px-4 py-3 text-sm text-muted-foreground sm:gap-6">
+
                 <span className="flex items-center gap-2"><Eye className="h-4 w-4" /> {c.profile_views} profile views</span>
                 <span className="flex items-center gap-2 sm:border-l sm:border-border sm:pl-6"><Clock className="h-4 w-4" /> Profile last updated: Today</span>
               </div>
