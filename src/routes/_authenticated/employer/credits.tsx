@@ -1,13 +1,24 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Coins, CreditCard, Loader2, ShieldCheck, Sparkles, TrendingUp } from "lucide-react";
+import {
+  Coins,
+  CreditCard,
+  Download,
+  FileText,
+  Loader2,
+  ShieldCheck,
+  Sparkles,
+  TrendingUp,
+} from "lucide-react";
 import { toast } from "sonner";
 import { EmployerShell } from "@/components/employer/EmployerShell";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchMyCompanies, getActiveCompanyId, type EmployerMembership } from "@/lib/employer";
+import { buildStoredInvoiceData, downloadInvoicePdf } from "@/lib/invoice-pdf";
 import {
   createRazorpayOrder,
   getCompanyWallet,
+  listCompanyInvoices,
   listCreditPacks,
   verifyRazorpayPayment,
 } from "@/lib/credits.functions";
