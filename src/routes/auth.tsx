@@ -214,8 +214,13 @@ function MobileLoginForm({
         type: "magiclink",
       });
       if (verifyErr) throw verifyErr;
-      toast.success(res.isNew ? "Welcome to JobsKart!" : "Welcome back!");
-      await onSuccess(res.isNew);
+      if (res.roleSwitched) {
+        toast.info(`This number is registered as a ${res.userType} — taking you to your ${res.userType} space.`);
+      } else {
+        toast.success(res.isNew ? "Welcome to JobsKart!" : "Welcome back!");
+      }
+      await onSuccess(res.isNew, res.userType);
+
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Could not log in.";
       setError(msg);
