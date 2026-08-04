@@ -1272,6 +1272,95 @@ export type Database = {
           },
         ]
       }
+      invoice_counters: {
+        Row: {
+          financial_year: string
+          last_seq: number
+        }
+        Insert: {
+          financial_year: string
+          last_seq?: number
+        }
+        Update: {
+          financial_year?: string
+          last_seq?: number
+        }
+        Relationships: []
+      }
+      invoices: {
+        Row: {
+          buyer_snapshot: Json
+          cgst_inr: number
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          igst_inr: number
+          invoice_number: string
+          issue_date: string
+          line_items: Json
+          payment_method: string
+          payment_reference: string | null
+          payment_status: string
+          sgst_inr: number
+          source: string
+          source_id: string | null
+          status: string
+          subtotal_inr: number
+          total_inr: number
+        }
+        Insert: {
+          buyer_snapshot: Json
+          cgst_inr?: number
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          igst_inr?: number
+          invoice_number: string
+          issue_date?: string
+          line_items: Json
+          payment_method: string
+          payment_reference?: string | null
+          payment_status?: string
+          sgst_inr?: number
+          source: string
+          source_id?: string | null
+          status?: string
+          subtotal_inr: number
+          total_inr: number
+        }
+        Update: {
+          buyer_snapshot?: Json
+          cgst_inr?: number
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          igst_inr?: number
+          invoice_number?: string
+          issue_date?: string
+          line_items?: Json
+          payment_method?: string
+          payment_reference?: string | null
+          payment_status?: string
+          sgst_inr?: number
+          source?: string
+          source_id?: string | null
+          status?: string
+          subtotal_inr?: number
+          total_inr?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_categories: {
         Row: {
           created_at: string
@@ -2081,6 +2170,7 @@ export type Database = {
         }
         Returns: string
       }
+      current_financial_year: { Args: never; Returns: string }
       find_auth_user_by_phone_or_email: {
         Args: { _email: string; _phone: string }
         Returns: {
@@ -2159,6 +2249,10 @@ export type Database = {
         Returns: boolean
       }
       increment_profile_views: { Args: { _slug: string }; Returns: undefined }
+      issue_credit_pack_invoice: {
+        Args: { _order_id: string; _razorpay_payment_id: string }
+        Returns: string
+      }
       log_employer_activity: {
         Args: {
           _actor: string
@@ -2171,6 +2265,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      next_invoice_number: { Args: never; Returns: string }
       register_download: {
         Args: { _company_id: string; _count: number; _kind: string }
         Returns: number

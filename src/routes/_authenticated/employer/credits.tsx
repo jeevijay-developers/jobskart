@@ -1,13 +1,24 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Coins, CreditCard, Loader2, ShieldCheck, Sparkles, TrendingUp } from "lucide-react";
+import {
+  Coins,
+  CreditCard,
+  Download,
+  FileText,
+  Loader2,
+  ShieldCheck,
+  Sparkles,
+  TrendingUp,
+} from "lucide-react";
 import { toast } from "sonner";
 import { EmployerShell } from "@/components/employer/EmployerShell";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchMyCompanies, getActiveCompanyId, type EmployerMembership } from "@/lib/employer";
+import { buildStoredInvoiceData, downloadInvoicePdf } from "@/lib/invoice-pdf";
 import {
   createRazorpayOrder,
   getCompanyWallet,
+  listCompanyInvoices,
   listCreditPacks,
   verifyRazorpayPayment,
 } from "@/lib/credits.functions";
@@ -26,6 +37,22 @@ type Txn = {
   reference: unknown;
   created_at: string;
 };
+type Invoice = {
+  id: string;
+  invoice_number: string;
+  issue_date: string;
+  line_items: unknown;
+  subtotal_inr: number;
+  cgst_inr: number;
+  sgst_inr: number;
+  igst_inr: number;
+  total_inr: number;
+  buyer_snapshot: unknown;
+  payment_method: string;
+  payment_reference: string | null;
+  payment_status: string;
+  status: string;
+};
 
 declare global {
   interface Window {
@@ -39,6 +66,7 @@ function CreditsPage() {
   const [balance, setBalance] = useState(0);
   const [txns, setTxns] = useState<Txn[]>([]);
   const [packs, setPacks] = useState<Pack[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [buyingId, setBuyingId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -55,6 +83,12 @@ function CreditsPage() {
         const w = await getCompanyWallet({ data: { companyId: chosen.company_id } });
         setBalance(w.balance);
         setTxns(w.transactions as Txn[]);
+        try {
+          const inv = await listCompanyInvoices({ data: { companyId: chosen.company_id } });
+          setInvoices(inv as Invoice[]);
+        } catch {
+          setInvoices([]);
+        }
       }
       setLoading(false);
     })();
@@ -64,7 +98,22 @@ function CreditsPage() {
     const w = await getCompanyWallet({ data: { companyId: cid } });
     setBalance(w.balance);
     setTxns(w.transactions as Txn[]);
+    try {
+      const inv = await listCompanyInvoices({ data: { companyId: cid } });
+      setInvoices(inv as Invoice[]);
+    } catch {
+      /* invoices are non-critical */
+    }
   };
+
+  const handleDownloadInvoice = (inv: Invoice) => {
+    try {
+      downloadInvoicePdf(buildStoredInvoiceData(inv));
+    } catch {
+      toast.error("Could not open the invoice. Allow pop-ups and try again.");
+    }
+  };
+
 
   const handleBuy = async (pack: Pack) => {
     if (!active) return;
@@ -264,6 +313,78 @@ function CreditsPage() {
                 ))}
               </tbody>
             </table>
+          )}
+        </div>
+      </section>
+
+      {/* Invoices */}
+      <section className="mt-8">
+        <header className="mb-3 flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <h2 className="text-lg font-bold text-foreground">Invoices</h2>
+            <p className="text-sm text-muted-foreground">
+              GST tax invoices are issued automatically for every successful payment.
+            </p>
+          </div>
+        </header>
+        <div className="overflow-hidden rounded-2xl border border-border bg-card">
+          {invoices.length === 0 ? (
+            <div className="p-8 text-center">
+              <FileText className="mx-auto h-8 w-8 text-muted-foreground/50" />
+              <p className="mt-2 text-sm text-muted-foreground">
+                No invoices yet — your first invoice appears here right after a purchase.
+              </p>
+            </div>
+          ) : (
+            <ul className="divide-y divide-border">
+              {invoices.map((inv) => {
+                const items = Array.isArray(inv.line_items)
+                  ? (inv.line_items as Array<{ description?: string }>)
+                  : [];
+                return (
+                  <li
+                    key={inv.id}
+                    className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-semibold text-foreground">{inv.invoice_number}</p>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                            inv.payment_status === "Paid"
+                              ? "bg-success-light text-success"
+                              : "bg-surface text-muted-foreground"
+                          }`}
+                        >
+                          {inv.payment_status}
+                        </span>
+                      </div>
+                      <p className="mt-1 truncate text-sm text-muted-foreground">
+                        {items[0]?.description ?? "Billing transaction"}
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {new Date(inv.issue_date).toLocaleDateString("en-IN", {
+                          dateStyle: "medium",
+                        })}
+                        {" · "}
+                        {inv.payment_method}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-4">
+                      <p className="text-lg font-bold tabular-nums text-foreground">
+                        ₹{Number(inv.total_inr).toLocaleString("en-IN")}
+                      </p>
+                      <button
+                        onClick={() => handleDownloadInvoice(inv)}
+                        className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-background px-3 text-sm font-semibold text-foreground hover:bg-surface"
+                      >
+                        <Download className="h-4 w-4" /> Download PDF
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
           )}
         </div>
       </section>
