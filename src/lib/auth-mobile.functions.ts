@@ -42,11 +42,10 @@ export const loginOrCreateWithMobile = createServerFn({ method: "POST" })
     let profile = profiles?.[0] ?? null;
     let isNew = false;
 
-    if (profile && profile.user_type !== userType) {
-      throw new Error(
-        `This number is already registered as a ${profile.user_type}. Switch the role and try again.`,
-      );
-    }
+    // If the number is registered under the other role, sign them into their
+    // existing role instead of failing — the client routes by the returned userType.
+    const roleSwitched = !!profile && profile.user_type !== userType;
+
 
     // 2. If no profile, check whether an auth user already exists for this number
     //    (e.g. seeded admin) before creating a new one.
