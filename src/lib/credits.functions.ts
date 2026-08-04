@@ -182,6 +182,13 @@ export const verifyRazorpayPayment = createServerFn({ method: "POST" })
     });
     if (rpcErr) throw new Error(rpcErr.message);
 
+    // Issue the GST tax invoice. Idempotent per order — never blocks credit delivery.
+    const { error: invErr } = await supabaseAdmin.rpc("issue_credit_pack_invoice", {
+      _order_id: order.id,
+      _razorpay_payment_id: data.razorpayPaymentId,
+    });
+    if (invErr) console.error("issue_credit_pack_invoice failed", invErr.message);
+
     await supabaseAdmin
       .from("razorpay_orders")
       .update({
@@ -191,6 +198,24 @@ export const verifyRazorpayPayment = createServerFn({ method: "POST" })
       .eq("id", order.id);
 
     return { balance: bal as number, alreadyApplied: false };
+  });
+
+// ---------------- listCompanyInvoices ----------------
+export const listCompanyInvoices = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ companyId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    await assertCompanyMember(context.supabase, context.userId, data.companyId);
+    const { data: rows, error } = await context.supabase
+      .from("invoices")
+      .select(
+        "id, invoice_number, issue_date, line_items, subtotal_inr, cgst_inr, sgst_inr, igst_inr, total_inr, buyer_snapshot, payment_method, payment_reference, payment_status, status, source",
+      )
+      .eq("company_id", data.companyId)
+      .order("issue_date", { ascending: false })
+      .limit(50);
+    if (error) throw new Error(error.message);
+    return rows ?? [];
   });
 
 // ---------------- unlockCandidate ----------------
