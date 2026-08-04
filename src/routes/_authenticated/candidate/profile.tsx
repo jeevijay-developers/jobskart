@@ -422,7 +422,7 @@ function Info({ label, value, wide }: { label: string; value?: string | null; wi
   return (
     <div className={wide ? "sm:col-span-2" : ""}>
       <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      <p className="text-sm text-foreground">{value || <span className="text-muted-foreground">—</span>}</p>
+      <p className="truncate text-sm text-foreground">{value || <span className="text-muted-foreground">—</span>}</p>
     </div>
   );
 }
