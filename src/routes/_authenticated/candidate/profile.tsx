@@ -426,6 +426,57 @@ function Info({ label, value, wide }: { label: string; value?: string | null; wi
   );
 }
 
+function EmptyRow({ icon: Icon, title, hint }: { icon: LucideIcon; title: string; hint: string }) {
+  return (
+    <div className="flex items-center gap-4">
+      <div className="grid h-12 w-12 shrink-0 place-items-center rounded-lg border border-border bg-surface text-muted-foreground"><Icon className="h-5 w-5" /></div>
+      <div>
+        <h4 className="text-[15px] font-bold text-foreground">{title}</h4>
+        <p className="text-[13px] text-muted-foreground">{hint}</p>
+      </div>
+    </div>
+  );
+}
+
+function SummaryCard({ title, to, icon, empty, emptyTitle, emptyHint, count, countLabel }: {
+  title: string; to: string; icon: LucideIcon; empty: boolean; emptyTitle: string; emptyHint: string; count: number; countLabel: string;
+}) {
+  const Icon = icon;
+  return (
+    <div className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
+      <div className="mb-6 flex items-center justify-between">
+        <h3 className="text-[15px] font-bold text-foreground">{title}</h3>
+        <Link to={to} className="text-sm font-semibold text-primary hover:underline">View all</Link>
+      </div>
+      {empty ? (
+        <EmptyRow icon={Icon} title={emptyTitle} hint={emptyHint} />
+      ) : (
+        <div className="flex items-center gap-4">
+          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-primary-light text-primary"><Icon className="h-5 w-5" /></div>
+          <div>
+            <h4 className="text-xl font-bold text-foreground">{count}</h4>
+            <p className="text-[13px] text-muted-foreground">{countLabel}</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Stat({ value, label, icon: Icon, tone }: { value: number; label: string; icon: LucideIcon; tone: string }) {
+  return (
+    <div className="flex items-start justify-between rounded-xl border border-border bg-surface p-4">
+      <div>
+        <div className="mb-1 text-xl font-extrabold leading-none text-foreground">{value}</div>
+        <div className="text-xs font-medium text-muted-foreground">{label}</div>
+      </div>
+      <div className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${tone}`}><Icon className="h-4 w-4" /></div>
+    </div>
+  );
+}
+
+
+
 // ----- Dialogs -----
 function DlgShell({ open, onClose, title, children, onSave, saving }: { open: boolean; onClose: () => void; title: string; children: React.ReactNode; onSave?: () => void; saving?: boolean }) {
   return (
