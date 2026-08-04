@@ -1,4 +1,6 @@
 import { Facebook, Instagram, Linkedin, Twitter, Youtube } from "lucide-react";
+import logoAsset from "@/assets/jobskart-logo.png.asset.json";
+
 
 const cols = [
   {
@@ -21,12 +23,10 @@ export function Footer() {
       <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
         <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-5">
           <div className="lg:col-span-2">
-            <div className="flex items-center gap-2">
-              <div className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-lg font-bold">
-                J
-              </div>
-              <span className="text-xl font-bold">JobsKart</span>
+            <div className="inline-flex items-center rounded-xl bg-white px-3 py-2">
+              <img src={logoAsset.url} alt="JobsKart" className="h-7 w-auto" />
             </div>
+
             <p className="mt-4 max-w-sm text-sm text-white/70">
               India's #1 blue-collar and grey-collar hiring platform. Connecting 50 lakh+
               candidates with 1000+ verified employers across 500+ cities.
