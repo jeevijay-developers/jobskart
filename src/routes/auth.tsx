@@ -56,15 +56,16 @@ function AuthPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<SignupUserType>(search.tab ?? "candidate");
 
-  const onSuccess = async (isNew: boolean) => {
+  const onSuccess = async (isNew: boolean, resolvedRole: SignupUserType = tab) => {
     if (search.redirect) {
       window.location.assign(search.redirect);
       return;
     }
-    if (tab === "candidate") {
+    if (resolvedRole === "candidate") {
       navigate({ to: isNew ? "/onboarding/candidate" : "/candidate/dashboard" });
       return;
     }
+
     // Employer: route to onboarding if they have no company yet (or onboarding incomplete).
     try {
       const { data: u } = await supabase.auth.getUser();
