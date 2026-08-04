@@ -117,10 +117,11 @@ function ProfilePage() {
         ) : null
       }
     >
-      <div className="grid gap-6 lg:grid-cols-[280px,1fr]">
+      <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
         {/* Sticky summary */}
-        <aside className="lg:sticky lg:top-20 lg:self-start">
+        <aside className="relative z-20 lg:sticky lg:top-20 lg:z-20 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
           <div className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
+
             <div className="flex items-center gap-3">
               <div className="grid h-14 w-14 place-items-center rounded-full bg-primary-light text-lg font-bold text-primary">{initials}</div>
               <div className="min-w-0">
@@ -478,7 +479,7 @@ function LanguagesDialog({ open, onClose, uid, items, onSaved }: { open: boolean
     <DlgShell open={open} onClose={onClose} title="Languages" onSave={save} saving={saving}>
       <div className="space-y-2">
         {list.map((l, i) => (
-          <div key={i} className="grid items-end gap-2 rounded-xl border border-border bg-surface p-3 sm:grid-cols-[1.2fr,1fr,auto,auto,auto]">
+          <div key={i} className="grid items-end gap-2 rounded-xl border border-border bg-surface p-3 sm:grid-cols-[1.2fr_1fr_auto_auto_auto]">
             <Field label="Language"><input className="form-input" list="lang-dl" value={l.language} onChange={(e) => setList(list.map((x, k) => k === i ? { ...x, language: e.target.value } : x))} /></Field>
             <Field label="Proficiency">
               <select className="form-input" value={l.proficiency} onChange={(e) => setList(list.map((x, k) => k === i ? { ...x, proficiency: e.target.value as Lang["proficiency"] } : x))}>
