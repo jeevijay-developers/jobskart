@@ -216,7 +216,7 @@ function EmployerDashboard() {
   const kyc = [
     { done: !!companyMeta?.logo_url, label: "Upload company logo", to: "/employer/company", icon: ImageIcon },
     { done: !!(companyMeta?.about && companyMeta.about.length > 40), label: "Add company about (40+ chars)", to: "/employer/company", icon: FileText },
-    { done: !!companyMeta?.gst_number || verified, label: "Verify GST / get verified badge", to: "/employer/company", icon: ShieldCheck },
+    { done: verified, label: "Verify GST / get verified badge", to: "/employer/company", icon: ShieldCheck },
     { done: teamCount > 1, label: "Invite a teammate", to: "/employer/team", icon: Users },
   ];
   const kycDone = kyc.filter((k) => k.done).length;
