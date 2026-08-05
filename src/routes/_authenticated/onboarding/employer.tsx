@@ -111,7 +111,7 @@ function EmployerOnboarding() {
       }
 
       setActiveCompanyId(cid);
-      toast.success(`${companyName} is ready 🎉`);
+      toast.success(`${resolvedName} is ready 🎉`);
       navigate({ to: postNow === "yes" ? "/employer/jobs/new" : "/employer/dashboard" });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not save.");
