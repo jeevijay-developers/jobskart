@@ -62,9 +62,14 @@ export function ReportJobDialog({
     setSubmitting(true);
     try {
       const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) {
+        toast.error("Please sign in to report a job.");
+        setSubmitting(false);
+        return;
+      }
       const { error } = await supabase.from("job_reports").insert({
         job_id: jobId,
-        reporter_id: userData.user?.id ?? null,
+        reporter_id: userData.user.id,
         reason,
         details: details.trim() || null,
       });
