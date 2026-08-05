@@ -60,7 +60,6 @@ type TopJob = {
 type CompanyMeta = {
   about: string | null;
   logo_url: string | null;
-  gst_number: string | null;
 };
 
 type Learn = { id: string; title: string; slug: string; cover_url: string | null; kind: string; category: string | null };
