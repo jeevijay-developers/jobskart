@@ -76,10 +76,12 @@ function EmployerOnboarding() {
       await supabase.from("profiles").update({ full_name: fullName }).eq("id", uid);
       void designation; void yourRole;
 
+      const resolvedName =
+        companyName.trim() || (isConsultant ? `${fullName.trim()} (Independent recruiter)` : "");
       const { data: companyId, error: rpcErr } = await supabase.rpc(
         "create_company_with_owner" as never,
         {
-          _name: companyName.trim(),
+          _name: resolvedName,
           _industry: industry || "",
           _size: size as never,
           _hq_city: hqCity || "",
