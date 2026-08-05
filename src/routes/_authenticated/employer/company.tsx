@@ -47,11 +47,21 @@ function CompanyPage() {
       }
     }
     if (!cid) return;
-    const [cRes, dRes] = await Promise.all([
-      supabase.from("companies").select("*").eq("id", cid).single(),
+    const [cRes, dRes, privRes] = await Promise.all([
+      supabase
+        .from("companies")
+        .select("id, name, slug, industry, website, about, hq_city, founded_year, logo_url, verification_status")
+        .eq("id", cid)
+        .single(),
       supabase.from("company_documents").select("id, doc_type, file_name, status, created_at").eq("company_id", cid).order("created_at", { ascending: false }),
+      // Tax IDs are members-only and not readable through the public table policy.
+      (supabase.rpc as unknown as (fn: string, args: Record<string, string>) => Promise<{ data: Array<{ gst_number: string | null; pan_number: string | null }> | null }>)(
+        "get_company_private",
+        { _company_id: cid },
+      ),
     ]);
-    setC(cRes.data as Company | null);
+    const priv = privRes.data?.[0] ?? null;
+    setC(cRes.data ? ({ ...cRes.data, gst_number: priv?.gst_number ?? null, pan_number: priv?.pan_number ?? null } as Company) : null);
     setDocs((dRes.data || []) as Doc[]);
   };
   useEffect(() => { load(); }, []);
