@@ -1,0 +1,205 @@
+{
+  "version": 1,
+  "sdk_version": "0.26.1",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://mvdruwccuppcqgmyjtxa.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "jobskart-connect",
+      "version": "0.1.0",
+      "title": "JobsKart Connect"
+    },
+    "tools": [
+      {
+        "name": "search_jobs",
+        "title": "Search jobs",
+        "description": "Search live JobsKart job postings by keyword, city, work mode, job type, and minimum salary. Returns public listing data.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "query": {
+              "description": "Keyword matched against the job title.",
+              "type": "string"
+            },
+            "city": {
+              "description": "City name, e.g. Jaipur.",
+              "type": "string"
+            },
+            "work_mode": {
+              "description": "Work mode: on_site, hybrid, remote or field.",
+              "type": "string"
+            },
+            "job_type": {
+              "description": "Employment type: full_time, part_time, internship or contract.",
+              "type": "string"
+            },
+            "min_salary": {
+              "description": "Only jobs whose maximum salary is at least this amount.",
+              "type": "number"
+            },
+            "limit": {
+              "description": "Maximum rows to return (default 20, max 50).",
+              "type": "number"
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_job",
+        "title": "Get job details",
+        "description": "Fetch the full public details of one JobsKart job posting by its id.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "job_id": {
+              "type": "string",
+              "description": "The job's UUID."
+            }
+          },
+          "required": [
+            "job_id"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "my_profile",
+        "title": "My JobsKart profile",
+        "description": "Return the signed-in user's JobsKart account profile, plus candidate profile details or employer company memberships.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "my_applications",
+        "title": "My job applications",
+        "description": "List the signed-in candidate's job applications with their current status.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "status": {
+              "description": "Filter by application status, e.g. applied, shortlisted, rejected, hired.",
+              "type": "string"
+            },
+            "limit": {
+              "description": "Maximum rows to return (default 25, max 100).",
+              "type": "number"
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "my_saved_jobs",
+        "title": "My saved jobs",
+        "description": "List jobs the signed-in candidate has bookmarked on JobsKart.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "limit": {
+              "description": "Maximum rows to return (default 25, max 100).",
+              "type": "number"
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "my_company_jobs",
+        "title": "My company's jobs",
+        "description": "List job postings belonging to the signed-in employer's company, including application counts and status.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "status": {
+              "description": "Filter by job status, e.g. active, paused, closed, draft.",
+              "type": "string"
+            },
+            "limit": {
+              "description": "Maximum rows to return (default 25, max 100).",
+              "type": "number"
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "job_applicants",
+        "title": "Applicants for a job",
+        "description": "List applicants for one of the signed-in employer's job postings. Access is enforced by company membership.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "job_id": {
+              "type": "string",
+              "description": "The job's UUID (from my_company_jobs)."
+            },
+            "status": {
+              "description": "Filter by application status, e.g. applied, shortlisted, rejected, hired.",
+              "type": "string"
+            },
+            "limit": {
+              "description": "Maximum rows to return (default 25, max 100).",
+              "type": "number"
+            }
+          },
+          "required": [
+            "job_id"
+          ]
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
