@@ -2179,6 +2179,15 @@ export type Database = {
           phone: string
         }[]
       }
+      get_company_private: {
+        Args: { _company_id: string }
+        Returns: {
+          gst_number: string
+          pan_number: string
+          spam_suspected: boolean
+          verification_notes: string
+        }[]
+      }
       get_invite_by_token: {
         Args: { _token: string }
         Returns: {

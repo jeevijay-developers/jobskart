@@ -60,7 +60,6 @@ type TopJob = {
 type CompanyMeta = {
   about: string | null;
   logo_url: string | null;
-  gst_number: string | null;
 };
 
 type Learn = { id: string; title: string; slug: string; cover_url: string | null; kind: string; category: string | null };
@@ -127,7 +126,7 @@ function EmployerDashboard() {
           .eq("jobs.company_id", cid)
           .order("created_at", { ascending: false })
           .limit(8),
-        supabase.from("companies").select("about, logo_url, gst_number").eq("id", cid).maybeSingle(),
+        supabase.from("companies").select("about, logo_url").eq("id", cid).maybeSingle(),
         supabase.from("employer_members").select("user_id", { count: "exact", head: true }).eq("company_id", cid),
         supabase
           .from("learning_resources")
@@ -217,7 +216,7 @@ function EmployerDashboard() {
   const kyc = [
     { done: !!companyMeta?.logo_url, label: "Upload company logo", to: "/employer/company", icon: ImageIcon },
     { done: !!(companyMeta?.about && companyMeta.about.length > 40), label: "Add company about (40+ chars)", to: "/employer/company", icon: FileText },
-    { done: !!companyMeta?.gst_number || verified, label: "Verify GST / get verified badge", to: "/employer/company", icon: ShieldCheck },
+    { done: verified, label: "Verify GST / get verified badge", to: "/employer/company", icon: ShieldCheck },
     { done: teamCount > 1, label: "Invite a teammate", to: "/employer/team", icon: Users },
   ];
   const kycDone = kyc.filter((k) => k.done).length;
