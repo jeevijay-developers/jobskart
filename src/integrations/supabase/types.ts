@@ -2323,7 +2323,13 @@ export type Database = {
         | "public_ltd"
         | "ngo"
         | "government"
-      credit_txn_kind: "purchase" | "unlock" | "refund" | "bonus" | "adjustment"
+      credit_txn_kind:
+        | "purchase"
+        | "unlock"
+        | "refund"
+        | "bonus"
+        | "adjustment"
+        | "grant"
       employer_role: "super_admin" | "hr_admin" | "recruiter"
       experience_status: "fresher" | "experienced" | "student"
       interview_mode: "video" | "phone" | "onsite"
@@ -2490,7 +2496,14 @@ export const Constants = {
         "ngo",
         "government",
       ],
-      credit_txn_kind: ["purchase", "unlock", "refund", "bonus", "adjustment"],
+      credit_txn_kind: [
+        "purchase",
+        "unlock",
+        "refund",
+        "bonus",
+        "adjustment",
+        "grant",
+      ],
       employer_role: ["super_admin", "hr_admin", "recruiter"],
       experience_status: ["fresher", "experienced", "student"],
       interview_mode: ["video", "phone", "onsite"],

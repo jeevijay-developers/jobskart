@@ -76,10 +76,12 @@ function EmployerOnboarding() {
       await supabase.from("profiles").update({ full_name: fullName }).eq("id", uid);
       void designation; void yourRole;
 
+      const resolvedName =
+        companyName.trim() || (isConsultant ? `${fullName.trim()} (Independent recruiter)` : "");
       const { data: companyId, error: rpcErr } = await supabase.rpc(
         "create_company_with_owner" as never,
         {
-          _name: companyName.trim(),
+          _name: resolvedName,
           _industry: industry || "",
           _size: size as never,
           _hq_city: hqCity || "",
@@ -109,7 +111,7 @@ function EmployerOnboarding() {
       }
 
       setActiveCompanyId(cid);
-      toast.success(`${companyName} is ready 🎉`);
+      toast.success(`${resolvedName} is ready 🎉`);
       navigate({ to: postNow === "yes" ? "/employer/jobs/new" : "/employer/dashboard" });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not save.");
@@ -160,20 +162,29 @@ function EmployerOnboarding() {
     },
     {
       key: "company",
-      title: "What's your company called?",
-      hint: "Use your registered or commonly known brand name.",
+      title: isConsultant ? "Which firm do you represent?" : "What's your company called?",
+      hint: isConsultant
+        ? "Optional — leave blank if you hire for multiple firms. You can name the client company on each job post."
+        : "Use your registered or commonly known brand name.",
       validate: () => {
-        if (companyName.trim().length < 2) return "Add your company name.";
+        if (!isConsultant && companyName.trim().length < 2) return "Add your company name.";
+        if (companyName.trim().length === 1) return "Add a longer name, or leave it blank.";
         if (!industry) return "Pick an industry to continue.";
         return null;
       },
       render: () => (
         <div className="space-y-6">
           <BigInput
-            placeholder="Acme Logistics Pvt Ltd"
+            placeholder={isConsultant ? "Your consultancy name (optional)" : "Acme Logistics Pvt Ltd"}
             value={companyName}
             onChange={(e) => setCompanyName(e.target.value)}
           />
+          {isConsultant && (
+            <p className="-mt-3 text-xs text-muted-foreground">
+              Working across multiple firms? Skip this — we&apos;ll create an independent recruiter
+              workspace and ask for the client company on each job.
+            </p>
+          )}
           <div>
             <p className="mb-3 text-sm font-semibold text-foreground">Industry</p>
             <div className="flex flex-wrap gap-2">
