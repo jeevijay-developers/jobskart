@@ -127,7 +127,7 @@ function EmployerDashboard() {
           .eq("jobs.company_id", cid)
           .order("created_at", { ascending: false })
           .limit(8),
-        supabase.from("companies").select("about, logo_url, gst_number").eq("id", cid).maybeSingle(),
+        supabase.from("companies").select("about, logo_url").eq("id", cid).maybeSingle(),
         supabase.from("employer_members").select("user_id", { count: "exact", head: true }).eq("company_id", cid),
         supabase
           .from("learning_resources")
