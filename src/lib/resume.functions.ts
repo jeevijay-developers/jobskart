@@ -80,9 +80,16 @@ async function extractPdfText(base64: string): Promise<string> {
 }
 
 async function extractDocxText(base64: string): Promise<string> {
-  const mammoth = await import("mammoth");
+  const mod = (await import("mammoth")) as unknown as {
+    default?: { extractRawText: (o: unknown) => Promise<{ value: string }> };
+    extractRawText?: (o: unknown) => Promise<{ value: string }>;
+  };
+  const extractRawText = mod.extractRawText ?? mod.default?.extractRawText;
+  if (!extractRawText) throw new Error("docx reader unavailable");
   const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-  const res = await mammoth.extractRawText({ arrayBuffer: bytes.buffer as ArrayBuffer });
+  const buf = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+  // Node build of mammoth reads `buffer`; browser build reads `arrayBuffer`.
+  const res = await extractRawText({ buffer: bytes, arrayBuffer: buf });
   return String(res?.value ?? "");
 }
 
