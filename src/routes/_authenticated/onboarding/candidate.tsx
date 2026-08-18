@@ -40,6 +40,13 @@ type AssetRow = { id: string; slug: string; label: string; category: string };
 const STEPS = ["Basics", "Work status", "Experience", "Education", "Skills & languages", "Preferences"] as const;
 type StepLabel = (typeof STEPS)[number];
 
+/** Numbers are stored as +91XXXXXXXXXX; forms edit the bare 10 digits. */
+const to10 = (v: string | null | undefined) => {
+  const d = (v ?? "").replace(/\D/g, "");
+  return d.length >= 10 ? d.slice(-10) : d;
+};
+const toE164 = (v: string) => (to10(v).length === 10 ? `+91${to10(v)}` : null);
+
 function OnboardingPage() {
   const navigate = useNavigate();
   const [uid, setUid] = useState<string | null>(null);
@@ -104,7 +111,7 @@ function OnboardingPage() {
         supabase.from("candidate_assets_master").select("id, slug, label, category").eq("is_active", true).order("sort_order"),
         supabase.from("languages_master").select("name").eq("is_active", true).order("sort_order"),
       ]);
-      if (p) { setFullName(p.full_name || ""); setMobile(p.mobile || ""); setCity(p.city || ""); }
+      if (p) { setFullName(p.full_name || ""); setMobile(to10(p.mobile)); setCity(p.city || ""); }
       if (c) {
         setHeadline(c.headline || "");
         setDob(c.date_of_birth || ""); setGender((c.gender as typeof gender) || "");
@@ -117,12 +124,12 @@ function OnboardingPage() {
         setNoticeDays(c.notice_period_days ?? 0);
         if (c.resume_url) setResume({ name: c.resume_name || "Resume", path: c.resume_url });
         const cExt = c as unknown as { whatsapp_number?: string | null; whatsapp_opt_in?: boolean | null; highest_qualification?: string | null; interested_roles?: string[] | null };
-        setWhatsapp(cExt.whatsapp_number || p?.mobile || "");
+        setWhatsapp(to10(cExt.whatsapp_number || p?.mobile));
         setWhatsappOptIn(cExt.whatsapp_opt_in ?? true);
         setHighestQualification(cExt.highest_qualification || "");
         setInterestedRoles(cExt.interested_roles || []);
       } else if (p?.mobile) {
-        setWhatsapp(p.mobile);
+        setWhatsapp(to10(p.mobile));
       }
       if (ex?.length) setExperiences(ex.map((e) => ({ ...e, start_date: e.start_date || "", end_date: e.end_date || "", description: e.description || "" })));
       if (lg?.length) setLanguages(lg.map((l) => ({ ...l, proficiency: l.proficiency as Language["proficiency"] })));
@@ -204,7 +211,7 @@ function OnboardingPage() {
     setSaving(true);
     try {
       await runOrThrow(
-        supabase.from("profiles").update({ full_name: fullName, mobile, city }).eq("id", uid),
+        supabase.from("profiles").update({ full_name: fullName, mobile: toE164(mobile), city }).eq("id", uid),
         "Save basics",
       );
 
@@ -235,7 +242,7 @@ function OnboardingPage() {
           resume_url: resume?.path || null,
           resume_name: resume?.name || null,
           profile_strength: strength,
-          whatsapp_number: whatsapp || null,
+          whatsapp_number: toE164(whatsapp),
           whatsapp_opt_in: whatsappOptIn,
           highest_qualification: highestQualification || null,
           interested_roles: interestedRoles,
