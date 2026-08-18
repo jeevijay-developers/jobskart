@@ -161,8 +161,11 @@ export const parseResume = createServerFn({ method: "POST" })
     try {
       parsed = JSON.parse(raw);
     } catch {
-      const cleaned = raw.replace(/```json|```/g, "").trim();
-      parsed = JSON.parse(cleaned);
+      try {
+        parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
+      } catch {
+        throw new Error(UNREADABLE);
+      }
     }
 
     const result = ParsedResume.parse(parsed);
