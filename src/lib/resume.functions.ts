@@ -1,5 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { chat } from "@/lib/ai/provider";
+
 
 const inputSchema = z.object({
   fileName: z.string().min(1),
