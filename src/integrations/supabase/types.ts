@@ -2075,6 +2075,7 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
+          pending_review: boolean
           slug: string
           updated_at: string
         }
@@ -2083,6 +2084,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
+          pending_review?: boolean
           slug: string
           updated_at?: string
         }
@@ -2091,6 +2093,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
+          pending_review?: boolean
           slug?: string
           updated_at?: string
         }
@@ -2275,6 +2278,7 @@ export type Database = {
         Returns: undefined
       }
       next_invoice_number: { Args: never; Returns: string }
+      normalize_phone_e164: { Args: { _phone: string }; Returns: string }
       register_download: {
         Args: { _company_id: string; _count: number; _kind: string }
         Returns: number
@@ -2285,6 +2289,13 @@ export type Database = {
         Returns: undefined
       }
       slugify: { Args: { _text: string }; Returns: string }
+      suggest_skills_for_roles: {
+        Args: { _roles: string[] }
+        Returns: {
+          name: string
+          uses: number
+        }[]
+      }
       unlock_candidate: {
         Args: {
           _actor?: string
