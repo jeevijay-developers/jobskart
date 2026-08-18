@@ -88,7 +88,8 @@ async function extractDocxText(base64: string): Promise<string> {
   if (!extractRawText) throw new Error("docx reader unavailable");
   const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
   const buf = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
-  const res = await extractRawText({ arrayBuffer: buf });
+  // Node build of mammoth reads `buffer`; browser build reads `arrayBuffer`.
+  const res = await extractRawText({ buffer: bytes, arrayBuffer: buf });
   return String(res?.value ?? "");
 }
 
