@@ -87,9 +87,6 @@ async function callGateway(userText: string, images?: { mime: string; b64: strin
 export const parseResume = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => inputSchema.parse(data))
   .handler(async ({ data }) => {
-    const apiKey = process.env.LOVABLE_API_KEY;
-    if (!apiKey) throw new Error("AI not configured.");
-
     const isPdf = data.mimeType === "application/pdf" || data.fileName.toLowerCase().endsWith(".pdf");
     const isImage = data.mimeType.startsWith("image/");
 
@@ -107,14 +104,13 @@ export const parseResume = createServerFn({ method: "POST" })
       }
       // Cap text to keep token use sane
       const trimmed = text.slice(0, 18000);
-      raw = await callGateway(apiKey, `Parse this resume text and return the JSON.\n\n---RESUME TEXT---\n${trimmed}`);
+      raw = await callGateway(`Parse this resume text and return the JSON.\n\n---RESUME TEXT---\n${trimmed}`);
     } else if (isImage) {
-      const dataUrl = `data:${data.mimeType};base64,${data.base64}`;
-      raw = await callGateway(apiKey, [
-        { type: "text", text: "Parse this resume image and return the JSON." },
-        { type: "image_url", image_url: { url: dataUrl } },
+      raw = await callGateway("Parse this resume image and return the JSON.", [
+        { mime: data.mimeType, b64: data.base64 },
       ]);
     } else {
+
       throw new Error("Unsupported file. Please upload a PDF or image (JPG/PNG).");
     }
 
