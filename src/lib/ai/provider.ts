@@ -3,10 +3,14 @@ import type { ZodType } from "zod";
 
 export type ChatImage = { mime: string; b64: string };
 
+export type ChatFile = { mime: string; b64: string; name?: string };
+
 export type ChatArgs = {
   system?: string;
   user: string;
   images?: ChatImage[];
+  /** Documents (e.g. PDFs) passed to the model natively. */
+  files?: ChatFile[];
   temperature?: number;
   json?: boolean;
 };
@@ -35,12 +39,20 @@ async function chatOpenAICompatible(
   model: string,
   args: ChatArgs,
 ): Promise<string> {
-  const userContent: unknown = args.images?.length
+  const hasAttachments = !!(args.images?.length || args.files?.length);
+  const userContent: unknown = hasAttachments
     ? [
         { type: "text", text: args.user },
-        ...args.images.map((img) => ({
+        ...(args.images ?? []).map((img) => ({
           type: "image_url",
           image_url: { url: `data:${img.mime};base64,${img.b64}` },
+        })),
+        ...(args.files ?? []).map((f) => ({
+          type: "file",
+          file: {
+            filename: f.name ?? "document",
+            file_data: `data:${f.mime};base64,${f.b64}`,
+          },
         })),
       ]
     : args.user;
@@ -72,6 +84,9 @@ async function chatGemini(model: string, args: ChatArgs): Promise<string> {
   const parts: Array<Record<string, unknown>> = [{ text: args.user }];
   for (const img of args.images ?? []) {
     parts.push({ inline_data: { mime_type: img.mime, data: img.b64 } });
+  }
+  for (const f of args.files ?? []) {
+    parts.push({ inline_data: { mime_type: f.mime, data: f.b64 } });
   }
   const res = await fetch(`${GEMINI_BASE}/${id}:generateContent?key=${key}`, {
     method: "POST",

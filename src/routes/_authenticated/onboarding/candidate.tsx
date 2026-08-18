@@ -38,13 +38,23 @@ type Language = { id?: string; language: string; proficiency: "basic" | "convers
 type AssetRow = { id: string; slug: string; label: string; category: string };
 
 const STEPS = ["Basics", "Work status", "Experience", "Education", "Skills & languages", "Preferences"] as const;
+type StepLabel = (typeof STEPS)[number];
+
+/** Numbers are stored as +91XXXXXXXXXX; forms edit the bare 10 digits. */
+const to10 = (v: string | null | undefined) => {
+  const d = (v ?? "").replace(/\D/g, "");
+  return d.length >= 10 ? d.slice(-10) : d;
+};
+const toE164 = (v: string) => (to10(v).length === 10 ? `+91${to10(v)}` : null);
 
 function OnboardingPage() {
   const navigate = useNavigate();
   const [uid, setUid] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [step, setStep] = useState(0);
+  // Track the step by label, not index: hiding/showing "Experience" when the
+  // work status changes must not move the user to a different question.
+  const [stepKey, setStepKey] = useState<StepLabel>("Basics");
 
   // Basics
   const [fullName, setFullName] = useState("");
@@ -101,7 +111,7 @@ function OnboardingPage() {
         supabase.from("candidate_assets_master").select("id, slug, label, category").eq("is_active", true).order("sort_order"),
         supabase.from("languages_master").select("name").eq("is_active", true).order("sort_order"),
       ]);
-      if (p) { setFullName(p.full_name || ""); setMobile(p.mobile || ""); setCity(p.city || ""); }
+      if (p) { setFullName(p.full_name || ""); setMobile(to10(p.mobile)); setCity(p.city || ""); }
       if (c) {
         setHeadline(c.headline || "");
         setDob(c.date_of_birth || ""); setGender((c.gender as typeof gender) || "");
@@ -114,12 +124,12 @@ function OnboardingPage() {
         setNoticeDays(c.notice_period_days ?? 0);
         if (c.resume_url) setResume({ name: c.resume_name || "Resume", path: c.resume_url });
         const cExt = c as unknown as { whatsapp_number?: string | null; whatsapp_opt_in?: boolean | null; highest_qualification?: string | null; interested_roles?: string[] | null };
-        setWhatsapp(cExt.whatsapp_number || p?.mobile || "");
+        setWhatsapp(to10(cExt.whatsapp_number || p?.mobile));
         setWhatsappOptIn(cExt.whatsapp_opt_in ?? true);
         setHighestQualification(cExt.highest_qualification || "");
         setInterestedRoles(cExt.interested_roles || []);
       } else if (p?.mobile) {
-        setWhatsapp(p.mobile);
+        setWhatsapp(to10(p.mobile));
       }
       if (ex?.length) setExperiences(ex.map((e) => ({ ...e, start_date: e.start_date || "", end_date: e.end_date || "", description: e.description || "" })));
       if (lg?.length) setLanguages(lg.map((l) => ({ ...l, proficiency: l.proficiency as Language["proficiency"] })));
@@ -174,11 +184,17 @@ function OnboardingPage() {
   }), [fullName, mobile, city, headline, lastRole, skills, years, jobTypes, preferredCities, expectedSalary, resume, experiences, languages, highestQualification, interestedRoles, whatsappOptIn]);
 
   // Skip "Experience" step for freshers — handled via stepIndex translation
-  const visibleSteps = useMemo(() => {
+  const visibleSteps = useMemo<StepLabel[]>(() => {
     if (expStatus === "fresher") return STEPS.filter((s) => s !== "Experience");
     return [...STEPS];
   }, [expStatus]);
-  const currentLabel = visibleSteps[step] || visibleSteps[0];
+
+  const currentLabel: StepLabel = visibleSteps.includes(stepKey) ? stepKey : "Work status";
+  const step = Math.max(0, visibleSteps.indexOf(currentLabel));
+  const goToIndex = (i: number) => {
+    const next = visibleSteps[Math.max(0, Math.min(visibleSteps.length - 1, i))];
+    if (next) setStepKey(next);
+  };
 
   // Throws with a readable label if a Supabase call returned an error.
   const runOrThrow = async <T,>(
@@ -195,7 +211,7 @@ function OnboardingPage() {
     setSaving(true);
     try {
       await runOrThrow(
-        supabase.from("profiles").update({ full_name: fullName, mobile, city }).eq("id", uid),
+        supabase.from("profiles").update({ full_name: fullName, mobile: toE164(mobile), city }).eq("id", uid),
         "Save basics",
       );
 
@@ -226,7 +242,7 @@ function OnboardingPage() {
           resume_url: resume?.path || null,
           resume_name: resume?.name || null,
           profile_strength: strength,
-          whatsapp_number: whatsapp || null,
+          whatsapp_number: toE164(whatsapp),
           whatsapp_opt_in: whatsappOptIn,
           highest_qualification: highestQualification || null,
           interested_roles: interestedRoles,
@@ -282,7 +298,7 @@ function OnboardingPage() {
         return;
       }
       toast.success("Saved");
-      setStep((s) => Math.max(0, Math.min(visibleSteps.length - 1, s + (advance as number))));
+      goToIndex(step + (advance as number));
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (e) {
       toast.error((e as Error).message || "Could not save. Please try again.");
@@ -312,7 +328,7 @@ function OnboardingPage() {
     }
     if (currentLabel === "Work status") {
       if (expStatus === "experienced" && (!years || years < 0)) return "Enter your total years of experience.";
-      if (expStatus === "fresher" && interestedRoles.length === 0) return "Add at least one interested job role.";
+      if (interestedRoles.length === 0) return "Add at least one interested job role.";
     }
     if (currentLabel === "Experience") {
       if (expStatus === "experienced" && experiences.length === 0) return "Add at least one work experience.";
@@ -502,6 +518,7 @@ function OnboardingPage() {
         {currentLabel === "Basics" && (
           <div className="space-y-5">
             <ResumeUpload
+              existingName={resume?.name ?? null}
               onParsed={(d: ParsedResumePayload, file: File) => {
                 // Upload to storage in the background so the Preferences step still has the file
                 uploadResume(file);
@@ -566,8 +583,11 @@ function OnboardingPage() {
                     <span>Receive updates, alerts, and notifications on WhatsApp</span>
                   </label>
                 </Field>
-                <Field label="Headline" hint="One-line summary (max 200 chars)">
-                  <input className="form-input" value={headline} maxLength={200} onChange={(e) => setHeadline(e.target.value)} placeholder="e.g. Sales Executive with 2 years exp" />
+                <Field label="Headline" hint="One-line summary — keep it short and specific">
+                  <input className="form-input" value={headline} maxLength={200} onChange={(e) => setHeadline(e.target.value.slice(0, 200))} placeholder="e.g. Sales Executive with 2 years exp" />
+                  <span className={`mt-1 block text-right text-xs tabular-nums ${headline.length >= 200 ? "text-destructive" : "text-muted-foreground"}`}>
+                    {headline.length}/200
+                  </span>
                 </Field>
                 <Field label="City" required>
                   <select className="form-input" value={city} onChange={(e) => setCity(e.target.value)}>
@@ -610,14 +630,12 @@ function OnboardingPage() {
                 </Field>
               </div>
             )}
-            {expStatus === "fresher" && (
-              <div className="mt-4">
-                <Field label="Interested job roles" required hint="Pick roles you'd like to be matched to">
-                  <ChipInput values={interestedRoles} onChange={setInterestedRoles} placeholder="e.g. Sales Executive" suggestions={["Sales Executive","Telecaller","Customer Support Executive","Delivery Executive","Data Entry Operator","Receptionist","Office Assistant","Beautician","Driver","Cashier"]} />
-                </Field>
-                <p className="mt-2 text-xs text-muted-foreground">We&apos;ll suggest skills based on these on the next steps.</p>
-              </div>
-            )}
+            <div className="mt-4">
+              <Field label="Interested job roles" required hint="Pick as many as you like — we match jobs to all of them">
+                <ChipInput values={interestedRoles} onChange={setInterestedRoles} placeholder="e.g. Sales Executive" suggestions={["Sales Executive","Telecaller","Customer Support Executive","Delivery Executive","Data Entry Operator","Receptionist","Office Assistant","Beautician","Driver","Cashier"]} />
+              </Field>
+              <p className="mt-2 text-xs text-muted-foreground">We&apos;ll suggest skills based on these in the next steps.</p>
+            </div>
           </SectionCard>
         )}
 
@@ -693,12 +711,16 @@ function OnboardingPage() {
         {currentLabel === "Skills & languages" && (
           <div className="space-y-6">
             <SectionCard title="Skills">
-              <ChipInput values={skills} onChange={setSkills} suggestions={aiSkills.length ? aiSkills : ["Communication","MS Office","Customer Service","Sales","Hindi","English"]} placeholder="Add a skill" />
-              {aiSkills.length > 0 && (
-                <p className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground">
-                  <Sparkles className="h-3 w-3 text-primary" /> Suggestions personalised to your roles
-                </p>
-              )}
+              <ChipInput values={skills} onChange={setSkills} max={25} suggestions={aiSkills.length ? aiSkills : ["Communication","MS Office","Customer Service","Sales","Hindi","English"]} placeholder="Add a skill" />
+              <p className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                <Sparkles className="h-3 w-3 text-primary" />
+                {aiSkills.length > 0
+                  ? `Suggestions based on employers hiring for ${interestedRoles.slice(0, 2).join(", ") || "your roles"} — tap to add or remove.`
+                  : "Tap a suggestion to add it, or type your own and press Enter."}
+              </p>
+              <p className="mt-3 text-xs font-semibold text-foreground">
+                Selected: <span className="tabular-nums">{skills.length}</span>/25
+              </p>
             </SectionCard>
             <SectionCard title="Languages you know" action={
               <button type="button" onClick={() => setLanguages([...languages, { language: "", proficiency: "conversational", can_read: true, can_write: true }])}

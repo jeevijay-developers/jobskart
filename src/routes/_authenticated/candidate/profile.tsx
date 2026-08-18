@@ -499,14 +499,18 @@ function DlgShell({ open, onClose, title, children, onSave, saving }: { open: bo
 }
 
 function PersonalDialog({ open, onClose, uid, p, c, onSaved }: { open: boolean; onClose: () => void; uid: string; p: Profile; c: Candidate; onSaved: () => void }) {
-  const [full_name, setFn] = useState(p.full_name); const [mobile, setMo] = useState(p.mobile); const [city, setCity] = useState(p.city);
+  const to10 = (v: string) => { const d = (v ?? "").replace(/\D/g, ""); return d.length >= 10 ? d.slice(-10) : d; };
+  const [full_name, setFn] = useState(p.full_name); const [mobile, setMo] = useState(to10(p.mobile)); const [city, setCity] = useState(p.city);
   const [dob, setDob] = useState(c.date_of_birth || ""); const [gender, setGender] = useState(c.gender || "");
   const [bio, setBio] = useState(c.bio || ""); const [headline, setHeadline] = useState(c.headline || "");
   const [saving, setSaving] = useState(false);
-  useEffect(() => { if (open) { setFn(p.full_name); setMo(p.mobile); setCity(p.city); setDob(c.date_of_birth || ""); setGender(c.gender || ""); setBio(c.bio || ""); setHeadline(c.headline || ""); } }, [open, p, c]);
+  useEffect(() => { if (open) { setFn(p.full_name); setMo(to10(p.mobile)); setCity(p.city); setDob(c.date_of_birth || ""); setGender(c.gender || ""); setBio(c.bio || ""); setHeadline(c.headline || ""); } }, [open, p, c]);
   const save = async () => {
     setSaving(true);
-    await supabase.from("profiles").update({ full_name, mobile, city }).eq("id", uid);
+    await supabase
+      .from("profiles")
+      .update({ full_name, mobile: to10(mobile).length === 10 ? `+91${to10(mobile)}` : null, city })
+      .eq("id", uid);
     await supabase.from("candidate_profiles").update({ date_of_birth: dob || null, gender: gender || null, bio: bio || null, headline: headline || null }).eq("user_id", uid);
     setSaving(false); toast.success("Saved"); onSaved(); onClose();
   };

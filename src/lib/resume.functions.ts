@@ -68,6 +68,9 @@ Rules:
 - If the text clearly contains a value, do NOT return null for that field.
 - Use null / empty arrays only when truly absent. Never invent values.`;
 
+const UNREADABLE =
+  "We could not read this file. Please fill your details manually — it takes 2 minutes.";
+
 async function extractPdfText(base64: string): Promise<string> {
   const { extractText, getDocumentProxy } = await import("unpdf");
   const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
@@ -76,23 +79,39 @@ async function extractPdfText(base64: string): Promise<string> {
   return Array.isArray(text) ? text.join("\n") : String(text ?? "");
 }
 
-async function callGateway(userText: string, images?: { mime: string; b64: string }[]) {
-  return chat({
-    system: SYSTEM_PROMPT,
-    user: userText,
-    images,
-    json: true,
-  });
+async function extractDocxText(base64: string): Promise<string> {
+  const mammoth = await import("mammoth");
+  const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+  const res = await mammoth.extractRawText({ arrayBuffer: bytes.buffer as ArrayBuffer });
+  return String(res?.value ?? "");
 }
 
+async function callGateway(
+  userText: string,
+  images?: { mime: string; b64: string }[],
+  files?: { mime: string; b64: string; name?: string }[],
+) {
+  return chat({ system: SYSTEM_PROMPT, user: userText, images, files, json: true });
+}
+
+const fromText = (text: string) =>
+  callGateway(
+    `Parse this resume text and return the JSON.\n\n---RESUME TEXT---\n${text.slice(0, 18000)}`,
+  );
 
 export const parseResume = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => inputSchema.parse(data))
   .handler(async ({ data }) => {
-    const isPdf = data.mimeType === "application/pdf" || data.fileName.toLowerCase().endsWith(".pdf");
-    const isImage = data.mimeType.startsWith("image/");
+    const mime = data.mimeType.toLowerCase();
+    const name = data.fileName.toLowerCase();
+    const isPdf = mime === "application/pdf" || name.endsWith(".pdf");
+    const isImage = mime.startsWith("image/");
+    const isDocx =
+      mime === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+      name.endsWith(".docx");
+    const isDoc = mime === "application/msword" || name.endsWith(".doc");
 
-    let raw: string;
+    let raw = "";
 
     if (isPdf) {
       let text = "";
@@ -101,27 +120,52 @@ export const parseResume = createServerFn({ method: "POST" })
       } catch (e) {
         console.error("[resume] pdf extract failed:", e);
       }
-      if (text.length < 30) {
-        throw new Error("Couldn't read this PDF. It may be a scanned image — please upload it as JPG/PNG or fill the fields manually.");
+      if (text.length >= 200) {
+        raw = await fromText(text);
+      } else {
+        // Scanned / image-only PDF — send the document itself down the vision path.
+        try {
+          raw = await callGateway(
+            "This resume is a scanned document. Read it visually and return the JSON.",
+            undefined,
+            [{ mime: "application/pdf", b64: data.base64, name: data.fileName }],
+          );
+        } catch (e) {
+          console.error("[resume] pdf vision failed:", e);
+          if (text.length >= 30) raw = await fromText(text);
+        }
+        if (!raw.trim() && text.length < 30) throw new Error(UNREADABLE);
       }
-      // Cap text to keep token use sane
-      const trimmed = text.slice(0, 18000);
-      raw = await callGateway(`Parse this resume text and return the JSON.\n\n---RESUME TEXT---\n${trimmed}`);
     } else if (isImage) {
       raw = await callGateway("Parse this resume image and return the JSON.", [
         { mime: data.mimeType, b64: data.base64 },
       ]);
+    } else if (isDocx) {
+      let text = "";
+      try {
+        text = (await extractDocxText(data.base64)).trim();
+      } catch (e) {
+        console.error("[resume] docx extract failed:", e);
+      }
+      if (text.length < 30) throw new Error(UNREADABLE);
+      raw = await fromText(text);
+    } else if (isDoc) {
+      throw new Error("Old .doc files aren't supported. Please upload a PDF or DOCX instead.");
     } else {
-
-      throw new Error("Unsupported file. Please upload a PDF or image (JPG/PNG).");
+      throw new Error("Unsupported file. Please upload a PDF, DOCX or image (JPG/PNG).");
     }
+
+    if (!raw.trim()) throw new Error(UNREADABLE);
 
     let parsed: unknown;
     try {
       parsed = JSON.parse(raw);
     } catch {
-      const cleaned = raw.replace(/```json|```/g, "").trim();
-      parsed = JSON.parse(cleaned);
+      try {
+        parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
+      } catch {
+        throw new Error(UNREADABLE);
+      }
     }
 
     const result = ParsedResume.parse(parsed);
@@ -132,7 +176,7 @@ export const parseResume = createServerFn({ method: "POST" })
       (result.education?.length ?? 0) > 0;
 
     if (!hasAnything) {
-      throw new Error("Couldn't find details in this resume. Please try a clearer file or fill the fields manually.");
+      throw new Error(UNREADABLE);
     }
     return result;
   });

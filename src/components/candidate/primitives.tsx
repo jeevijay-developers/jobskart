@@ -1,4 +1,4 @@
-import { X, Plus } from "lucide-react";
+import { X, Plus, Check } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 
@@ -45,11 +45,16 @@ export function ChipInput({
   max?: number;
 }) {
   const [input, setInput] = useState("");
+  const has = (v: string) => values.some((x) => x.toLowerCase() === v.trim().toLowerCase());
   const add = (v: string) => {
-    const t = v.trim();
-    if (!t || values.includes(t) || values.length >= max) return;
+    const t = v.replace(/\s+/g, " ").trim();
+    if (!t || has(t) || values.length >= max) return;
     onChange([...values, t]);
     setInput("");
+  };
+  const toggle = (v: string) => {
+    if (has(v)) onChange(values.filter((x) => x.toLowerCase() !== v.trim().toLowerCase()));
+    else add(v);
   };
   return (
     <div>
@@ -74,16 +79,24 @@ export function ChipInput({
       </div>
       {suggestions.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1.5">
-          {suggestions.filter((s) => !values.includes(s)).slice(0, 10).map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => add(s)}
-              className="inline-flex items-center gap-1 rounded-full border border-border bg-surface px-2.5 py-1 text-xs text-foreground/70 hover:border-primary hover:text-primary"
-            >
-              <Plus className="h-3 w-3" /> {s}
-            </button>
-          ))}
+          {suggestions.slice(0, 15).map((s) => {
+            const on = has(s);
+            return (
+              <button
+                key={s}
+                type="button"
+                aria-pressed={on}
+                onClick={() => toggle(s)}
+                className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition ${
+                  on
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-surface text-foreground/70 hover:border-primary hover:text-primary"
+                }`}
+              >
+                {on ? <Check className="h-3 w-3" strokeWidth={3} /> : <Plus className="h-3 w-3" />} {s}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>

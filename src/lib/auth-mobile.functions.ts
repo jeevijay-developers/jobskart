@@ -1,8 +1,17 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
+/** Accepts 9876543210, +91 98765 43210, 09876543210 … → 9876543210 */
+const to10 = (raw: string) => {
+  const digits = raw.replace(/\D/g, "");
+  return digits.length >= 10 ? digits.slice(-10) : digits;
+};
+
 const inputSchema = z.object({
-  mobile: z.string().regex(/^[6-9]\d{9}$/, "Enter a valid 10-digit Indian mobile number."),
+  mobile: z
+    .string()
+    .transform(to10)
+    .refine((v) => /^[6-9]\d{9}$/.test(v), "Enter a valid 10-digit Indian mobile number."),
   otp: z.string().regex(/^\d{6}$/, "Enter the 6-digit code."),
   userType: z.enum(["candidate", "employer"]),
 });
@@ -31,15 +40,23 @@ export const loginOrCreateWithMobile = createServerFn({ method: "POST" })
     const phoneWithCode = `+91${mobile}`;
     const syntheticEmail = `m${mobile}@jobskart.app`;
 
-    // 1. Look up existing profile (by either stored mobile shape)
+    // 1. Look up existing profile — match on the last 10 digits so numbers stored
+    //    in any legacy shape (+91…, 91…, 0…, bare 10-digit) still resolve.
     const { data: profiles, error: profileErr } = await supabaseAdmin
       .from("profiles")
       .select("id, email, user_type, mobile")
-      .or(`mobile.eq.${phoneWithCode},mobile.eq.${mobile}`)
+      .or(
+        `mobile.eq.${phoneWithCode},mobile.eq.${mobile},mobile.like.%${mobile},mobile.eq.91${mobile},mobile.eq.0${mobile}`,
+      )
       .limit(1);
     if (profileErr) throw new Error(profileErr.message);
 
     let profile = profiles?.[0] ?? null;
+
+    // Backfill the canonical format so future lookups are exact.
+    if (profile && profile.mobile !== phoneWithCode) {
+      await supabaseAdmin.from("profiles").update({ mobile: phoneWithCode }).eq("id", profile.id);
+    }
     let isNew = false;
 
     // If the number is registered under the other role, sign them into their
