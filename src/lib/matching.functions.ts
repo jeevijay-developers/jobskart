@@ -2,6 +2,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { chat } from "@/lib/ai/provider";
+
 
 const Input = z.object({ job_id: z.string().uuid() });
 
