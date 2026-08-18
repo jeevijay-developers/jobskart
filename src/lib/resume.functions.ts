@@ -74,28 +74,15 @@ async function extractPdfText(base64: string): Promise<string> {
   return Array.isArray(text) ? text.join("\n") : String(text ?? "");
 }
 
-async function callGateway(apiKey: string, userContent: unknown) {
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: userContent },
-      ],
-      response_format: { type: "json_object" as const },
-    }),
+async function callGateway(userText: string, images?: { mime: string; b64: string }[]) {
+  return chat({
+    system: SYSTEM_PROMPT,
+    user: userText,
+    images,
+    json: true,
   });
-  if (res.status === 429) throw new Error("Too many requests. Try again in a minute.");
-  if (res.status === 402) throw new Error("AI credits exhausted. Add credits in your workspace.");
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`Resume parse failed (${res.status}). ${text.slice(0, 200)}`);
-  }
-  const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-  return json.choices?.[0]?.message?.content ?? "{}";
 }
+
 
 export const parseResume = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => inputSchema.parse(data))
