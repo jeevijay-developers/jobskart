@@ -2,6 +2,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { chat } from "@/lib/ai/provider";
+
 
 const Input = z.object({ job_id: z.string().uuid() });
 
@@ -55,10 +57,9 @@ export const scoreJobApplicants = createServerFn({ method: "POST" })
       };
     });
 
-    const apiKey = process.env.LOVABLE_API_KEY;
     let scores: Array<{ application_id: string; score: number; reason: string }> = [];
 
-    if (apiKey && rows.length) {
+    if (rows.length) {
       const prompt = `You are a hiring assistant. Score each candidate 0-100 for fit to the role.
 Job: ${job.title}
 Required skills: ${(job.skills || []).join(", ")}
@@ -71,22 +72,12 @@ Candidates:
 ${rows.map((r, i) => `${i + 1}. app_id=${r.application_id} name="${r.full_name}" skills="${(r.skills || []).join(", ")}" yrs=${r.years_experience ?? 0} city="${r.city}" headline="${r.headline}"`).join("\n")}`;
 
       try {
-        const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-          body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
-            messages: [{ role: "user", content: prompt }],
-            response_format: { type: "json_object" },
-          }),
-        });
-        if (res.ok) {
-          const j = await res.json();
-          const parsed = JSON.parse(j.choices?.[0]?.message?.content || "{}");
-          scores = Array.isArray(parsed.scores) ? parsed.scores : [];
-        }
+        const raw = await chat({ user: prompt, json: true });
+        const parsed = JSON.parse((raw || "{}").replace(/```json|```/g, "").trim() || "{}");
+        scores = Array.isArray(parsed.scores) ? parsed.scores : [];
       } catch { /* fall through to heuristic */ }
     }
+
 
     if (!scores.length) {
       // Heuristic fallback

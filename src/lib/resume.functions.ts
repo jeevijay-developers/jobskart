@@ -1,5 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { chat } from "@/lib/ai/provider";
+
 
 const inputSchema = z.object({
   fileName: z.string().min(1),
@@ -74,35 +76,19 @@ async function extractPdfText(base64: string): Promise<string> {
   return Array.isArray(text) ? text.join("\n") : String(text ?? "");
 }
 
-async function callGateway(apiKey: string, userContent: unknown) {
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: userContent },
-      ],
-      response_format: { type: "json_object" as const },
-    }),
+async function callGateway(userText: string, images?: { mime: string; b64: string }[]) {
+  return chat({
+    system: SYSTEM_PROMPT,
+    user: userText,
+    images,
+    json: true,
   });
-  if (res.status === 429) throw new Error("Too many requests. Try again in a minute.");
-  if (res.status === 402) throw new Error("AI credits exhausted. Add credits in your workspace.");
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`Resume parse failed (${res.status}). ${text.slice(0, 200)}`);
-  }
-  const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-  return json.choices?.[0]?.message?.content ?? "{}";
 }
+
 
 export const parseResume = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => inputSchema.parse(data))
   .handler(async ({ data }) => {
-    const apiKey = process.env.LOVABLE_API_KEY;
-    if (!apiKey) throw new Error("AI not configured.");
-
     const isPdf = data.mimeType === "application/pdf" || data.fileName.toLowerCase().endsWith(".pdf");
     const isImage = data.mimeType.startsWith("image/");
 
@@ -120,14 +106,13 @@ export const parseResume = createServerFn({ method: "POST" })
       }
       // Cap text to keep token use sane
       const trimmed = text.slice(0, 18000);
-      raw = await callGateway(apiKey, `Parse this resume text and return the JSON.\n\n---RESUME TEXT---\n${trimmed}`);
+      raw = await callGateway(`Parse this resume text and return the JSON.\n\n---RESUME TEXT---\n${trimmed}`);
     } else if (isImage) {
-      const dataUrl = `data:${data.mimeType};base64,${data.base64}`;
-      raw = await callGateway(apiKey, [
-        { type: "text", text: "Parse this resume image and return the JSON." },
-        { type: "image_url", image_url: { url: dataUrl } },
+      raw = await callGateway("Parse this resume image and return the JSON.", [
+        { mime: data.mimeType, b64: data.base64 },
       ]);
     } else {
+
       throw new Error("Unsupported file. Please upload a PDF or image (JPG/PNG).");
     }
 

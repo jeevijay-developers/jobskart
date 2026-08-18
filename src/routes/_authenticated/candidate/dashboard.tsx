@@ -503,7 +503,8 @@ function QuickActions({ hasResume, strength }: { hasResume: boolean; strength: n
     {
       icon: Upload,
       label: hasResume ? "Update resume" : "Upload resume",
-      to: "/candidate/profile?section=resume" as const,
+      to: "/candidate/profile" as const,
+      search: { section: "resume" },
       show: true,
       accent: !hasResume,
     },
@@ -514,9 +515,22 @@ function QuickActions({ hasResume, strength }: { hasResume: boolean; strength: n
       show: strength < 80,
       accent: strength < 60,
     },
-    { icon: GraduationCap, label: "Education", to: "/candidate/profile?section=education" as const, show: true },
+    {
+      icon: GraduationCap,
+      label: "Education",
+      to: "/candidate/profile" as const,
+      search: { section: "education" },
+      show: true,
+    },
     { icon: Bookmark, label: "Saved jobs", to: "/candidate/saved" as const, show: true },
-  ].filter((a) => a.show);
+  ].filter((a) => a.show) as Array<{
+    icon: typeof Search;
+    label: string;
+    to: "/jobs" | "/candidate/profile" | "/candidate/saved";
+    search?: Record<string, string>;
+    show: boolean;
+    accent?: boolean;
+  }>;
 
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
@@ -524,6 +538,8 @@ function QuickActions({ hasResume, strength }: { hasResume: boolean; strength: n
         <Link
           key={a.label}
           to={a.to}
+          search={a.search as never}
+
           className={`group flex items-center gap-3 rounded-2xl border p-4 shadow-[var(--shadow-card)] transition-all hover:-translate-y-0.5 ${
             a.accent
               ? "border-primary/40 bg-primary text-primary-foreground hover:bg-primary-dark"
