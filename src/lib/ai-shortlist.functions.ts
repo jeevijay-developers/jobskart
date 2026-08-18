@@ -89,9 +89,6 @@ export const recommendShortlist = createServerFn({ method: "POST" })
         };
       });
 
-      const apiKey = process.env.LOVABLE_API_KEY;
-      if (!apiKey) throw new Error("AI not configured.");
-
       const prompt = `Score each candidate 0-100 against this job. Return strict JSON only:
 {"results":[{"application_id":"...","score":85,"reasons":["..."],"summary":"one line"}]}
 
@@ -108,26 +105,14 @@ ${JSON.stringify(items)}
 Scoring: skill overlap 50%, experience fit 25%, role/title relevance 15%, location 10%.
 Give 2-4 short bullet reasons each. Be honest — low scores when off-target.`;
 
-      const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages: [
-            { role: "system", content: "You rank job candidates. Output only valid JSON." },
-            { role: "user", content: prompt },
-          ],
-          response_format: { type: "json_object" },
-        }),
+      const raw = await chat({
+        system: "You rank job candidates. Output only valid JSON.",
+        user: prompt,
+        json: true,
       });
-      if (res.status === 429) throw new Error("Too many AI requests. Try again in a minute.");
-      if (res.status === 402) throw new Error("AI credits exhausted.");
-      if (!res.ok) throw new Error(`AI scoring failed (${res.status})`);
-
-      const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-      const raw = json.choices?.[0]?.message?.content ?? "{}";
       let parsed: { results?: Array<{ application_id: string; score: number; reasons?: string[]; summary?: string }> };
-      try { parsed = JSON.parse(raw); } catch { parsed = JSON.parse(raw.replace(/```json|```/g, "").trim()); }
+      try { parsed = JSON.parse(raw || "{}"); } catch { parsed = JSON.parse(raw.replace(/```json|```/g, "").trim() || "{}"); }
+
 
       const upserts = (parsed.results || [])
         .filter((r) => r && r.application_id && needScoring.find((a) => a.id === r.application_id))
