@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { chatJSON } from "@/lib/ai/provider";
 
 export const searchJobTitles = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -43,29 +44,76 @@ export const suggestSkills = createServerFn({ method: "POST" })
       })
       .parse(data),
   )
-  .handler(async ({ data }) => {
-    const roleSkills: Record<string, string[]> = {
-      sales: ["Sales", "Customer Service", "Negotiation", "MS Office", "Communication"],
-      tele: ["Telecalling", "Customer Service", "CRM", "Hindi", "English"],
-      delivery: ["Driving", "Bike Riding", "Navigation", "Customer Service", "Time Management"],
-      driver: ["Driving", "Navigation", "Vehicle Maintenance"],
-      cashier: ["Cash Handling", "POS", "Customer Service", "Accuracy"],
-      data: ["Data Entry", "MS Excel", "Typing", "Attention to Detail"],
-      account: ["Tally", "MS Excel", "GST", "Book Keeping"],
-      it: ["Git", "JavaScript", "REST APIs", "SQL", "Problem Solving"],
-      design: ["Figma", "Adobe Photoshop", "Typography", "Creativity"],
-      hr: ["Recruitment", "MS Office", "Communication", "Employee Engagement"],
-      market: ["SEO", "Social Media", "Content Writing", "Google Ads"],
+  .handler(async ({ data, context }) => {
+    const roles = data.roles.map((r) => r.trim()).filter(Boolean);
+    const out: string[] = [];
+    const seen = new Set<string>();
+    const push = (name: string) => {
+      const clean = name.replace(/\s+/g, " ").trim();
+      if (!clean || clean.length > 40) return;
+      const key = clean.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      out.push(clean);
     };
-    const skills = new Set<string>();
-    for (const r of data.roles) {
-      const k = r.toLowerCase();
-      for (const [key, arr] of Object.entries(roleSkills)) {
-        if (k.includes(key)) arr.forEach((s) => skills.add(s));
+
+    // 1. Real usage: skills employers ask for on jobs matching these roles.
+    if (roles.length) {
+      const { data: ranked } = await context.supabase.rpc("suggest_skills_for_roles", {
+        _roles: roles,
+      });
+      for (const row of (ranked ?? []) as { name: string }[]) push(row.name);
+    }
+
+    // 2. Top up from the approved master list.
+    if (out.length < 12) {
+      const { data: master } = await context.supabase
+        .from("skills_master")
+        .select("name")
+        .eq("is_active", true)
+        .eq("pending_review", false)
+        .order("name")
+        .limit(60);
+      for (const row of master ?? []) {
+        if (out.length >= 12) break;
+        push(row.name);
       }
     }
-    if (!skills.size) ["Communication", "MS Office", "Hindi", "English"].forEach((s) => skills.add(s));
-    return Array.from(skills).slice(0, 12);
+
+    // 3. Still thin (new/niche role) → ask AI, then queue the new ones for admin review.
+    if (out.length < 8 && roles.length) {
+      try {
+        const ai = await chatJSON(
+          {
+            system:
+              "You suggest job skills for Indian job seekers. Reply with ONLY JSON: {\"skills\": string[]}. 10 short, concrete, widely-understood skill names. No sentences.",
+            user: `Roles: ${roles.join(", ")}${data.qualification ? `\nQualification: ${data.qualification}` : ""}`,
+            json: true,
+          },
+          z.object({ skills: z.array(z.string()).max(20) }),
+        );
+        const before = new Set(seen);
+        for (const s of ai.skills) push(s);
+        const fresh = out.filter((s) => !before.has(s.toLowerCase()));
+        if (fresh.length) {
+          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          await supabaseAdmin.from("skills_master").upsert(
+            fresh.map((name) => ({
+              name,
+              slug: name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
+              is_active: true,
+              pending_review: true,
+            })),
+            { onConflict: "slug", ignoreDuplicates: true },
+          );
+        }
+      } catch (e) {
+        console.error("[skills] ai suggestion failed:", e);
+      }
+    }
+
+    if (!out.length) ["Communication", "MS Office", "Hindi", "English"].forEach(push);
+    return out.slice(0, 15);
   });
 
 export const upsertNudgeShown = createServerFn({ method: "POST" })
