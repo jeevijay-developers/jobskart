@@ -705,21 +705,6 @@ Card Radius: 12px
 Button Radius: 8px
 Card Shadow: 0 2px 12px rgba(26,85,189,0.08)
 
-
-i have given uploaded logo , and UI style how we want ,
-
-This project was built with [Lovable](https://lovable.dev).
-
-**Live app**: https://indiadrive-jobs.lovable.app
-
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/4918a9cc-ca1a-49ed-a4fd-4653942fa301).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
-
 ## Development
 
 Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
