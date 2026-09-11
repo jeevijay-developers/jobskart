@@ -26,6 +26,7 @@ import {
   type EmployerMembership,
 } from "@/lib/employer";
 import { formatDistanceToNow } from "date-fns";
+import { useBackToHome } from "@/hooks/use-back-to-home";
 
 export const Route = createFileRoute("/_authenticated/employer/dashboard")({
   head: () => ({ meta: [{ title: "Employer Dashboard · JobsKart" }] }),
@@ -73,6 +74,7 @@ const FUNNEL = [
 
 function EmployerDashboard() {
   const navigate = useNavigate();
+  useBackToHome();
   const [companies, setCompanies] = useState<EmployerMembership[]>([]);
   const [active, setActive] = useState<EmployerMembership | null>(null);
   const [loading, setLoading] = useState(true);

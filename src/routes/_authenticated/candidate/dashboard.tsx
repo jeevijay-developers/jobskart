@@ -27,6 +27,7 @@ import { JobCard, type JobCardData } from "@/components/site/JobCard";
 import { supabase } from "@/integrations/supabase/client";
 import { strengthLabel, computeBadge } from "@/lib/profileStrength";
 import { upsertNudgeShown } from "@/lib/candidate.functions";
+import { useBackToHome } from "@/hooks/use-back-to-home";
 
 export const Route = createFileRoute("/_authenticated/candidate/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard · JobsKart" }] }),
@@ -58,6 +59,7 @@ const isRecent = (iso: string) =>
 
 function CandidateDashboard() {
   const navigate = useNavigate();
+  useBackToHome();
   const [name, setName] = useState("");
   const [city, setCity] = useState("");
   const [strength, setStrength] = useState(0);

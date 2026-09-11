@@ -1,5 +1,5 @@
 import { Facebook, Instagram, Linkedin, Twitter, Youtube } from "lucide-react";
-import logoAsset from "@/assets/jobskart-logo.png.asset.json";
+import logoAsset from "@/assets/jobskart-logo.png";
 
 
 const cols = [
@@ -24,7 +24,7 @@ export function Footer() {
         <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-5">
           <div className="lg:col-span-2">
             <div className="inline-flex items-center rounded-xl bg-white px-3 py-2">
-              <img src={logoAsset.url} alt="JobsKart" className="h-7 w-auto" />
+              <img src={logoAsset} alt="JobsKart" className="h-7 w-auto" />
             </div>
 
             <p className="mt-4 max-w-sm text-sm text-white/70">

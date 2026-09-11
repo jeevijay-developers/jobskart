@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { CheckCircle2 } from "lucide-react";
-import logoAsset from "@/assets/jobskart-logo.png.asset.json";
+import logoAsset from "@/assets/jobskart-logo.png";
 
 interface Props {
   children: ReactNode;
@@ -49,7 +49,7 @@ export function AuthShell({ children, side = "candidate" }: Props) {
         />
 
         <Link to="/" className="relative inline-flex items-center gap-2">
-          <img src={logoAsset.url} alt="JobsKart" className="h-9 w-auto" />
+          <img src={logoAsset} alt="JobsKart" className="h-9 w-auto" />
         </Link>
 
         <div className="relative mt-auto">
@@ -74,7 +74,7 @@ export function AuthShell({ children, side = "candidate" }: Props) {
       <main className="flex flex-col">
         <div className="flex items-center justify-between border-b border-border bg-background px-6 py-4 lg:hidden">
           <Link to="/" className="inline-flex items-center gap-2">
-            <img src={logoAsset.url} alt="JobsKart" className="h-7 w-auto" />
+            <img src={logoAsset} alt="JobsKart" className="h-7 w-auto" />
           </Link>
           <Link to="/" className="text-sm font-medium text-muted-foreground hover:text-foreground">
             ← Home

@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, Briefcase, Loader2, ShieldCheck, Target } from "lucide-react";
 import { type ReactNode, useEffect, useRef } from "react";
-import logoAsset from "@/assets/jobskart-logo.png.asset.json";
+import logoAsset from "@/assets/jobskart-logo.png";
 import { Link } from "@tanstack/react-router";
 
 export type WizardStep = {
@@ -87,7 +87,7 @@ export function Questionnaire({
       {/* Brand panel */}
       <aside className="relative hidden overflow-hidden bg-gradient-to-br from-primary via-primary to-primary-dark p-10 text-primary-foreground lg:flex lg:flex-col lg:justify-between">
         <Link to="/" className="inline-flex items-center gap-2 w-fit">
-          <img src={logoAsset.url} alt="JobsKart" className="h-9 w-auto brightness-0 invert" />
+          <img src={logoAsset} alt="JobsKart" className="h-9 w-auto brightness-0 invert" />
         </Link>
 
         <div className="relative z-10 max-w-md">
@@ -136,7 +136,7 @@ export function Questionnaire({
       <main className="flex flex-col bg-background">
         <div className="flex items-center justify-between border-b border-border px-6 py-4 lg:px-10">
           <Link to="/" className="flex items-center gap-2 lg:hidden">
-            <img src={logoAsset.url} alt="JobsKart" className="h-7 w-auto" />
+            <img src={logoAsset} alt="JobsKart" className="h-7 w-auto" />
           </Link>
           <div className="hidden text-sm text-muted-foreground lg:block">
             Step <span className="font-semibold text-foreground">{index + 1}</span> of {total}

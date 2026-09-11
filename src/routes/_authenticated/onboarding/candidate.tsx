@@ -189,6 +189,18 @@ function OnboardingPage() {
     return [...STEPS];
   }, [expStatus]);
 
+  // Work status gates which experience entries make sense; switching it must
+  // wipe only that dependent data, not the rest of the wizard's answers.
+  const handleExpStatusChange = (next: typeof expStatus) => {
+    if (next === expStatus) return;
+    setExpStatus(next);
+    setExperiences([]);
+    if (uid) {
+      supabase.from("candidate_experiences").delete().eq("user_id", uid)
+        .then(({ error }) => { if (error) console.warn("Clear experience:", error.message); });
+    }
+  };
+
   const currentLabel: StepLabel = visibleSteps.includes(stepKey) ? stepKey : "Work status";
   const step = Math.max(0, visibleSteps.indexOf(currentLabel));
   const goToIndex = (i: number) => {
@@ -329,6 +341,7 @@ function OnboardingPage() {
     if (currentLabel === "Work status") {
       if (expStatus === "experienced" && (!years || years < 0)) return "Enter your total years of experience.";
       if (interestedRoles.length === 0) return "Add at least one interested job role.";
+      if (skills.length === 0) return "Add at least one skill.";
     }
     if (currentLabel === "Experience") {
       if (expStatus === "experienced" && experiences.length === 0) return "Add at least one work experience.";
@@ -344,9 +357,6 @@ function OnboardingPage() {
     if (currentLabel === "Education") {
       const q = qualificationSchema.safeParse(highestQualification);
       if (!q.success) return "Please select your highest qualification.";
-    }
-    if (currentLabel === "Skills & languages") {
-      if (skills.length === 0) return "Add at least one skill.";
     }
     if (currentLabel === "Preferences") {
       if (expStatus === "student") {
@@ -412,7 +422,7 @@ function OnboardingPage() {
               className="sticky top-24 overflow-hidden rounded-3xl p-6 text-white shadow-[0_20px_60px_-20px_rgba(15,27,61,0.4)]"
               style={{
                 background:
-                  "radial-gradient(circle at 10% 10%, hsl(var(--primary) / 0.35), transparent 55%), linear-gradient(135deg,#0f1b3d 0%,#1e3a5f 100%)",
+                  "radial-gradient(circle at 10% 10%, color-mix(in oklab, var(--primary) 35%, transparent), transparent 55%), linear-gradient(135deg,#0f1b3d 0%,#1e3a5f 100%)",
               }}
             >
               <p className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white ring-1 ring-white/20">
@@ -469,7 +479,7 @@ function OnboardingPage() {
               className="mb-6 overflow-hidden rounded-3xl p-5 text-white shadow-[0_20px_60px_-20px_rgba(15,27,61,0.4)] sm:p-6 lg:hidden"
               style={{
                 background:
-                  "radial-gradient(circle at 10% 10%, hsl(var(--primary) / 0.35), transparent 55%), linear-gradient(135deg,#0f1b3d 0%,#1e3a5f 100%)",
+                  "radial-gradient(circle at 10% 10%, color-mix(in oklab, var(--primary) 35%, transparent), transparent 55%), linear-gradient(135deg,#0f1b3d 0%,#1e3a5f 100%)",
               }}
             >
               <div className="flex items-start justify-between gap-4">
@@ -585,7 +595,7 @@ function OnboardingPage() {
                 </Field>
                 <Field label="Headline" hint="One-line summary — keep it short and specific">
                   <input className="form-input" value={headline} maxLength={200} onChange={(e) => setHeadline(e.target.value.slice(0, 200))} placeholder="e.g. Sales Executive with 2 years exp" />
-                  <span className={`mt-1 block text-right text-xs tabular-nums ${headline.length >= 200 ? "text-destructive" : "text-muted-foreground"}`}>
+                  <span className={`mt-1 block text-right text-xs tabular-nums ${headline.length >= 200 ? "text-destructive" : headline.length >= 180 ? "text-amber-600" : "text-muted-foreground"}`}>
                     {headline.length}/200
                   </span>
                 </Field>
@@ -611,7 +621,7 @@ function OnboardingPage() {
           <SectionCard title="Your work status">
             <div className="grid gap-3 sm:grid-cols-3">
               {(["fresher", "experienced", "student"] as const).map((s) => (
-                <button key={s} type="button" onClick={() => setExpStatus(s)}
+                <button key={s} type="button" onClick={() => handleExpStatusChange(s)}
                   className={`rounded-xl border p-4 text-left transition ${expStatus === s ? "border-primary bg-primary-light" : "border-border bg-card hover:border-primary/40"}`}>
                   <p className="font-semibold capitalize text-foreground">{s}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
@@ -634,7 +644,20 @@ function OnboardingPage() {
               <Field label="Interested job roles" required hint="Pick as many as you like — we match jobs to all of them">
                 <ChipInput values={interestedRoles} onChange={setInterestedRoles} placeholder="e.g. Sales Executive" suggestions={["Sales Executive","Telecaller","Customer Support Executive","Delivery Executive","Data Entry Operator","Receptionist","Office Assistant","Beautician","Driver","Cashier"]} />
               </Field>
-              <p className="mt-2 text-xs text-muted-foreground">We&apos;ll suggest skills based on these in the next steps.</p>
+            </div>
+            <div className="mt-4">
+              <Field label="Skills" required hint="Tap a suggestion to add it, or type your own and press Enter">
+                <ChipInput values={skills} onChange={setSkills} max={25} suggestions={aiSkills.length ? aiSkills : ["Communication","MS Office","Customer Service","Sales","Hindi","English"]} placeholder="Add a skill" />
+              </Field>
+              <p className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                <Sparkles className="h-3 w-3 text-primary" />
+                {aiSkills.length > 0
+                  ? `Suggestions based on employers hiring for ${interestedRoles.slice(0, 2).join(", ") || "your roles"} — tap to add or remove.`
+                  : "Suggestions appear once you add a role above."}
+              </p>
+              <p className="mt-1 text-xs font-semibold text-foreground">
+                Selected: <span className="tabular-nums">{skills.length}</span>/25
+              </p>
             </div>
           </SectionCard>
         )}
@@ -710,17 +733,20 @@ function OnboardingPage() {
 
         {currentLabel === "Skills & languages" && (
           <div className="space-y-6">
-            <SectionCard title="Skills">
-              <ChipInput values={skills} onChange={setSkills} max={25} suggestions={aiSkills.length ? aiSkills : ["Communication","MS Office","Customer Service","Sales","Hindi","English"]} placeholder="Add a skill" />
-              <p className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground">
-                <Sparkles className="h-3 w-3 text-primary" />
-                {aiSkills.length > 0
-                  ? `Suggestions based on employers hiring for ${interestedRoles.slice(0, 2).join(", ") || "your roles"} — tap to add or remove.`
-                  : "Tap a suggestion to add it, or type your own and press Enter."}
-              </p>
-              <p className="mt-3 text-xs font-semibold text-foreground">
-                Selected: <span className="tabular-nums">{skills.length}</span>/25
-              </p>
+            <SectionCard title="Skills" action={
+              <button type="button" onClick={() => setStepKey("Work status")} className="text-xs font-semibold text-primary hover:underline">
+                Edit
+              </button>
+            }>
+              {skills.length ? (
+                <div className="flex flex-wrap gap-2">
+                  {skills.map((s) => (
+                    <span key={s} className="rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium text-foreground/80">{s}</span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No skills added yet — use Edit to add some.</p>
+              )}
             </SectionCard>
             <SectionCard title="Languages you know" action={
               <button type="button" onClick={() => setLanguages([...languages, { language: "", proficiency: "conversational", can_read: true, can_write: true }])}

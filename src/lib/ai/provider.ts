@@ -22,7 +22,7 @@ const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 function cfg() {
   return {
     provider: process.env.AI_PROVIDER ?? "lovable",
-    model: process.env.AI_MODEL ?? "google/gemini-2.5-flash",
+    model: process.env.AI_MODEL ?? "google/gemini-3.6-flash",
   };
 }
 

@@ -1,21 +1,28 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { LogOut, Menu, User, X } from "lucide-react";
+import { createPortal } from "react-dom";
+import { Bell, Bookmark, FolderOpen, LogOut, Menu, Settings, User, X, Zap } from "lucide-react";
 import { toast } from "sonner";
-import logoAsset from "@/assets/jobskart-logo.png.asset.json";
+import logoAsset from "@/assets/jobskart-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
 import { signOut } from "@/lib/auth";
 
-const navLinks = [
-  { label: "Jobs", to: "/jobs" },
-  { label: "For Employers", to: "/auth?tab=employer" },
-  { label: "Candidates", to: "/auth?tab=candidate" },
-];
+// CandidateShell's bottom tab bar only surfaces Dashboard / Browse jobs /
+// Applications / Interviews / Profile on mobile — these are reachable on
+// desktop via the candidate sidebar but have no mobile entry point otherwise.
+const candidateMenuLinks = [
+  { to: "/candidate/saved", label: "Saved jobs", icon: Bookmark },
+  { to: "/candidate/alerts", label: "Job alerts", icon: Zap },
+  { to: "/candidate/notifications", label: "Notifications", icon: Bell },
+  { to: "/candidate/documents", label: "Documents", icon: FolderOpen },
+  { to: "/candidate/settings", label: "Settings", icon: Settings },
+] as const;
 
 export function Navbar() {
   const [open, setOpen] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
+  const [isEmployer, setIsEmployer] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -23,6 +30,18 @@ export function Navbar() {
     const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
     return () => data.subscription.unsubscribe();
   }, []);
+
+  // Same employer-membership check auth.tsx uses to route a logged-in user after login.
+  useEffect(() => {
+    const uid = session?.user.id;
+    if (!uid) return setIsEmployer(false);
+    let cancelled = false;
+    supabase.from("employer_members").select("company_id").eq("user_id", uid).limit(1)
+      .then(({ data: rows }) => { if (!cancelled) setIsEmployer(!!rows?.length); });
+    return () => { cancelled = true; };
+  }, [session]);
+
+  const dashboardPath = isEmployer ? "/employer/dashboard" : "/candidate/dashboard";
 
   const handleSignOut = async () => {
     try {
@@ -37,27 +56,15 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <Link to="/" className="flex items-center gap-2">
-          <img src={logoAsset.url} alt="JobsKart" className="h-8 w-auto" />
+        <Link to={session ? dashboardPath : "/"} className="flex items-center gap-2">
+          <img src={logoAsset} alt="JobsKart" className="h-8 w-auto" />
         </Link>
-
-        <nav className="hidden items-center gap-8 lg:flex">
-          {navLinks.map((l) => (
-            <Link
-              key={l.label}
-              to={l.to}
-              className="text-sm font-medium text-foreground/80 transition-colors hover:text-primary"
-            >
-              {l.label}
-            </Link>
-          ))}
-        </nav>
 
         <div className="hidden items-center gap-3 lg:flex">
           {session ? (
             <>
               <Link
-                to="/auth"
+                to={dashboardPath}
                 className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-semibold text-foreground hover:bg-surface"
               >
                 <User className="h-4 w-4" /> My Account
@@ -98,12 +105,12 @@ export function Navbar() {
         </button>
       </div>
 
-      {open && (
+      {open && createPortal(
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-foreground/40" onClick={() => setOpen(false)} />
           <div className="absolute right-0 top-0 flex h-full w-80 max-w-[85vw] flex-col bg-background p-6 shadow-2xl">
             <div className="flex items-center justify-between">
-              <img src={logoAsset.url} alt="JobsKart" className="h-7 w-auto" />
+              <img src={logoAsset} alt="JobsKart" className="h-7 w-auto" />
               <button
                 aria-label="Close menu"
                 onClick={() => setOpen(false)}
@@ -112,18 +119,20 @@ export function Navbar() {
                 <X className="h-6 w-6" />
               </button>
             </div>
-            <nav className="mt-8 flex flex-col gap-1">
-              {navLinks.map((l) => (
-                <Link
-                  key={l.label}
-                  to={l.to}
-                  onClick={() => setOpen(false)}
-                  className="rounded-lg px-3 py-3 text-base font-medium text-foreground hover:bg-surface"
-                >
-                  {l.label}
-                </Link>
-              ))}
-            </nav>
+            {session && !isEmployer && (
+              <nav className="mt-8 flex flex-col gap-1">
+                {candidateMenuLinks.map((l) => (
+                  <Link
+                    key={l.to}
+                    to={l.to}
+                    onClick={() => setOpen(false)}
+                    className="flex items-center gap-2 rounded-lg px-3 py-3 text-base font-medium text-foreground hover:bg-surface"
+                  >
+                    <l.icon className="h-4 w-4" /> {l.label}
+                  </Link>
+                ))}
+              </nav>
+            )}
             <div className="mt-auto flex flex-col gap-3 pt-6">
               {session ? (
                 <button
@@ -154,7 +163,8 @@ export function Navbar() {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </header>
   );

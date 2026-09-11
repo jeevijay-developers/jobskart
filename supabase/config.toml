@@ -1,1 +1,41 @@
-project_id = "mvdruwccuppcqgmyjtxa"
+project_id = "swdntxurukbkyksuyzhg"
+
+[storage]
+enabled = true
+
+# Grounded in src/lib/validators.ts: RESUME_MIME + RESUME_MAX_BYTES (5 * 1024 * 1024).
+[storage.buckets.candidate-docs]
+public = false
+file_size_limit = "5MiB"
+allowed_mime_types = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "image/png",
+  "image/jpeg",
+]
+
+# MIME type grounded in accept="image/*" (onboarding/employer.tsx, employer/company.tsx).
+# No client-side size check exists anywhere for this bucket — 2MiB below is a suggested
+# default, not something found in code. Adjust freely.
+[storage.buckets.company-logos]
+public = false
+file_size_limit = "2MiB"
+allowed_mime_types = ["image/*"]
+
+# MIME types are the union of the two upload surfaces, which don't agree with each other:
+# employer/company.tsx uses accept=".pdf,.jpg,.png", employer/verification.tsx uses
+# accept="application/pdf,image/*" (broader). No size check exists in either — 10MiB below
+# is a suggested default for KYC/GST document scans, not something found in code.
+[storage.buckets.company-docs]
+public = false
+file_size_limit = "10MiB"
+allowed_mime_types = ["application/pdf", "image/*"]
+
+# No upload UI references this bucket anywhere in src/ yet (RLS-only, from migration
+# 20260617120736). Both MIME type and size below are inferred by analogy to
+# company-logos, not grounded in any existing avatar-upload code — there isn't any.
+[storage.buckets.avatars]
+public = true
+file_size_limit = "2MiB"
+allowed_mime_types = ["image/*"]
