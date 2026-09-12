@@ -35,6 +35,8 @@ import { ApplyDialog } from "@/components/candidate/ApplyDialog";
 import { ReportJobDialog } from "@/components/candidate/ReportJobDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { formatExperience, formatSalary, jobTypeLabel, timeAgo, workModeLabel } from "@/lib/format";
+import { rankSimilarJobs, type RankableJob } from "@/lib/similarJobs";
+import { getSeenJobIds, markJobSeen } from "@/lib/seenJobs";
 
 export const Route = createFileRoute("/jobs/$jobId")({
   head: () => ({ meta: [{ title: "Job · JobsKart" }] }),
@@ -129,35 +131,44 @@ function JobDetailPage() {
       if (typeof document !== "undefined") {
         document.title = `${jobData.title} · ${jobData.companies?.name || "JobsKart"}`;
       }
+      markJobSeen(jobData.id);
 
-      const [{ count }, { data: sess }, { data: sim }] = await Promise.all([
+      const [{ count }, { data: sess }, { data: pool }] = await Promise.all([
         supabase.from("applications").select("id", { count: "exact", head: true }).eq("job_id", jobId),
         supabase.auth.getSession(),
+        // Bounded pool, ranked client-side by src/lib/similarJobs — same
+        // fetch-a-pool-then-rank shape as the dashboard's recommended jobs.
         supabase
           .from("jobs")
           .select(
-            "id, title, city, state, locality, min_salary, max_salary, salary_period, job_type, work_mode, min_experience_years, max_experience_years, education, skills, created_at, companies (name, is_verified)",
+            "id, title, city, state, locality, min_salary, max_salary, salary_period, job_type, work_mode, min_experience_years, max_experience_years, education, skills, category, applications_count, created_at, companies (name, is_verified)",
           )
           .eq("status", "active")
           .neq("id", jobId)
-          .eq(jobData.category ? "category" : "job_type", jobData.category || jobData.job_type)
-          .limit(4),
+          .order("created_at", { ascending: false })
+          .limit(60),
       ]);
       if (cancelled) return;
       setApplicantCount(count || 0);
-      setSimilar((sim || []) as unknown as JobCardData[]);
 
       const uid = sess.session?.user.id ?? null;
       setUserId(uid);
+
+      const excludeIds = getSeenJobIds();
       if (uid) {
-        const [{ data: app }, { data: sav }] = await Promise.all([
+        const [{ data: app }, { data: sav }, { data: appliedJobs }] = await Promise.all([
           supabase.from("applications").select("id").eq("job_id", jobId).eq("candidate_id", uid).maybeSingle(),
           supabase.from("saved_jobs").select("id").eq("job_id", jobId).eq("user_id", uid).maybeSingle(),
+          supabase.from("applications").select("job_id").eq("candidate_id", uid),
         ]);
         if (cancelled) return;
         setApplied(!!app);
         setSaved(!!sav);
+        (appliedJobs || []).forEach((a) => excludeIds.add(a.job_id));
       }
+
+      const ranked = rankSimilarJobs((pool || []) as unknown as RankableJob[], jobData, excludeIds, 4);
+      setSimilar(ranked as unknown as JobCardData[]);
       setLoading(false);
     })();
     return () => {

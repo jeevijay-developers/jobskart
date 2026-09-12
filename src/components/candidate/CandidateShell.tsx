@@ -57,24 +57,34 @@ export function CandidateShell({ title, subtitle, children, actions }: { title: 
         </main>
       </div>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-5 border-t border-border bg-card/95 backdrop-blur lg:hidden">
-        {mobileItems.map((item) => {
-          const active = pathname === item.to || pathname.startsWith(item.to + "/");
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.to}
-              to={item.to}
-              className={`flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors ${
-                active ? "text-primary" : "text-muted-foreground"
-              }`}
-            >
-              <Icon className="h-5 w-5" />
-              {item.label.split(" ")[0]}
-            </Link>
-          );
-        })}
-      </nav>
+      <CandidateMobileTabBar />
     </div>
+  );
+}
+
+// Standalone so pages outside CandidateShell (e.g. the public /jobs route,
+// which candidates reach via this same tab bar's "Browse" tab) can render the
+// same persistent bottom nav instead of losing it when they navigate there.
+export function CandidateMobileTabBar() {
+  const { pathname } = useLocation();
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-5 border-t border-border bg-card/95 backdrop-blur lg:hidden">
+      {mobileItems.map((item) => {
+        const active = pathname === item.to || pathname.startsWith(item.to + "/");
+        const Icon = item.icon;
+        return (
+          <Link
+            key={item.to}
+            to={item.to}
+            className={`flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors ${
+              active ? "text-primary" : "text-muted-foreground"
+            }`}
+          >
+            <Icon className="h-5 w-5" />
+            {item.label.split(" ")[0]}
+          </Link>
+        );
+      })}
+    </nav>
   );
 }

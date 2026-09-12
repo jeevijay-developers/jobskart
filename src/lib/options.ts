@@ -35,6 +35,7 @@ export const WORK_MODES = [
   { id: "onsite", label: "On-site" },
   { id: "hybrid", label: "Hybrid" },
   { id: "remote", label: "Remote" },
+  { id: "field", label: "Field job" },
 ];
 
 export const EDUCATION_LEVELS = ["10th","12th","Diploma","ITI","Graduate","Post-graduate","Doctorate"];

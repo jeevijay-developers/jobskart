@@ -1,15 +1,32 @@
-import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useLocation, useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Briefcase, ChevronLeft, ChevronRight, Filter, Loader2, Search, X } from "lucide-react";
+import { Briefcase, Filter, Loader2, Search, X } from "lucide-react";
+import type { Session } from "@supabase/supabase-js";
 import { z } from "zod";
 import { Navbar } from "@/components/site/Navbar";
-import { Footer } from "@/components/site/Footer";
+import { Pagination } from "@/components/site/Pagination";
 import { JobCard, type JobCardData } from "@/components/site/JobCard";
+import { CandidateMobileTabBar } from "@/components/candidate/CandidateShell";
 import { supabase } from "@/integrations/supabase/client";
+import { JOB_CATEGORIES, JOB_TYPE_OPTIONS, WORK_MODES, EDUCATION_LEVELS, SHIFTS, ENGLISH_LEVELS } from "@/lib/options";
 
 const PAGE_SIZE = 20;
 const SORT_OPTIONS = ["newest", "oldest", "salary_high", "salary_low"] as const;
 type SortKey = (typeof SORT_OPTIONS)[number];
+
+const DATE_POSTED_OPTIONS = [
+  { id: "24h", label: "Last 24 hours" },
+  { id: "3d", label: "Last 3 days" },
+  { id: "7d", label: "Last 7 days" },
+  { id: "30d", label: "Last 30 days" },
+] as const;
+
+const DATE_POSTED_HOURS: Record<string, number> = { "24h": 24, "3d": 72, "7d": 168, "30d": 720 };
+function datePostedCutoffIso(key: string): string | null {
+  const hours = DATE_POSTED_HOURS[key];
+  if (!hours) return null;
+  return new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+}
 
 const jobsSearchSchema = z.object({
   q: z.string().optional(),
@@ -18,6 +35,16 @@ const jobsSearchSchema = z.object({
   jobType: z.string().optional(),
   workMode: z.string().optional(),
   minSalary: z.string().optional(),
+  maxSalary: z.string().optional(),
+  minExp: z.string().optional(),
+  maxExp: z.string().optional(),
+  datePosted: z.string().optional(),
+  education: z.string().optional(),
+  shift: z.string().optional(),
+  englishLevel: z.string().optional(),
+  company: z.string().optional(),
+  vehicle: z.string().optional(),
+  verifiedOnly: z.string().optional(),
   sort: z.enum(SORT_OPTIONS).optional(),
   page: z.coerce.number().int().min(1).optional(),
 });
@@ -44,9 +71,23 @@ type Filters = {
   jobType: string;
   workMode: string;
   minSalary: string;
+  maxSalary: string;
+  minExp: string;
+  maxExp: string;
+  datePosted: string;
+  education: string;
+  shift: string;
+  englishLevel: string;
+  company: string;
+  vehicle: string;
+  verifiedOnly: string;
 };
 
-const empty: Filters = { q: "", city: "", category: "", jobType: "", workMode: "", minSalary: "" };
+const empty: Filters = {
+  q: "", city: "", category: "", jobType: "", workMode: "", minSalary: "", maxSalary: "",
+  minExp: "", maxExp: "", datePosted: "", education: "", shift: "", englishLevel: "",
+  company: "", vehicle: "", verifiedOnly: "",
+};
 
 function filtersFromSearch(s: JobsSearch): Filters {
   return {
@@ -56,6 +97,16 @@ function filtersFromSearch(s: JobsSearch): Filters {
     jobType: s.jobType ?? "",
     workMode: s.workMode ?? "",
     minSalary: s.minSalary ?? "",
+    maxSalary: s.maxSalary ?? "",
+    minExp: s.minExp ?? "",
+    maxExp: s.maxExp ?? "",
+    datePosted: s.datePosted ?? "",
+    education: s.education ?? "",
+    shift: s.shift ?? "",
+    englishLevel: s.englishLevel ?? "",
+    company: s.company ?? "",
+    vehicle: s.vehicle ?? "",
+    verifiedOnly: s.verifiedOnly ?? "",
   };
 }
 
@@ -68,12 +119,33 @@ function buildSearch(f: Filters, extras: { sort?: SortKey; page?: number } = {})
     ...(f.jobType ? { jobType: f.jobType } : {}),
     ...(f.workMode ? { workMode: f.workMode } : {}),
     ...(f.minSalary ? { minSalary: f.minSalary } : {}),
+    ...(f.maxSalary ? { maxSalary: f.maxSalary } : {}),
+    ...(f.minExp ? { minExp: f.minExp } : {}),
+    ...(f.maxExp ? { maxExp: f.maxExp } : {}),
+    ...(f.datePosted ? { datePosted: f.datePosted } : {}),
+    ...(f.education ? { education: f.education } : {}),
+    ...(f.shift ? { shift: f.shift } : {}),
+    ...(f.englishLevel ? { englishLevel: f.englishLevel } : {}),
+    ...(f.company ? { company: f.company } : {}),
+    ...(f.vehicle ? { vehicle: f.vehicle } : {}),
+    ...(f.verifiedOnly ? { verifiedOnly: f.verifiedOnly } : {}),
     ...(extras.sort && extras.sort !== "newest" ? { sort: extras.sort } : {}),
     ...(extras.page && extras.page > 1 ? { page: extras.page } : {}),
   };
 }
 
+// "/jobs/$jobId" nests under this route in the generated route tree (shared
+// "jobs" file prefix), so this component must yield to it via <Outlet />
+// instead of always rendering the list — same pattern as
+// _authenticated/employer/jobs.tsx's EmployerJobs/EmployerJobsList split.
 function JobsPage() {
+  const { pathname } = useLocation();
+  if (pathname !== "/jobs") return <Outlet />;
+
+  return <JobsList />;
+}
+
+function JobsList() {
   const urlSearch = useSearch({ from: "/jobs" });
   const navigate = useNavigate({ from: "/jobs" });
   const [filters, setFilters] = useState<Filters>(() => filtersFromSearch(urlSearch));
@@ -84,13 +156,39 @@ function JobsPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [mobileFilters, setMobileFilters] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
+  const [isEmployer, setIsEmployer] = useState(false);
+
+  // Same session + role check Navbar/CandidateShell use, so the candidate
+  // bottom tab bar only shows for logged-in candidates (not employers/guests).
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    return () => data.subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const uid = session?.user.id;
+    if (!uid) return setIsEmployer(false);
+    let cancelled = false;
+    supabase.from("employer_members").select("company_id").eq("user_id", uid).limit(1)
+      .then(({ data: rows }) => { if (!cancelled) setIsEmployer(!!rows?.length); });
+    return () => { cancelled = true; };
+  }, [session]);
+
+  const showCandidateTabBar = !!session && !isEmployer;
 
   // Keep state in sync when the URL changes (e.g. navigating from Home).
   useEffect(() => {
     const next = filtersFromSearch(urlSearch);
     setFilters(next);
     setDraft(next);
-  }, [urlSearch.q, urlSearch.city, urlSearch.category, urlSearch.jobType, urlSearch.workMode, urlSearch.minSalary]);
+  }, [
+    urlSearch.q, urlSearch.city, urlSearch.category, urlSearch.jobType, urlSearch.workMode,
+    urlSearch.minSalary, urlSearch.maxSalary, urlSearch.minExp, urlSearch.maxExp,
+    urlSearch.datePosted, urlSearch.education, urlSearch.shift, urlSearch.englishLevel,
+    urlSearch.company, urlSearch.vehicle, urlSearch.verifiedOnly,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -99,7 +197,7 @@ function JobsPage() {
       let q = supabase
         .from("jobs")
         .select(
-          "id, title, city, state, locality, min_salary, max_salary, salary_period, job_type, work_mode, min_experience_years, max_experience_years, education, skills, created_at, companies (name, is_verified)",
+          "id, title, city, state, locality, min_salary, max_salary, salary_period, job_type, work_mode, min_experience_years, max_experience_years, education, skills, created_at, companies!inner (name, is_verified)",
           { count: "exact" },
         )
         .eq("status", "active");
@@ -115,6 +213,20 @@ function JobsPage() {
       if (filters.jobType) q = q.eq("job_type", filters.jobType as never);
       if (filters.workMode) q = q.eq("work_mode", filters.workMode as never);
       if (filters.minSalary) q = q.gte("min_salary", Number(filters.minSalary));
+      if (filters.maxSalary) q = q.lte("max_salary", Number(filters.maxSalary));
+      // Job's accepted experience range must overlap the candidate's selected range.
+      if (filters.maxExp) q = q.lte("min_experience_years", Number(filters.maxExp));
+      if (filters.minExp) q = q.or(`max_experience_years.gte.${Number(filters.minExp)},max_experience_years.is.null`);
+      if (filters.datePosted) {
+        const cutoff = datePostedCutoffIso(filters.datePosted);
+        if (cutoff) q = q.gte("created_at", cutoff);
+      }
+      if (filters.education) q = q.eq("education", filters.education);
+      if (filters.shift) q = q.eq("shift", filters.shift as never);
+      if (filters.englishLevel) q = q.eq("english_level", filters.englishLevel);
+      if (filters.company) q = q.ilike("companies.name", `%${filters.company}%`);
+      if (filters.vehicle) q = q.contains("required_assets", ["Two-wheeler"]);
+      if (filters.verifiedOnly) q = q.eq("companies.is_verified", true);
 
       const from = (page - 1) * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
@@ -159,13 +271,13 @@ function JobsPage() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
-    <div className="flex min-h-screen flex-col bg-surface">
+    <div className={`flex min-h-screen flex-col bg-surface ${showCandidateTabBar ? "pb-20 lg:pb-0" : ""}`}>
       <Navbar />
 
       <section className="border-b border-border bg-card">
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <div className="relative flex-1">
+          <div className="flex flex-row flex-nowrap items-center gap-2 sm:gap-3">
+            <div className="relative min-w-0 flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 value={draft.q}
@@ -175,7 +287,7 @@ function JobsPage() {
                 className="form-input pl-9"
               />
             </div>
-            <div className="relative sm:w-64">
+            <div className="relative w-24 shrink-0 sm:w-64">
               <input
                 value={draft.city}
                 onChange={(e) => setDraft({ ...draft, city: e.target.value })}
@@ -186,15 +298,23 @@ function JobsPage() {
             </div>
             <button
               onClick={apply}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-6 text-sm font-semibold text-primary-foreground hover:bg-primary-dark"
+              aria-label="Search"
+              className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground hover:bg-primary-dark sm:px-6"
             >
-              <Search className="h-4 w-4" /> Search
+              <Search className="h-4 w-4" /> <span className="hidden sm:inline">Search</span>
             </button>
             <button
               onClick={() => setMobileFilters(true)}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 text-sm font-semibold text-foreground lg:hidden"
+              aria-label="Filters"
+              className="relative inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-semibold text-foreground lg:hidden"
             >
-              <Filter className="h-4 w-4" /> Filters{activeCount ? ` (${activeCount})` : ""}
+              <Filter className="h-4 w-4" />
+              <span className="hidden sm:inline">Filters{activeCount ? ` (${activeCount})` : ""}</span>
+              {activeCount > 0 && (
+                <span className="absolute -right-1 -top-1 grid h-4 w-4 place-items-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground sm:hidden">
+                  {activeCount}
+                </span>
+              )}
             </button>
           </div>
         </div>
@@ -217,7 +337,7 @@ function JobsPage() {
             <label className="flex items-center gap-2 text-sm">
               <span className="text-muted-foreground">Sort by</span>
               <select
-                className="form-input h-9 w-auto"
+                className="form-input w-auto"
                 value={sort}
                 onChange={(e) => setSort(e.target.value as SortKey)}
               >
@@ -275,77 +395,8 @@ function JobsPage() {
         </div>
       )}
 
-      <Footer />
+      {showCandidateTabBar && <CandidateMobileTabBar />}
     </div>
-  );
-}
-
-function Pagination({
-  page,
-  totalPages,
-  onChange,
-}: {
-  page: number;
-  totalPages: number;
-  onChange: (p: number) => void;
-}) {
-  const windowSize = 5;
-  const start = Math.max(1, Math.min(page - 2, totalPages - windowSize + 1));
-  const end = Math.min(totalPages, start + windowSize - 1);
-  const pages: number[] = [];
-  for (let p = start; p <= end; p++) pages.push(p);
-
-  return (
-    <nav className="mt-8 flex flex-wrap items-center justify-center gap-1" aria-label="Pagination">
-      <button
-        type="button"
-        onClick={() => onChange(page - 1)}
-        disabled={page <= 1}
-        className="inline-flex h-9 items-center gap-1 rounded-lg border border-border bg-card px-3 text-sm font-medium text-foreground hover:bg-surface disabled:opacity-50"
-      >
-        <ChevronLeft className="h-4 w-4" /> Prev
-      </button>
-      {start > 1 && (
-        <>
-          <PageBtn n={1} active={page === 1} onClick={onChange} />
-          {start > 2 && <span className="px-2 text-muted-foreground">…</span>}
-        </>
-      )}
-      {pages.map((p) => (
-        <PageBtn key={p} n={p} active={p === page} onClick={onChange} />
-      ))}
-      {end < totalPages && (
-        <>
-          {end < totalPages - 1 && <span className="px-2 text-muted-foreground">…</span>}
-          <PageBtn n={totalPages} active={page === totalPages} onClick={onChange} />
-        </>
-      )}
-      <button
-        type="button"
-        onClick={() => onChange(page + 1)}
-        disabled={page >= totalPages}
-        className="inline-flex h-9 items-center gap-1 rounded-lg border border-border bg-card px-3 text-sm font-medium text-foreground hover:bg-surface disabled:opacity-50"
-      >
-        Next <ChevronRight className="h-4 w-4" />
-      </button>
-    </nav>
-  );
-}
-
-function PageBtn({ n, active, onClick }: { n: number; active: boolean; onClick: (p: number) => void }) {
-  return (
-    <button
-      type="button"
-      onClick={() => onClick(n)}
-      aria-current={active ? "page" : undefined}
-      className={`inline-flex h-9 min-w-9 items-center justify-center rounded-lg border px-3 text-sm font-medium ${
-        active
-          ? "border-primary bg-primary text-primary-foreground"
-          : "border-border bg-card text-foreground hover:bg-surface"
-      }`}
-    >
-      {n}
-    </button>
   );
 }
 
@@ -365,7 +416,7 @@ function FilterPanel({
       <Section label="Category">
         <select className="form-input" value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value })}>
           <option value="">All categories</option>
-          {["Delivery", "Sales", "Security", "Warehouse", "Telecaller", "Driver", "Housekeeping", "Cook", "Retail", "Nurse"].map((c) => (
+          {JOB_CATEGORIES.map((c) => (
             <option key={c} value={c}>
               {c}
             </option>
@@ -375,32 +426,133 @@ function FilterPanel({
       <Section label="Job type">
         <select className="form-input" value={draft.jobType} onChange={(e) => setDraft({ ...draft, jobType: e.target.value })}>
           <option value="">Any</option>
-          <option value="full_time">Full-time</option>
-          <option value="part_time">Part-time</option>
-          <option value="contract">Contract</option>
-          <option value="internship">Internship</option>
+          {JOB_TYPE_OPTIONS.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.label}
+            </option>
+          ))}
         </select>
       </Section>
       <Section label="Work mode">
         <select className="form-input" value={draft.workMode} onChange={(e) => setDraft({ ...draft, workMode: e.target.value })}>
           <option value="">Any</option>
-          <option value="onsite">On-site</option>
-          <option value="remote">Remote</option>
-          <option value="hybrid">Hybrid</option>
-          <option value="field">Field job</option>
+          {WORK_MODES.map((w) => (
+            <option key={w.id} value={w.id}>
+              {w.label}
+            </option>
+          ))}
         </select>
       </Section>
-      <Section label="Minimum salary (₹/month)">
+      <Section label="Salary (₹/month)">
+        <div className="grid grid-cols-2 gap-2">
+          <input
+            type="number"
+            min={0}
+            step={1000}
+            placeholder="Min"
+            className="form-input"
+            value={draft.minSalary}
+            onChange={(e) => setDraft({ ...draft, minSalary: e.target.value })}
+          />
+          <input
+            type="number"
+            min={0}
+            step={1000}
+            placeholder="Max"
+            className="form-input"
+            value={draft.maxSalary}
+            onChange={(e) => setDraft({ ...draft, maxSalary: e.target.value })}
+          />
+        </div>
+      </Section>
+      <Section label="Experience (years)">
+        <div className="grid grid-cols-2 gap-2">
+          <input
+            type="number"
+            min={0}
+            placeholder="Min"
+            className="form-input"
+            value={draft.minExp}
+            onChange={(e) => setDraft({ ...draft, minExp: e.target.value })}
+          />
+          <input
+            type="number"
+            min={0}
+            placeholder="Max"
+            className="form-input"
+            value={draft.maxExp}
+            onChange={(e) => setDraft({ ...draft, maxExp: e.target.value })}
+          />
+        </div>
+      </Section>
+      <Section label="Date posted">
+        <select className="form-input" value={draft.datePosted} onChange={(e) => setDraft({ ...draft, datePosted: e.target.value })}>
+          <option value="">Any time</option>
+          {DATE_POSTED_OPTIONS.map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.label}
+            </option>
+          ))}
+        </select>
+      </Section>
+      <Section label="Education required">
+        <select className="form-input" value={draft.education} onChange={(e) => setDraft({ ...draft, education: e.target.value })}>
+          <option value="">Any</option>
+          {EDUCATION_LEVELS.map((ed) => (
+            <option key={ed} value={ed}>
+              {ed}
+            </option>
+          ))}
+        </select>
+      </Section>
+      <Section label="Shift">
+        <select className="form-input" value={draft.shift} onChange={(e) => setDraft({ ...draft, shift: e.target.value })}>
+          <option value="">Any</option>
+          {SHIFTS.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.label}
+            </option>
+          ))}
+        </select>
+      </Section>
+      <Section label="English level">
+        <select className="form-input" value={draft.englishLevel} onChange={(e) => setDraft({ ...draft, englishLevel: e.target.value })}>
+          <option value="">Any</option>
+          {ENGLISH_LEVELS.map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.label}
+            </option>
+          ))}
+        </select>
+      </Section>
+      <Section label="Company">
         <input
-          type="number"
-          min={0}
-          step={1000}
-          placeholder="e.g. 15000"
+          placeholder="Search by company name"
           className="form-input"
-          value={draft.minSalary}
-          onChange={(e) => setDraft({ ...draft, minSalary: e.target.value })}
+          value={draft.company}
+          onChange={(e) => setDraft({ ...draft, company: e.target.value })}
         />
       </Section>
+      <div className="space-y-3 border-t border-border pt-4">
+        <label className="flex items-center gap-2 text-sm text-foreground">
+          <input
+            type="checkbox"
+            className="h-4 w-4 rounded border-border"
+            checked={draft.verifiedOnly === "1"}
+            onChange={(e) => setDraft({ ...draft, verifiedOnly: e.target.checked ? "1" : "" })}
+          />
+          Verified employers only
+        </label>
+        <label className="flex items-center gap-2 text-sm text-foreground">
+          <input
+            type="checkbox"
+            className="h-4 w-4 rounded border-border"
+            checked={draft.vehicle === "1"}
+            onChange={(e) => setDraft({ ...draft, vehicle: e.target.checked ? "1" : "" })}
+          />
+          Two-wheeler required
+        </label>
+      </div>
       <div className="flex gap-2 pt-2">
         <button
           onClick={apply}
