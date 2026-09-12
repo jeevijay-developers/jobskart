@@ -1,12 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, BadgeCheck, Bookmark, Briefcase, CalendarCheck, Camera, CheckCircle2, Clock, Eye, ExternalLink, FileText, GraduationCap, HelpCircle, Languages as LangIcon, Loader2, MapPin, Pencil, Plus, ShieldCheck, Trash2, Upload, UserRound } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { CandidateShell } from "@/components/candidate/CandidateShell";
 import { SectionCard, EmptyHint, Chip, ChipInput, Field } from "@/components/candidate/primitives";
 import { supabase } from "@/integrations/supabase/client";
-import { computeProfileStrength, strengthLabel } from "@/lib/profileStrength";
+import { computeProfileStrength, getIncompleteProfileFields, strengthLabel } from "@/lib/profileStrength";
+import { AVATAR_ACCEPT, validateAvatarFile } from "@/lib/validators";
 import { INDIAN_CITIES, SUGGESTED_SKILLS, SUGGESTED_LANGUAGES, JOB_TYPE_OPTIONS, WORK_MODES, ID_TYPES, EDUCATION_LEVELS } from "@/lib/options";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ResumeUpload } from "@/components/candidate/ResumeUpload";
@@ -39,7 +40,7 @@ function ProfilePage() {
   const [experiences, setExperiences] = useState<Exp[]>([]);
   const [educations, setEducations] = useState<Edu[]>([]);
   const [languages, setLanguages] = useState<Lang[]>([]);
-  const [open, setOpen] = useState<null | "personal" | "headline" | "career" | "experience" | "education" | "skills" | "languages" | "resume" | "kyc">(null);
+  const [open, setOpen] = useState<null | "personal" | "headline" | "career" | "experience" | "education" | "skills" | "languages" | "resume" | "kyc" | "avatar">(null);
   const [email, setEmail] = useState<string | null>(null);
   const [counts, setCounts] = useState({ applications: 0, interviews: 0, saved: 0 });
 
@@ -70,26 +71,10 @@ function ProfilePage() {
 
   useEffect(() => { load(); }, []);
 
-  // Deep-link scroll: /candidate/profile?section=resume
-  useEffect(() => {
-    if (loading) return;
-    const params = new URLSearchParams(window.location.search);
-    const section = params.get("section");
-    if (!section) return;
-    const t = window.setTimeout(() => {
-      const el = document.getElementById(section);
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "start" });
-        el.classList.add("ring-2", "ring-primary/40", "rounded-2xl");
-        window.setTimeout(() => el.classList.remove("ring-2", "ring-primary/40", "rounded-2xl"), 1600);
-      }
-    }, 120);
-    return () => window.clearTimeout(t);
-  }, [loading]);
-
-  const strength = useMemo(() => {
-    if (!p || !c) return 0;
-    return computeProfileStrength({
+  // Single source of truth for every profile-strength check (score + incomplete-field detection)
+  const strengthInput = useMemo(() => {
+    if (!p || !c) return null;
+    return {
       full_name: p.full_name, mobile: p.mobile, city: p.city, avatar_url: p.avatar_url,
       headline: c.headline, last_role: c.last_role, bio: c.bio, skills: c.skills,
       years_experience: c.years_experience, preferred_job_types: c.preferred_job_types,
@@ -97,8 +82,52 @@ function ProfilePage() {
       resume_url: c.resume_url, experiences_count: experiences.length,
       education_count: educations.length, languages_count: languages.length,
       kyc_verified: c.kyc_status === "verified",
-    });
+    };
   }, [p, c, experiences, educations, languages]);
+
+  const strength = useMemo(
+    () => (strengthInput ? computeProfileStrength(strengthInput) : 0),
+    [strengthInput],
+  );
+
+  // Same fields that feed the strength score, so the persistent "Incomplete" tags
+  // below always match what the percentage/highlight-scroll are based on.
+  const incompleteKeys = useMemo(
+    () => new Set(strengthInput ? getIncompleteProfileFields(strengthInput).map((f) => f.key) : []),
+    [strengthInput],
+  );
+
+  // Deep-link scroll: /candidate/profile?section=resume, or
+  // /candidate/profile?highlight=incomplete (from the dashboard's profile-strength card)
+  // to jump to and highlight every section with a field feeding computeProfileStrength.
+  useEffect(() => {
+    if (loading || !strengthInput) return;
+    const params = new URLSearchParams(window.location.search);
+    const section = params.get("section");
+    const wantsIncomplete = params.get("highlight") === "incomplete";
+
+    const ids = wantsIncomplete
+      ? [...new Set(getIncompleteProfileFields(strengthInput).map((f) => f.sectionId))]
+      : section
+        ? [section]
+        : [];
+    if (ids.length === 0) return;
+
+    const t = window.setTimeout(() => {
+      const els = ids
+        .map((id) => document.getElementById(id))
+        .filter((el): el is HTMLElement => !!el);
+      if (els.length === 0) return;
+      els[0].scrollIntoView({ behavior: "smooth", block: "start" });
+      els.forEach((el) => el.classList.add("ring-2", "ring-primary/40", "rounded-2xl"));
+      window.setTimeout(
+        () => els.forEach((el) => el.classList.remove("ring-2", "ring-primary/40", "rounded-2xl")),
+        2500,
+      );
+    }, 120);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once when data first loads, not on every later save (strengthInput gets a new reference after each dialog save)
+  }, [loading]);
 
   useEffect(() => {
     if (uid && c && strength !== c.profile_strength) {
@@ -139,21 +168,25 @@ function ProfilePage() {
           {/* Profile overview */}
           <div className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
             <div className="flex flex-col gap-6 md:flex-row md:items-start">
-              <div className="relative shrink-0">
-                {p.avatar_url ? (
-                  <img src={p.avatar_url} alt={p.full_name || "Profile photo"} className="h-24 w-24 rounded-full object-cover" />
-                ) : (
-                  <div className="grid h-24 w-24 place-items-center rounded-full bg-primary/80 text-3xl font-medium text-primary-foreground">{initials}</div>
-                )}
-                <button onClick={() => setOpen("personal")} aria-label="Change photo" className="absolute bottom-0 right-0 rounded-full border border-border bg-card p-1.5 text-muted-foreground shadow-sm hover:bg-surface">
-                  <Camera className="h-4 w-4" />
-                </button>
+              <div className="flex shrink-0 flex-col items-center gap-2">
+                <div className="relative">
+                  {p.avatar_url ? (
+                    <img src={p.avatar_url} alt={p.full_name || "Profile photo"} className="h-24 w-24 rounded-full object-cover" />
+                  ) : (
+                    <div className="grid h-24 w-24 place-items-center rounded-full bg-primary/80 text-3xl font-medium text-primary-foreground">{initials}</div>
+                  )}
+                  <button onClick={() => setOpen("avatar")} aria-label="Change photo" className="absolute bottom-0 right-0 rounded-full border border-border bg-card p-1.5 text-muted-foreground shadow-sm hover:bg-surface">
+                    <Camera className="h-4 w-4" />
+                  </button>
+                </div>
+                {incompleteKeys.has("avatar_url") && <IncompleteTag />}
               </div>
 
               <div className="min-w-0 flex-1">
                 <h2 className="truncate text-xl font-bold text-foreground">{p.full_name || "Add your name"}</h2>
                 <button onClick={() => setOpen("personal")} className="mt-1 flex items-center gap-1 text-sm font-medium text-primary hover:underline">
                   {c.headline || c.last_role || "Add a headline"} <Pencil className="h-3.5 w-3.5" />
+                  {incompleteKeys.has("headline") && <IncompleteTag />}
                 </button>
                 <div className="mt-2 flex items-center gap-1 text-sm text-muted-foreground">
                   <MapPin className="h-4 w-4" /> {p.city || "Add your city"}
@@ -185,7 +218,7 @@ function ProfilePage() {
                   <ShieldCheck className="h-4 w-4" /> Identity verified
                 </div>
               ) : (
-                <div className="flex w-full flex-col items-center gap-2 rounded-lg border border-border bg-card px-4 py-4 text-center lg:w-64">
+                <div id="kyc" className="flex w-full flex-col items-center gap-2 rounded-lg border border-border bg-card px-4 py-4 text-center lg:w-64">
                   <div className="grid h-10 w-10 place-items-center rounded-full bg-primary-light text-primary"><BadgeCheck className="h-5 w-5" /></div>
                   <h3 className="text-[15px] font-bold text-foreground">Verify your identity</h3>
                   <p className="text-[13px] text-muted-foreground">Build trust with recruiters by verifying your identity.</p>
@@ -205,20 +238,22 @@ function ProfilePage() {
                 <EditBtn onClick={() => setOpen("personal")} />
               </div>
               <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-                <Info label="Full name" value={p.full_name} />
-                <Info label="Mobile" value={p.mobile} />
-                <Info label="City" value={p.city} />
+                <Info label="Full name" value={p.full_name} incomplete={incompleteKeys.has("full_name")} />
+                <Info label="Mobile" value={p.mobile} incomplete={incompleteKeys.has("mobile")} />
+                <Info label="City" value={p.city} incomplete={incompleteKeys.has("city")} />
                 <Info label="Email" value={email} />
                 <Info label="Gender" value={c.gender} />
                 <Info label="DOB" value={c.date_of_birth ? new Date(c.date_of_birth).toLocaleDateString() : null} />
-                <Info label="Bio" value={c.bio} wide />
+                <Info label="Bio" value={c.bio} wide incomplete={incompleteKeys.has("bio")} />
               </div>
             </div>
 
             {/* Documents & resume */}
             <div id="resume" className="flex flex-col rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
               <div className="mb-6 flex items-center justify-between">
-                <h3 className="text-lg font-bold text-foreground">Documents &amp; resume</h3>
+                <h3 className="flex items-center gap-2 text-lg font-bold text-foreground">
+                  Documents &amp; resume {incompleteKeys.has("resume_url") && <IncompleteTag />}
+                </h3>
                 <Link to="/candidate/documents" className="text-sm font-semibold text-primary hover:underline">View all</Link>
               </div>
               {c.resume_url ? (
@@ -256,7 +291,9 @@ function ProfilePage() {
           {/* Skills */}
           <div id="skills" className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-foreground">Skills</h3>
+              <h3 className="flex items-center gap-2 text-lg font-bold text-foreground">
+                Skills {incompleteKeys.has("skills") && <IncompleteTag />}
+              </h3>
               <button onClick={() => setOpen("skills")} className="text-sm font-semibold text-primary hover:underline">Edit</button>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -277,13 +314,13 @@ function ProfilePage() {
             </div>
             <Grid>
               <Info label="Status" value={c.experience_status} />
-              <Info label="Experience" value={c.years_experience ? `${c.years_experience} years` : null} />
-              <Info label="Last role" value={c.last_role} />
-              <Info label="Job types" value={c.preferred_job_types?.length ? c.preferred_job_types.map((t) => JOB_TYPE_OPTIONS.find((x) => x.id === t)?.label || t).join(", ") : null} />
+              <Info label="Experience" value={c.years_experience ? `${c.years_experience} years` : null} incomplete={incompleteKeys.has("years_experience")} />
+              <Info label="Last role" value={c.last_role} incomplete={incompleteKeys.has("last_role")} />
+              <Info label="Job types" value={c.preferred_job_types?.length ? c.preferred_job_types.map((t) => JOB_TYPE_OPTIONS.find((x) => x.id === t)?.label || t).join(", ") : null} incomplete={incompleteKeys.has("preferred_job_types")} />
               <Info label="Work mode" value={WORK_MODES.find((w) => w.id === c.preferred_work_mode)?.label || null} />
-              <Info label="Expected salary" value={c.expected_salary ? `₹${c.expected_salary.toLocaleString()}/mo` : null} />
+              <Info label="Expected salary" value={c.expected_salary ? `₹${c.expected_salary.toLocaleString()}/mo` : null} incomplete={incompleteKeys.has("expected_salary")} />
               <Info label="Notice period" value={c.notice_period_days != null ? `${c.notice_period_days} days` : null} />
-              <Info label="Preferred cities" value={c.preferred_cities?.join(", ") || null} wide />
+              <Info label="Preferred cities" value={c.preferred_cities?.join(", ") || null} wide incomplete={incompleteKeys.has("preferred_cities")} />
             </Grid>
           </div>
 
@@ -291,7 +328,9 @@ function ProfilePage() {
             {/* Work experience */}
             <div id="experience" className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
               <div className="mb-6 flex items-center justify-between">
-                <h3 className="text-[15px] font-bold text-foreground">Work experience</h3>
+                <h3 className="flex items-center gap-2 text-[15px] font-bold text-foreground">
+                  Work experience {incompleteKeys.has("experiences_count") && <IncompleteTag />}
+                </h3>
                 <button onClick={() => setOpen("experience")} className="text-sm font-semibold text-primary hover:underline">Manage</button>
               </div>
               {experiences.length === 0 ? (
@@ -314,7 +353,9 @@ function ProfilePage() {
             {/* Education */}
             <div id="education" className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
               <div className="mb-6 flex items-center justify-between">
-                <h3 className="text-[15px] font-bold text-foreground">Education</h3>
+                <h3 className="flex items-center gap-2 text-[15px] font-bold text-foreground">
+                  Education {incompleteKeys.has("education_count") && <IncompleteTag />}
+                </h3>
                 <button onClick={() => setOpen("education")} className="text-sm font-semibold text-primary hover:underline">Manage</button>
               </div>
               {educations.length === 0 ? (
@@ -338,7 +379,9 @@ function ProfilePage() {
           {/* Languages */}
           <div id="languages" className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-[15px] font-bold text-foreground">Languages</h3>
+              <h3 className="flex items-center gap-2 text-[15px] font-bold text-foreground">
+                Languages {incompleteKeys.has("languages_count") && <IncompleteTag />}
+              </h3>
               <button onClick={() => setOpen("languages")} className="text-sm font-semibold text-primary hover:underline">Manage</button>
             </div>
             {languages.length === 0 ? (
@@ -397,6 +440,7 @@ function ProfilePage() {
 
 
       {/* Editor dialogs */}
+      <AvatarDialog open={open === "avatar"} onClose={() => setOpen(null)} uid={uid!} onSaved={load} />
       <PersonalDialog open={open === "personal"} onClose={() => setOpen(null)} uid={uid!} p={p} c={c} onSaved={load} />
       <CareerDialog open={open === "career"} onClose={() => setOpen(null)} uid={uid!} c={c} onSaved={load} />
       <SkillsDialog open={open === "skills"} onClose={() => setOpen(null)} uid={uid!} c={c} onSaved={load} />
@@ -418,12 +462,24 @@ function EditBtn({ onClick, label = "Edit" }: { onClick: () => void; label?: str
   return <button onClick={onClick} className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground hover:border-primary"><Pencil className="h-3.5 w-3.5" /> {label}</button>;
 }
 function Grid({ children }: { children: React.ReactNode }) { return <div className="grid gap-3 sm:grid-cols-2">{children}</div>; }
-function Info({ label, value, wide }: { label: string; value?: string | null; wide?: boolean }) {
+function Info({ label, value, wide, incomplete }: { label: string; value?: string | null; wide?: boolean; incomplete?: boolean }) {
   return (
     <div className={wide ? "sm:col-span-2" : ""}>
-      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+        {label} {incomplete && <IncompleteTag />}
+      </p>
       <p className="truncate text-sm text-foreground">{value || <span className="text-muted-foreground">—</span>}</p>
     </div>
+  );
+}
+
+// Persistent marker for a field/section still missing from the profile-strength
+// calculation (see getIncompleteProfileFields) — reflects live data, not a one-time flag.
+function IncompleteTag() {
+  return (
+    <span className="inline-flex shrink-0 items-center rounded-full bg-warning-light px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-warning">
+      Incomplete
+    </span>
   );
 }
 
@@ -495,6 +551,113 @@ function DlgShell({ open, onClose, title, children, onSave, saving }: { open: bo
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function AvatarDialog({ open, onClose, uid, onSaved }: { open: boolean; onClose: () => void; uid: string; onSaved: () => void }) {
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!open) {
+      setFile(null);
+      setError(null);
+      setSaving(false);
+      setPreview((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
+    }
+  }, [open]);
+
+  const pick = (f: File) => {
+    const err = validateAvatarFile(f);
+    if (err) {
+      setError(err);
+      return;
+    }
+    setError(null);
+    setFile(f);
+    setPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(f);
+    });
+  };
+
+  const save = async () => {
+    if (!file) return;
+    setSaving(true);
+    try {
+      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+      const path = `${uid}/avatar-${Date.now()}.${ext}`;
+      const up = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+      if (up.error) throw up.error;
+      const { data: pub } = supabase.storage.from("avatars").getPublicUrl(path);
+      await supabase.from("profiles").update({ avatar_url: pub.publicUrl }).eq("id", uid);
+      toast.success("Profile photo updated");
+      onSaved();
+      onClose();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not upload photo.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <DlgShell open={open} onClose={onClose} title="Profile photo">
+      <input
+        ref={inputRef}
+        type="file"
+        accept={AVATAR_ACCEPT}
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) pick(f);
+          e.target.value = "";
+        }}
+      />
+      <div className="flex flex-col items-center gap-4">
+        {preview ? (
+          <img src={preview} alt="Preview" className="h-32 w-32 rounded-full object-cover" />
+        ) : (
+          <div className="grid h-32 w-32 place-items-center rounded-full border border-dashed border-border bg-surface text-muted-foreground">
+            <UserRound className="h-10 w-10" strokeWidth={1.5} />
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className="inline-flex items-center gap-2 rounded-lg border border-dashed border-border bg-card px-4 py-2 text-sm font-semibold text-primary hover:bg-primary-light"
+        >
+          <Upload className="h-4 w-4" /> {file ? "Choose a different photo" : "Choose a photo"}
+        </button>
+        <p className="text-xs text-muted-foreground">PNG, JPG or WEBP. Max 2 MB.</p>
+        {error && <p className="text-xs font-medium text-destructive">{error}</p>}
+        {file && (
+          <div className="flex w-full justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-surface"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={save}
+              disabled={saving}
+              className="inline-flex items-center gap-1 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-50"
+            >
+              {saving && <Loader2 className="h-4 w-4 animate-spin" />} Save photo
+            </button>
+          </div>
+        )}
+      </div>
+    </DlgShell>
   );
 }
 

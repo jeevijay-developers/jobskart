@@ -53,32 +53,33 @@ export function strengthLabel(s: number): { label: string; color: string } {
   return { label: "Just started", color: "text-muted-foreground" };
 }
 
-export type BadgeTier = "Bronze" | "Silver" | "Gold" | "Platinum";
+export type IncompleteField = { key: string; sectionId: string; label: string };
 
-export function computeBadge(args: {
-  strength: number;
-  mobileVerified?: boolean;
-  emailVerified?: boolean;
-  digilockerVerified?: boolean;
-  hasResume?: boolean;
-  experiencesCount?: number;
-  educationCount?: number;
-  skillsCount?: number;
-}): { tier: BadgeTier; color: string } {
-  let score = 0;
-  if (args.strength >= 50) score++;
-  if (args.strength >= 75) score++;
-  if (args.strength >= 90) score++;
-  if (args.mobileVerified) score++;
-  if (args.emailVerified) score++;
-  if (args.digilockerVerified) score += 2;
-  if (args.hasResume) score++;
-  if ((args.experiencesCount ?? 0) > 0) score++;
-  if ((args.educationCount ?? 0) > 0) score++;
-  if ((args.skillsCount ?? 0) >= 5) score++;
-
-  if (score >= 9) return { tier: "Platinum", color: "bg-indigo-500/15 text-indigo-600" };
-  if (score >= 6) return { tier: "Gold", color: "bg-amber-500/15 text-amber-700" };
-  if (score >= 3) return { tier: "Silver", color: "bg-slate-400/20 text-slate-700" };
-  return { tier: "Bronze", color: "bg-orange-500/15 text-orange-700" };
+/**
+ * Same checks as computeProfileStrength, but reports which specific ones are
+ * failing, each tagged with the id of the profile-page section that fixes it
+ * (see src/routes/_authenticated/candidate/profile.tsx). highest_qualification
+ * and whatsapp_opt_in are only editable during onboarding, not on the profile
+ * page, so they're intentionally left out — there's no section to point to.
+ */
+export function getIncompleteProfileFields(i: StrengthInput): IncompleteField[] {
+  const out: IncompleteField[] = [];
+  if (!i.full_name) out.push({ key: "full_name", sectionId: "personal", label: "Add your full name" });
+  if (!i.mobile) out.push({ key: "mobile", sectionId: "personal", label: "Add your mobile number" });
+  if (!i.city) out.push({ key: "city", sectionId: "personal", label: "Add your city" });
+  if (!i.avatar_url) out.push({ key: "avatar_url", sectionId: "personal", label: "Add a profile photo" });
+  if (!i.headline) out.push({ key: "headline", sectionId: "personal", label: "Add a professional headline" });
+  if (!(i.bio && i.bio.length > 30)) out.push({ key: "bio", sectionId: "personal", label: "Write a short bio (30+ characters)" });
+  if (!i.last_role && (i.interested_roles?.length ?? 0) === 0) out.push({ key: "last_role", sectionId: "career", label: "Add your current or last role" });
+  if ((i.years_experience ?? 0) <= 0) out.push({ key: "years_experience", sectionId: "career", label: "Add your years of experience" });
+  if ((i.preferred_job_types?.length ?? 0) === 0) out.push({ key: "preferred_job_types", sectionId: "career", label: "Add your preferred job types" });
+  if ((i.preferred_cities?.length ?? 0) === 0) out.push({ key: "preferred_cities", sectionId: "career", label: "Add preferred cities" });
+  if (!i.expected_salary) out.push({ key: "expected_salary", sectionId: "career", label: "Add your expected salary" });
+  if ((i.skills?.length ?? 0) < 3) out.push({ key: "skills", sectionId: "skills", label: "Add at least 3 skills" });
+  if (!i.resume_url) out.push({ key: "resume_url", sectionId: "resume", label: "Upload your resume" });
+  if ((i.experiences_count ?? 0) === 0) out.push({ key: "experiences_count", sectionId: "experience", label: "Add your work experience" });
+  if ((i.education_count ?? 0) === 0) out.push({ key: "education_count", sectionId: "education", label: "Add your education" });
+  if ((i.languages_count ?? 0) === 0) out.push({ key: "languages_count", sectionId: "languages", label: "Add a language you speak" });
+  if (!i.kyc_verified) out.push({ key: "kyc_verified", sectionId: "kyc", label: "Verify your identity" });
+  return out;
 }

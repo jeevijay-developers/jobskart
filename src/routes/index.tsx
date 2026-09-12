@@ -389,7 +389,7 @@ function HowItWorks() {
   ];
 
   return (
-    <section className="bg-surface py-14 sm:py-20">
+    <section id="how-it-works" className="bg-surface py-14 sm:py-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="text-center">
           <p className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary">
@@ -449,7 +449,7 @@ function StepColumn({ title, tone, steps }: { title: string; tone: "primary" | "
 
 function FeatureRowCandidate() {
   return (
-    <section className="py-14 sm:py-20">
+    <section id="candidates" className="py-14 sm:py-20">
       <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 sm:px-6 lg:grid-cols-2 lg:gap-16 lg:px-8">
         <div className="order-2 lg:order-1">
           <p className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary">
@@ -503,7 +503,7 @@ function FeatureRowCandidate() {
 
 function FeatureRowEmployer() {
   return (
-    <section className="bg-surface py-14 sm:py-20">
+    <section id="employers" className="bg-surface py-14 sm:py-20">
       <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 sm:px-6 lg:grid-cols-2 lg:gap-16 lg:px-8">
         <div>
           <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-[var(--shadow-soft)]">

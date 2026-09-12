@@ -93,3 +93,17 @@ export function validateResumeFile(file: File): string | null {
   if (file.type && !RESUME_MIME.includes(file.type)) return "Unsupported file type.";
   return null;
 }
+
+export const AVATAR_ACCEPT = ".png,.jpg,.jpeg,.webp";
+export const AVATAR_MIME = ["image/png", "image/jpeg", "image/webp"];
+// Matches the "avatars" Supabase Storage bucket's file_size_limit (2 MB).
+export const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
+
+export function validateAvatarFile(file: File): string | null {
+  if (file.size > AVATAR_MAX_BYTES) return "Photo must be under 2 MB.";
+  const ext = (file.name.split(".").pop() || "").toLowerCase();
+  const allowedExts = ["png", "jpg", "jpeg", "webp"];
+  if (!allowedExts.includes(ext)) return "Only PNG, JPG or WEBP images are allowed.";
+  if (file.type && !AVATAR_MIME.includes(file.type)) return "Unsupported image type.";
+  return null;
+}

@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Bell, Bookmark, FolderOpen, LogOut, Menu, Settings, User, X, Zap } from "lucide-react";
@@ -19,11 +19,24 @@ const candidateMenuLinks = [
   { to: "/candidate/settings", label: "Settings", icon: Settings },
 ] as const;
 
+// Public site nav — each item scrolls to its matching section on the home
+// page (see the `id`s on HowItWorks/FeatureRowCandidate/FeatureRowEmployer
+// in src/routes/index.tsx) rather than linking out to /jobs or /auth.
+// "Jobs" has no dedicated home-page section, so it's relabelled to match
+// the section it actually points to ("How it works" — the find-a-job flow).
+const homeNavLinks = [
+  { hash: "how-it-works", label: "How it works" },
+  { hash: "employers", label: "For Employers" },
+  { hash: "candidates", label: "Candidates" },
+] as const;
+
 export function Navbar() {
   const [open, setOpen] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [isEmployer, setIsEmployer] = useState(false);
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const isHome = pathname === "/";
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -56,9 +69,22 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <Link to={session ? dashboardPath : "/"} className="flex items-center gap-2">
+        <Link to="/" className="flex items-center gap-2">
           <img src={logoAsset} alt="JobsKart" className="h-8 w-auto" />
         </Link>
+
+        <nav className="hidden items-center gap-6 lg:flex">
+          {homeNavLinks.map((l) => (
+            <Link
+              key={l.hash}
+              to="/"
+              hash={l.hash}
+              className="text-sm font-medium text-foreground/80 transition-colors hover:text-primary"
+            >
+              {l.label}
+            </Link>
+          ))}
+        </nav>
 
         <div className="hidden items-center gap-3 lg:flex">
           {session ? (
@@ -119,47 +145,84 @@ export function Navbar() {
                 <X className="h-6 w-6" />
               </button>
             </div>
-            {session && !isEmployer && (
+            {isHome ? (
               <nav className="mt-8 flex flex-col gap-1">
-                {candidateMenuLinks.map((l) => (
+                {homeNavLinks.map((l) => (
                   <Link
-                    key={l.to}
-                    to={l.to}
+                    key={l.hash}
+                    to="/"
+                    hash={l.hash}
                     onClick={() => setOpen(false)}
-                    className="flex items-center gap-2 rounded-lg px-3 py-3 text-base font-medium text-foreground hover:bg-surface"
+                    className="rounded-lg px-3 py-3 text-base font-medium text-foreground hover:bg-surface"
                   >
-                    <l.icon className="h-4 w-4" /> {l.label}
+                    {l.label}
                   </Link>
                 ))}
               </nav>
+            ) : (
+              session &&
+              !isEmployer && (
+                <nav className="mt-8 flex flex-col gap-1">
+                  {candidateMenuLinks.map((l) => (
+                    <Link
+                      key={l.to}
+                      to={l.to}
+                      onClick={() => setOpen(false)}
+                      className="flex items-center gap-2 rounded-lg px-3 py-3 text-base font-medium text-foreground hover:bg-surface"
+                    >
+                      <l.icon className="h-4 w-4" /> {l.label}
+                    </Link>
+                  ))}
+                </nav>
+              )
             )}
             <div className="mt-auto flex flex-col gap-3 pt-6">
               {session ? (
-                <button
-                  onClick={handleSignOut}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground"
-                >
-                  <LogOut className="h-4 w-4" /> Sign out
-                </button>
+                isHome ? (
+                  <>
+                    <Link
+                      to={dashboardPath}
+                      onClick={() => setOpen(false)}
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-border text-sm font-semibold text-foreground"
+                    >
+                      <User className="h-4 w-4" /> My Account
+                    </Link>
+                    <button
+                      onClick={handleSignOut}
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground"
+                    >
+                      <LogOut className="h-4 w-4" /> Sign out
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={handleSignOut}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground"
+                  >
+                    <LogOut className="h-4 w-4" /> Sign out
+                  </button>
+                )
               ) : (
-                <>
-                  <Link
-                    to="/auth"
-                    search={{ tab: "employer" }}
-                    onClick={() => setOpen(false)}
-                    className="inline-flex h-11 items-center justify-center rounded-lg border border-primary text-sm font-semibold text-primary"
-                  >
-                    Employer Login
-                  </Link>
-                  <Link
-                    to="/auth"
-                    search={{ tab: "candidate" }}
-                    onClick={() => setOpen(false)}
-                    className="inline-flex h-11 items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-foreground"
-                  >
-                    Candidate Login
-                  </Link>
-                </>
+                !isHome && (
+                  <>
+                    <Link
+                      to="/auth"
+                      search={{ tab: "employer" }}
+                      onClick={() => setOpen(false)}
+                      className="inline-flex h-11 items-center justify-center rounded-lg border border-primary text-sm font-semibold text-primary"
+                    >
+                      Employer Login
+                    </Link>
+                    <Link
+                      to="/auth"
+                      search={{ tab: "candidate" }}
+                      onClick={() => setOpen(false)}
+                      className="inline-flex h-11 items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-foreground"
+                    >
+                      Candidate Login
+                    </Link>
+                  </>
+                )
               )}
             </div>
           </div>
