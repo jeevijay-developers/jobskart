@@ -103,14 +103,18 @@ export function ChipInput({
   );
 }
 
-export function Field({ label, hint, children, required }: { label: string; hint?: string; children: ReactNode; required?: boolean }) {
+export function Field({ label, hint, children, required, error }: { label: string; hint?: string; children: ReactNode; required?: boolean; error?: string }) {
   return (
     <label className="block">
       <span className="mb-1.5 block text-sm font-medium text-foreground">
         {label} {required && <span className="text-destructive">*</span>}
       </span>
       {children}
-      {hint && <span className="mt-1 block text-xs text-muted-foreground">{hint}</span>}
+      {error ? (
+        <span className="mt-1 block text-xs text-destructive">{error}</span>
+      ) : (
+        hint && <span className="mt-1 block text-xs text-muted-foreground">{hint}</span>
+      )}
     </label>
   );
 }

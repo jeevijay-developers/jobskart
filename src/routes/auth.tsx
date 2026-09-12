@@ -18,6 +18,7 @@ import { OtpInput } from "@/components/wizard/Questionnaire";
 import { supabase } from "@/integrations/supabase/client";
 import { loginOrCreateWithMobile } from "@/lib/auth-mobile.functions";
 import type { SignupUserType } from "@/lib/auth";
+import { mobileSchema } from "@/lib/validators";
 
 const searchSchema = z.object({
   tab: z.enum(["candidate", "employer"]).optional(),
@@ -188,8 +189,9 @@ function MobileLoginForm({
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!/^[6-9]\d{9}$/.test(mobile)) {
-      setError("Enter a valid 10-digit Indian mobile number.");
+    const parsed = mobileSchema.safeParse(mobile);
+    if (!parsed.success) {
+      setError(parsed.error.issues[0].message);
       return;
     }
     setLoading(true);

@@ -25,15 +25,30 @@ export const fullNameSchema = z
   .pipe(
     z
       .string()
-      .min(3, "Name must be at least 3 characters")
+      .min(3, "Please enter your full name")
       .max(80, "Name must be under 80 characters")
       .regex(NAME_RE, "Only letters, spaces and dots are allowed"),
   );
 
+const FAKE_MOBILE_PATTERNS = new Set([
+  "0123456789",
+  "1234567890",
+  "9876543210",
+  "0987654321",
+]);
+
+const MOBILE_ERROR = "Enter a valid 10-digit Indian mobile number starting with 6-9";
+
 export const mobileSchema = z
   .string()
-  .transform((v) => v.replace(/\D/g, "").slice(-10))
-  .pipe(z.string().regex(/^[6-9]\d{9}$/, "Enter a valid 10-digit Indian mobile number"));
+  .transform((v) => v.replace(/\D/g, ""))
+  .pipe(
+    z
+      .string()
+      .regex(/^[6-9]\d{9}$/, MOBILE_ERROR)
+      .refine((v) => !/^(\d)\1{9}$/.test(v), MOBILE_ERROR)
+      .refine((v) => !FAKE_MOBILE_PATTERNS.has(v), MOBILE_ERROR),
+  );
 
 export const headlineSchema = z
   .string()

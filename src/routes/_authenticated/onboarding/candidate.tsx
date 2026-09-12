@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, Check, Loader2, Plus, Trash2, Upload, FileText, Compass, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Calendar, Check, Loader2, Plus, Trash2, Upload, FileText, Compass, Sparkles } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
@@ -47,6 +47,32 @@ const to10 = (v: string | null | undefined) => {
 };
 const toE164 = (v: string) => (to10(v).length === 10 ? `+91${to10(v)}` : null);
 
+/**
+ * Single native <input type="date"> so the browser's real calendar picker still opens,
+ * but its own text is invisible — Chromium ignores `lang` for the date format, so we render
+ * our own dd-mm-yyyy label on top instead of trusting the native display.
+ */
+function DateField({ value, onChange, disabled }: { value: string; onChange: (v: string) => void; disabled?: boolean }) {
+  const [y, m, d] = value ? value.split("-") : [];
+  const display = y && m && d ? `${d}-${m}-${y}` : "";
+  return (
+    <div className={`form-input relative flex items-center ${disabled ? "opacity-60" : ""}`}>
+      <span className="pointer-events-none absolute inset-y-0 left-3.5 z-0 flex items-center text-sm text-foreground">
+        {display || <span className="text-muted-foreground">dd-mm-yyyy</span>}
+      </span>
+      <Calendar className="pointer-events-none absolute right-3 top-1/2 z-0 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <input
+        type="date"
+        disabled={disabled}
+        className="relative z-10 h-5 w-full border-0 bg-transparent p-0 outline-none disabled:cursor-not-allowed [color-scheme:light] [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:top-1/2 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-9 [&::-webkit-calendar-picker-indicator]:-translate-y-1/2 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-datetime-edit]:text-transparent [&::-webkit-datetime-edit]:opacity-0"
+        value={value}
+        max={new Date().toISOString().slice(0, 10)}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </div>
+  );
+}
+
 function OnboardingPage() {
   const navigate = useNavigate();
   const [uid, setUid] = useState<string | null>(null);
@@ -87,8 +113,8 @@ function OnboardingPage() {
   const [langMaster, setLangMaster] = useState<string[]>(SUGGESTED_LANGUAGES);
 
   // Preferences
-  const [jobTypes, setJobTypes] = useState<string[]>(["full_time"]);
-  const [workModes, setWorkModes] = useState<string[]>(["onsite"]);
+  const [jobTypes, setJobTypes] = useState<string[]>([]);
+  const [workModes, setWorkModes] = useState<string[]>([]);
   const [preferredCities, setPreferredCities] = useState<string[]>([]);
   const [expectedSalary, setExpectedSalary] = useState<number | "">("");
   const [noticeDays, setNoticeDays] = useState<number | "">(0);
@@ -117,8 +143,8 @@ function OnboardingPage() {
         setDob(c.date_of_birth || ""); setGender((c.gender as typeof gender) || "");
         setExpStatus(c.experience_status as typeof expStatus); setYears(c.years_experience || 0); setLastRole(c.last_role || "");
         setSkills(c.skills || []); setAssets(c.assets || []);
-        setJobTypes(c.preferred_job_types?.length ? c.preferred_job_types : ["full_time"]);
-        setWorkModes((c.preferred_work_mode || "onsite").split(",").map((s) => s.trim()).filter(Boolean));
+        setJobTypes(c.preferred_job_types || []);
+        setWorkModes((c.preferred_work_mode || "").split(",").map((s) => s.trim()).filter(Boolean));
         setPreferredCities(c.preferred_cities || []);
         setExpectedSalary(c.expected_salary || "");
         setNoticeDays(c.notice_period_days ?? 0);
@@ -150,7 +176,7 @@ function OnboardingPage() {
     let cancelled = false;
     suggest({ data: { roles, qualification: highestQualification || null } })
       .then((s) => !cancelled && setAiSkills(s))
-      .catch(() => {});
+      .catch(() => { });
     return () => { cancelled = true; };
   }, [interestedRoles, experiences, highestQualification, suggest]);
 
@@ -326,15 +352,16 @@ function OnboardingPage() {
       if (!name.success) return name.error.issues[0].message;
       const mob = mobileSchema.safeParse(mobile);
       if (!mob.success) return mob.error.issues[0].message;
-      if (whatsapp) {
-        const w = mobileSchema.safeParse(whatsapp);
-        if (!w.success) return "WhatsApp: " + w.error.issues[0].message;
-      }
+      if (!whatsapp) return "Please enter your WhatsApp number.";
+      const w = mobileSchema.safeParse(whatsapp);
+      if (!w.success) return "WhatsApp: " + w.error.issues[0].message;
       if (headline) {
         const h = headlineSchema.safeParse(headline);
         if (!h.success) return h.error.issues[0].message;
       }
       if (!city) return "Please choose your city.";
+      if (!gender) return "Please select your gender.";
+      if (!dob) return "Please enter your date of birth.";
       const d = dobSchema.safeParse(dob || undefined);
       if (!d.success) return d.error.issues[0].message;
     }
@@ -448,20 +475,18 @@ function OnboardingPage() {
                   return (
                     <li key={label} className="relative flex items-center gap-3 rounded-xl px-2 py-2">
                       <span
-                        className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-[11px] font-bold ring-2 ${
-                          done
-                            ? "bg-primary text-primary-foreground ring-primary"
-                            : active
+                        className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-[11px] font-bold ring-2 ${done
+                          ? "bg-primary text-primary-foreground ring-primary"
+                          : active
                             ? "bg-white text-[#0f1b3d] ring-white"
                             : "bg-white/5 text-white/50 ring-white/15"
-                        }`}
+                          }`}
                       >
                         {done ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : i + 1}
                       </span>
                       <span
-                        className={`text-sm font-semibold ${
-                          active ? "text-white" : done ? "text-white/80" : "text-white/45"
-                        }`}
+                        className={`text-sm font-semibold ${active ? "text-white" : done ? "text-white/80" : "text-white/45"
+                          }`}
                       >
                         {label}
                       </span>
@@ -499,9 +524,8 @@ function OnboardingPage() {
                 {visibleSteps.map((_, i) => (
                   <div
                     key={i}
-                    className={`h-1.5 flex-1 rounded-full transition-all ${
-                      i < step ? "bg-primary" : i === step ? "bg-white" : "bg-white/15"
-                    }`}
+                    className={`h-1.5 flex-1 rounded-full transition-all ${i < step ? "bg-primary" : i === step ? "bg-white" : "bg-white/15"
+                      }`}
                   />
                 ))}
               </div>
@@ -516,338 +540,353 @@ function OnboardingPage() {
               <p className="mt-1 text-sm text-muted-foreground">Every field matters — you can edit anytime later.</p>
             </div>
 
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={step}
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.22, ease: "easeOut" }}
-          >
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={step}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.22, ease: "easeOut" }}
+              >
 
-        {currentLabel === "Basics" && (
-          <div className="space-y-5">
-            <ResumeUpload
-              existingName={resume?.name ?? null}
-              onParsed={(d: ParsedResumePayload, file: File) => {
-                // Upload to storage in the background so the Preferences step still has the file
-                uploadResume(file);
-                if (d.full_name && !fullName) setFullName(titleCase(sanitizeText(d.full_name)));
-                if (d.mobile && !mobile) setMobile(d.mobile.replace(/\D/g, "").slice(-10));
-                if (d.city && !city) setCity(d.city);
-                if (d.headline) setHeadline(d.headline);
-                if (typeof d.years_experience === "number") {
-                  setYears(d.years_experience);
-                  setExpStatus(d.years_experience > 0 ? "experienced" : "fresher");
-                }
-                if (d.skills?.length) setSkills(Array.from(new Set([...skills, ...d.skills])).slice(0, 25));
-                if (d.experiences?.length) {
-                  setExperiences(
-                    (d.experiences ?? []).map((e: NonNullable<ParsedResumePayload["experiences"]>[number]) => ({
-                      job_title: e.job_title || "",
-                      company_name: e.company_name || "",
-                      start_date: e.start_date || "",
-                      end_date: e.end_date || "",
-                      is_current: !!e.is_current,
-                      description: e.description || "",
-                    })),
-                  );
-                  if (d.experiences[0]?.job_title) setLastRole(d.experiences[0].job_title);
-                }
-              }}
-            />
-            {resume && (
-              <p className="-mt-3 inline-flex items-center gap-1.5 rounded-md bg-success/10 px-2.5 py-1.5 text-xs font-medium text-success">
-                <FileText className="h-3.5 w-3.5" /> Saved: {resume.name}
-              </p>
-            )}
-            <SectionCard title="Tell us about yourself">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Full name" required hint="Letters, spaces and dots only (3–80 chars)">
-                  <input
-                    className="form-input"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value.replace(/[^A-Za-z. ]/g, "").slice(0, 80))}
-                    onBlur={(e) => setFullName(titleCase(e.target.value.trim()))}
-                    placeholder="Your full name"
-                  />
-                </Field>
-                <Field label="Mobile number" required hint="OTP-verified Indian number">
-                  <input
-                    className="form-input bg-surface"
-                    value={mobile}
-                    onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                    placeholder="98xxxxxxxx"
-                    readOnly={!!mobile}
-                  />
-                </Field>
-                <Field label="WhatsApp number" hint="Defaults to your mobile — change if different">
-                  <input
-                    className="form-input"
-                    value={whatsapp}
-                    onChange={(e) => setWhatsapp(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                    placeholder="WhatsApp 10-digit number"
-                  />
-                  <label className="mt-2 flex items-start gap-2 text-xs text-foreground/80">
-                    <input type="checkbox" checked={whatsappOptIn} onChange={(e) => setWhatsappOptIn(e.target.checked)} />
-                    <span>Receive updates, alerts, and notifications on WhatsApp</span>
-                  </label>
-                </Field>
-                <Field label="Headline" hint="One-line summary — keep it short and specific">
-                  <input className="form-input" value={headline} maxLength={200} onChange={(e) => setHeadline(e.target.value.slice(0, 200))} placeholder="e.g. Sales Executive with 2 years exp" />
-                  <span className={`mt-1 block text-right text-xs tabular-nums ${headline.length >= 200 ? "text-destructive" : headline.length >= 180 ? "text-amber-600" : "text-muted-foreground"}`}>
-                    {headline.length}/200
-                  </span>
-                </Field>
-                <Field label="City" required>
-                  <select className="form-input" value={city} onChange={(e) => setCity(e.target.value)}>
-                    <option value="">Select city</option>
-                    {INDIAN_CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </Field>
-                <Field label="Date of birth"><input type="date" className="form-input" value={dob} onChange={(e) => setDob(e.target.value)} /></Field>
-                <Field label="Gender">
-                  <select className="form-input" value={gender} onChange={(e) => setGender(e.target.value as typeof gender)}>
-                    <option value="">Prefer not to say</option>
-                    <option value="male">Male</option><option value="female">Female</option><option value="other">Other</option>
-                  </select>
-                </Field>
-              </div>
-            </SectionCard>
-          </div>
-        )}
+                {currentLabel === "Basics" && (
+                  <div className="space-y-5">
+                    <ResumeUpload
+                      existingName={resume?.name ?? null}
+                      onParsed={(d: ParsedResumePayload, file: File) => {
+                        // Upload to storage in the background so the Preferences step still has the file
+                        uploadResume(file);
+                        if (d.full_name && !fullName) setFullName(titleCase(sanitizeText(d.full_name)));
+                        if (d.mobile && !mobile) setMobile(d.mobile.replace(/\D/g, "").slice(-10));
+                        if (d.city && !city) setCity(d.city);
+                        if (d.headline) setHeadline(d.headline);
+                        if (typeof d.years_experience === "number") {
+                          setYears(d.years_experience);
+                          setExpStatus(d.years_experience > 0 ? "experienced" : "fresher");
+                        }
+                        if (d.skills?.length) setSkills(Array.from(new Set([...skills, ...d.skills])).slice(0, 25));
+                        if (d.experiences?.length) {
+                          setExperiences(
+                            (d.experiences ?? []).map((e: NonNullable<ParsedResumePayload["experiences"]>[number]) => ({
+                              job_title: e.job_title || "",
+                              company_name: e.company_name || "",
+                              start_date: e.start_date || "",
+                              end_date: e.end_date || "",
+                              is_current: !!e.is_current,
+                              description: e.description || "",
+                            })),
+                          );
+                          if (d.experiences[0]?.job_title) setLastRole(d.experiences[0].job_title);
+                        }
+                      }}
+                    />
+                    {resume && (
+                      <p className="-mt-3 inline-flex items-center gap-1.5 rounded-md bg-success/10 px-2.5 py-1.5 text-xs font-medium text-success">
+                        <FileText className="h-3.5 w-3.5" /> Saved: {resume.name}
+                      </p>
+                    )}
+                    <SectionCard title="Tell us about yourself">
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <Field label="Full name" required hint="Letters, spaces and dots only (3–80 chars)">
+                          <input
+                            className="form-input"
+                            value={fullName}
+                            onChange={(e) => setFullName(e.target.value.replace(/[^A-Za-z. ]/g, "").slice(0, 80))}
+                            onBlur={(e) => setFullName(titleCase(e.target.value.trim()))}
+                            placeholder="Your full name"
+                          />
+                        </Field>
+                        <Field
+                          label="Mobile number"
+                          required
+                          hint="OTP-verified Indian number"
+                          error={mobile.length === 10 && !mobileSchema.safeParse(mobile).success ? "Enter a valid 10-digit mobile number" : undefined}
+                        >
+                          <input
+                            className="form-input bg-surface"
+                            value={mobile}
+                            onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                            placeholder="98xxxxxxxx"
+                            readOnly={!!mobile}
+                          />
+                        </Field>
+                        <Field
+                          label="WhatsApp number"
+                          required
+                          hint="Defaults to your mobile — change if different"
+                          error={whatsapp.length === 10 && !mobileSchema.safeParse(whatsapp).success ? "Enter a valid 10-digit mobile number" : undefined}
+                        >
+                          <input
+                            className="form-input"
+                            value={whatsapp}
+                            onChange={(e) => setWhatsapp(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                            placeholder="WhatsApp 10-digit number"
+                          />
+                          <label className="mt-2 flex items-start gap-2 text-xs text-foreground/80">
+                            <input type="checkbox" checked={whatsappOptIn} onChange={(e) => setWhatsappOptIn(e.target.checked)} />
+                            <span>Receive updates, alerts, and notifications on WhatsApp</span>
+                          </label>
+                        </Field>
+                        <Field label="Headline" hint="One-line summary — keep it short and specific">
+                          <input className="form-input" value={headline} maxLength={200} onChange={(e) => setHeadline(e.target.value.slice(0, 200))} placeholder="e.g. Sales Executive with 2 years exp" />
+                          <span className={`mt-1 block text-right text-xs tabular-nums ${headline.length >= 200 ? "text-destructive" : headline.length >= 180 ? "text-amber-600" : "text-muted-foreground"}`}>
+                            {headline.length}/200
+                          </span>
+                        </Field>
+                        <Field label="City" required>
+                          <select className="form-input" value={city} onChange={(e) => setCity(e.target.value)}>
+                            <option value="">Select city</option>
+                            {INDIAN_CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                          </select>
+                        </Field>
+                        <Field label="Date of birth" required>
+                          <DateField value={dob} onChange={setDob} />
+                        </Field>
+                        <Field label="Gender" required>
+                          <select className="form-input" value={gender} onChange={(e) => setGender(e.target.value as typeof gender)}>
+                            <option value="" disabled>Select gender</option>
+                            <option value="male">Male</option><option value="female">Female</option><option value="other">Other</option>
+                            <option value="prefer_not">Prefer not to say</option>
+                          </select>
+                        </Field>
+                      </div>
+                    </SectionCard>
+                  </div>
+                )}
 
-        {currentLabel === "Work status" && (
-          <SectionCard title="Your work status">
-            <div className="grid gap-3 sm:grid-cols-3">
-              {(["fresher", "experienced", "student"] as const).map((s) => (
-                <button key={s} type="button" onClick={() => handleExpStatusChange(s)}
-                  className={`rounded-xl border p-4 text-left transition ${expStatus === s ? "border-primary bg-primary-light" : "border-border bg-card hover:border-primary/40"}`}>
-                  <p className="font-semibold capitalize text-foreground">{s}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {s === "fresher" ? "Looking for first job" : s === "experienced" ? "1+ years of work experience" : "Currently studying"}
-                  </p>
-                </button>
-              ))}
-            </div>
-            {expStatus === "experienced" && (
-              <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                <Field label="Total years of experience" required>
-                  <input type="number" min={0} max={50} className="form-input" value={years} onChange={(e) => setYears(Number(e.target.value))} />
-                </Field>
-                <Field label="Current/last role">
-                  <JobTitleAutocomplete value={lastRole} onChange={setLastRole} placeholder="e.g. Sales Executive" />
-                </Field>
-              </div>
-            )}
-            <div className="mt-4">
-              <Field label="Interested job roles" required hint="Pick as many as you like — we match jobs to all of them">
-                <ChipInput values={interestedRoles} onChange={setInterestedRoles} placeholder="e.g. Sales Executive" suggestions={["Sales Executive","Telecaller","Customer Support Executive","Delivery Executive","Data Entry Operator","Receptionist","Office Assistant","Beautician","Driver","Cashier"]} />
-              </Field>
-            </div>
-            <div className="mt-4">
-              <Field label="Skills" required hint="Tap a suggestion to add it, or type your own and press Enter">
-                <ChipInput values={skills} onChange={setSkills} max={25} suggestions={aiSkills.length ? aiSkills : ["Communication","MS Office","Customer Service","Sales","Hindi","English"]} placeholder="Add a skill" />
-              </Field>
-              <p className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground">
-                <Sparkles className="h-3 w-3 text-primary" />
-                {aiSkills.length > 0
-                  ? `Suggestions based on employers hiring for ${interestedRoles.slice(0, 2).join(", ") || "your roles"} — tap to add or remove.`
-                  : "Suggestions appear once you add a role above."}
-              </p>
-              <p className="mt-1 text-xs font-semibold text-foreground">
-                Selected: <span className="tabular-nums">{skills.length}</span>/25
-              </p>
-            </div>
-          </SectionCard>
-        )}
-
-        {currentLabel === "Experience" && (
-          <SectionCard title={expStatus === "student" ? "Internships (optional)" : "Work experience"} action={
-            <button type="button" onClick={() => setExperiences([...experiences, { job_title: "", company_name: "", start_date: "", end_date: "", is_current: false, description: "" }])}
-              className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark">
-              <Plus className="h-4 w-4" /> Add
-            </button>
-          }>
-            {experiences.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                {expStatus === "experienced"
-                  ? "Please add at least one work experience to continue."
-                  : "Add any internships, or click Continue to skip."}
-              </p>
-            ) : (
-              <div className="space-y-4">
-                {experiences.map((e, i) => (
-                  <div key={i} className="rounded-xl border border-border bg-surface p-4">
-                    <div className="mb-3 flex items-center justify-between">
-                      <span className="text-xs font-semibold text-muted-foreground">{expStatus === "student" ? "Internship" : "Experience"} #{i + 1}</span>
-                      <button type="button" onClick={() => setExperiences(experiences.filter((_, k) => k !== i))} className="text-destructive hover:opacity-70"><Trash2 className="h-4 w-4" /></button>
+                {currentLabel === "Work status" && (
+                  <SectionCard title="Your work status">
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      {(["fresher", "experienced", "student"] as const).map((s) => (
+                        <button key={s} type="button" onClick={() => handleExpStatusChange(s)}
+                          className={`rounded-xl border p-4 text-left transition ${expStatus === s ? "border-primary bg-primary-light" : "border-border bg-card hover:border-primary/40"}`}>
+                          <p className="font-semibold capitalize text-foreground">{s}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {s === "fresher" ? "Looking for first job" : s === "experienced" ? "1+ years of work experience" : "Currently studying"}
+                          </p>
+                        </button>
+                      ))}
                     </div>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <Field label={expStatus === "student" ? "Role" : "Job title"} required>
-                        <JobTitleAutocomplete value={e.job_title} onChange={(v) => setExperiences(experiences.map((x, k) => k === i ? { ...x, job_title: v } : x))} />
-                      </Field>
-                      <Field label={expStatus === "student" ? "Organisation" : "Company"} required>
-                        <input className="form-input" value={e.company_name} onChange={(ev) => setExperiences(experiences.map((x, k) => k === i ? { ...x, company_name: ev.target.value } : x))} />
-                      </Field>
-                      <Field label="Start date"><input type="date" className="form-input" value={e.start_date} onChange={(ev) => setExperiences(experiences.map((x, k) => k === i ? { ...x, start_date: ev.target.value } : x))} /></Field>
-                      <Field label="End date">
-                        <input type="date" className="form-input" disabled={e.is_current} value={e.end_date} onChange={(ev) => setExperiences(experiences.map((x, k) => k === i ? { ...x, end_date: ev.target.value } : x))} />
-                        <label className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                          <input type="checkbox" checked={e.is_current} onChange={(ev) => setExperiences(experiences.map((x, k) => k === i ? { ...x, is_current: ev.target.checked } : x))} />
-                          {expStatus === "student" ? "Currently ongoing" : "I currently work here"}
-                        </label>
+                    {expStatus === "experienced" && (
+                      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                        <Field label="Total years of experience" required>
+                          <input type="number" min={0} max={50} className="form-input" value={years} onChange={(e) => setYears(Number(e.target.value))} />
+                        </Field>
+                        <Field label="Current/last role">
+                          <JobTitleAutocomplete value={lastRole} onChange={setLastRole} placeholder="e.g. Sales Executive" />
+                        </Field>
+                      </div>
+                    )}
+                    <div className="mt-4">
+                      <Field label="Interested job roles" required hint="Pick as many as you like — we match jobs to all of them">
+                        <ChipInput values={interestedRoles} onChange={setInterestedRoles} placeholder="e.g. Sales Executive" suggestions={["Sales Executive", "Telecaller", "Customer Support Executive", "Delivery Executive", "Data Entry Operator", "Receptionist", "Office Assistant", "Beautician", "Driver", "Cashier"]} />
                       </Field>
                     </div>
-                    <Field label="Description" hint="Optional · up to 1500 chars">
-                      <textarea
-                        className="form-input min-h-[70px]"
-                        maxLength={1500}
-                        value={e.description}
-                        onChange={(ev) => setExperiences(experiences.map((x, k) => k === i ? { ...x, description: ev.target.value } : x))}
-                        placeholder="What did you do here?"
-                      />
-                    </Field>
-                  </div>
-                ))}
-              </div>
-            )}
-          </SectionCard>
-        )}
+                    <div className="mt-4">
+                      <Field label="Skills" required hint="Tap a suggestion to add it, or type your own and press Enter">
+                        <ChipInput values={skills} onChange={setSkills} max={25} suggestions={aiSkills.length ? aiSkills : ["Communication", "MS Office", "Customer Service", "Sales", "Hindi", "English"]} placeholder="Add a skill" />
+                      </Field>
+                      <p className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                        <Sparkles className="h-3 w-3 text-primary" />
+                        {aiSkills.length > 0
+                          ? `Suggestions based on employers hiring for ${interestedRoles.slice(0, 2).join(", ") || "your roles"} — tap to add or remove.`
+                          : "Suggestions appear once you add a role above."}
+                      </p>
+                      <p className="mt-1 text-xs font-semibold text-foreground">
+                        Selected: <span className="tabular-nums">{skills.length}</span>/25
+                      </p>
+                    </div>
+                  </SectionCard>
+                )}
 
-        {currentLabel === "Education" && (
-          <SectionCard title="Highest qualification">
-            <p className="mb-4 text-sm text-muted-foreground">
-              Pick your highest qualification now — you can add school/college, board and marks later from your profile.
-            </p>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {QUALIFICATIONS.map((q) => (
-                <button key={q} type="button" onClick={() => setHighestQualification(q)}
-                  className={`rounded-xl border p-3 text-left text-sm font-medium transition ${highestQualification === q ? "border-primary bg-primary-light text-primary" : "border-border bg-card hover:border-primary/40"}`}>
-                  {q}
-                </button>
-              ))}
-            </div>
-          </SectionCard>
-        )}
-
-        {currentLabel === "Skills & languages" && (
-          <div className="space-y-6">
-            <SectionCard title="Skills" action={
-              <button type="button" onClick={() => setStepKey("Work status")} className="text-xs font-semibold text-primary hover:underline">
-                Edit
-              </button>
-            }>
-              {skills.length ? (
-                <div className="flex flex-wrap gap-2">
-                  {skills.map((s) => (
-                    <span key={s} className="rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium text-foreground/80">{s}</span>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">No skills added yet — use Edit to add some.</p>
-              )}
-            </SectionCard>
-            <SectionCard title="Languages you know" action={
-              <button type="button" onClick={() => setLanguages([...languages, { language: "", proficiency: "conversational", can_read: true, can_write: true }])}
-                className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark">
-                <Plus className="h-4 w-4" /> Add
-              </button>
-            }>
-              <div className="space-y-3">
-                {languages.map((l, i) => (
-                  <div key={i} className="grid items-end gap-3 rounded-xl border border-border bg-surface p-3 sm:grid-cols-[1.2fr_1fr_auto_auto_auto]">
-                    <Field label="Language">
-                      <input className="form-input" list="lang-suggestions" value={l.language} onChange={(e) => setLanguages(languages.map((x, k) => k === i ? { ...x, language: e.target.value } : x))} />
-                    </Field>
-                    <Field label="Proficiency">
-                      <select className="form-input" value={l.proficiency} onChange={(e) => setLanguages(languages.map((x, k) => k === i ? { ...x, proficiency: e.target.value as Language["proficiency"] } : x))}>
-                        <option value="basic">Basic</option><option value="conversational">Conversational</option><option value="fluent">Fluent</option><option value="native">Native</option>
-                      </select>
-                    </Field>
-                    <label className="flex items-center gap-1.5 text-xs text-foreground/80"><input type="checkbox" checked={l.can_read} onChange={(e) => setLanguages(languages.map((x, k) => k === i ? { ...x, can_read: e.target.checked } : x))} /> Read</label>
-                    <label className="flex items-center gap-1.5 text-xs text-foreground/80"><input type="checkbox" checked={l.can_write} onChange={(e) => setLanguages(languages.map((x, k) => k === i ? { ...x, can_write: e.target.checked } : x))} /> Write</label>
-                    <button type="button" onClick={() => setLanguages(languages.filter((_, k) => k !== i))} className="text-destructive hover:opacity-70"><Trash2 className="h-4 w-4" /></button>
-                  </div>
-                ))}
-              </div>
-              <datalist id="lang-suggestions">{langMaster.map((l) => <option key={l} value={l} />)}</datalist>
-            </SectionCard>
-            <SectionCard title="What do you have?">
-              <div className="flex flex-wrap gap-2">
-                {(visibleAssets.length ? visibleAssets : assetsMaster).map((a) => {
-                  const on = assets.includes(a.slug);
-                  return (
-                    <button key={a.slug} type="button" onClick={() => setAssets(on ? assets.filter((x) => x !== a.slug) : [...assets, a.slug])}
-                      className={`rounded-full border px-4 py-1.5 text-sm font-medium transition ${on ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-foreground/70 hover:border-primary"}`}>
-                      {a.label}
+                {currentLabel === "Experience" && (
+                  <SectionCard title={expStatus === "student" ? "Internships" : "Work experience"} action={
+                    <button type="button" onClick={() => setExperiences([...experiences, { job_title: "", company_name: "", start_date: "", end_date: "", is_current: false, description: "" }])}
+                      className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark">
+                      <Plus className="h-4 w-4" /> Add
                     </button>
-                  );
-                })}
-              </div>
-            </SectionCard>
-          </div>
-        )}
-
-        {currentLabel === "Preferences" && (
-          <div className="space-y-6">
-            <SectionCard title="Job preferences">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Looking for" required>
-                  <div className="flex flex-wrap gap-2">
-                    {JOB_TYPE_OPTIONS.map((j) => {
-                      const on = jobTypes.includes(j.id);
-                      const disabled = expStatus === "student" && j.id !== "internship";
-                      return <button key={j.id} type="button" disabled={disabled} onClick={() => setJobTypes(on ? jobTypes.filter((x) => x !== j.id) : [...jobTypes, j.id])}
-                        className={`rounded-full border px-3 py-1.5 text-xs font-medium ${on ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-foreground/70 hover:border-primary"} ${disabled ? "opacity-40" : ""}`}>{j.label}</button>;
-                    })}
-                  </div>
-                  {expStatus === "student" && <p className="mt-1 text-xs text-muted-foreground">Students can apply only to Internships.</p>}
-                </Field>
-                <Field label="Work mode" required hint="Select one or more">
-                  <div className="flex flex-wrap gap-2">
-                    {WORK_MODES.map((w) => {
-                      const on = workModes.includes(w.id);
-                      return (
-                        <button key={w.id} type="button" onClick={() => setWorkModes(on ? workModes.filter((x) => x !== w.id) : [...workModes, w.id])}
-                          className={`rounded-full border px-3 py-1.5 text-xs font-medium ${on ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-foreground/70 hover:border-primary"}`}>{w.label}</button>
-                      );
-                    })}
-                  </div>
-                </Field>
-                <div className="sm:col-span-2">
-                  <Field label="Preferred cities" required hint="1–4 cities">
-                    <ChipInput values={preferredCities} onChange={(v) => setPreferredCities(v.slice(0, 4))} suggestions={INDIAN_CITIES} placeholder="Add cities" />
-                  </Field>
-                </div>
-                {expStatus !== "student" && (
-                  <Field label={`Expected monthly salary (₹)${expStatus === "experienced" ? " *" : ""}`}>
-                    <input type="number" className="form-input" value={expectedSalary} onChange={(e) => setExpectedSalary(e.target.value ? Number(e.target.value) : "")} placeholder="e.g. 25000" />
-                  </Field>
+                  }>
+                    {experiences.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        {expStatus === "experienced"
+                          ? "Please add at least one work experience to continue."
+                          : "Add any internships, or click Continue to skip."}
+                      </p>
+                    ) : (
+                      <div className="space-y-4">
+                        {experiences.map((e, i) => (
+                          <div key={i} className="rounded-xl border border-border bg-surface p-4">
+                            <div className="mb-3 flex items-center justify-between">
+                              <span className="text-xs font-semibold text-muted-foreground">{expStatus === "student" ? "Internship" : "Experience"} #{i + 1}</span>
+                              <button type="button" onClick={() => setExperiences(experiences.filter((_, k) => k !== i))} className="text-destructive hover:opacity-70"><Trash2 className="h-4 w-4" /></button>
+                            </div>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              <Field label={expStatus === "student" ? "Role" : "Job title"} required>
+                                <JobTitleAutocomplete value={e.job_title} onChange={(v) => setExperiences(experiences.map((x, k) => k === i ? { ...x, job_title: v } : x))} />
+                              </Field>
+                              <Field label={expStatus === "student" ? "Organisation" : "Company"} required>
+                                <input className="form-input" value={e.company_name} onChange={(ev) => setExperiences(experiences.map((x, k) => k === i ? { ...x, company_name: ev.target.value } : x))} />
+                              </Field>
+                              <Field label="Start date">
+                                <DateField value={e.start_date} onChange={(v) => setExperiences(experiences.map((x, k) => k === i ? { ...x, start_date: v } : x))} />
+                              </Field>
+                              <Field label="End date">
+                                <DateField value={e.end_date} disabled={e.is_current} onChange={(v) => setExperiences(experiences.map((x, k) => k === i ? { ...x, end_date: v } : x))} />
+                                <label className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                                  <input type="checkbox" checked={e.is_current} onChange={(ev) => setExperiences(experiences.map((x, k) => k === i ? { ...x, is_current: ev.target.checked } : x))} />
+                                  {expStatus === "student" ? "Currently ongoing" : "I currently work here"}
+                                </label>
+                              </Field>
+                            </div>
+                            <Field label="Description" hint="Optional · up to 1500 chars">
+                              <textarea
+                                className="form-input min-h-[70px]"
+                                maxLength={1500}
+                                value={e.description}
+                                onChange={(ev) => setExperiences(experiences.map((x, k) => k === i ? { ...x, description: ev.target.value } : x))}
+                                placeholder="What did you do here?"
+                              />
+                            </Field>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </SectionCard>
                 )}
-                {expStatus === "experienced" && (
-                  <Field label="Notice period (days) *">
-                    <input type="number" className="form-input" value={noticeDays} onChange={(e) => setNoticeDays(e.target.value ? Number(e.target.value) : "")} placeholder="0 if immediately available" />
-                  </Field>
-                )}
-              </div>
-            </SectionCard>
-          </div>
-        )}
-          </motion.div>
-        </AnimatePresence>
 
-        {/* Footer nav — no skips */}
-        <div className="sticky bottom-0 mt-6 flex items-center justify-between rounded-xl border border-border bg-card/95 p-3 shadow-[var(--shadow-card)] backdrop-blur sm:p-4">
-          <button type="button" disabled={step === 0 || saving} onClick={() => saveStep(-1)}
-            className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground hover:bg-surface disabled:opacity-50">
-            <ArrowLeft className="h-4 w-4" /> Back
-          </button>
-          <button type="button" onClick={handleNext} disabled={saving}
-            className="inline-flex items-center gap-1 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-50">
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : step === visibleSteps.length - 1 ? <>Finish <Check className="h-4 w-4" /></> : <>Continue <ArrowRight className="h-4 w-4" /></>}
-          </button>
-        </div>
+                {currentLabel === "Education" && (
+                  <SectionCard title="Highest qualification">
+                    <p className="mb-4 text-sm text-muted-foreground">
+                      Pick your highest qualification now — you can add school/college, board and marks later from your profile.
+                    </p>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {QUALIFICATIONS.map((q) => (
+                        <button key={q} type="button" onClick={() => setHighestQualification(q)}
+                          className={`rounded-xl border p-3 text-left text-sm font-medium transition ${highestQualification === q ? "border-primary bg-primary-light text-primary" : "border-border bg-card hover:border-primary/40"}`}>
+                          {q}
+                        </button>
+                      ))}
+                    </div>
+                  </SectionCard>
+                )}
+
+                {currentLabel === "Skills & languages" && (
+                  <div className="space-y-6">
+                    <SectionCard title="Skills" action={
+                      <button type="button" onClick={() => setStepKey("Work status")} className="text-xs font-semibold text-primary hover:underline">
+                        Edit
+                      </button>
+                    }>
+                      {skills.length ? (
+                        <div className="flex flex-wrap gap-2">
+                          {skills.map((s) => (
+                            <span key={s} className="rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium text-foreground/80">{s}</span>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No skills added yet — use Edit to add some.</p>
+                      )}
+                    </SectionCard>
+                    <SectionCard title="Languages you know" action={
+                      <button type="button" onClick={() => setLanguages([...languages, { language: "", proficiency: "conversational", can_read: true, can_write: true }])}
+                        className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark">
+                        <Plus className="h-4 w-4" /> Add
+                      </button>
+                    }>
+                      <div className="space-y-3">
+                        {languages.map((l, i) => (
+                          <div key={i} className="grid items-end gap-3 rounded-xl border border-border bg-surface p-3 sm:grid-cols-[1.2fr_1fr_auto_auto_auto]">
+                            <Field label="Language">
+                              <input className="form-input" list="lang-suggestions" value={l.language} onChange={(e) => setLanguages(languages.map((x, k) => k === i ? { ...x, language: e.target.value } : x))} />
+                            </Field>
+                            <Field label="Proficiency">
+                              <select className="form-input" value={l.proficiency} onChange={(e) => setLanguages(languages.map((x, k) => k === i ? { ...x, proficiency: e.target.value as Language["proficiency"] } : x))}>
+                                <option value="basic">Basic</option><option value="conversational">Conversational</option><option value="fluent">Fluent</option><option value="native">Native</option>
+                              </select>
+                            </Field>
+                            <label className="flex items-center gap-1.5 text-xs text-foreground/80"><input type="checkbox" checked={l.can_read} onChange={(e) => setLanguages(languages.map((x, k) => k === i ? { ...x, can_read: e.target.checked } : x))} /> Read</label>
+                            <label className="flex items-center gap-1.5 text-xs text-foreground/80"><input type="checkbox" checked={l.can_write} onChange={(e) => setLanguages(languages.map((x, k) => k === i ? { ...x, can_write: e.target.checked } : x))} /> Write</label>
+                            <button type="button" onClick={() => setLanguages(languages.filter((_, k) => k !== i))} className="text-destructive hover:opacity-70"><Trash2 className="h-4 w-4" /></button>
+                          </div>
+                        ))}
+                      </div>
+                      <datalist id="lang-suggestions">{langMaster.map((l) => <option key={l} value={l} />)}</datalist>
+                    </SectionCard>
+                    <SectionCard title="What do you have?">
+                      <div className="flex flex-wrap gap-2">
+                        {(visibleAssets.length ? visibleAssets : assetsMaster).map((a) => {
+                          const on = assets.includes(a.slug);
+                          return (
+                            <button key={a.slug} type="button" onClick={() => setAssets(on ? assets.filter((x) => x !== a.slug) : [...assets, a.slug])}
+                              className={`rounded-full border px-4 py-1.5 text-sm font-medium transition ${on ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-foreground/70 hover:border-primary"}`}>
+                              {a.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </SectionCard>
+                  </div>
+                )}
+
+                {currentLabel === "Preferences" && (
+                  <div className="space-y-6">
+                    <SectionCard title="Job preferences">
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <Field label="Looking for" required>
+                          <div className="flex flex-wrap gap-2">
+                            {JOB_TYPE_OPTIONS.map((j) => {
+                              const on = jobTypes.includes(j.id);
+                              const disabled = expStatus === "student" && j.id !== "internship";
+                              return <button key={j.id} type="button" disabled={disabled} onClick={() => setJobTypes(on ? jobTypes.filter((x) => x !== j.id) : [...jobTypes, j.id])}
+                                className={`rounded-full border px-3 py-1.5 text-xs font-medium ${on ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-foreground/70 hover:border-primary"} ${disabled ? "opacity-40" : ""}`}>{j.label}</button>;
+                            })}
+                          </div>
+                          {expStatus === "student" && <p className="mt-1 text-xs text-muted-foreground">Students can apply only to Internships.</p>}
+                        </Field>
+                        <Field label="Work mode" required hint="Select one or more">
+                          <div className="flex flex-wrap gap-2">
+                            {WORK_MODES.map((w) => {
+                              const on = workModes.includes(w.id);
+                              return (
+                                <button key={w.id} type="button" onClick={() => setWorkModes(on ? workModes.filter((x) => x !== w.id) : [...workModes, w.id])}
+                                  className={`rounded-full border px-3 py-1.5 text-xs font-medium ${on ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-foreground/70 hover:border-primary"}`}>{w.label}</button>
+                              );
+                            })}
+                          </div>
+                        </Field>
+                        <div className="sm:col-span-2">
+                          <Field label="Preferred cities" required hint="1–4 cities">
+                            <ChipInput values={preferredCities} onChange={(v) => setPreferredCities(v.slice(0, 4))} suggestions={INDIAN_CITIES} placeholder="Add cities" />
+                          </Field>
+                        </div>
+                        {expStatus !== "student" && (
+                          <Field label={`Expected monthly salary (₹)${expStatus === "experienced" ? " *" : ""}`}>
+                            <input type="number" className="form-input" value={expectedSalary} onChange={(e) => setExpectedSalary(e.target.value ? Number(e.target.value) : "")} placeholder="e.g. 25000" />
+                          </Field>
+                        )}
+                        {expStatus === "experienced" && (
+                          <Field label="Notice period (days) *">
+                            <input type="number" className="form-input" value={noticeDays} onChange={(e) => setNoticeDays(e.target.value ? Number(e.target.value) : "")} placeholder="0 if immediately available" />
+                          </Field>
+                        )}
+                      </div>
+                    </SectionCard>
+                  </div>
+                )}
+              </motion.div>
+            </AnimatePresence>
+
+            {/* Footer nav — no skips */}
+            <div className="sticky bottom-0 z-20 mt-6 flex items-center justify-between rounded-xl border border-border bg-card p-3 shadow-[var(--shadow-card)] sm:p-4">
+              <button type="button" disabled={step === 0 || saving} onClick={() => saveStep(-1)}
+                className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground hover:bg-surface disabled:opacity-50">
+                <ArrowLeft className="h-4 w-4" /> Back
+              </button>
+              <button type="button" onClick={handleNext} disabled={saving}
+                className="inline-flex items-center gap-1 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-50">
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : step === visibleSteps.length - 1 ? <>Finish <Check className="h-4 w-4" /></> : <>Continue <ArrowRight className="h-4 w-4" /></>}
+              </button>
+            </div>
           </div>
         </div>
       </div>
