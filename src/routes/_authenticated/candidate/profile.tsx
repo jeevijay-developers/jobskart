@@ -10,6 +10,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { computeProfileStrength, getIncompleteProfileFields, strengthLabel } from "@/lib/profileStrength";
 import { AVATAR_ACCEPT, validateAvatarFile } from "@/lib/validators";
 import { INDIAN_CITIES, SUGGESTED_SKILLS, SUGGESTED_LANGUAGES, JOB_TYPE_OPTIONS, WORK_MODES, ID_TYPES, EDUCATION_LEVELS } from "@/lib/options";
+import { INDIAN_STATES_AND_UTS, CITIES_BY_STATE, type IndianState } from "@/lib/indianStatesCities";
+import { CityTownAutocomplete } from "@/components/candidate/CityTownAutocomplete";
+import { StateDropdown } from "@/components/candidate/StateDropdown";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ResumeUpload } from "@/components/candidate/ResumeUpload";
 import type { ParsedResumePayload } from "@/lib/resume.functions";
@@ -253,7 +256,7 @@ function ProfilePage() {
             <div id="resume" className="flex flex-col rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
               <div className="mb-6 flex items-center justify-between">
                 <h3 className="flex items-center gap-2 text-lg font-bold text-foreground">
-                  Documents &amp; resume {incompleteKeys.has("resume_url") && <IncompleteTag />}
+                  Documents {incompleteKeys.has("resume_url") && <IncompleteTag />}
                 </h3>
                 <Link to="/candidate/documents" className="text-sm font-semibold text-primary hover:underline">View all</Link>
               </div>
@@ -536,16 +539,16 @@ function Stat({ value, label, icon: Icon, tone }: { value: number; label: string
 
 
 // ----- Dialogs -----
-function DlgShell({ open, onClose, title, children, onSave, saving }: { open: boolean; onClose: () => void; title: string; children: React.ReactNode; onSave?: () => void; saving?: boolean }) {
+function DlgShell({ open, onClose, title, children, onSave, saving, footerButtonsSideBySide }: { open: boolean; onClose: () => void; title: string; children: React.ReactNode; onSave?: () => void; saving?: boolean; footerButtonsSideBySide?: boolean }) {
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader><DialogTitle>{title}</DialogTitle></DialogHeader>
         <div className="py-2">{children}</div>
         {onSave && (
-          <DialogFooter>
-            <button onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-surface">Cancel</button>
-            <button onClick={onSave} disabled={saving} className="inline-flex items-center gap-1 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-50">
+          <DialogFooter className={footerButtonsSideBySide ? "flex-row gap-2 space-x-0 sm:space-x-2" : undefined}>
+            <button onClick={onClose} className={`rounded-lg border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-surface ${footerButtonsSideBySide ? "flex-1 sm:flex-none" : ""}`}>Cancel</button>
+            <button onClick={onSave} disabled={saving} className={`inline-flex items-center justify-center gap-1 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-50 ${footerButtonsSideBySide ? "flex-1 sm:flex-none" : ""}`}>
               {saving && <Loader2 className="h-4 w-4 animate-spin" />} Save
             </button>
           </DialogFooter>
@@ -664,13 +667,27 @@ function AvatarDialog({ open, onClose, uid, onSaved }: { open: boolean; onClose:
 
 function PersonalDialog({ open, onClose, uid, p, c, onSaved }: { open: boolean; onClose: () => void; uid: string; p: Profile; c: Candidate; onSaved: () => void }) {
   const to10 = (v: string) => { const d = (v ?? "").replace(/\D/g, ""); return d.length >= 10 ? d.slice(-10) : d; };
-  const [full_name, setFn] = useState(p.full_name); const [mobile, setMo] = useState(to10(p.mobile)); const [city, setCity] = useState(p.city);
+  const [full_name, setFn] = useState(p.full_name); const [mobile, setMo] = useState(to10(p.mobile)); const [city, setCity] = useState(p.city || "");
+  // State isn't in the profiles schema yet — kept in local form state only for now,
+  // same frontend-safe handling used in onboarding (see candidate.tsx TODOs).
+  const [state, setState] = useState("");
   const [dob, setDob] = useState(c.date_of_birth || ""); const [gender, setGender] = useState(c.gender || "");
   const [bio, setBio] = useState(c.bio || ""); const [headline, setHeadline] = useState(c.headline || "");
   const [saving, setSaving] = useState(false);
-  useEffect(() => { if (open) { setFn(p.full_name); setMo(to10(p.mobile)); setCity(p.city); setDob(c.date_of_birth || ""); setGender(c.gender || ""); setBio(c.bio || ""); setHeadline(c.headline || ""); } }, [open, p, c]);
+  const [fieldErrors, setFieldErrors] = useState<{ full_name?: string; mobile?: string; state?: string; city?: string; dob?: string; gender?: string }>({});
+  useEffect(() => { if (open) { setFn(p.full_name); setMo(to10(p.mobile)); setCity(p.city || ""); setDob(c.date_of_birth || ""); setGender(c.gender || ""); setBio(c.bio || ""); setHeadline(c.headline || ""); setFieldErrors({}); } }, [open, p, c]);
   const save = async () => {
+    const next: typeof fieldErrors = {};
+    if (!full_name.trim()) next.full_name = "Please enter your full name.";
+    if (!mobile.trim()) next.mobile = "Please enter your mobile number.";
+    if (!state) next.state = "Please choose your state.";
+    if (!city) next.city = "Please choose your city/town.";
+    if (!dob) next.dob = "Please enter your date of birth.";
+    if (!gender) next.gender = "Please select your gender.";
+    setFieldErrors(next);
+    if (Object.keys(next).length > 0) return;
     setSaving(true);
+    // TODO: include `state` here once profiles.state is added to the Supabase schema.
     await supabase
       .from("profiles")
       .update({ full_name, mobile: to10(mobile).length === 10 ? `+91${to10(mobile)}` : null, city })
@@ -679,13 +696,42 @@ function PersonalDialog({ open, onClose, uid, p, c, onSaved }: { open: boolean; 
     setSaving(false); toast.success("Saved"); onSaved(); onClose();
   };
   return (
-    <DlgShell open={open} onClose={onClose} title="Personal details" onSave={save} saving={saving}>
+    <DlgShell open={open} onClose={onClose} title="Personal details" onSave={save} saving={saving} footerButtonsSideBySide>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Full name"><input className="form-input" value={full_name} onChange={(e) => setFn(e.target.value)} /></Field>
-        <Field label="Mobile"><input className="form-input" value={mobile} onChange={(e) => setMo(e.target.value.replace(/\D/g, "").slice(0, 10))} /></Field>
-        <Field label="City"><ThemedSelect className="form-input" value={city} onChange={(e) => setCity(e.target.value)}><option value="">Select</option>{INDIAN_CITIES.map((x) => <option key={x}>{x}</option>)}</ThemedSelect></Field>
-        <Field label="Date of birth"><ThemedDatePicker value={dob} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setDob(e.target.value)} /></Field>
-        <Field label="Gender"><ThemedSelect className="form-input" value={gender} onChange={(e) => setGender(e.target.value)}><option value="">Prefer not to say</option><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option></ThemedSelect></Field>
+        <Field label="Full name" required error={fieldErrors.full_name}><input className="form-input" value={full_name} onChange={(e) => setFn(e.target.value)} /></Field>
+        <Field label="Mobile" required error={fieldErrors.mobile}><input className="form-input" value={mobile} onChange={(e) => setMo(e.target.value.replace(/\D/g, "").slice(0, 10))} /></Field>
+        <Field label="State" required error={fieldErrors.state}>
+          <StateDropdown
+            value={state}
+            options={INDIAN_STATES_AND_UTS}
+            onChange={(next) => {
+              setState(next);
+              // A city from the previous state is no longer valid for the new one.
+              setCity("");
+            }}
+          />
+        </Field>
+        <Field label="Date of birth" required error={fieldErrors.dob}>
+          <ThemedDatePicker value={dob} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setDob(e.target.value)} />
+        </Field>
+        <Field label="City / Town" required error={fieldErrors.city}>
+          <CityTownAutocomplete
+            value={city}
+            onChange={setCity}
+            disabled={!state}
+            suggestions={state ? CITIES_BY_STATE[state as IndianState] ?? [] : []}
+            placeholder="Select or type city/town"
+          />
+        </Field>
+        <Field label="Gender" required error={fieldErrors.gender}>
+          <ThemedSelect className="form-input" value={gender} onChange={(e) => setGender(e.target.value)}>
+            <option value="" disabled>Select gender</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+            <option value="other">Other</option>
+            <option value="prefer_not">Prefer not to say</option>
+          </ThemedSelect>
+        </Field>
         <div className="sm:col-span-2"><Field label="Headline"><input className="form-input" value={headline} onChange={(e) => setHeadline(e.target.value)} placeholder="e.g. Sales executive · 3 yrs in retail" /></Field></div>
         <div className="sm:col-span-2"><Field label="About you"><textarea className="form-input min-h-[100px]" value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Brief intro" /></Field></div>
       </div>
@@ -713,7 +759,7 @@ function CareerDialog({ open, onClose, uid, c, onSaved }: { open: boolean; onClo
     setSaving(false); toast.success("Saved"); onSaved(); onClose();
   };
   return (
-    <DlgShell open={open} onClose={onClose} title="Career preferences" onSave={save} saving={saving}>
+    <DlgShell open={open} onClose={onClose} title="Career preferences" onSave={save} saving={saving} footerButtonsSideBySide>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Status"><ThemedSelect className="form-input" value={status} onChange={(e) => setStatus(e.target.value)}><option value="fresher">Fresher</option><option value="experienced">Experienced</option><option value="student">Student</option></ThemedSelect></Field>
         <Field label="Years of experience"><input type="number" min={0} className="form-input" value={years} onChange={(e) => setYears(Number(e.target.value))} /></Field>
@@ -746,7 +792,7 @@ function SkillsDialog({ open, onClose, uid, c, onSaved }: { open: boolean; onClo
   const [skills, setSkills] = useState<string[]>(c.skills); const [saving, setSaving] = useState(false);
   useEffect(() => { if (open) setSkills(c.skills); }, [open, c]);
   const save = async () => { setSaving(true); await supabase.from("candidate_profiles").update({ skills }).eq("user_id", uid); setSaving(false); toast.success("Saved"); onSaved(); onClose(); };
-  return <DlgShell open={open} onClose={onClose} title="Your skills" onSave={save} saving={saving}><ChipInput values={skills} onChange={setSkills} suggestions={SUGGESTED_SKILLS} /></DlgShell>;
+  return <DlgShell open={open} onClose={onClose} title="Your skills" onSave={save} saving={saving} footerButtonsSideBySide><ChipInput values={skills} onChange={setSkills} suggestions={SUGGESTED_SKILLS} /></DlgShell>;
 }
 
 function ExperiencesDialog({ open, onClose, uid, items, onSaved }: { open: boolean; onClose: () => void; uid: string; items: Exp[]; onSaved: () => void }) {
@@ -765,7 +811,7 @@ function ExperiencesDialog({ open, onClose, uid, items, onSaved }: { open: boole
     setSaving(false); toast.success("Saved"); onSaved(); onClose();
   };
   return (
-    <DlgShell open={open} onClose={onClose} title="Work experience" onSave={save} saving={saving}>
+    <DlgShell open={open} onClose={onClose} title="Work experience" onSave={save} saving={saving} footerButtonsSideBySide>
       <div className="space-y-3">
         {list.map((e, i) => (
           <div key={i} className="rounded-xl border border-border bg-surface p-3">
@@ -806,7 +852,7 @@ function EducationDialog({ open, onClose, uid, items, onSaved }: { open: boolean
     setSaving(false); toast.success("Saved"); onSaved(); onClose();
   };
   return (
-    <DlgShell open={open} onClose={onClose} title="Education" onSave={save} saving={saving}>
+    <DlgShell open={open} onClose={onClose} title="Education" onSave={save} saving={saving} footerButtonsSideBySide>
       <div className="space-y-3">
         {list.map((e, i) => (
           <div key={i} className="rounded-xl border border-border bg-surface p-3">
@@ -840,7 +886,7 @@ function LanguagesDialog({ open, onClose, uid, items, onSaved }: { open: boolean
     setSaving(false); toast.success("Saved"); onSaved(); onClose();
   };
   return (
-    <DlgShell open={open} onClose={onClose} title="Languages" onSave={save} saving={saving}>
+    <DlgShell open={open} onClose={onClose} title="Languages" onSave={save} saving={saving} footerButtonsSideBySide>
       <div className="space-y-2">
         {list.map((l, i) => (
           <div key={i} className="grid items-end gap-2 rounded-xl border border-border bg-surface p-3 sm:grid-cols-[1.2fr_1fr_auto_auto_auto]">

@@ -7,6 +7,16 @@ import { CandidateShell } from "@/components/candidate/CandidateShell";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/_authenticated/candidate/alerts")({
   head: () => ({ meta: [{ title: "Job alerts · JobsKart" }] }),
@@ -21,6 +31,7 @@ function Page() {
   const [city, setCity] = useState("");
   const [freq, setFreq] = useState("daily");
   const [loading, setLoading] = useState(true);
+  const [pendingDelete, setPendingDelete] = useState<Alert | null>(null);
 
   const load = async () => {
     const { data: u } = await supabase.auth.getUser();
@@ -70,21 +81,43 @@ function Page() {
 
       <div className="mt-6 space-y-2">
         {loading ? <div className="h-24 animate-pulse rounded-xl bg-card" /> :
-         !items.length ? (
-           <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center">
-             <Bell className="mx-auto h-10 w-10 text-muted-foreground" />
-             <p className="mt-3 text-sm text-muted-foreground">No alerts yet. Create one above.</p>
-           </div>
-         ) : items.map((a) => (
-           <div key={a.id} className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
-             <div>
-               <p className="font-medium">{a.name}</p>
-               <p className="text-xs text-muted-foreground uppercase">{a.frequency}</p>
-             </div>
-             <Button variant="ghost" size="sm" onClick={() => del(a.id)}><Trash2 className="h-4 w-4" /></Button>
-           </div>
-         ))}
+          !items.length ? (
+            <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center">
+              <Bell className="mx-auto h-10 w-10 text-muted-foreground" />
+              <p className="mt-3 text-sm text-muted-foreground">No alerts yet. Create one above.</p>
+            </div>
+          ) : items.map((a) => (
+            <div key={a.id} className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
+              <div>
+                <p className="font-medium">{a.name}</p>
+                <p className="text-xs text-muted-foreground uppercase">{a.frequency}</p>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setPendingDelete(a)}><Trash2 className="h-4 w-4" /></Button>
+            </div>
+          ))}
       </div>
+
+      <AlertDialog open={!!pendingDelete} onOpenChange={(open) => !open && setPendingDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete job alert?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Do you want to delete the alert{pendingDelete ? ` "${pendingDelete.name}"` : ""}?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>No</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingDelete) del(pendingDelete.id);
+                setPendingDelete(null);
+              }}
+            >
+              Yes, delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </CandidateShell>
   );
 }

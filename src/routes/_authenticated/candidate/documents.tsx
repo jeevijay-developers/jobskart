@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { FileText, Loader2, Trash2, Upload, Download } from "lucide-react";
+import { FileText, Loader2, Trash2, Upload, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { CandidateShell } from "@/components/candidate/CandidateShell";
 import { supabase } from "@/integrations/supabase/client";
@@ -86,14 +86,14 @@ function DocumentsPage() {
           return (
             <div key={t.key} className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
+                <div className="min-w-0">
                   <h3 className="text-base font-semibold text-foreground">{t.label}</h3>
                   <p className="text-xs text-muted-foreground">PDF, PNG or JPG · max 5 MB</p>
                 </div>
                 <button
                   onClick={() => inputs.current[t.key]?.click()}
                   disabled={uploading === t.key}
-                  className="inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-50"
+                  className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-50"
                 >
                   {uploading === t.key ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
                   Upload
@@ -115,18 +115,22 @@ function DocumentsPage() {
               ) : (
                 <ul className="mt-3 divide-y divide-border rounded-lg border border-border">
                   {owned.map((d) => (
-                    <li key={d.id} className="flex items-center gap-3 p-3">
-                      <FileText className="h-4 w-4 shrink-0 text-primary" />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-foreground">{d.file_name}</p>
-                        <p className="text-xs text-muted-foreground">{Math.round((d.size_bytes ?? 0) / 1024)} KB · {timeAgo(d.created_at)}</p>
+                    <li key={d.id} className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center">
+                      <div className="flex min-w-0 items-start gap-3">
+                        <FileText className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                        <div className="min-w-0">
+                          <p className="break-words text-sm font-medium text-foreground sm:truncate">{d.file_name}</p>
+                          <p className="text-xs text-muted-foreground">{Math.round((d.size_bytes ?? 0) / 1024)} KB · {timeAgo(d.created_at)}</p>
+                        </div>
                       </div>
-                      <button onClick={() => openDoc(d)} className="inline-flex h-8 items-center gap-1 rounded-md border border-border px-2 text-xs font-semibold hover:bg-surface">
-                        <Download className="h-3.5 w-3.5" /> View
-                      </button>
-                      <button onClick={() => remove(d)} className="grid h-8 w-8 place-items-center rounded-md border border-border text-destructive hover:bg-destructive/10">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                      <div className="flex shrink-0 items-center gap-2 sm:ml-auto">
+                        <button onClick={() => openDoc(d)} aria-label="View document" title="View" className="grid h-8 w-8 shrink-0 place-items-center rounded-md border border-border hover:bg-surface">
+                          <Eye className="h-3.5 w-3.5" />
+                        </button>
+                        <button onClick={() => remove(d)} className="grid h-8 w-8 shrink-0 place-items-center rounded-md border border-border text-destructive hover:bg-destructive/10">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </li>
                   ))}
                 </ul>
