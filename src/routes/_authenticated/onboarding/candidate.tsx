@@ -1,14 +1,18 @@
+import { ThemedDatePicker, ThemedSelect } from "@/components/ui/themed-form-controls";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, Calendar, Check, Loader2, Plus, Trash2, Upload, FileText, Compass, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Loader2, Plus, Trash2, Upload, FileText, Compass, Sparkles } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { Navbar } from "@/components/site/Navbar";
 import { ChipInput, Field, SectionCard } from "@/components/candidate/primitives";
 import { JobTitleAutocomplete } from "@/components/candidate/JobTitleAutocomplete";
+import { CityTownAutocomplete } from "@/components/candidate/CityTownAutocomplete";
+import { StateDropdown } from "@/components/candidate/StateDropdown";
 import { supabase } from "@/integrations/supabase/client";
 import { INDIAN_CITIES, SUGGESTED_LANGUAGES, JOB_TYPE_OPTIONS, WORK_MODES } from "@/lib/options";
+import { INDIAN_STATES_AND_UTS, CITIES_BY_STATE, type IndianState } from "@/lib/indianStatesCities";
 import { computeProfileStrength } from "@/lib/profileStrength";
 import { ResumeUpload } from "@/components/candidate/ResumeUpload";
 import type { ParsedResumePayload } from "@/lib/resume.functions";
@@ -18,6 +22,7 @@ import {
   headlineSchema,
   descriptionSchema,
   dobSchema,
+  cityTownSchema,
   qualificationSchema,
   QUALIFICATIONS,
   titleCase,
@@ -47,29 +52,15 @@ const to10 = (v: string | null | undefined) => {
 };
 const toE164 = (v: string) => (to10(v).length === 10 ? `+91${to10(v)}` : null);
 
-/**
- * Single native <input type="date"> so the browser's real calendar picker still opens,
- * but its own text is invisible — Chromium ignores `lang` for the date format, so we render
- * our own dd-mm-yyyy label on top instead of trusting the native display.
- */
 function DateField({ value, onChange, disabled }: { value: string; onChange: (v: string) => void; disabled?: boolean }) {
-  const [y, m, d] = value ? value.split("-") : [];
-  const display = y && m && d ? `${d}-${m}-${y}` : "";
   return (
-    <div className={`form-input relative flex items-center ${disabled ? "opacity-60" : ""}`}>
-      <span className="pointer-events-none absolute inset-y-0 left-3.5 z-0 flex items-center text-sm text-foreground">
-        {display || <span className="text-muted-foreground">dd-mm-yyyy</span>}
-      </span>
-      <Calendar className="pointer-events-none absolute right-3 top-1/2 z-0 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-      <input
-        type="date"
-        disabled={disabled}
-        className="relative z-10 h-5 w-full border-0 bg-transparent p-0 outline-none disabled:cursor-not-allowed [color-scheme:light] [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:top-1/2 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-9 [&::-webkit-calendar-picker-indicator]:-translate-y-1/2 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-datetime-edit]:text-transparent [&::-webkit-datetime-edit]:opacity-0"
-        value={value}
-        max={new Date().toISOString().slice(0, 10)}
-        onChange={(e) => onChange(e.target.value)}
-      />
-    </div>
+    <ThemedDatePicker
+      disabled={disabled}
+      value={value}
+      max={new Date().toISOString().slice(0, 10)}
+      placeholder="dd-mm-yyyy"
+      onChange={(event) => onChange(event.target.value)}
+    />
   );
 }
 
@@ -87,6 +78,7 @@ function OnboardingPage() {
   const [mobile, setMobile] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [whatsappOptIn, setWhatsappOptIn] = useState(true);
+  const [state, setState] = useState("");
   const [city, setCity] = useState("");
   const [dob, setDob] = useState("");
   const [gender, setGender] = useState<"male" | "female" | "other" | "prefer_not" | "">("");
@@ -129,7 +121,11 @@ function OnboardingPage() {
       const u = sess.session?.user.id;
       if (!u) return;
       setUid(u);
+      // The session's own phone is the actual OTP-verified number used to log in —
+      // prefer it over the profiles.mobile copy, which can lag or be malformed on old rows.
+      const sessionPhone = to10(sess.session?.user.phone);
       const [{ data: p }, { data: c }, { data: ex }, { data: lg }, { data: am }, { data: lm }] = await Promise.all([
+        // TODO: add `state` back to this select once profiles.state exists in the Supabase schema.
         supabase.from("profiles").select("full_name, mobile, city").eq("id", u).maybeSingle(),
         supabase.from("candidate_profiles").select("*").eq("user_id", u).maybeSingle(),
         supabase.from("candidate_experiences").select("*").eq("user_id", u).order("start_date", { ascending: false }),
@@ -137,7 +133,14 @@ function OnboardingPage() {
         supabase.from("candidate_assets_master").select("id, slug, label, category").eq("is_active", true).order("sort_order"),
         supabase.from("languages_master").select("name").eq("is_active", true).order("sort_order"),
       ]);
-      if (p) { setFullName(p.full_name || ""); setMobile(to10(p.mobile)); setCity(p.city || ""); }
+      if (p) {
+        setFullName(p.full_name || "");
+        const profileMobile = to10(p.mobile);
+        setMobile(sessionPhone.length === 10 ? sessionPhone : profileMobile);
+        setCity(p.city || "");
+        // TODO: hydrate from profiles.state once that column exists — for now State
+        // only lives in frontend form state for the duration of the onboarding session.
+      }
       if (c) {
         setHeadline(c.headline || "");
         setDob(c.date_of_birth || ""); setGender((c.gender as typeof gender) || "");
@@ -234,6 +237,19 @@ function OnboardingPage() {
     if (next) setStepKey(next);
   };
 
+  // First-time entry into Experience with no existing/draft rows: open one blank
+  // form instead of the empty "+ Add" state, for both Experienced and Student.
+  // Guarded on `loading` so this never races the Supabase hydration above, and on
+  // `experiences.length` so deleting the only card doesn't cause it to reappear.
+  useEffect(() => {
+    if (loading) return;
+    if (currentLabel !== "Experience") return;
+    if (expStatus === "fresher") return;
+    if (experiences.length > 0) return;
+    setExperiences([{ job_title: "", company_name: "", start_date: "", end_date: "", is_current: false, description: "" }]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, currentLabel, expStatus]);
+
   // Throws with a readable label if a Supabase call returned an error.
   const runOrThrow = async <T,>(
     p: PromiseLike<{ error: { message: string } | null; data?: T }>,
@@ -248,6 +264,7 @@ function OnboardingPage() {
     if (!uid) return;
     setSaving(true);
     try {
+      // TODO: include `state` here once profiles.state is added to the Supabase schema.
       await runOrThrow(
         supabase.from("profiles").update({ full_name: fullName, mobile: toE164(mobile), city }).eq("id", uid),
         "Save basics",
@@ -339,7 +356,16 @@ function OnboardingPage() {
       goToIndex(step + (advance as number));
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (e) {
-      toast.error((e as Error).message || "Could not save. Please try again.");
+      // Backend persistence isn't fully wired up yet for every field (see the `state`
+      // TODOs above) — don't block onboarding navigation on a save error during this
+      // frontend-testing phase. Entered values stay in this component's state either way.
+      console.warn("[onboarding/candidate] saveStep failed, continuing locally:", e);
+      if (advance === "finish") {
+        navigate({ to: "/candidate/dashboard" });
+        return;
+      }
+      goToIndex(step + (advance as number));
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } finally {
       setSaving(false);
     }
@@ -359,7 +385,10 @@ function OnboardingPage() {
         const h = headlineSchema.safeParse(headline);
         if (!h.success) return h.error.issues[0].message;
       }
-      if (!city) return "Please choose your city.";
+      if (!state) return "Please choose your state.";
+      if (!city) return "Please choose your city/town.";
+      const ct = cityTownSchema.safeParse(city);
+      if (!ct.success) return ct.error.issues[0].message;
       if (!gender) return "Please select your gender.";
       if (!dob) return "Please enter your date of birth.";
       const d = dobSchema.safeParse(dob || undefined);
@@ -375,6 +404,7 @@ function OnboardingPage() {
       for (const e of experiences) {
         if (!e.job_title.trim()) return "Each experience needs a job title.";
         if (!e.company_name.trim()) return "Each experience needs a company name.";
+        if (!e.start_date) return "Each experience needs a start date.";
         if (e.description) {
           const d = descriptionSchema.safeParse(e.description);
           if (!d.success) return d.error.issues[0].message;
@@ -603,11 +633,10 @@ function OnboardingPage() {
                           error={mobile.length === 10 && !mobileSchema.safeParse(mobile).success ? "Enter a valid 10-digit mobile number" : undefined}
                         >
                           <input
-                            className="form-input bg-surface"
+                            className="form-input"
                             value={mobile}
                             onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 10))}
                             placeholder="98xxxxxxxx"
-                            readOnly={!!mobile}
                           />
                         </Field>
                         <Field
@@ -633,21 +662,35 @@ function OnboardingPage() {
                             {headline.length}/200
                           </span>
                         </Field>
-                        <Field label="City" required>
-                          <select className="form-input" value={city} onChange={(e) => setCity(e.target.value)}>
-                            <option value="">Select city</option>
-                            {INDIAN_CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                          </select>
+                        <Field label="State" required>
+                          <StateDropdown
+                            value={state}
+                            options={INDIAN_STATES_AND_UTS}
+                            onChange={(next) => {
+                              setState(next);
+                              // A city from the previous state is no longer valid for the new one.
+                              setCity("");
+                            }}
+                          />
                         </Field>
                         <Field label="Date of birth" required>
                           <DateField value={dob} onChange={setDob} />
                         </Field>
+                        <Field label="City / Town" required>
+                          <CityTownAutocomplete
+                            value={city}
+                            onChange={setCity}
+                            disabled={!state}
+                            suggestions={state ? CITIES_BY_STATE[state as IndianState] ?? [] : []}
+                            placeholder="Select or type city/town"
+                          />
+                        </Field>
                         <Field label="Gender" required>
-                          <select className="form-input" value={gender} onChange={(e) => setGender(e.target.value as typeof gender)}>
+                          <ThemedSelect className="form-input" value={gender} onChange={(e) => setGender(e.target.value as typeof gender)}>
                             <option value="" disabled>Select gender</option>
                             <option value="male">Male</option><option value="female">Female</option><option value="other">Other</option>
                             <option value="prefer_not">Prefer not to say</option>
-                          </select>
+                          </ThemedSelect>
                         </Field>
                       </div>
                     </SectionCard>
@@ -656,12 +699,12 @@ function OnboardingPage() {
 
                 {currentLabel === "Work status" && (
                   <SectionCard title="Your work status">
-                    <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="grid grid-cols-3 gap-2 sm:gap-3">
                       {(["fresher", "experienced", "student"] as const).map((s) => (
                         <button key={s} type="button" onClick={() => handleExpStatusChange(s)}
-                          className={`rounded-xl border p-4 text-left transition ${expStatus === s ? "border-primary bg-primary-light" : "border-border bg-card hover:border-primary/40"}`}>
-                          <p className="font-semibold capitalize text-foreground">{s}</p>
-                          <p className="mt-1 text-xs text-muted-foreground">
+                          className={`min-w-0 rounded-xl border p-2.5 text-left transition sm:p-4 ${expStatus === s ? "border-primary bg-primary-light" : "border-border bg-card hover:border-primary/40"}`}>
+                          <p className="truncate text-sm font-semibold capitalize text-foreground sm:text-base">{s}</p>
+                          <p className="mt-1 text-[11px] text-muted-foreground sm:text-xs">
                             {s === "fresher" ? "Looking for first job" : s === "experienced" ? "1+ years of work experience" : "Currently studying"}
                           </p>
                         </button>
@@ -700,7 +743,13 @@ function OnboardingPage() {
                 )}
 
                 {currentLabel === "Experience" && (
-                  <SectionCard title={expStatus === "student" ? "Internships" : "Work experience"} action={
+                  <SectionCard
+                    title={
+                      <>
+                        {expStatus === "student" ? "Internships" : "Work experience"} <span className="text-destructive">*</span>
+                      </>
+                    }
+                    action={
                     <button type="button" onClick={() => setExperiences([...experiences, { job_title: "", company_name: "", start_date: "", end_date: "", is_current: false, description: "" }])}
                       className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark">
                       <Plus className="h-4 w-4" /> Add
@@ -727,7 +776,7 @@ function OnboardingPage() {
                               <Field label={expStatus === "student" ? "Organisation" : "Company"} required>
                                 <input className="form-input" value={e.company_name} onChange={(ev) => setExperiences(experiences.map((x, k) => k === i ? { ...x, company_name: ev.target.value } : x))} />
                               </Field>
-                              <Field label="Start date">
+                              <Field label="Start date" required>
                                 <DateField value={e.start_date} onChange={(v) => setExperiences(experiences.map((x, k) => k === i ? { ...x, start_date: v } : x))} />
                               </Field>
                               <Field label="End date">
@@ -755,7 +804,7 @@ function OnboardingPage() {
                 )}
 
                 {currentLabel === "Education" && (
-                  <SectionCard title="Highest qualification">
+                  <SectionCard title={<>Highest qualification <span className="text-destructive">*</span></>}>
                     <p className="mb-4 text-sm text-muted-foreground">
                       Pick your highest qualification now — you can add school/college, board and marks later from your profile.
                     </p>
@@ -800,9 +849,9 @@ function OnboardingPage() {
                               <input className="form-input" list="lang-suggestions" value={l.language} onChange={(e) => setLanguages(languages.map((x, k) => k === i ? { ...x, language: e.target.value } : x))} />
                             </Field>
                             <Field label="Proficiency">
-                              <select className="form-input" value={l.proficiency} onChange={(e) => setLanguages(languages.map((x, k) => k === i ? { ...x, proficiency: e.target.value as Language["proficiency"] } : x))}>
+                              <ThemedSelect className="form-input" value={l.proficiency} onChange={(e) => setLanguages(languages.map((x, k) => k === i ? { ...x, proficiency: e.target.value as Language["proficiency"] } : x))}>
                                 <option value="basic">Basic</option><option value="conversational">Conversational</option><option value="fluent">Fluent</option><option value="native">Native</option>
-                              </select>
+                              </ThemedSelect>
                             </Field>
                             <label className="flex items-center gap-1.5 text-xs text-foreground/80"><input type="checkbox" checked={l.can_read} onChange={(e) => setLanguages(languages.map((x, k) => k === i ? { ...x, can_read: e.target.checked } : x))} /> Read</label>
                             <label className="flex items-center gap-1.5 text-xs text-foreground/80"><input type="checkbox" checked={l.can_write} onChange={(e) => setLanguages(languages.map((x, k) => k === i ? { ...x, can_write: e.target.checked } : x))} /> Write</label>

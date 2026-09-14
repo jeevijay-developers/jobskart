@@ -38,6 +38,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatExperience, formatSalary, jobTypeLabel, timeAgo, workModeLabel } from "@/lib/format";
 import { rankSimilarJobs, type RankableJob } from "@/lib/similarJobs";
 import { getSeenJobIds, markJobSeen } from "@/lib/seenJobs";
+import { FormattedJobDescription } from "@/lib/jdFormat";
 
 export const Route = createFileRoute("/jobs/$jobId")({
   head: () => ({ meta: [{ title: "Job · JobsKart" }] }),
@@ -438,11 +439,14 @@ function JobDetailPage() {
 
                     <Block title="Job description">
                       {job.description_html ? (
-                        <div className="prose prose-sm max-w-none text-sm leading-6 text-foreground/80" dangerouslySetInnerHTML={{ __html: job.description_html }} />
+                        <div
+                          className="max-w-none space-y-3 text-sm leading-6 text-foreground/80 [&_h4]:mt-4 [&_h4]:text-sm [&_h4]:font-semibold [&_h4]:text-foreground [&_h4:first-child]:mt-0 [&_p]:break-words [&_p]:leading-6 [&_ul]:mt-1 [&_ul]:list-disc [&_ul]:space-y-1 [&_ul]:pl-5 [&_ul]:marker:text-primary [&_li]:break-words [&_li]:leading-6"
+                          dangerouslySetInnerHTML={{ __html: job.description_html }}
+                        />
+                      ) : job.description ? (
+                        <FormattedJobDescription text={job.description} />
                       ) : (
-                        <p className="whitespace-pre-line text-sm leading-6 text-foreground/80">
-                          {job.description || "No description provided."}
-                        </p>
+                        <p className="text-sm leading-6 text-foreground/80">No description provided.</p>
                       )}
                       {job.pay_type === "fixed_incentive" && job.avg_incentive_monthly ? (
                         <p className="mt-3 rounded-lg border border-success/20 bg-success-light/40 p-3 text-sm text-foreground/80">

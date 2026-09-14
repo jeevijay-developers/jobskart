@@ -1,3 +1,4 @@
+import { ThemedSelect } from "@/components/ui/themed-form-controls";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -209,15 +210,15 @@ function ResponsesPage() {
           value={q} onChange={(e) => setQ(e.target.value)}
           className="form-input h-10" placeholder="Search candidate, job, or city…"
         />
-        <select value={jobFilter} onChange={(e) => setJobFilter(e.target.value)} className="form-input h-10">
+        <ThemedSelect value={jobFilter} onChange={(e) => setJobFilter(e.target.value)} className="form-input h-10">
           <option value="">All jobs</option>
           {jobs.map((j) => <option key={j.id} value={j.id}>{j.title}</option>)}
-        </select>
+        </ThemedSelect>
         {tab === "inbox" ? (
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="form-input h-10">
+          <ThemedSelect value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="form-input h-10">
             <option value="">All statuses</option>
             {STATUSES.map((s) => <option key={s.v} value={s.v}>{s.label}</option>)}
-          </select>
+          </ThemedSelect>
         ) : (
           <button onClick={() => loadAi(true)} disabled={!jobFilter || aiLoading} className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-primary bg-primary-light px-3 text-sm font-semibold text-primary disabled:opacity-50">
             <RefreshCw className={`h-3.5 w-3.5 ${aiLoading ? "animate-spin" : ""}`} /> Re-rank

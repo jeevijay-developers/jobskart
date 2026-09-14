@@ -16,7 +16,7 @@ type ProfileJoin = { full_name: string | null; email: string | null; mobile: str
 
 export const buildDownloadDataset = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z.object({
       companyId: z.string().uuid(),
       kind: KindSchema,

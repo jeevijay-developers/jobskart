@@ -19,7 +19,7 @@ async function assertAdmin(supabase: any, userId: string) {
 /** Idempotent: ensures every admin_seed identifier has a Supabase auth user with a default password.
  *  Public — safe because it only operates on identifiers explicitly listed in admin_seed. */
 export const bootstrapSeedAdmins = createServerFn({ method: "POST" })
-  .inputValidator((d: { password: string }) => d)
+  .validator((d: { password: string }) => d)
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: seeds, error } = await supabaseAdmin.from("admin_seed").select("identifier");
@@ -53,7 +53,7 @@ export const bootstrapSeedAdmins = createServerFn({ method: "POST" })
   });
 
 export const adminLoginWithPassword = createServerFn({ method: "POST" })
-  .inputValidator((d: { identifier: string; password: string }) => d)
+  .validator((d: { identifier: string; password: string }) => d)
   .handler(async ({ data }) => {
     // Stateless: returns nothing; client signs in directly. Kept for symmetry.
     return { phone: normalizePhone(data.identifier) };
@@ -63,7 +63,7 @@ export const adminLoginWithPassword = createServerFn({ method: "POST" })
 
 export const adminListUsers = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { search?: string; userType?: "candidate" | "employer" | "all"; status?: "active" | "suspended" | "all" }) => d)
+  .validator((d: { search?: string; userType?: "candidate" | "employer" | "all"; status?: "active" | "suspended" | "all" }) => d)
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -85,7 +85,7 @@ export const adminListUsers = createServerFn({ method: "POST" })
 
 export const adminSetUserStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { userId: string; status: "active" | "suspended" }) => d)
+  .validator((d: { userId: string; status: "active" | "suspended" }) => d)
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -96,7 +96,7 @@ export const adminSetUserStatus = createServerFn({ method: "POST" })
 
 export const adminDeleteUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { userId: string }) => d)
+  .validator((d: { userId: string }) => d)
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -107,7 +107,7 @@ export const adminDeleteUser = createServerFn({ method: "POST" })
 
 export const adminListCompanies = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { search?: string }) => d)
+  .validator((d: { search?: string }) => d)
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -120,7 +120,7 @@ export const adminListCompanies = createServerFn({ method: "POST" })
 
 export const adminSetCompanyVerification = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { companyId: string; status: "verified" | "pending" | "rejected" }) => d)
+  .validator((d: { companyId: string; status: "verified" | "pending" | "rejected" }) => d)
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -131,7 +131,7 @@ export const adminSetCompanyVerification = createServerFn({ method: "POST" })
 
 export const adminListJobs = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { search?: string }) => d)
+  .validator((d: { search?: string }) => d)
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -148,7 +148,7 @@ export const adminListJobs = createServerFn({ method: "POST" })
 
 export const adminToggleJobFeatured = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { jobId: string; featured: boolean }) => d)
+  .validator((d: { jobId: string; featured: boolean }) => d)
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -159,7 +159,7 @@ export const adminToggleJobFeatured = createServerFn({ method: "POST" })
 
 export const adminCloseJob = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { jobId: string }) => d)
+  .validator((d: { jobId: string }) => d)
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -213,7 +213,7 @@ export const adminStats = createServerFn({ method: "GET" })
 
 export const adminGrantCredits = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { companyId: string; delta: number; note?: string }) => d)
+  .validator((d: { companyId: string; delta: number; note?: string }) => d)
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

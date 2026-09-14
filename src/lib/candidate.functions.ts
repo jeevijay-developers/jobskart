@@ -5,7 +5,7 @@ import { chatJSON } from "@/lib/ai/provider";
 
 export const searchJobTitles = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { q: string }) =>
+  .validator((data: { q: string }) =>
     z.object({ q: z.string().trim().min(3).max(60) }).parse(data),
   )
   .handler(async ({ data, context }) => {
@@ -22,7 +22,7 @@ export const searchJobTitles = createServerFn({ method: "POST" })
 
 export const addCustomJobTitle = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { title: string }) =>
+  .validator((data: { title: string }) =>
     z.object({ title: z.string().trim().min(2).max(80) }).parse(data),
   )
   .handler(async ({ data, context }) => {
@@ -36,7 +36,7 @@ export const addCustomJobTitle = createServerFn({ method: "POST" })
 
 export const suggestSkills = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { roles: string[]; qualification?: string | null }) =>
+  .validator((data: { roles: string[]; qualification?: string | null }) =>
     z
       .object({
         roles: z.array(z.string()).max(10).default([]),
@@ -118,7 +118,7 @@ export const suggestSkills = createServerFn({ method: "POST" })
 
 export const upsertNudgeShown = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { kind: string }) =>
+  .validator((data: { kind: string }) =>
     z.object({ kind: z.enum(["profile_completion", "verification_awareness", "digilocker"]) }).parse(data),
   )
   .handler(async ({ data, context }) => {

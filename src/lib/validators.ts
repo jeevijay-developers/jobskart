@@ -50,6 +50,19 @@ export const mobileSchema = z
       .refine((v) => !FAKE_MOBILE_PATTERNS.has(v), MOBILE_ERROR),
   );
 
+const CITY_TOWN_RE = /^[A-Za-z][A-Za-z .'-]*[A-Za-z.]$/;
+
+export const cityTownSchema = z
+  .string()
+  .transform((v) => sanitizeText(v))
+  .pipe(
+    z
+      .string()
+      .min(2, "Enter a valid city/town name")
+      .max(80, "City/town name must be under 80 characters")
+      .regex(CITY_TOWN_RE, "Only letters, spaces, hyphens and apostrophes are allowed"),
+  );
+
 export const headlineSchema = z
   .string()
   .transform(sanitizeText)

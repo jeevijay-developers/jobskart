@@ -1,3 +1,4 @@
+import { ThemedSelect } from "@/components/ui/themed-form-controls";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -218,7 +219,7 @@ function DatabasePage() {
             />
           </label>
           <div className="relative">
-            <select
+            <ThemedSelect
               value=""
               onChange={(e) => {
                 const v = e.target.value;
@@ -230,10 +231,10 @@ function DatabasePage() {
               {cities.filter((c) => c && !selectedCities.includes(c)).map((c) => (
                 <option key={c} value={c}>{c}</option>
               ))}
-            </select>
+            </ThemedSelect>
             {void cityInput}{void setCityInput}
           </div>
-          <select
+          <ThemedSelect
             value={minExp}
             onChange={(e) => setMinExp(e.target.value === "" ? "" : Number(e.target.value))}
             className="h-11 rounded-lg border border-border bg-surface px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
@@ -243,7 +244,7 @@ function DatabasePage() {
             <option value={1}>1+ years</option>
             <option value={3}>3+ years</option>
             <option value={5}>5+ years</option>
-          </select>
+          </ThemedSelect>
           <button
             type="submit"
             disabled={searching}

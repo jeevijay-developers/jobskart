@@ -43,7 +43,7 @@ export const listCreditPacks = createServerFn({ method: "GET" }).handler(async (
 // ---------------- getWallet ----------------
 export const getCompanyWallet = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ companyId: z.string().uuid() }).parse(input))
+  .validator((input: unknown) => z.object({ companyId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     await assertCompanyMember(context.supabase, context.userId, data.companyId);
     const { data: wallet } = await context.supabase
@@ -66,7 +66,7 @@ export const getCompanyWallet = createServerFn({ method: "POST" })
 // ---------------- createRazorpayOrder ----------------
 export const createRazorpayOrder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z.object({ companyId: z.string().uuid(), packId: z.string().uuid() }).parse(input),
   )
   .handler(async ({ data, context }) => {
@@ -132,7 +132,7 @@ export const createRazorpayOrder = createServerFn({ method: "POST" })
 // ---------------- verifyRazorpayPayment ----------------
 export const verifyRazorpayPayment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         razorpayOrderId: z.string().min(1),
@@ -203,7 +203,7 @@ export const verifyRazorpayPayment = createServerFn({ method: "POST" })
 // ---------------- listCompanyInvoices ----------------
 export const listCompanyInvoices = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ companyId: z.string().uuid() }).parse(input))
+  .validator((input: unknown) => z.object({ companyId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     await assertCompanyMember(context.supabase, context.userId, data.companyId);
     const { data: rows, error } = await context.supabase
@@ -221,7 +221,7 @@ export const listCompanyInvoices = createServerFn({ method: "POST" })
 // ---------------- unlockCandidate ----------------
 export const unlockCandidateContact = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         companyId: z.string().uuid(),
@@ -263,7 +263,7 @@ export const unlockCandidateContact = createServerFn({ method: "POST" })
 // ---------------- listUnlockedCandidateIds ----------------
 export const listUnlockedCandidateIds = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ companyId: z.string().uuid() }).parse(input))
+  .validator((input: unknown) => z.object({ companyId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     await assertCompanyMember(context.supabase, context.userId, data.companyId);
     const { data: rows } = await context.supabase

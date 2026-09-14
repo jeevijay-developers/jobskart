@@ -2,7 +2,7 @@ import { X, Plus, Check } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 
-export function SectionCard({ title, action, children, id }: { title: string; action?: ReactNode; children: ReactNode; id?: string }) {
+export function SectionCard({ title, action, children, id }: { title: ReactNode; action?: ReactNode; children: ReactNode; id?: string }) {
   return (
     <section id={id} className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)] sm:p-6">
       <div className="mb-4 flex items-center justify-between gap-3">

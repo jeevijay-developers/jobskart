@@ -24,7 +24,7 @@ const Input = z.object({
 
 export const bulkCreateJobs = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw: unknown) => Input.parse(raw))
+  .validator((raw: unknown) => Input.parse(raw))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { data: member } = await supabase

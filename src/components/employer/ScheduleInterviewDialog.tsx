@@ -1,3 +1,4 @@
+import { ThemedSelect } from "@/components/ui/themed-form-controls";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -50,12 +51,12 @@ export function ScheduleInterviewDialog({
           </div>
           <div>
             <label className="text-xs font-semibold uppercase text-muted-foreground">Mode</label>
-            <select value={mode} onChange={(e) => setMode(e.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+            <ThemedSelect value={mode} onChange={(e) => setMode(e.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
               <option value="online">Online</option>
               <option value="phone">Phone</option>
               <option value="in_person">In person</option>
               <option value="walk_in">Walk-in</option>
-            </select>
+            </ThemedSelect>
           </div>
           {(mode === "in_person" || mode === "walk_in") && (
             <div>

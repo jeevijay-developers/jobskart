@@ -21,7 +21,7 @@ const publicClient = () =>
   });
 
 const fetchCompany = createServerFn({ method: "GET" })
-  .inputValidator((d: { slug: string }) => d)
+  .validator((d: { slug: string }) => d)
   .handler(async ({ data }): Promise<LoaderShape> => {
     const sb = publicClient();
     const { data: row } = await sb.rpc("get_public_company", { _slug: data.slug });

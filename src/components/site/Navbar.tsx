@@ -7,6 +7,7 @@ import logoAsset from "@/assets/jobskart-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
 import { signOut } from "@/lib/auth";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 // CandidateShell's bottom tab bar only surfaces Dashboard / Browse jobs /
 // Applications / Interviews / Profile on mobile — these are reachable on
@@ -122,13 +123,36 @@ export function Navbar() {
           )}
         </div>
 
-        <button
-          aria-label="Open menu"
-          className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-foreground lg:hidden"
-          onClick={() => setOpen(true)}
-        >
-          <Menu className="h-6 w-6" />
-        </button>
+        <div className="flex items-center gap-2 lg:hidden">
+          {!session && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="inline-flex h-9 items-center justify-center rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary-dark">
+                  Login
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem asChild>
+                  <Link to="/auth" search={{ tab: "candidate" }} className="cursor-pointer">
+                    Candidate Login
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/auth" search={{ tab: "employer" }} className="cursor-pointer">
+                    Employer Login
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          <button
+            aria-label="Open menu"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-foreground"
+            onClick={() => setOpen(true)}
+          >
+            <Menu className="h-6 w-6" />
+          </button>
+        </div>
       </div>
 
       {open && createPortal(
@@ -176,9 +200,9 @@ export function Navbar() {
                 </nav>
               )
             )}
-            <div className="mt-auto flex flex-col gap-3 pt-6">
-              {session ? (
-                isHome ? (
+            {session && (
+              <div className="mt-auto flex flex-col gap-3 pt-6">
+                {isHome ? (
                   <>
                     <Link
                       to={dashboardPath}
@@ -201,30 +225,9 @@ export function Navbar() {
                   >
                     <LogOut className="h-4 w-4" /> Sign out
                   </button>
-                )
-              ) : (
-                !isHome && (
-                  <>
-                    <Link
-                      to="/auth"
-                      search={{ tab: "employer" }}
-                      onClick={() => setOpen(false)}
-                      className="inline-flex h-11 items-center justify-center rounded-lg border border-primary text-sm font-semibold text-primary"
-                    >
-                      Employer Login
-                    </Link>
-                    <Link
-                      to="/auth"
-                      search={{ tab: "candidate" }}
-                      onClick={() => setOpen(false)}
-                      className="inline-flex h-11 items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-foreground"
-                    >
-                      Candidate Login
-                    </Link>
-                  </>
-                )
-              )}
-            </div>
+                )}
+              </div>
+            )}
           </div>
         </div>,
         document.body,

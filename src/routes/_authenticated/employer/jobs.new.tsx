@@ -1,3 +1,4 @@
+import { ThemedSelect } from "@/components/ui/themed-form-controls";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, Download, Loader2, RefreshCw } from "lucide-react";
@@ -319,28 +320,28 @@ function NewJob() {
                   </Field>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <Field label="Category" required>
-                      <select value={form.category} onChange={(e) => set("category", e.target.value)} className="form-input">
+                      <ThemedSelect value={form.category} onChange={(e) => set("category", e.target.value)} className="form-input">
                         <option value="">Select…</option>
                         {JOB_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                      </select>
+                      </ThemedSelect>
                     </Field>
                     <Field label="Industry" required>
-                      <select value={form.industry} onChange={(e) => set("industry", e.target.value)} className="form-input">
+                      <ThemedSelect value={form.industry} onChange={(e) => set("industry", e.target.value)} className="form-input">
                         <option value="">Select…</option>
                         {INDUSTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                      </select>
+                      </ThemedSelect>
                     </Field>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-3">
                     <Field label="Job type" required>
-                      <select value={form.job_type} onChange={(e) => set("job_type", e.target.value)} className="form-input">
+                      <ThemedSelect value={form.job_type} onChange={(e) => set("job_type", e.target.value)} className="form-input">
                         {JOB_TYPE_OPTIONS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-                      </select>
+                      </ThemedSelect>
                     </Field>
                     <Field label="Work mode" required>
-                      <select value={form.work_mode} onChange={(e) => set("work_mode", e.target.value)} className="form-input">
+                      <ThemedSelect value={form.work_mode} onChange={(e) => set("work_mode", e.target.value)} className="form-input">
                         {WORK_MODES.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-                      </select>
+                      </ThemedSelect>
                     </Field>
                     <Field label="Openings">
                       <input type="number" min={1} value={form.openings} onChange={(e) => set("openings", Number(e.target.value))} className="form-input" />
@@ -368,10 +369,10 @@ function NewJob() {
                 <div className="space-y-5">
                   <div className="grid gap-3 sm:grid-cols-3">
                     <Field label="City" required>
-                      <select value={form.city} onChange={(e) => set("city", e.target.value)} className="form-input">
+                      <ThemedSelect value={form.city} onChange={(e) => set("city", e.target.value)} className="form-input">
                         <option value="">Select…</option>
                         {INDIAN_CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                      </select>
+                      </ThemedSelect>
                     </Field>
                     <Field label="Locality">
                       <input value={form.locality} onChange={(e) => set("locality", e.target.value)} className="form-input" placeholder="Andheri East" />
@@ -450,10 +451,10 @@ function NewJob() {
                         <div className="space-y-3">
                           <div className="grid gap-3 sm:grid-cols-2">
                             <Field label="Interview city">
-                              <select value={form.interview_city} onChange={(e) => set("interview_city", e.target.value)} className="form-input">
+                              <ThemedSelect value={form.interview_city} onChange={(e) => set("interview_city", e.target.value)} className="form-input">
                                 <option value="">Select…</option>
                                 {INDIAN_CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                              </select>
+                              </ThemedSelect>
                             </Field>
                             <Field label="Locality">
                               <input value={form.interview_locality} onChange={(e) => set("interview_locality", e.target.value)} className="form-input" placeholder="Sector 132" />
@@ -525,10 +526,10 @@ function NewJob() {
 
                   <div className="grid gap-3 sm:grid-cols-2">
                     <Field label="Degree">
-                      <select value={form.degree} onChange={(e) => set("degree", e.target.value)} className="form-input">
+                      <ThemedSelect value={form.degree} onChange={(e) => set("degree", e.target.value)} className="form-input">
                         <option value="">Any</option>
                         {EDUCATION_LEVELS.map((e) => <option key={e} value={e}>{e}</option>)}
-                      </select>
+                      </ThemedSelect>
                     </Field>
                     <Field label="Specialisation">
                       <input value={form.specialisation} onChange={(e) => set("specialisation", e.target.value)} className="form-input" placeholder="e.g. B.Sc IT" />
@@ -571,10 +572,10 @@ function NewJob() {
 
                   <div className="grid gap-3 sm:grid-cols-2">
                     <Field label="Shift">
-                      <select value={form.shift} onChange={(e) => set("shift", e.target.value)} className="form-input">
+                      <ThemedSelect value={form.shift} onChange={(e) => set("shift", e.target.value)} className="form-input">
                         <option value="">Any</option>
                         {SHIFTS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
-                      </select>
+                      </ThemedSelect>
                     </Field>
                     <Field label="Working days / week">
                       <input type="number" min={1} max={7} value={form.working_days} onChange={(e) => set("working_days", e.target.value)} className="form-input" placeholder="6" />

@@ -28,7 +28,7 @@ const inputSchema = z.object({
  *    selected role, then mint magic link and return as new user
  */
 export const loginOrCreateWithMobile = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => inputSchema.parse(data))
+  .validator((data: unknown) => inputSchema.parse(data))
   .handler(async ({ data }) => {
     const { mobile, otp, userType } = data;
 

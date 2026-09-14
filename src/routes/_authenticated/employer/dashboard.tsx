@@ -1,3 +1,4 @@
+import { ThemedSelect } from "@/components/ui/themed-form-controls";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
@@ -228,7 +229,7 @@ function EmployerDashboard() {
       title="Employer dashboard"
       actions={
         companies.length > 1 && (
-          <select
+          <ThemedSelect
             className="form-input h-9 text-sm"
             value={active.company_id}
             onChange={(e) => {
@@ -241,7 +242,7 @@ function EmployerDashboard() {
                 {c.companies.name}
               </option>
             ))}
-          </select>
+          </ThemedSelect>
         )
       }
     >

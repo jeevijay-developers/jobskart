@@ -1,3 +1,4 @@
+import { ThemedSelect } from "@/components/ui/themed-form-controls";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Copy, Mail, Trash2, UserPlus } from "lucide-react";
@@ -128,7 +129,7 @@ function TeamPage() {
                       </div>
                       <div className="flex shrink-0 items-center gap-2">
                         {canManage && !isMe ? (
-                          <select
+                          <ThemedSelect
                             value={m.role}
                             onChange={(e) => changeRole(m.user_id, e.target.value)}
                             className="h-8 rounded-lg border border-border bg-card px-2 text-xs font-semibold"
@@ -136,7 +137,7 @@ function TeamPage() {
                             <option value="recruiter">Recruiter</option>
                             <option value="hr_admin">HR Admin</option>
                             <option value="super_admin">Super Admin</option>
-                          </select>
+                          </ThemedSelect>
                         ) : (
                           <span className="rounded-full bg-surface px-2.5 py-1 text-[10px] font-semibold uppercase">{m.role.replace("_", " ")}</span>
                         )}
@@ -188,11 +189,11 @@ function TeamPage() {
               </div>
             </Field>
             <Field label="Role" required>
-              <select value={role} onChange={(e) => setRole(e.target.value)} className="form-input">
+              <ThemedSelect value={role} onChange={(e) => setRole(e.target.value)} className="form-input">
                 <option value="recruiter">Recruiter — post jobs, manage applicants</option>
                 <option value="hr_admin">HR Admin — recruiter + edit company</option>
                 <option value="super_admin">Super Admin — full access</option>
-              </select>
+              </ThemedSelect>
             </Field>
             <button onClick={sendInvite} disabled={sending} className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-60">
               <UserPlus className="h-4 w-4" /> Create invite

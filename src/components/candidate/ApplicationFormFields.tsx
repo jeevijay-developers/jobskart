@@ -1,4 +1,5 @@
 import { FileText, Loader2, Upload } from "lucide-react";
+import { ThemedDatePicker } from "@/components/ui/themed-form-controls";
 
 type Props = {
   readOnly?: boolean;
@@ -160,8 +161,7 @@ export function ApplicationFormFields({
                 : "—"}
             </p>
           ) : (
-            <input
-              type="date"
+            <ThemedDatePicker
               value={availableFrom}
               min={minAvailableDate}
               onChange={(e) => onAvailableFromChange?.(e.target.value)}
