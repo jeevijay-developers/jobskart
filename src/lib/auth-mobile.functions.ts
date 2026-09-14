@@ -63,20 +63,21 @@ export const loginOrCreateWithMobile = createServerFn({ method: "POST" })
     // existing role instead of failing — the client routes by the returned userType.
     const roleSwitched = !!profile && profile.user_type !== userType;
 
-
     // 2. If no profile, check whether an auth user already exists for this number
     //    (e.g. seeded admin) before creating a new one.
     if (!profile) {
       // Direct lookup against auth.users via SECURITY DEFINER RPC — scales beyond 200 users.
-      let existingAuthUser:
-        | { id: string; email: string | null; phone: string | null }
-        | null = null;
+      let existingAuthUser: { id: string; email: string | null; phone: string | null } | null =
+        null;
 
       const { data: rpcRows, error: rpcErr } = await (
         supabaseAdmin.rpc as unknown as (
           fn: string,
           args: Record<string, string>,
-        ) => Promise<{ data: Array<{ id: string; email: string | null; phone: string | null }> | null; error: unknown }>
+        ) => Promise<{
+          data: Array<{ id: string; email: string | null; phone: string | null }> | null;
+          error: unknown;
+        }>
       )("find_auth_user_by_phone_or_email", { _phone: phoneWithCode, _email: syntheticEmail });
       if (!rpcErr && Array.isArray(rpcRows) && rpcRows.length) {
         existingAuthUser = rpcRows[0];
@@ -87,10 +88,7 @@ export const loginOrCreateWithMobile = createServerFn({ method: "POST" })
           perPage: 200,
         });
         const u = list?.users.find(
-          (x) =>
-            x.phone === phoneWithCode ||
-            x.phone === mobile ||
-            x.email === syntheticEmail,
+          (x) => x.phone === phoneWithCode || x.phone === mobile || x.email === syntheticEmail,
         );
         if (u) existingAuthUser = { id: u.id, email: u.email ?? null, phone: u.phone ?? null };
       }
@@ -98,15 +96,13 @@ export const loginOrCreateWithMobile = createServerFn({ method: "POST" })
       if (existingAuthUser) {
         // Auth user exists but no profile row — backfill profile and continue.
         const emailForLink = existingAuthUser.email || syntheticEmail;
-        await supabaseAdmin
-          .from("profiles")
-          .upsert({
-            id: existingAuthUser.id,
-            email: emailForLink,
-            mobile: phoneWithCode,
-            user_type: userType,
-            full_name: "",
-          });
+        await supabaseAdmin.from("profiles").upsert({
+          id: existingAuthUser.id,
+          email: emailForLink,
+          mobile: phoneWithCode,
+          user_type: userType,
+          full_name: "",
+        });
         profile = {
           id: existingAuthUser.id,
           email: emailForLink,
@@ -115,17 +111,16 @@ export const loginOrCreateWithMobile = createServerFn({ method: "POST" })
         };
       } else {
         isNew = true;
-        const { data: created, error: createErr } =
-          await supabaseAdmin.auth.admin.createUser({
-            email: syntheticEmail,
-            email_confirm: true,
-            phone: phoneWithCode,
-            user_metadata: {
-              mobile: phoneWithCode,
-              user_type: userType,
-              full_name: "",
-            },
-          });
+        const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
+          email: syntheticEmail,
+          email_confirm: true,
+          phone: phoneWithCode,
+          user_metadata: {
+            mobile: phoneWithCode,
+            user_type: userType,
+            full_name: "",
+          },
+        });
         if (createErr || !created.user) {
           throw new Error(createErr?.message ?? "Could not create account.");
         }
@@ -142,23 +137,38 @@ export const loginOrCreateWithMobile = createServerFn({ method: "POST" })
       throw new Error("Account is missing an email on file. Contact support.");
     }
 
-    // 3. Mint a magic link for the client to verify
+    // 3. Mint a magic link for the client to verify.
+    // IMPORTANT: resolve the auth email via getUserById rather than trusting
+    // profile.email directly. profiles.email is a freely editable display field
+    // (candidate/profile.tsx lets it be changed with no re-verification against
+    // Supabase Auth), so it can drift from what this auth user is actually
+    // registered under. generateLink({ type: "magiclink" }) silently CREATES a
+    // brand-new auth user when no account matches the given email — so passing a
+    // drifted profile.email here mints a session for a fresh phantom account
+    // instead of the candidate's real one, and every subsequent login repeats it.
+    const { data: authUser, error: authUserErr } = await supabaseAdmin.auth.admin.getUserById(
+      profile.id,
+    );
+    const loginEmail = authUser?.user?.email;
+    if (authUserErr || !loginEmail) {
+      throw new Error("Could not resolve account email for login.");
+    }
+
     const { data: link, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
       type: "magiclink",
-      email: profile.email,
+      email: loginEmail,
     });
     if (linkErr) throw new Error(linkErr.message);
     const tokenHash = link?.properties?.hashed_token;
     if (!tokenHash) throw new Error("Could not issue session token.");
 
     return {
-      email: profile.email,
+      email: loginEmail,
       tokenHash,
       userType: profile.user_type as "candidate" | "employer",
       isNew,
       roleSwitched,
     };
-
   });
 
 // Backwards-compat alias for existing callers
