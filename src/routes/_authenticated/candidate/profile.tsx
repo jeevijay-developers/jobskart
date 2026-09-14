@@ -380,31 +380,6 @@ function ProfilePage() {
             </div>
           </div>
 
-          {/* Languages */}
-          <div id="languages" className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="flex items-center gap-2 text-[15px] font-bold text-foreground">
-                Languages {incompleteKeys.has("languages_count") && <IncompleteTag />}
-              </h3>
-              <button onClick={() => setOpen("languages")} className="text-sm font-semibold text-primary hover:underline">Manage</button>
-            </div>
-            {languages.length === 0 ? (
-              <EmptyRow icon={LangIcon} title="No languages added" hint="Add the languages you speak." />
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {languages.map((l) => (
-                  <span key={l.id} className="flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-sm text-foreground">
-                    <LangIcon className="h-3.5 w-3.5 text-primary" /> {l.language} <span className="text-muted-foreground">· {l.proficiency}</span>
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <SummaryCard title="Recent applications" to="/candidate/applications" icon={FileText} empty={counts.applications === 0} emptyTitle="No applications yet" emptyHint="Start applying to jobs and track them here." count={counts.applications} countLabel="applications submitted" />
-            <SummaryCard title="Saved jobs" to="/candidate/saved" icon={Bookmark} empty={counts.saved === 0} emptyTitle="No saved jobs yet" emptyHint="Save jobs you like and view them here." count={counts.saved} countLabel="jobs saved" />
-          </div>
         </div>
 
         {/* Right column */}
@@ -430,7 +405,7 @@ function ProfilePage() {
             </Link>
           </div>
 
-          <div className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
+          <div className="rounded-2xl border border-border bg-card p-7 shadow-[var(--shadow-card)]">
             <h3 className="mb-4 font-bold text-foreground">Profile highlights</h3>
             <div className="grid grid-cols-2 gap-4">
               <Stat value={c.profile_views} label="Profile views" icon={Eye} tone="bg-primary-light text-primary" />
@@ -439,6 +414,30 @@ function ProfilePage() {
               <Stat value={counts.saved} label="Saved jobs" icon={Bookmark} tone="bg-amber-100 text-amber-600" />
             </div>
           </div>
+
+          {/* Languages */}
+          <div id="languages" className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="flex items-center gap-2 text-[15px] font-bold text-foreground">
+                Languages {incompleteKeys.has("languages_count") && <IncompleteTag />}
+              </h3>
+              <button onClick={() => setOpen("languages")} className="text-sm font-semibold text-primary hover:underline">Manage</button>
+            </div>
+            {languages.length === 0 ? (
+              <EmptyRow icon={LangIcon} title="No languages added" hint="Add the languages you speak." />
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {languages.map((l) => (
+                  <span key={l.id} className="flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-sm text-foreground">
+                    <LangIcon className="h-3.5 w-3.5 text-primary" /> {l.language} <span className="text-muted-foreground">· {l.proficiency}</span>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <SummaryCard title="Recent applications" to="/candidate/applications" icon={FileText} empty={counts.applications === 0} emptyTitle="No applications yet" emptyHint="Start applying to jobs and track them here." count={counts.applications} countLabel="applications submitted" />
+          <SummaryCard title="Saved jobs" to="/candidate/saved" icon={Bookmark} empty={counts.saved === 0} emptyTitle="No saved jobs yet" emptyHint="Save jobs you like and view them here." count={counts.saved} countLabel="jobs saved" />
         </div>
       </div>
 
@@ -505,16 +504,16 @@ function SummaryCard({ title, to, icon, empty, emptyTitle, emptyHint, count, cou
   const Icon = icon;
   return (
     <div className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
-      <div className="mb-6 flex items-center justify-between">
-        <h3 className="text-[15px] font-bold text-foreground">{title}</h3>
-        <Link to={to} className="text-sm font-semibold text-primary hover:underline">View all</Link>
+      <div className="mb-6 flex min-w-0 items-center justify-between gap-3">
+        <h3 className="min-w-0 truncate text-[15px] font-bold text-foreground">{title}</h3>
+        <Link to={to} className="shrink-0 whitespace-nowrap text-sm font-semibold text-primary hover:underline">View all</Link>
       </div>
       {empty ? (
         <EmptyRow icon={Icon} title={emptyTitle} hint={emptyHint} />
       ) : (
         <div className="flex items-center gap-4">
           <div className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-primary-light text-primary"><Icon className="h-5 w-5" /></div>
-          <div>
+          <div className="min-w-0">
             <h4 className="text-xl font-bold text-foreground">{count}</h4>
             <p className="text-[13px] text-muted-foreground">{countLabel}</p>
           </div>
@@ -526,12 +525,10 @@ function SummaryCard({ title, to, icon, empty, emptyTitle, emptyHint, count, cou
 
 function Stat({ value, label, icon: Icon, tone }: { value: number; label: string; icon: LucideIcon; tone: string }) {
   return (
-    <div className="flex items-start justify-between rounded-xl border border-border bg-surface p-4">
-      <div>
-        <div className="mb-1 text-xl font-extrabold leading-none text-foreground">{value}</div>
-        <div className="text-xs font-medium text-muted-foreground">{label}</div>
-      </div>
-      <div className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${tone}`}><Icon className="h-4 w-4" /></div>
+    <div className="relative overflow-hidden rounded-xl border border-border bg-surface p-4 pr-14">
+      <div className={`absolute right-3 top-3 grid h-8 w-8 shrink-0 place-items-center rounded-full ${tone}`}><Icon className="h-4 w-4" /></div>
+      <div className="mb-1 text-xl font-extrabold leading-none text-foreground">{value}</div>
+      <div className="text-xs font-medium text-muted-foreground">{label}</div>
     </div>
   );
 }
@@ -739,6 +736,12 @@ function PersonalDialog({ open, onClose, uid, p, c, onSaved }: { open: boolean; 
   );
 }
 
+const STATUS_OPTIONS = [
+  { id: "fresher", label: "Fresher" },
+  { id: "experienced", label: "Experienced" },
+  { id: "student", label: "Student" },
+] as const;
+
 function CareerDialog({ open, onClose, uid, c, onSaved }: { open: boolean; onClose: () => void; uid: string; c: Candidate; onSaved: () => void }) {
   const [status, setStatus] = useState(c.experience_status); const [years, setYears] = useState(c.years_experience);
   const [lastRole, setLastRole] = useState(c.last_role || ""); const [jobTypes, setJobTypes] = useState<string[]>(c.preferred_job_types || []);
@@ -747,8 +750,17 @@ function CareerDialog({ open, onClose, uid, c, onSaved }: { open: boolean; onClo
   const [salary, setSalary] = useState<number | "">(c.expected_salary ?? "");
   const [notice, setNotice] = useState<number | "">(c.notice_period_days ?? "");
   const [saving, setSaving] = useState(false);
-  useEffect(() => { if (open) { setStatus(c.experience_status); setYears(c.years_experience); setLastRole(c.last_role || ""); setJobTypes(c.preferred_job_types || []); setWorkMode(c.preferred_work_mode || "onsite"); setCities(c.preferred_cities || []); setSalary(c.expected_salary ?? ""); setNotice(c.notice_period_days ?? ""); } }, [open, c]);
+  const [fieldErrors, setFieldErrors] = useState<{ status?: string; years?: string; jobTypes?: string; workMode?: string; salary?: string }>({});
+  useEffect(() => { if (open) { setStatus(c.experience_status); setYears(c.years_experience); setLastRole(c.last_role || ""); setJobTypes(c.preferred_job_types || []); setWorkMode(c.preferred_work_mode || "onsite"); setCities(c.preferred_cities || []); setSalary(c.expected_salary ?? ""); setNotice(c.notice_period_days ?? ""); setFieldErrors({}); } }, [open, c]);
   const save = async () => {
+    const next: typeof fieldErrors = {};
+    if (!status) next.status = "Please select your status.";
+    if (years == null || years === undefined || Number.isNaN(years)) next.years = "Please enter your years of experience.";
+    if (!jobTypes.length) next.jobTypes = "Please select at least one job type.";
+    if (!workMode) next.workMode = "Please select a work mode.";
+    if (typeof salary !== "number") next.salary = "Please enter your expected salary.";
+    setFieldErrors(next);
+    if (Object.keys(next).length > 0) return;
     setSaving(true);
     await supabase.from("candidate_profiles").update({
       experience_status: status as "fresher" | "experienced" | "student", years_experience: years || 0, last_role: lastRole || null,
@@ -761,11 +773,18 @@ function CareerDialog({ open, onClose, uid, c, onSaved }: { open: boolean; onClo
   return (
     <DlgShell open={open} onClose={onClose} title="Career preferences" onSave={save} saving={saving} footerButtonsSideBySide>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Status"><ThemedSelect className="form-input" value={status} onChange={(e) => setStatus(e.target.value)}><option value="fresher">Fresher</option><option value="experienced">Experienced</option><option value="student">Student</option></ThemedSelect></Field>
-        <Field label="Years of experience"><input type="number" min={0} className="form-input" value={years} onChange={(e) => setYears(Number(e.target.value))} /></Field>
+        <Field label="Status" required error={fieldErrors.status}>
+          <StateDropdown
+            value={STATUS_OPTIONS.find((s) => s.id === status)?.label || ""}
+            options={STATUS_OPTIONS.map((s) => s.label)}
+            placeholder="Select status"
+            onChange={(label) => setStatus((STATUS_OPTIONS.find((s) => s.label === label)?.id || "fresher") as typeof status)}
+          />
+        </Field>
+        <Field label="Years of experience" required error={fieldErrors.years}><input type="number" min={0} className="form-input" value={years} onChange={(e) => setYears(Number(e.target.value))} /></Field>
         <div className="sm:col-span-2"><Field label="Current/last role"><input className="form-input" value={lastRole} onChange={(e) => setLastRole(e.target.value)} /></Field></div>
         <div className="sm:col-span-2">
-          <Field label="Looking for">
+          <Field label="Looking for" required error={fieldErrors.jobTypes}>
             <div className="flex flex-wrap gap-2">
               {JOB_TYPE_OPTIONS.map((j) => {
                 const on = jobTypes.includes(j.id);
@@ -775,13 +794,16 @@ function CareerDialog({ open, onClose, uid, c, onSaved }: { open: boolean; onClo
             </div>
           </Field>
         </div>
-        <Field label="Work mode">
-          <ThemedSelect className="form-input" value={workMode} onChange={(e) => setWorkMode(e.target.value)}>
-            {WORK_MODES.map((w) => <option key={w.id} value={w.id}>{w.label}</option>)}
-          </ThemedSelect>
+        <Field label="Work mode" required error={fieldErrors.workMode}>
+          <StateDropdown
+            value={WORK_MODES.find((w) => w.id === workMode)?.label || ""}
+            options={WORK_MODES.map((w) => w.label)}
+            placeholder="Select work mode"
+            onChange={(label) => setWorkMode(WORK_MODES.find((w) => w.label === label)?.id || "onsite")}
+          />
         </Field>
-        <Field label="Expected salary (₹/mo)"><input type="number" className="form-input" value={salary} onChange={(e) => setSalary(e.target.value ? Number(e.target.value) : "")} /></Field>
-        <Field label="Notice period (days)"><input type="number" className="form-input" value={notice} onChange={(e) => setNotice(e.target.value ? Number(e.target.value) : "")} /></Field>
+        <Field label="Expected salary (₹/mo)" required error={fieldErrors.salary}><input type="number" className="form-input" value={salary} onChange={(e) => setSalary(e.target.value ? Number(e.target.value) : "")} /></Field>
+        <Field label="Notice period (days)"><input type="number" min={0} className="form-input" value={notice} onChange={(e) => { const v = e.target.value ? Number(e.target.value) : ""; setNotice(v === "" ? "" : Math.max(0, v)); }} onKeyDown={(e) => { if (e.key === "-" || e.key === "e") e.preventDefault(); }} /></Field>
         <div className="sm:col-span-2"><Field label="Preferred cities"><ChipInput values={cities} onChange={setCities} suggestions={INDIAN_CITIES} /></Field></div>
       </div>
     </DlgShell>
@@ -797,8 +819,19 @@ function SkillsDialog({ open, onClose, uid, c, onSaved }: { open: boolean; onClo
 
 function ExperiencesDialog({ open, onClose, uid, items, onSaved }: { open: boolean; onClose: () => void; uid: string; items: Exp[]; onSaved: () => void }) {
   const [list, setList] = useState<Exp[]>(items); const [saving, setSaving] = useState(false);
-  useEffect(() => { if (open) setList(items); }, [open, items]);
+  const [fieldErrors, setFieldErrors] = useState<Record<number, { job_title?: string; company_name?: string; start_date?: string }>>({});
+  useEffect(() => { if (open) { setList(items.length ? items : [{ job_title: "", company_name: "", start_date: "", end_date: "", is_current: false, description: "" }]); setFieldErrors({}); } }, [open, items]);
   const save = async () => {
+    const next: typeof fieldErrors = {};
+    list.forEach((e, i) => {
+      const errs: { job_title?: string; company_name?: string; start_date?: string } = {};
+      if (!e.job_title.trim()) errs.job_title = "Please enter a title.";
+      if (!e.company_name.trim()) errs.company_name = "Please enter a company.";
+      if (!e.start_date) errs.start_date = "Please select a start date.";
+      if (Object.keys(errs).length) next[i] = errs;
+    });
+    setFieldErrors(next);
+    if (Object.keys(next).length > 0) return;
     setSaving(true);
     await supabase.from("candidate_experiences").delete().eq("user_id", uid);
     if (list.length) {
@@ -815,13 +848,15 @@ function ExperiencesDialog({ open, onClose, uid, items, onSaved }: { open: boole
       <div className="space-y-3">
         {list.map((e, i) => (
           <div key={i} className="rounded-xl border border-border bg-surface p-3">
-            <div className="mb-2 flex items-center justify-between"><span className="text-xs font-semibold text-muted-foreground">#{i + 1}</span>
-              <button onClick={() => setList(list.filter((_, k) => k !== i))} className="text-destructive"><Trash2 className="h-4 w-4" /></button>
-            </div>
+            {list.length > 1 && (
+              <div className="mb-2 flex items-center justify-end">
+                <button onClick={() => setList(list.filter((_, k) => k !== i))} className="text-destructive"><Trash2 className="h-4 w-4" /></button>
+              </div>
+            )}
             <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Title"><input className="form-input" value={e.job_title} onChange={(ev) => setList(list.map((x, k) => k === i ? { ...x, job_title: ev.target.value } : x))} /></Field>
-              <Field label="Company"><input className="form-input" value={e.company_name} onChange={(ev) => setList(list.map((x, k) => k === i ? { ...x, company_name: ev.target.value } : x))} /></Field>
-              <Field label="From"><ThemedDatePicker value={e.start_date} max={new Date().toISOString().slice(0, 10)} onChange={(ev) => setList(list.map((x, k) => k === i ? { ...x, start_date: ev.target.value } : x))} /></Field>
+              <Field label="Title" required error={fieldErrors[i]?.job_title}><input className="form-input" value={e.job_title} onChange={(ev) => setList(list.map((x, k) => k === i ? { ...x, job_title: ev.target.value } : x))} /></Field>
+              <Field label="Company" required error={fieldErrors[i]?.company_name}><input className="form-input" value={e.company_name} onChange={(ev) => setList(list.map((x, k) => k === i ? { ...x, company_name: ev.target.value } : x))} /></Field>
+              <Field label="From" required error={fieldErrors[i]?.start_date}><ThemedDatePicker value={e.start_date} max={new Date().toISOString().slice(0, 10)} onChange={(ev) => setList(list.map((x, k) => k === i ? { ...x, start_date: ev.target.value } : x))} /></Field>
               <Field label="To">
                 <ThemedDatePicker disabled={e.is_current} value={e.end_date} max={new Date().toISOString().slice(0, 10)} onChange={(ev) => setList(list.map((x, k) => k === i ? { ...x, end_date: ev.target.value } : x))} />
                 <label className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground"><input type="checkbox" checked={e.is_current} onChange={(ev) => setList(list.map((x, k) => k === i ? { ...x, is_current: ev.target.checked } : x))} /> Currently working</label>

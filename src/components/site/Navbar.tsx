@@ -15,7 +15,6 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 const candidateMenuLinks = [
   { to: "/candidate/saved", label: "Saved jobs", icon: Bookmark },
   { to: "/candidate/alerts", label: "Job alerts", icon: Zap },
-  { to: "/candidate/notifications", label: "Notifications", icon: Bell },
   { to: "/candidate/documents", label: "Documents", icon: FolderOpen },
   { to: "/candidate/settings", label: "Settings", icon: Settings },
 ] as const;
@@ -124,6 +123,15 @@ export function Navbar() {
         </div>
 
         <div className="flex items-center gap-2 lg:hidden">
+          {session && !isEmployer && (
+            <Link
+              to="/candidate/notifications"
+              aria-label="Notifications"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-foreground"
+            >
+              <Bell className="h-6 w-6" />
+            </Link>
+          )}
           {!session && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
