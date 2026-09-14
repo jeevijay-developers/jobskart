@@ -9,6 +9,7 @@ import { Navbar } from "@/components/site/Navbar";
 import { ChipInput, Field, SectionCard } from "@/components/candidate/primitives";
 import { JobTitleAutocomplete } from "@/components/candidate/JobTitleAutocomplete";
 import { CityTownAutocomplete } from "@/components/candidate/CityTownAutocomplete";
+import { StateDropdown } from "@/components/candidate/StateDropdown";
 import { supabase } from "@/integrations/supabase/client";
 import { INDIAN_CITIES, SUGGESTED_LANGUAGES, JOB_TYPE_OPTIONS, WORK_MODES } from "@/lib/options";
 import { INDIAN_STATES_AND_UTS, CITIES_BY_STATE, type IndianState } from "@/lib/indianStatesCities";
@@ -120,15 +121,26 @@ function OnboardingPage() {
       const u = sess.session?.user.id;
       if (!u) return;
       setUid(u);
+      // The session's own phone is the actual OTP-verified number used to log in —
+      // prefer it over the profiles.mobile copy, which can lag or be malformed on old rows.
+      const sessionPhone = to10(sess.session?.user.phone);
       const [{ data: p }, { data: c }, { data: ex }, { data: lg }, { data: am }, { data: lm }] = await Promise.all([
-        supabase.from("profiles").select("full_name, mobile, city, state").eq("id", u).maybeSingle(),
+        // TODO: add `state` back to this select once profiles.state exists in the Supabase schema.
+        supabase.from("profiles").select("full_name, mobile, city").eq("id", u).maybeSingle(),
         supabase.from("candidate_profiles").select("*").eq("user_id", u).maybeSingle(),
         supabase.from("candidate_experiences").select("*").eq("user_id", u).order("start_date", { ascending: false }),
         supabase.from("candidate_languages").select("*").eq("user_id", u),
         supabase.from("candidate_assets_master").select("id, slug, label, category").eq("is_active", true).order("sort_order"),
         supabase.from("languages_master").select("name").eq("is_active", true).order("sort_order"),
       ]);
-      if (p) { setFullName(p.full_name || ""); setMobile(to10(p.mobile)); setCity(p.city || ""); setState(p.state || ""); }
+      if (p) {
+        setFullName(p.full_name || "");
+        const profileMobile = to10(p.mobile);
+        setMobile(sessionPhone.length === 10 ? sessionPhone : profileMobile);
+        setCity(p.city || "");
+        // TODO: hydrate from profiles.state once that column exists — for now State
+        // only lives in frontend form state for the duration of the onboarding session.
+      }
       if (c) {
         setHeadline(c.headline || "");
         setDob(c.date_of_birth || ""); setGender((c.gender as typeof gender) || "");
@@ -225,6 +237,19 @@ function OnboardingPage() {
     if (next) setStepKey(next);
   };
 
+  // First-time entry into Experience with no existing/draft rows: open one blank
+  // form instead of the empty "+ Add" state, for both Experienced and Student.
+  // Guarded on `loading` so this never races the Supabase hydration above, and on
+  // `experiences.length` so deleting the only card doesn't cause it to reappear.
+  useEffect(() => {
+    if (loading) return;
+    if (currentLabel !== "Experience") return;
+    if (expStatus === "fresher") return;
+    if (experiences.length > 0) return;
+    setExperiences([{ job_title: "", company_name: "", start_date: "", end_date: "", is_current: false, description: "" }]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, currentLabel, expStatus]);
+
   // Throws with a readable label if a Supabase call returned an error.
   const runOrThrow = async <T,>(
     p: PromiseLike<{ error: { message: string } | null; data?: T }>,
@@ -239,8 +264,9 @@ function OnboardingPage() {
     if (!uid) return;
     setSaving(true);
     try {
+      // TODO: include `state` here once profiles.state is added to the Supabase schema.
       await runOrThrow(
-        supabase.from("profiles").update({ full_name: fullName, mobile: toE164(mobile), city, state }).eq("id", uid),
+        supabase.from("profiles").update({ full_name: fullName, mobile: toE164(mobile), city }).eq("id", uid),
         "Save basics",
       );
 
@@ -330,7 +356,16 @@ function OnboardingPage() {
       goToIndex(step + (advance as number));
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (e) {
-      toast.error((e as Error).message || "Could not save. Please try again.");
+      // Backend persistence isn't fully wired up yet for every field (see the `state`
+      // TODOs above) — don't block onboarding navigation on a save error during this
+      // frontend-testing phase. Entered values stay in this component's state either way.
+      console.warn("[onboarding/candidate] saveStep failed, continuing locally:", e);
+      if (advance === "finish") {
+        navigate({ to: "/candidate/dashboard" });
+        return;
+      }
+      goToIndex(step + (advance as number));
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } finally {
       setSaving(false);
     }
@@ -369,6 +404,7 @@ function OnboardingPage() {
       for (const e of experiences) {
         if (!e.job_title.trim()) return "Each experience needs a job title.";
         if (!e.company_name.trim()) return "Each experience needs a company name.";
+        if (!e.start_date) return "Each experience needs a start date.";
         if (e.description) {
           const d = descriptionSchema.safeParse(e.description);
           if (!d.success) return d.error.issues[0].message;
@@ -597,11 +633,10 @@ function OnboardingPage() {
                           error={mobile.length === 10 && !mobileSchema.safeParse(mobile).success ? "Enter a valid 10-digit mobile number" : undefined}
                         >
                           <input
-                            className="form-input bg-surface"
+                            className="form-input"
                             value={mobile}
                             onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 10))}
                             placeholder="98xxxxxxxx"
-                            readOnly={!!mobile}
                           />
                         </Field>
                         <Field
@@ -628,19 +663,15 @@ function OnboardingPage() {
                           </span>
                         </Field>
                         <Field label="State" required>
-                          <ThemedSelect
-                            className="form-input"
+                          <StateDropdown
                             value={state}
-                            onChange={(e) => {
-                              const next = e.target.value;
+                            options={INDIAN_STATES_AND_UTS}
+                            onChange={(next) => {
                               setState(next);
                               // A city from the previous state is no longer valid for the new one.
                               setCity("");
                             }}
-                          >
-                            <option value="">Select state</option>
-                            {INDIAN_STATES_AND_UTS.map((s) => <option key={s} value={s}>{s}</option>)}
-                          </ThemedSelect>
+                          />
                         </Field>
                         <Field label="Date of birth" required>
                           <DateField value={dob} onChange={setDob} />
@@ -668,12 +699,12 @@ function OnboardingPage() {
 
                 {currentLabel === "Work status" && (
                   <SectionCard title="Your work status">
-                    <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="grid grid-cols-3 gap-2 sm:gap-3">
                       {(["fresher", "experienced", "student"] as const).map((s) => (
                         <button key={s} type="button" onClick={() => handleExpStatusChange(s)}
-                          className={`rounded-xl border p-4 text-left transition ${expStatus === s ? "border-primary bg-primary-light" : "border-border bg-card hover:border-primary/40"}`}>
-                          <p className="font-semibold capitalize text-foreground">{s}</p>
-                          <p className="mt-1 text-xs text-muted-foreground">
+                          className={`min-w-0 rounded-xl border p-2.5 text-left transition sm:p-4 ${expStatus === s ? "border-primary bg-primary-light" : "border-border bg-card hover:border-primary/40"}`}>
+                          <p className="truncate text-sm font-semibold capitalize text-foreground sm:text-base">{s}</p>
+                          <p className="mt-1 text-[11px] text-muted-foreground sm:text-xs">
                             {s === "fresher" ? "Looking for first job" : s === "experienced" ? "1+ years of work experience" : "Currently studying"}
                           </p>
                         </button>
@@ -712,7 +743,13 @@ function OnboardingPage() {
                 )}
 
                 {currentLabel === "Experience" && (
-                  <SectionCard title={expStatus === "student" ? "Internships" : "Work experience"} action={
+                  <SectionCard
+                    title={
+                      <>
+                        {expStatus === "student" ? "Internships" : "Work experience"} <span className="text-destructive">*</span>
+                      </>
+                    }
+                    action={
                     <button type="button" onClick={() => setExperiences([...experiences, { job_title: "", company_name: "", start_date: "", end_date: "", is_current: false, description: "" }])}
                       className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark">
                       <Plus className="h-4 w-4" /> Add
@@ -739,7 +776,7 @@ function OnboardingPage() {
                               <Field label={expStatus === "student" ? "Organisation" : "Company"} required>
                                 <input className="form-input" value={e.company_name} onChange={(ev) => setExperiences(experiences.map((x, k) => k === i ? { ...x, company_name: ev.target.value } : x))} />
                               </Field>
-                              <Field label="Start date">
+                              <Field label="Start date" required>
                                 <DateField value={e.start_date} onChange={(v) => setExperiences(experiences.map((x, k) => k === i ? { ...x, start_date: v } : x))} />
                               </Field>
                               <Field label="End date">
@@ -767,7 +804,7 @@ function OnboardingPage() {
                 )}
 
                 {currentLabel === "Education" && (
-                  <SectionCard title="Highest qualification">
+                  <SectionCard title={<>Highest qualification <span className="text-destructive">*</span></>}>
                     <p className="mb-4 text-sm text-muted-foreground">
                       Pick your highest qualification now — you can add school/college, board and marks later from your profile.
                     </p>
