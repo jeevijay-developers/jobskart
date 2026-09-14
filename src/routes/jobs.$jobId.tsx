@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
   ArrowLeft,
@@ -15,6 +15,7 @@ import {
   Download,
   IndianRupee,
   Languages,
+  LayoutGrid,
   Loader2,
   MapPin,
   Moon,
@@ -95,6 +96,7 @@ type JobDetail = {
 function JobDetailPage() {
   const { jobId } = Route.useParams();
   const navigate = useNavigate();
+  const router = useRouter();
 
   const [job, setJob] = useState<JobDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -175,6 +177,15 @@ function JobDetailPage() {
       cancelled = true;
     };
   }, [jobId]);
+
+  const canGoBack = router.history?.canGoBack?.() ?? false;
+  const handleBack = () => {
+    if (router.history?.canGoBack?.()) {
+      router.history.back();
+    } else {
+      navigate({ to: "/jobs" });
+    }
+  };
 
   const handleApply = () => {
     if (!userId) {
@@ -289,9 +300,26 @@ function JobDetailPage() {
     <div className="flex min-h-screen flex-col bg-surface">
       <Navbar />
       <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-28 sm:px-6 lg:px-8 lg:pb-10">
-        <Link to="/jobs" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary">
-          <ArrowLeft className="h-4 w-4" /> Back to jobs
-        </Link>
+        <nav aria-label="Job navigation" className="flex items-center gap-1 text-sm">
+          {canGoBack && (
+            <>
+              <button
+                type="button"
+                onClick={handleBack}
+                className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 -ml-2 text-muted-foreground transition-colors hover:bg-surface hover:text-primary"
+              >
+                <ArrowLeft className="h-4 w-4" /> Back
+              </button>
+              <span aria-hidden="true" className="mx-1 h-4 w-px bg-border" />
+            </>
+          )}
+          <Link
+            to="/jobs"
+            className={`inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-muted-foreground transition-colors hover:bg-surface hover:text-primary ${canGoBack ? "" : "-ml-2"}`}
+          >
+            {canGoBack ? <LayoutGrid className="h-4 w-4" /> : <ArrowLeft className="h-4 w-4" />} All jobs
+          </Link>
+        </nav>
 
         <div className="mt-4 grid gap-6 lg:grid-cols-[1fr_320px]">
           <div className="min-w-0">
