@@ -1,5 +1,10 @@
-import { ThemedSelect } from "@/components/ui/themed-form-controls";
-import { createFileRoute, Outlet, useLocation, useNavigate, useSearch } from "@tanstack/react-router";
+﻿import {
+  createFileRoute,
+  Outlet,
+  useLocation,
+  useNavigate,
+  useSearch,
+} from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Briefcase, Filter, Loader2, Search, X } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
@@ -7,9 +12,19 @@ import { z } from "zod";
 import { Navbar } from "@/components/site/Navbar";
 import { Pagination } from "@/components/site/Pagination";
 import { JobCard, type JobCardData } from "@/components/site/JobCard";
+import { AutocompleteInput } from "@/components/site/AutocompleteInput";
 import { CandidateMobileTabBar } from "@/components/candidate/CandidateShell";
 import { supabase } from "@/integrations/supabase/client";
-import { JOB_CATEGORIES, JOB_TYPE_OPTIONS, WORK_MODES, EDUCATION_LEVELS, SHIFTS, ENGLISH_LEVELS } from "@/lib/options";
+import {
+  JOB_CATEGORIES,
+  JOB_TYPE_OPTIONS,
+  WORK_MODES,
+  EDUCATION_LEVELS,
+  SHIFTS,
+  ENGLISH_LEVELS,
+  INDIAN_CITIES,
+} from "@/lib/options";
+import { useJobTitleSuggestions } from "@/lib/useJobTitleSuggestions";
 
 const PAGE_SIZE = 20;
 const SORT_OPTIONS = ["newest", "oldest", "salary_high", "salary_low"] as const;
@@ -56,10 +71,16 @@ export const Route = createFileRoute("/jobs")({
   validateSearch: jobsSearchSchema,
   head: () => ({
     meta: [
-      { title: "Browse Jobs · JobsKart" },
-      { name: "description", content: "Search lakhs of full-time, part-time and field jobs across India on JobsKart." },
+      { title: "Browse Jobs ┬╖ JobsKart" },
+      {
+        name: "description",
+        content: "Search lakhs of full-time, part-time and field jobs across India on JobsKart.",
+      },
       { property: "og:title", content: "Browse Jobs on JobsKart" },
-      { property: "og:description", content: "Find delivery, sales, security, telecaller, warehouse and more jobs near you." },
+      {
+        property: "og:description",
+        content: "Find delivery, sales, security, telecaller, warehouse and more jobs near you.",
+      },
     ],
   }),
   component: JobsPage,
@@ -85,9 +106,22 @@ type Filters = {
 };
 
 const empty: Filters = {
-  q: "", city: "", category: "", jobType: "", workMode: "", minSalary: "", maxSalary: "",
-  minExp: "", maxExp: "", datePosted: "", education: "", shift: "", englishLevel: "",
-  company: "", vehicle: "", verifiedOnly: "",
+  q: "",
+  city: "",
+  category: "",
+  jobType: "",
+  workMode: "",
+  minSalary: "",
+  maxSalary: "",
+  minExp: "",
+  maxExp: "",
+  datePosted: "",
+  education: "",
+  shift: "",
+  englishLevel: "",
+  company: "",
+  vehicle: "",
+  verifiedOnly: "",
 };
 
 function filtersFromSearch(s: JobsSearch): Filters {
@@ -137,7 +171,7 @@ function buildSearch(f: Filters, extras: { sort?: SortKey; page?: number } = {})
 
 // "/jobs/$jobId" nests under this route in the generated route tree (shared
 // "jobs" file prefix), so this component must yield to it via <Outlet />
-// instead of always rendering the list — same pattern as
+// instead of always rendering the list ΓÇö same pattern as
 // _authenticated/employer/jobs.tsx's EmployerJobs/EmployerJobsList split.
 function JobsPage() {
   const { pathname } = useLocation();
@@ -159,6 +193,7 @@ function JobsList() {
   const [mobileFilters, setMobileFilters] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [isEmployer, setIsEmployer] = useState(false);
+  const jobTitles = useJobTitleSuggestions();
 
   // Same session + role check Navbar/CandidateShell use, so the candidate
   // bottom tab bar only shows for logged-in candidates (not employers/guests).
@@ -172,9 +207,17 @@ function JobsList() {
     const uid = session?.user.id;
     if (!uid) return setIsEmployer(false);
     let cancelled = false;
-    supabase.from("employer_members").select("company_id").eq("user_id", uid).limit(1)
-      .then(({ data: rows }) => { if (!cancelled) setIsEmployer(!!rows?.length); });
-    return () => { cancelled = true; };
+    supabase
+      .from("employer_members")
+      .select("company_id")
+      .eq("user_id", uid)
+      .limit(1)
+      .then(({ data: rows }) => {
+        if (!cancelled) setIsEmployer(!!rows?.length);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [session]);
 
   const showCandidateTabBar = !!session && !isEmployer;
@@ -185,10 +228,22 @@ function JobsList() {
     setFilters(next);
     setDraft(next);
   }, [
-    urlSearch.q, urlSearch.city, urlSearch.category, urlSearch.jobType, urlSearch.workMode,
-    urlSearch.minSalary, urlSearch.maxSalary, urlSearch.minExp, urlSearch.maxExp,
-    urlSearch.datePosted, urlSearch.education, urlSearch.shift, urlSearch.englishLevel,
-    urlSearch.company, urlSearch.vehicle, urlSearch.verifiedOnly,
+    urlSearch.q,
+    urlSearch.city,
+    urlSearch.category,
+    urlSearch.jobType,
+    urlSearch.workMode,
+    urlSearch.minSalary,
+    urlSearch.maxSalary,
+    urlSearch.minExp,
+    urlSearch.maxExp,
+    urlSearch.datePosted,
+    urlSearch.education,
+    urlSearch.shift,
+    urlSearch.englishLevel,
+    urlSearch.company,
+    urlSearch.vehicle,
+    urlSearch.verifiedOnly,
   ]);
 
   useEffect(() => {
@@ -205,8 +260,10 @@ function JobsList() {
 
       if (sort === "newest") q = q.order("created_at", { ascending: false });
       else if (sort === "oldest") q = q.order("created_at", { ascending: true });
-      else if (sort === "salary_high") q = q.order("max_salary", { ascending: false, nullsFirst: false });
-      else if (sort === "salary_low") q = q.order("min_salary", { ascending: true, nullsFirst: false });
+      else if (sort === "salary_high")
+        q = q.order("max_salary", { ascending: false, nullsFirst: false });
+      else if (sort === "salary_low")
+        q = q.order("min_salary", { ascending: true, nullsFirst: false });
 
       if (filters.q) q = q.ilike("title", `%${filters.q}%`);
       if (filters.city) q = q.ilike("city", `%${filters.city}%`);
@@ -217,7 +274,8 @@ function JobsList() {
       if (filters.maxSalary) q = q.lte("max_salary", Number(filters.maxSalary));
       // Job's accepted experience range must overlap the candidate's selected range.
       if (filters.maxExp) q = q.lte("min_experience_years", Number(filters.maxExp));
-      if (filters.minExp) q = q.or(`max_experience_years.gte.${Number(filters.minExp)},max_experience_years.is.null`);
+      if (filters.minExp)
+        q = q.or(`max_experience_years.gte.${Number(filters.minExp)},max_experience_years.is.null`);
       if (filters.datePosted) {
         const cutoff = datePostedCutoffIso(filters.datePosted);
         if (cutoff) q = q.gte("created_at", cutoff);
@@ -265,36 +323,41 @@ function JobsList() {
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const activeCount = useMemo(
-    () => Object.values(filters).filter(Boolean).length,
-    [filters],
-  );
+  const activeCount = useMemo(() => Object.values(filters).filter(Boolean).length, [filters]);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
-    <div className={`flex min-h-screen flex-col bg-surface ${showCandidateTabBar ? "pb-20 lg:pb-0" : ""}`}>
+    <div
+      className={`flex min-h-screen flex-col bg-surface ${showCandidateTabBar ? "pb-20 lg:pb-0" : ""}`}
+    >
       <Navbar />
 
       <section className="border-b border-border bg-card">
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
           <div className="flex flex-row flex-nowrap items-center gap-2 sm:gap-3">
             <div className="relative min-w-0 flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input
+              <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <AutocompleteInput
                 value={draft.q}
-                onChange={(e) => setDraft({ ...draft, q: e.target.value })}
-                onKeyDown={(e) => e.key === "Enter" && apply()}
+                onChange={(v) => setDraft({ ...draft, q: v })}
+                onSubmit={apply}
+                suggestions={jobTitles}
                 placeholder="Job title, role or skill"
-                className="form-input pl-9"
+                wrapperClassName="relative w-full"
+                inputClassName="form-input pl-9"
+                aria-label="Job title, role or skill"
               />
             </div>
             <div className="relative w-24 shrink-0 sm:w-64">
-              <input
+              <AutocompleteInput
                 value={draft.city}
-                onChange={(e) => setDraft({ ...draft, city: e.target.value })}
-                onKeyDown={(e) => e.key === "Enter" && apply()}
+                onChange={(v) => setDraft({ ...draft, city: v })}
+                onSubmit={apply}
+                suggestions={INDIAN_CITIES}
                 placeholder="City"
-                className="form-input"
+                wrapperClassName="relative w-full"
+                inputClassName="form-input"
+                aria-label="City"
               />
             </div>
             <button
@@ -310,7 +373,9 @@ function JobsList() {
               className="relative inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-semibold text-foreground lg:hidden"
             >
               <Filter className="h-4 w-4" />
-              <span className="hidden sm:inline">Filters{activeCount ? ` (${activeCount})` : ""}</span>
+              <span className="hidden sm:inline">
+                Filters{activeCount ? ` (${activeCount})` : ""}
+              </span>
               {activeCount > 0 && (
                 <span className="absolute -right-1 -top-1 grid h-4 w-4 place-items-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground sm:hidden">
                   {activeCount}
@@ -330,14 +395,14 @@ function JobsList() {
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-muted-foreground">
               {loading
-                ? "Loading…"
+                ? "LoadingΓÇª"
                 : total === 0
                   ? "No jobs found"
-                  : `${total.toLocaleString("en-IN")} job${total === 1 ? "" : "s"} · page ${page} of ${totalPages}`}
+                  : `${total.toLocaleString("en-IN")} job${total === 1 ? "" : "s"} ┬╖ page ${page} of ${totalPages}`}
             </p>
             <label className="flex items-center gap-2 text-sm">
               <span className="text-muted-foreground">Sort by</span>
-              <ThemedSelect
+              <select
                 className="form-input w-auto"
                 value={sort}
                 onChange={(e) => setSort(e.target.value as SortKey)}
@@ -346,7 +411,7 @@ function JobsList() {
                 <option value="oldest">Oldest first</option>
                 <option value="salary_high">Salary: high to low</option>
                 <option value="salary_low">Salary: low to high</option>
-              </ThemedSelect>
+              </select>
             </label>
           </div>
 
@@ -358,7 +423,9 @@ function JobsList() {
             <div className="grid place-items-center rounded-xl border border-dashed border-border bg-card p-12 text-center">
               <Briefcase className="mb-3 h-8 w-8 text-muted-foreground" />
               <h2 className="text-lg font-semibold text-foreground">No jobs match your filters</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Try clearing filters or searching a different city.</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Try clearing filters or searching a different city.
+              </p>
               <button
                 onClick={reset}
                 className="mt-4 inline-flex h-10 items-center rounded-lg border border-primary px-4 text-sm font-semibold text-primary hover:bg-primary-light"
@@ -383,7 +450,10 @@ function JobsList() {
 
       {mobileFilters && (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-foreground/40" onClick={() => setMobileFilters(false)} />
+          <div
+            className="absolute inset-0 bg-foreground/40"
+            onClick={() => setMobileFilters(false)}
+          />
           <div className="absolute bottom-0 left-0 right-0 max-h-[85vh] overflow-y-auto rounded-t-2xl bg-background p-6">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-foreground">Filters</h2>
@@ -415,36 +485,48 @@ function FilterPanel({
   return (
     <div className="space-y-5 rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
       <Section label="Category">
-        <ThemedSelect className="form-input" value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value })}>
+        <select
+          className="form-input"
+          value={draft.category}
+          onChange={(e) => setDraft({ ...draft, category: e.target.value })}
+        >
           <option value="">All categories</option>
           {JOB_CATEGORIES.map((c) => (
             <option key={c} value={c}>
               {c}
             </option>
           ))}
-        </ThemedSelect>
+        </select>
       </Section>
       <Section label="Job type">
-        <ThemedSelect className="form-input" value={draft.jobType} onChange={(e) => setDraft({ ...draft, jobType: e.target.value })}>
+        <select
+          className="form-input"
+          value={draft.jobType}
+          onChange={(e) => setDraft({ ...draft, jobType: e.target.value })}
+        >
           <option value="">Any</option>
           {JOB_TYPE_OPTIONS.map((t) => (
             <option key={t.id} value={t.id}>
               {t.label}
             </option>
           ))}
-        </ThemedSelect>
+        </select>
       </Section>
       <Section label="Work mode">
-        <ThemedSelect className="form-input" value={draft.workMode} onChange={(e) => setDraft({ ...draft, workMode: e.target.value })}>
+        <select
+          className="form-input"
+          value={draft.workMode}
+          onChange={(e) => setDraft({ ...draft, workMode: e.target.value })}
+        >
           <option value="">Any</option>
           {WORK_MODES.map((w) => (
             <option key={w.id} value={w.id}>
               {w.label}
             </option>
           ))}
-        </ThemedSelect>
+        </select>
       </Section>
-      <Section label="Salary (₹/month)">
+      <Section label="Salary (Γé╣/month)">
         <div className="grid grid-cols-2 gap-2">
           <input
             type="number"
@@ -487,44 +569,60 @@ function FilterPanel({
         </div>
       </Section>
       <Section label="Date posted">
-        <ThemedSelect className="form-input" value={draft.datePosted} onChange={(e) => setDraft({ ...draft, datePosted: e.target.value })}>
+        <select
+          className="form-input"
+          value={draft.datePosted}
+          onChange={(e) => setDraft({ ...draft, datePosted: e.target.value })}
+        >
           <option value="">Any time</option>
           {DATE_POSTED_OPTIONS.map((d) => (
             <option key={d.id} value={d.id}>
               {d.label}
             </option>
           ))}
-        </ThemedSelect>
+        </select>
       </Section>
       <Section label="Education required">
-        <ThemedSelect className="form-input" value={draft.education} onChange={(e) => setDraft({ ...draft, education: e.target.value })}>
+        <select
+          className="form-input"
+          value={draft.education}
+          onChange={(e) => setDraft({ ...draft, education: e.target.value })}
+        >
           <option value="">Any</option>
           {EDUCATION_LEVELS.map((ed) => (
             <option key={ed} value={ed}>
               {ed}
             </option>
           ))}
-        </ThemedSelect>
+        </select>
       </Section>
       <Section label="Shift">
-        <ThemedSelect className="form-input" value={draft.shift} onChange={(e) => setDraft({ ...draft, shift: e.target.value })}>
+        <select
+          className="form-input"
+          value={draft.shift}
+          onChange={(e) => setDraft({ ...draft, shift: e.target.value })}
+        >
           <option value="">Any</option>
           {SHIFTS.map((s) => (
             <option key={s.id} value={s.id}>
               {s.label}
             </option>
           ))}
-        </ThemedSelect>
+        </select>
       </Section>
       <Section label="English level">
-        <ThemedSelect className="form-input" value={draft.englishLevel} onChange={(e) => setDraft({ ...draft, englishLevel: e.target.value })}>
+        <select
+          className="form-input"
+          value={draft.englishLevel}
+          onChange={(e) => setDraft({ ...draft, englishLevel: e.target.value })}
+        >
           <option value="">Any</option>
           {ENGLISH_LEVELS.map((l) => (
             <option key={l.id} value={l.id}>
               {l.label}
             </option>
           ))}
-        </ThemedSelect>
+        </select>
       </Section>
       <Section label="Company">
         <input
