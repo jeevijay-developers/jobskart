@@ -670,6 +670,30 @@ function ProfilePage() {
               </ul>
             )}
           </div>
+
+          {/* Languages */}
+          <div id="languages" className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="flex items-center gap-2 text-[15px] font-bold text-foreground">
+                Languages {incompleteKeys.has("languages_count") && <IncompleteTag />}
+              </h3>
+              <button onClick={() => setOpen("languages")} className="text-sm font-semibold text-primary hover:underline">Manage</button>
+            </div>
+            {languages.length === 0 ? (
+              <EmptyRow icon={LangIcon} title="No languages added" hint="Add the languages you speak." />
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {languages.map((l) => (
+                  <span key={l.id} className="flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-sm text-foreground">
+                    <LangIcon className="h-3.5 w-3.5 text-primary" /> {l.language} <span className="text-muted-foreground">· {l.proficiency}</span>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <SummaryCard title="Recent applications" to="/candidate/applications" icon={FileText} empty={counts.applications === 0} emptyTitle="No applications yet" emptyHint="Start applying to jobs and track them here." count={counts.applications} countLabel="applications submitted" />
+          <SummaryCard title="Saved jobs" to="/candidate/saved" icon={Bookmark} empty={counts.saved === 0} emptyTitle="No saved jobs yet" emptyHint="Save jobs you like and view them here." count={counts.saved} countLabel="jobs saved" />
         </div>
       </div>
 
@@ -1148,6 +1172,14 @@ function CareerDialog({
     }
   }, [open, c]);
   const save = async () => {
+    const next: typeof fieldErrors = {};
+    if (!status) next.status = "Please select your status.";
+    if (years == null || years === undefined || Number.isNaN(years)) next.years = "Please enter your years of experience.";
+    if (!jobTypes.length) next.jobTypes = "Please select at least one job type.";
+    if (!workMode) next.workMode = "Please select a work mode.";
+    if (typeof salary !== "number") next.salary = "Please enter your expected salary.";
+    setFieldErrors(next);
+    if (Object.keys(next).length > 0) return;
     setSaving(true);
     await supabase
       .from("candidate_profiles")
@@ -1202,7 +1234,7 @@ function CareerDialog({
           </Field>
         </div>
         <div className="sm:col-span-2">
-          <Field label="Looking for">
+          <Field label="Looking for" required error={fieldErrors.jobTypes}>
             <div className="flex flex-wrap gap-2">
               {JOB_TYPE_OPTIONS.map((j) => {
                 const on = jobTypes.includes(j.id);
@@ -1313,6 +1345,16 @@ function ExperiencesDialog({
     if (open) setList(items);
   }, [open, items]);
   const save = async () => {
+    const next: typeof fieldErrors = {};
+    list.forEach((e, i) => {
+      const errs: { job_title?: string; company_name?: string; start_date?: string } = {};
+      if (!e.job_title.trim()) errs.job_title = "Please enter a title.";
+      if (!e.company_name.trim()) errs.company_name = "Please enter a company.";
+      if (!e.start_date) errs.start_date = "Please select a start date.";
+      if (Object.keys(errs).length) next[i] = errs;
+    });
+    setFieldErrors(next);
+    if (Object.keys(next).length > 0) return;
     setSaving(true);
     await supabase.from("candidate_experiences").delete().eq("user_id", uid);
     if (list.length) {

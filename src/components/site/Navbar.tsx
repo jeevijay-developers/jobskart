@@ -14,7 +14,6 @@ import { signOut } from "@/lib/auth";
 const candidateMenuLinks = [
   { to: "/candidate/saved", label: "Saved jobs", icon: Bookmark },
   { to: "/candidate/alerts", label: "Job alerts", icon: Zap },
-  { to: "/candidate/notifications", label: "Notifications", icon: Bell },
   { to: "/candidate/documents", label: "Documents", icon: FolderOpen },
   { to: "/candidate/settings", label: "Settings", icon: Settings },
 ] as const;
