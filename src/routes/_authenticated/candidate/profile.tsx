@@ -874,8 +874,21 @@ function ExperiencesDialog({ open, onClose, uid, items, onSaved }: { open: boole
 
 function EducationDialog({ open, onClose, uid, items, onSaved }: { open: boolean; onClose: () => void; uid: string; items: Edu[]; onSaved: () => void }) {
   const [list, setList] = useState<Edu[]>(items); const [saving, setSaving] = useState(false);
-  useEffect(() => { if (open) setList(items.length ? items : [{ level: "10th", board_or_university: "", institute: "", year_of_passing: "", marks: "" }]); }, [open, items]);
+  const [fieldErrors, setFieldErrors] = useState<Record<number, { level?: string; board_or_university?: string; institute?: string; year_of_passing?: string; marks?: string }>>({});
+  useEffect(() => { if (open) { setList(items.length ? items : [{ level: "", board_or_university: "", institute: "", year_of_passing: "", marks: "" }]); setFieldErrors({}); } }, [open, items]);
   const save = async () => {
+    const next: typeof fieldErrors = {};
+    list.forEach((e, i) => {
+      const errs: { level?: string; board_or_university?: string; institute?: string; year_of_passing?: string; marks?: string } = {};
+      if (!e.level) errs.level = "Please select a course.";
+      if (!e.board_or_university.trim()) errs.board_or_university = "Please enter board/university.";
+      if (!e.institute.trim()) errs.institute = "Please enter institute.";
+      if (e.year_of_passing === "" || e.year_of_passing == null) errs.year_of_passing = "Please enter year.";
+      if (!e.marks.trim()) errs.marks = "Please enter marks.";
+      if (Object.keys(errs).length) next[i] = errs;
+    });
+    setFieldErrors(next);
+    if (Object.keys(next).length > 0) return;
     setSaving(true);
     await supabase.from("candidate_education").delete().eq("user_id", uid);
     if (list.length) {
@@ -891,19 +904,28 @@ function EducationDialog({ open, onClose, uid, items, onSaved }: { open: boolean
       <div className="space-y-3">
         {list.map((e, i) => (
           <div key={i} className="rounded-xl border border-border bg-surface p-3">
-            <div className="mb-2 flex items-center justify-between"><span className="text-xs font-semibold text-muted-foreground">#{i + 1}</span>
-              {list.length > 1 && <button onClick={() => setList(list.filter((_, k) => k !== i))} className="text-destructive"><Trash2 className="h-4 w-4" /></button>}
-            </div>
+            {list.length > 1 && (
+              <div className="mb-2 flex items-center justify-end">
+                <button onClick={() => setList(list.filter((_, k) => k !== i))} className="text-destructive"><Trash2 className="h-4 w-4" /></button>
+              </div>
+            )}
             <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Level"><ThemedSelect className="form-input" value={e.level} onChange={(ev) => setList(list.map((x, k) => k === i ? { ...x, level: ev.target.value } : x))}>{EDUCATION_LEVELS.map((l) => <option key={l}>{l}</option>)}</ThemedSelect></Field>
-              <Field label="Board / University"><input className="form-input" value={e.board_or_university} onChange={(ev) => setList(list.map((x, k) => k === i ? { ...x, board_or_university: ev.target.value } : x))} /></Field>
-              <Field label="Institute"><input className="form-input" value={e.institute} onChange={(ev) => setList(list.map((x, k) => k === i ? { ...x, institute: ev.target.value } : x))} /></Field>
-              <Field label="Year"><input type="number" className="form-input" value={e.year_of_passing} onChange={(ev) => setList(list.map((x, k) => k === i ? { ...x, year_of_passing: ev.target.value ? Number(ev.target.value) : "" } : x))} /></Field>
-              <Field label="Marks"><input className="form-input" value={e.marks} onChange={(ev) => setList(list.map((x, k) => k === i ? { ...x, marks: ev.target.value } : x))} /></Field>
+              <Field label="Course" required error={fieldErrors[i]?.level}>
+                <StateDropdown
+                  value={e.level}
+                  options={EDUCATION_LEVELS}
+                  placeholder="Select course"
+                  onChange={(v) => setList(list.map((x, k) => k === i ? { ...x, level: v } : x))}
+                />
+              </Field>
+              <Field label="Board / University" required error={fieldErrors[i]?.board_or_university}><input className="form-input" value={e.board_or_university} onChange={(ev) => setList(list.map((x, k) => k === i ? { ...x, board_or_university: ev.target.value } : x))} /></Field>
+              <Field label="Institute" required error={fieldErrors[i]?.institute}><input className="form-input" value={e.institute} onChange={(ev) => setList(list.map((x, k) => k === i ? { ...x, institute: ev.target.value } : x))} /></Field>
+              <Field label="Year" required error={fieldErrors[i]?.year_of_passing}><input type="number" min={0} className="form-input" value={e.year_of_passing} onChange={(ev) => { const v = ev.target.value ? Math.max(0, Number(ev.target.value)) : ""; setList(list.map((x, k) => k === i ? { ...x, year_of_passing: v } : x)); }} onKeyDown={(ev) => { if (ev.key === "-" || ev.key === "e") ev.preventDefault(); }} /></Field>
+              <Field label="Marks" required error={fieldErrors[i]?.marks}><input className="form-input" value={e.marks} onChange={(ev) => setList(list.map((x, k) => k === i ? { ...x, marks: ev.target.value } : x))} /></Field>
             </div>
           </div>
         ))}
-        <button onClick={() => setList([...list, { level: "Graduate", board_or_university: "", institute: "", year_of_passing: "", marks: "" }])}
+        <button onClick={() => setList([...list, { level: "", board_or_university: "", institute: "", year_of_passing: "", marks: "" }])}
           className="inline-flex items-center gap-1 rounded-lg border border-dashed border-border bg-card px-3 py-2 text-sm font-semibold text-primary hover:bg-primary-light"><Plus className="h-4 w-4" /> Add education</button>
       </div>
     </DlgShell>
