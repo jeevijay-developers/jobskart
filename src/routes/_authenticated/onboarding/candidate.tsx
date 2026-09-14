@@ -1,14 +1,17 @@
+import { ThemedDatePicker, ThemedSelect } from "@/components/ui/themed-form-controls";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, Calendar, Check, Loader2, Plus, Trash2, Upload, FileText, Compass, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Loader2, Plus, Trash2, Upload, FileText, Compass, Sparkles } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { Navbar } from "@/components/site/Navbar";
 import { ChipInput, Field, SectionCard } from "@/components/candidate/primitives";
 import { JobTitleAutocomplete } from "@/components/candidate/JobTitleAutocomplete";
+import { CityTownAutocomplete } from "@/components/candidate/CityTownAutocomplete";
 import { supabase } from "@/integrations/supabase/client";
 import { INDIAN_CITIES, SUGGESTED_LANGUAGES, JOB_TYPE_OPTIONS, WORK_MODES } from "@/lib/options";
+import { INDIAN_STATES_AND_UTS, CITIES_BY_STATE, type IndianState } from "@/lib/indianStatesCities";
 import { computeProfileStrength } from "@/lib/profileStrength";
 import { ResumeUpload } from "@/components/candidate/ResumeUpload";
 import type { ParsedResumePayload } from "@/lib/resume.functions";
@@ -18,6 +21,7 @@ import {
   headlineSchema,
   descriptionSchema,
   dobSchema,
+  cityTownSchema,
   qualificationSchema,
   QUALIFICATIONS,
   titleCase,
@@ -47,29 +51,15 @@ const to10 = (v: string | null | undefined) => {
 };
 const toE164 = (v: string) => (to10(v).length === 10 ? `+91${to10(v)}` : null);
 
-/**
- * Single native <input type="date"> so the browser's real calendar picker still opens,
- * but its own text is invisible — Chromium ignores `lang` for the date format, so we render
- * our own dd-mm-yyyy label on top instead of trusting the native display.
- */
 function DateField({ value, onChange, disabled }: { value: string; onChange: (v: string) => void; disabled?: boolean }) {
-  const [y, m, d] = value ? value.split("-") : [];
-  const display = y && m && d ? `${d}-${m}-${y}` : "";
   return (
-    <div className={`form-input relative flex items-center ${disabled ? "opacity-60" : ""}`}>
-      <span className="pointer-events-none absolute inset-y-0 left-3.5 z-0 flex items-center text-sm text-foreground">
-        {display || <span className="text-muted-foreground">dd-mm-yyyy</span>}
-      </span>
-      <Calendar className="pointer-events-none absolute right-3 top-1/2 z-0 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-      <input
-        type="date"
-        disabled={disabled}
-        className="relative z-10 h-5 w-full border-0 bg-transparent p-0 outline-none disabled:cursor-not-allowed [color-scheme:light] [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:top-1/2 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-9 [&::-webkit-calendar-picker-indicator]:-translate-y-1/2 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-datetime-edit]:text-transparent [&::-webkit-datetime-edit]:opacity-0"
-        value={value}
-        max={new Date().toISOString().slice(0, 10)}
-        onChange={(e) => onChange(e.target.value)}
-      />
-    </div>
+    <ThemedDatePicker
+      disabled={disabled}
+      value={value}
+      max={new Date().toISOString().slice(0, 10)}
+      placeholder="dd-mm-yyyy"
+      onChange={(event) => onChange(event.target.value)}
+    />
   );
 }
 
@@ -87,6 +77,7 @@ function OnboardingPage() {
   const [mobile, setMobile] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [whatsappOptIn, setWhatsappOptIn] = useState(true);
+  const [state, setState] = useState("");
   const [city, setCity] = useState("");
   const [dob, setDob] = useState("");
   const [gender, setGender] = useState<"male" | "female" | "other" | "prefer_not" | "">("");
@@ -130,14 +121,14 @@ function OnboardingPage() {
       if (!u) return;
       setUid(u);
       const [{ data: p }, { data: c }, { data: ex }, { data: lg }, { data: am }, { data: lm }] = await Promise.all([
-        supabase.from("profiles").select("full_name, mobile, city").eq("id", u).maybeSingle(),
+        supabase.from("profiles").select("full_name, mobile, city, state").eq("id", u).maybeSingle(),
         supabase.from("candidate_profiles").select("*").eq("user_id", u).maybeSingle(),
         supabase.from("candidate_experiences").select("*").eq("user_id", u).order("start_date", { ascending: false }),
         supabase.from("candidate_languages").select("*").eq("user_id", u),
         supabase.from("candidate_assets_master").select("id, slug, label, category").eq("is_active", true).order("sort_order"),
         supabase.from("languages_master").select("name").eq("is_active", true).order("sort_order"),
       ]);
-      if (p) { setFullName(p.full_name || ""); setMobile(to10(p.mobile)); setCity(p.city || ""); }
+      if (p) { setFullName(p.full_name || ""); setMobile(to10(p.mobile)); setCity(p.city || ""); setState(p.state || ""); }
       if (c) {
         setHeadline(c.headline || "");
         setDob(c.date_of_birth || ""); setGender((c.gender as typeof gender) || "");
@@ -249,7 +240,7 @@ function OnboardingPage() {
     setSaving(true);
     try {
       await runOrThrow(
-        supabase.from("profiles").update({ full_name: fullName, mobile: toE164(mobile), city }).eq("id", uid),
+        supabase.from("profiles").update({ full_name: fullName, mobile: toE164(mobile), city, state }).eq("id", uid),
         "Save basics",
       );
 
@@ -359,7 +350,10 @@ function OnboardingPage() {
         const h = headlineSchema.safeParse(headline);
         if (!h.success) return h.error.issues[0].message;
       }
-      if (!city) return "Please choose your city.";
+      if (!state) return "Please choose your state.";
+      if (!city) return "Please choose your city/town.";
+      const ct = cityTownSchema.safeParse(city);
+      if (!ct.success) return ct.error.issues[0].message;
       if (!gender) return "Please select your gender.";
       if (!dob) return "Please enter your date of birth.";
       const d = dobSchema.safeParse(dob || undefined);
@@ -633,21 +627,39 @@ function OnboardingPage() {
                             {headline.length}/200
                           </span>
                         </Field>
-                        <Field label="City" required>
-                          <select className="form-input" value={city} onChange={(e) => setCity(e.target.value)}>
-                            <option value="">Select city</option>
-                            {INDIAN_CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                          </select>
+                        <Field label="State" required>
+                          <ThemedSelect
+                            className="form-input"
+                            value={state}
+                            onChange={(e) => {
+                              const next = e.target.value;
+                              setState(next);
+                              // A city from the previous state is no longer valid for the new one.
+                              setCity("");
+                            }}
+                          >
+                            <option value="">Select state</option>
+                            {INDIAN_STATES_AND_UTS.map((s) => <option key={s} value={s}>{s}</option>)}
+                          </ThemedSelect>
                         </Field>
                         <Field label="Date of birth" required>
                           <DateField value={dob} onChange={setDob} />
                         </Field>
+                        <Field label="City / Town" required>
+                          <CityTownAutocomplete
+                            value={city}
+                            onChange={setCity}
+                            disabled={!state}
+                            suggestions={state ? CITIES_BY_STATE[state as IndianState] ?? [] : []}
+                            placeholder="Select or type city/town"
+                          />
+                        </Field>
                         <Field label="Gender" required>
-                          <select className="form-input" value={gender} onChange={(e) => setGender(e.target.value as typeof gender)}>
+                          <ThemedSelect className="form-input" value={gender} onChange={(e) => setGender(e.target.value as typeof gender)}>
                             <option value="" disabled>Select gender</option>
                             <option value="male">Male</option><option value="female">Female</option><option value="other">Other</option>
                             <option value="prefer_not">Prefer not to say</option>
-                          </select>
+                          </ThemedSelect>
                         </Field>
                       </div>
                     </SectionCard>
@@ -800,9 +812,9 @@ function OnboardingPage() {
                               <input className="form-input" list="lang-suggestions" value={l.language} onChange={(e) => setLanguages(languages.map((x, k) => k === i ? { ...x, language: e.target.value } : x))} />
                             </Field>
                             <Field label="Proficiency">
-                              <select className="form-input" value={l.proficiency} onChange={(e) => setLanguages(languages.map((x, k) => k === i ? { ...x, proficiency: e.target.value as Language["proficiency"] } : x))}>
+                              <ThemedSelect className="form-input" value={l.proficiency} onChange={(e) => setLanguages(languages.map((x, k) => k === i ? { ...x, proficiency: e.target.value as Language["proficiency"] } : x))}>
                                 <option value="basic">Basic</option><option value="conversational">Conversational</option><option value="fluent">Fluent</option><option value="native">Native</option>
-                              </select>
+                              </ThemedSelect>
                             </Field>
                             <label className="flex items-center gap-1.5 text-xs text-foreground/80"><input type="checkbox" checked={l.can_read} onChange={(e) => setLanguages(languages.map((x, k) => k === i ? { ...x, can_read: e.target.checked } : x))} /> Read</label>
                             <label className="flex items-center gap-1.5 text-xs text-foreground/80"><input type="checkbox" checked={l.can_write} onChange={(e) => setLanguages(languages.map((x, k) => k === i ? { ...x, can_write: e.target.checked } : x))} /> Write</label>

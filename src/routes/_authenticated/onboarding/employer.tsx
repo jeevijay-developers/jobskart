@@ -1,3 +1,4 @@
+import { ThemedSelect } from "@/components/ui/themed-form-controls";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -251,7 +252,7 @@ function EmployerOnboarding() {
             ))}
           </div>
           <Field label="Other city">
-            <select
+            <ThemedSelect
               value={TOP_CITIES.includes(hqCity) ? "" : hqCity}
               onChange={(e) => setHqCity(e.target.value)}
               className="form-input"
@@ -260,7 +261,7 @@ function EmployerOnboarding() {
               {INDIAN_CITIES.filter((c) => !TOP_CITIES.includes(c)).map((c) => (
                 <option key={c} value={c}>{c}</option>
               ))}
-            </select>
+            </ThemedSelect>
           </Field>
         </div>
       ),

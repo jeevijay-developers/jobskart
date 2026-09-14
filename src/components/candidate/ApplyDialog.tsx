@@ -3,6 +3,7 @@ import { CheckCircle2, FileText, Loader2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { RESUME_ACCEPT, validateResumeFile } from "@/lib/validators";
+import { ThemedDatePicker } from "@/components/ui/themed-form-controls";
 
 type Props = {
   open: boolean;
@@ -262,8 +263,7 @@ export function ApplyDialog({ open, onClose, userId, job, onApplied }: Props) {
                 </div>
                 <div>
                   <label className="text-sm font-semibold text-foreground">Available from</label>
-                  <input
-                    type="date"
+                  <ThemedDatePicker
                     value={availableFrom}
                     min={new Date().toISOString().slice(0, 10)}
                     onChange={(e) => setAvailableFrom(e.target.value)}

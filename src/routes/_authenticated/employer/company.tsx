@@ -1,3 +1,4 @@
+import { ThemedSelect } from "@/components/ui/themed-form-controls";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Building2, Camera, Loader2, ShieldCheck, Upload } from "lucide-react";
@@ -179,10 +180,10 @@ function CompanyPage() {
                   <input value={c.industry || ""} onChange={(e) => setC({ ...c, industry: e.target.value })} className="form-input" />
                 </Field>
                 <Field label="HQ city">
-                  <select value={c.hq_city || ""} onChange={(e) => setC({ ...c, hq_city: e.target.value })} className="form-input">
+                  <ThemedSelect value={c.hq_city || ""} onChange={(e) => setC({ ...c, hq_city: e.target.value })} className="form-input">
                     <option value="">Select…</option>
                     {INDIAN_CITIES.map((city) => <option key={city} value={city}>{city}</option>)}
-                  </select>
+                  </ThemedSelect>
                 </Field>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">

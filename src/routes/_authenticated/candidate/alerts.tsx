@@ -1,3 +1,4 @@
+import { ThemedSelect } from "@/components/ui/themed-form-controls";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -58,11 +59,11 @@ function Page() {
         <div className="mt-3 grid gap-2 sm:grid-cols-4">
           <Input placeholder="Job title / keyword" value={keyword} onChange={(e) => setKw(e.target.value)} />
           <Input placeholder="City" value={city} onChange={(e) => setCity(e.target.value)} />
-          <select value={freq} onChange={(e) => setFreq(e.target.value)} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
+          <ThemedSelect value={freq} onChange={(e) => setFreq(e.target.value)} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
             <option value="instant">Instant</option>
             <option value="daily">Daily</option>
             <option value="weekly">Weekly</option>
-          </select>
+          </ThemedSelect>
           <Button onClick={add}><Plus className="mr-2 h-4 w-4" /> Add alert</Button>
         </div>
       </div>

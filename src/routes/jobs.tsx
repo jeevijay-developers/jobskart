@@ -1,3 +1,4 @@
+import { ThemedSelect } from "@/components/ui/themed-form-controls";
 import { createFileRoute, Outlet, useLocation, useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Briefcase, Filter, Loader2, Search, X } from "lucide-react";
@@ -336,7 +337,7 @@ function JobsList() {
             </p>
             <label className="flex items-center gap-2 text-sm">
               <span className="text-muted-foreground">Sort by</span>
-              <select
+              <ThemedSelect
                 className="form-input w-auto"
                 value={sort}
                 onChange={(e) => setSort(e.target.value as SortKey)}
@@ -345,7 +346,7 @@ function JobsList() {
                 <option value="oldest">Oldest first</option>
                 <option value="salary_high">Salary: high to low</option>
                 <option value="salary_low">Salary: low to high</option>
-              </select>
+              </ThemedSelect>
             </label>
           </div>
 
@@ -414,34 +415,34 @@ function FilterPanel({
   return (
     <div className="space-y-5 rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
       <Section label="Category">
-        <select className="form-input" value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value })}>
+        <ThemedSelect className="form-input" value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value })}>
           <option value="">All categories</option>
           {JOB_CATEGORIES.map((c) => (
             <option key={c} value={c}>
               {c}
             </option>
           ))}
-        </select>
+        </ThemedSelect>
       </Section>
       <Section label="Job type">
-        <select className="form-input" value={draft.jobType} onChange={(e) => setDraft({ ...draft, jobType: e.target.value })}>
+        <ThemedSelect className="form-input" value={draft.jobType} onChange={(e) => setDraft({ ...draft, jobType: e.target.value })}>
           <option value="">Any</option>
           {JOB_TYPE_OPTIONS.map((t) => (
             <option key={t.id} value={t.id}>
               {t.label}
             </option>
           ))}
-        </select>
+        </ThemedSelect>
       </Section>
       <Section label="Work mode">
-        <select className="form-input" value={draft.workMode} onChange={(e) => setDraft({ ...draft, workMode: e.target.value })}>
+        <ThemedSelect className="form-input" value={draft.workMode} onChange={(e) => setDraft({ ...draft, workMode: e.target.value })}>
           <option value="">Any</option>
           {WORK_MODES.map((w) => (
             <option key={w.id} value={w.id}>
               {w.label}
             </option>
           ))}
-        </select>
+        </ThemedSelect>
       </Section>
       <Section label="Salary (₹/month)">
         <div className="grid grid-cols-2 gap-2">
@@ -486,44 +487,44 @@ function FilterPanel({
         </div>
       </Section>
       <Section label="Date posted">
-        <select className="form-input" value={draft.datePosted} onChange={(e) => setDraft({ ...draft, datePosted: e.target.value })}>
+        <ThemedSelect className="form-input" value={draft.datePosted} onChange={(e) => setDraft({ ...draft, datePosted: e.target.value })}>
           <option value="">Any time</option>
           {DATE_POSTED_OPTIONS.map((d) => (
             <option key={d.id} value={d.id}>
               {d.label}
             </option>
           ))}
-        </select>
+        </ThemedSelect>
       </Section>
       <Section label="Education required">
-        <select className="form-input" value={draft.education} onChange={(e) => setDraft({ ...draft, education: e.target.value })}>
+        <ThemedSelect className="form-input" value={draft.education} onChange={(e) => setDraft({ ...draft, education: e.target.value })}>
           <option value="">Any</option>
           {EDUCATION_LEVELS.map((ed) => (
             <option key={ed} value={ed}>
               {ed}
             </option>
           ))}
-        </select>
+        </ThemedSelect>
       </Section>
       <Section label="Shift">
-        <select className="form-input" value={draft.shift} onChange={(e) => setDraft({ ...draft, shift: e.target.value })}>
+        <ThemedSelect className="form-input" value={draft.shift} onChange={(e) => setDraft({ ...draft, shift: e.target.value })}>
           <option value="">Any</option>
           {SHIFTS.map((s) => (
             <option key={s.id} value={s.id}>
               {s.label}
             </option>
           ))}
-        </select>
+        </ThemedSelect>
       </Section>
       <Section label="English level">
-        <select className="form-input" value={draft.englishLevel} onChange={(e) => setDraft({ ...draft, englishLevel: e.target.value })}>
+        <ThemedSelect className="form-input" value={draft.englishLevel} onChange={(e) => setDraft({ ...draft, englishLevel: e.target.value })}>
           <option value="">Any</option>
           {ENGLISH_LEVELS.map((l) => (
             <option key={l.id} value={l.id}>
               {l.label}
             </option>
           ))}
-        </select>
+        </ThemedSelect>
       </Section>
       <Section label="Company">
         <input

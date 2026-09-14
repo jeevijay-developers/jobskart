@@ -18,7 +18,7 @@ export type EmployerAnalytics = {
 
 export const getEmployerAnalytics = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => input.parse(d))
+  .validator((d: unknown) => input.parse(d))
   .handler(async ({ data, context }): Promise<EmployerAnalytics> => {
     const { supabase, userId } = context;
     const { companyId, rangeDays } = data;

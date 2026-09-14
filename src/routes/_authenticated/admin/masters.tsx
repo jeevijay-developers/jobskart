@@ -1,3 +1,4 @@
+import { ThemedSelect } from "@/components/ui/themed-form-controls";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -125,7 +126,7 @@ function TableSection({ spec }: { spec: ColSpec }) {
           className="max-w-xs"
         />
         {spec.extra?.type === "select" && (
-          <select
+          <ThemedSelect
             value={extraVal}
             onChange={(e) => setExtraVal(e.target.value)}
             className="h-9 rounded-md border border-input bg-background px-3 text-sm"
@@ -133,7 +134,7 @@ function TableSection({ spec }: { spec: ColSpec }) {
             {spec.extra.options!.map((o) => (
               <option key={o} value={o}>{o}</option>
             ))}
-          </select>
+          </ThemedSelect>
         )}
         <Button onClick={() => add.mutate()} disabled={add.isPending || !value.trim()}>Add</Button>
       </div>

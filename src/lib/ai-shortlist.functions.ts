@@ -26,7 +26,7 @@ const CACHE_HOURS = 1;
 
 export const recommendShortlist = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => input.parse(d))
+  .validator((d: unknown) => input.parse(d))
   .handler(async ({ data, context }): Promise<ScoreRow[]> => {
     const { supabase, userId } = context;
     const { jobId, refresh } = data;

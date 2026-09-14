@@ -107,7 +107,7 @@ const fromText = (text: string) =>
   );
 
 export const parseResume = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => inputSchema.parse(data))
+  .validator((data: unknown) => inputSchema.parse(data))
   .handler(async ({ data }) => {
     const mime = data.mimeType.toLowerCase();
     const name = data.fileName.toLowerCase();

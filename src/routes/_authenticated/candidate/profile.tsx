@@ -1,3 +1,4 @@
+import { ThemedDatePicker, ThemedSelect } from "@/components/ui/themed-form-controls";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, BadgeCheck, Bookmark, Briefcase, CalendarCheck, Camera, CheckCircle2, Clock, Eye, ExternalLink, FileText, GraduationCap, HelpCircle, Languages as LangIcon, Loader2, MapPin, Pencil, Plus, ShieldCheck, Trash2, Upload, UserRound } from "lucide-react";
@@ -682,9 +683,9 @@ function PersonalDialog({ open, onClose, uid, p, c, onSaved }: { open: boolean; 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Full name"><input className="form-input" value={full_name} onChange={(e) => setFn(e.target.value)} /></Field>
         <Field label="Mobile"><input className="form-input" value={mobile} onChange={(e) => setMo(e.target.value.replace(/\D/g, "").slice(0, 10))} /></Field>
-        <Field label="City"><select className="form-input" value={city} onChange={(e) => setCity(e.target.value)}><option value="">Select</option>{INDIAN_CITIES.map((x) => <option key={x}>{x}</option>)}</select></Field>
-        <Field label="Date of birth"><input type="date" className="form-input" value={dob} onChange={(e) => setDob(e.target.value)} /></Field>
-        <Field label="Gender"><select className="form-input" value={gender} onChange={(e) => setGender(e.target.value)}><option value="">Prefer not to say</option><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option></select></Field>
+        <Field label="City"><ThemedSelect className="form-input" value={city} onChange={(e) => setCity(e.target.value)}><option value="">Select</option>{INDIAN_CITIES.map((x) => <option key={x}>{x}</option>)}</ThemedSelect></Field>
+        <Field label="Date of birth"><ThemedDatePicker value={dob} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setDob(e.target.value)} /></Field>
+        <Field label="Gender"><ThemedSelect className="form-input" value={gender} onChange={(e) => setGender(e.target.value)}><option value="">Prefer not to say</option><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option></ThemedSelect></Field>
         <div className="sm:col-span-2"><Field label="Headline"><input className="form-input" value={headline} onChange={(e) => setHeadline(e.target.value)} placeholder="e.g. Sales executive · 3 yrs in retail" /></Field></div>
         <div className="sm:col-span-2"><Field label="About you"><textarea className="form-input min-h-[100px]" value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Brief intro" /></Field></div>
       </div>
@@ -714,7 +715,7 @@ function CareerDialog({ open, onClose, uid, c, onSaved }: { open: boolean; onClo
   return (
     <DlgShell open={open} onClose={onClose} title="Career preferences" onSave={save} saving={saving}>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Status"><select className="form-input" value={status} onChange={(e) => setStatus(e.target.value)}><option value="fresher">Fresher</option><option value="experienced">Experienced</option><option value="student">Student</option></select></Field>
+        <Field label="Status"><ThemedSelect className="form-input" value={status} onChange={(e) => setStatus(e.target.value)}><option value="fresher">Fresher</option><option value="experienced">Experienced</option><option value="student">Student</option></ThemedSelect></Field>
         <Field label="Years of experience"><input type="number" min={0} className="form-input" value={years} onChange={(e) => setYears(Number(e.target.value))} /></Field>
         <div className="sm:col-span-2"><Field label="Current/last role"><input className="form-input" value={lastRole} onChange={(e) => setLastRole(e.target.value)} /></Field></div>
         <div className="sm:col-span-2">
@@ -729,9 +730,9 @@ function CareerDialog({ open, onClose, uid, c, onSaved }: { open: boolean; onClo
           </Field>
         </div>
         <Field label="Work mode">
-          <select className="form-input" value={workMode} onChange={(e) => setWorkMode(e.target.value)}>
+          <ThemedSelect className="form-input" value={workMode} onChange={(e) => setWorkMode(e.target.value)}>
             {WORK_MODES.map((w) => <option key={w.id} value={w.id}>{w.label}</option>)}
-          </select>
+          </ThemedSelect>
         </Field>
         <Field label="Expected salary (₹/mo)"><input type="number" className="form-input" value={salary} onChange={(e) => setSalary(e.target.value ? Number(e.target.value) : "")} /></Field>
         <Field label="Notice period (days)"><input type="number" className="form-input" value={notice} onChange={(e) => setNotice(e.target.value ? Number(e.target.value) : "")} /></Field>
@@ -774,9 +775,9 @@ function ExperiencesDialog({ open, onClose, uid, items, onSaved }: { open: boole
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Title"><input className="form-input" value={e.job_title} onChange={(ev) => setList(list.map((x, k) => k === i ? { ...x, job_title: ev.target.value } : x))} /></Field>
               <Field label="Company"><input className="form-input" value={e.company_name} onChange={(ev) => setList(list.map((x, k) => k === i ? { ...x, company_name: ev.target.value } : x))} /></Field>
-              <Field label="From"><input type="date" className="form-input" value={e.start_date} onChange={(ev) => setList(list.map((x, k) => k === i ? { ...x, start_date: ev.target.value } : x))} /></Field>
+              <Field label="From"><ThemedDatePicker value={e.start_date} max={new Date().toISOString().slice(0, 10)} onChange={(ev) => setList(list.map((x, k) => k === i ? { ...x, start_date: ev.target.value } : x))} /></Field>
               <Field label="To">
-                <input type="date" className="form-input" disabled={e.is_current} value={e.end_date} onChange={(ev) => setList(list.map((x, k) => k === i ? { ...x, end_date: ev.target.value } : x))} />
+                <ThemedDatePicker disabled={e.is_current} value={e.end_date} max={new Date().toISOString().slice(0, 10)} onChange={(ev) => setList(list.map((x, k) => k === i ? { ...x, end_date: ev.target.value } : x))} />
                 <label className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground"><input type="checkbox" checked={e.is_current} onChange={(ev) => setList(list.map((x, k) => k === i ? { ...x, is_current: ev.target.checked } : x))} /> Currently working</label>
               </Field>
             </div>
@@ -813,7 +814,7 @@ function EducationDialog({ open, onClose, uid, items, onSaved }: { open: boolean
               {list.length > 1 && <button onClick={() => setList(list.filter((_, k) => k !== i))} className="text-destructive"><Trash2 className="h-4 w-4" /></button>}
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Level"><select className="form-input" value={e.level} onChange={(ev) => setList(list.map((x, k) => k === i ? { ...x, level: ev.target.value } : x))}>{EDUCATION_LEVELS.map((l) => <option key={l}>{l}</option>)}</select></Field>
+              <Field label="Level"><ThemedSelect className="form-input" value={e.level} onChange={(ev) => setList(list.map((x, k) => k === i ? { ...x, level: ev.target.value } : x))}>{EDUCATION_LEVELS.map((l) => <option key={l}>{l}</option>)}</ThemedSelect></Field>
               <Field label="Board / University"><input className="form-input" value={e.board_or_university} onChange={(ev) => setList(list.map((x, k) => k === i ? { ...x, board_or_university: ev.target.value } : x))} /></Field>
               <Field label="Institute"><input className="form-input" value={e.institute} onChange={(ev) => setList(list.map((x, k) => k === i ? { ...x, institute: ev.target.value } : x))} /></Field>
               <Field label="Year"><input type="number" className="form-input" value={e.year_of_passing} onChange={(ev) => setList(list.map((x, k) => k === i ? { ...x, year_of_passing: ev.target.value ? Number(ev.target.value) : "" } : x))} /></Field>
@@ -845,9 +846,9 @@ function LanguagesDialog({ open, onClose, uid, items, onSaved }: { open: boolean
           <div key={i} className="grid items-end gap-2 rounded-xl border border-border bg-surface p-3 sm:grid-cols-[1.2fr_1fr_auto_auto_auto]">
             <Field label="Language"><input className="form-input" list="lang-dl" value={l.language} onChange={(e) => setList(list.map((x, k) => k === i ? { ...x, language: e.target.value } : x))} /></Field>
             <Field label="Proficiency">
-              <select className="form-input" value={l.proficiency} onChange={(e) => setList(list.map((x, k) => k === i ? { ...x, proficiency: e.target.value as Lang["proficiency"] } : x))}>
+              <ThemedSelect className="form-input" value={l.proficiency} onChange={(e) => setList(list.map((x, k) => k === i ? { ...x, proficiency: e.target.value as Lang["proficiency"] } : x))}>
                 <option value="basic">Basic</option><option value="conversational">Conversational</option><option value="fluent">Fluent</option><option value="native">Native</option>
-              </select>
+              </ThemedSelect>
             </Field>
             <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={l.can_read} onChange={(e) => setList(list.map((x, k) => k === i ? { ...x, can_read: e.target.checked } : x))} /> Read</label>
             <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={l.can_write} onChange={(e) => setList(list.map((x, k) => k === i ? { ...x, can_write: e.target.checked } : x))} /> Write</label>
@@ -1018,10 +1019,10 @@ function ResumeDialog({ open, onClose, uid, current, onSaved }: { open: boolean;
                       <input className="form-input" placeholder="Company" value={exp.company_name} onChange={(e) => {
                         const next = [...review.experiences]; next[i] = { ...exp, company_name: e.target.value }; setReview({ ...review, experiences: next });
                       }} />
-                      <input className="form-input" type="date" value={exp.start_date ?? ""} onChange={(e) => {
+                      <ThemedDatePicker value={exp.start_date ?? ""} max={new Date().toISOString().slice(0, 10)} onChange={(e) => {
                         const next = [...review.experiences]; next[i] = { ...exp, start_date: e.target.value }; setReview({ ...review, experiences: next });
                       }} />
-                      <input className="form-input" type="date" value={exp.end_date ?? ""} disabled={exp.is_current} onChange={(e) => {
+                      <ThemedDatePicker value={exp.end_date ?? ""} max={new Date().toISOString().slice(0, 10)} disabled={exp.is_current} onChange={(e) => {
                         const next = [...review.experiences]; next[i] = { ...exp, end_date: e.target.value }; setReview({ ...review, experiences: next });
                       }} />
                     </div>
@@ -1105,7 +1106,7 @@ function KycDialog({ open, onClose, uid, c, onSaved }: { open: boolean; onClose:
     <DlgShell open={open} onClose={onClose} title="Verify your identity">
       <p className="mb-3 text-sm text-muted-foreground">Verified candidates get priority responses from employers. Your ID is stored encrypted; we only show the last 4 digits.</p>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="ID type"><select className="form-input" value={idType} onChange={(e) => setIdType(e.target.value)}>{ID_TYPES.map((t) => <option key={t}>{t}</option>)}</select></Field>
+        <Field label="ID type"><ThemedSelect className="form-input" value={idType} onChange={(e) => setIdType(e.target.value)}>{ID_TYPES.map((t) => <option key={t}>{t}</option>)}</ThemedSelect></Field>
         <Field label="ID number"><input className="form-input" value={idNum} onChange={(e) => setIdNum(e.target.value)} placeholder="Enter number" /></Field>
       </div>
       <div className="mt-4 flex justify-end gap-2">

@@ -1901,6 +1901,7 @@ export type Database = {
           mobile: string | null
           mobile_verified: boolean
           signup_intent: string | null
+          state: string | null
           status: string
           updated_at: string
           user_type: Database["public"]["Enums"]["user_type"]
@@ -1915,6 +1916,7 @@ export type Database = {
           mobile?: string | null
           mobile_verified?: boolean
           signup_intent?: string | null
+          state?: string | null
           status?: string
           updated_at?: string
           user_type?: Database["public"]["Enums"]["user_type"]
@@ -1929,6 +1931,7 @@ export type Database = {
           mobile?: string | null
           mobile_verified?: boolean
           signup_intent?: string | null
+          state?: string | null
           status?: string
           updated_at?: string
           user_type?: Database["public"]["Enums"]["user_type"]
