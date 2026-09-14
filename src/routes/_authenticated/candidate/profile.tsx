@@ -1,7 +1,8 @@
-﻿import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BadgeCheck,
+  Bookmark,
   Briefcase,
   Camera,
   CheckCircle2,
@@ -117,6 +118,7 @@ function ProfilePage() {
   const [experiences, setExperiences] = useState<Exp[]>([]);
   const [educations, setEducations] = useState<Edu[]>([]);
   const [languages, setLanguages] = useState<Lang[]>([]);
+  const [counts, setCounts] = useState({ applications: 0, saved: 0 });
   const [open, setOpen] = useState<
     | null
     | "personal"
@@ -135,7 +137,7 @@ function ProfilePage() {
     const u = sess.session?.user.id;
     if (!u) return;
     setUid(u);
-    const [{ data: pr }, { data: cp }, { data: ex }, { data: ed }, { data: lg }] =
+    const [{ data: pr }, { data: cp }, { data: ex }, { data: ed }, { data: lg }, { count: appCount }, { count: savedCount }] =
       await Promise.all([
         supabase
           .from("profiles")
@@ -154,9 +156,12 @@ function ProfilePage() {
           .eq("user_id", u)
           .order("year_of_passing", { ascending: false }),
         supabase.from("candidate_languages").select("*").eq("user_id", u),
+        supabase.from("applications").select("*", { count: "exact", head: true }).eq("user_id", u),
+        supabase.from("saved_jobs").select("*", { count: "exact", head: true }).eq("user_id", u),
       ]);
     setP(pr as Profile);
     setC(cp as unknown as Candidate);
+    setCounts({ applications: appCount ?? 0, saved: savedCount ?? 0 });
     setExperiences(
       (ex || []).map((e) => ({
         ...e,
@@ -1159,6 +1164,7 @@ function CareerDialog({
   const [salary, setSalary] = useState<number | "">(c.expected_salary ?? "");
   const [notice, setNotice] = useState<number | "">(c.notice_period_days ?? "");
   const [saving, setSaving] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   useEffect(() => {
     if (open) {
       setStatus(c.experience_status);
@@ -1341,6 +1347,7 @@ function ExperiencesDialog({
 }) {
   const [list, setList] = useState<Exp[]>(items);
   const [saving, setSaving] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<number, Record<string, string>>>({});
   useEffect(() => {
     if (open) setList(items);
   }, [open, items]);
@@ -2223,5 +2230,49 @@ function KycDialog({
         </button>
       </div>
     </DlgShell>
+  );
+}
+
+function SummaryCard({
+  title,
+  to,
+  icon: Icon,
+  empty,
+  emptyTitle,
+  emptyHint,
+  count,
+  countLabel,
+}: {
+  title: string;
+  to: string;
+  icon: LucideIcon;
+  empty: boolean;
+  emptyTitle: string;
+  emptyHint: string;
+  count: number;
+  countLabel: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="flex items-center gap-2 text-sm font-bold uppercase text-muted-foreground">
+          <Icon className="h-4 w-4" /> {title}
+        </h3>
+        <Link to={to} className="text-sm font-semibold text-primary hover:underline">
+          View all
+        </Link>
+      </div>
+      {empty ? (
+        <div className="flex flex-col items-center gap-1 py-4 text-center">
+          <Icon className="h-8 w-8 text-muted-foreground/40" />
+          <p className="text-sm font-medium text-foreground">{emptyTitle}</p>
+          <p className="text-xs text-muted-foreground">{emptyHint}</p>
+        </div>
+      ) : (
+        <p className="text-2xl font-bold text-foreground">
+          {count} <span className="text-sm font-normal text-muted-foreground">{countLabel}</span>
+        </p>
+      )}
+    </div>
   );
 }
