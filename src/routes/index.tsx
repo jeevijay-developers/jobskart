@@ -38,7 +38,10 @@ import {
 } from "@/components/ui/accordion";
 import { Navbar } from "@/components/site/Navbar";
 import { Footer } from "@/components/site/Footer";
+import { AutocompleteInput } from "@/components/site/AutocompleteInput";
 import { getPlatformStats } from "@/lib/stats.functions";
+import { useJobTitleSuggestions } from "@/lib/useJobTitleSuggestions";
+import { INDIAN_CITIES } from "@/lib/options";
 import phoneCandidate from "@/assets/landing-phone-candidate.png";
 import resumeParse from "@/assets/landing-resume-parse.jpg";
 import employerDb from "@/assets/landing-employer-db.jpg";
@@ -55,7 +58,8 @@ export const Route = createFileRoute("/")({
       { property: "og:title", content: "JobsKart — India's most trusted hiring platform" },
       {
         property: "og:description",
-        content: "10 lakh+ jobs · 5 lakh+ candidates · 500+ cities. AI resume parsing. Verified employers.",
+        content:
+          "10 lakh+ jobs · 5 lakh+ candidates · 500+ cities. AI resume parsing. Verified employers.",
       },
     ],
   }),
@@ -89,6 +93,7 @@ function Hero() {
   const [q, setQ] = useState("");
   const [city, setCity] = useState("");
   const navigate = useNavigate();
+  const jobTitles = useJobTitleSuggestions();
 
   const submit = (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -139,8 +144,8 @@ function Hero() {
             transition={{ delay: 0.15 }}
             className="mt-5 max-w-xl text-base text-muted-foreground sm:text-lg"
           >
-            10 lakh+ verified jobs across 500+ Indian cities. Upload your resume — our AI fills
-            your profile in seconds. Speak directly with the HR. No middlemen, no scams.
+            10 lakh+ verified jobs across 500+ Indian cities. Upload your resume — our AI fills your
+            profile in seconds. Speak directly with the HR. No middlemen, no scams.
           </motion.p>
 
           {/* Search card */}
@@ -154,21 +159,29 @@ function Hero() {
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <label className="flex flex-1 items-center gap-3 rounded-xl px-4 py-3">
                 <Search className="h-5 w-5 shrink-0 text-muted-foreground" />
-                <input
+                <AutocompleteInput
                   value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  className="w-full min-w-0 bg-transparent text-base font-medium text-foreground outline-none placeholder:text-muted-foreground"
+                  onChange={setQ}
+                  onSubmit={submit}
+                  suggestions={jobTitles}
                   placeholder="Job title, skill or company"
+                  wrapperClassName="relative w-full min-w-0"
+                  inputClassName="w-full min-w-0 bg-transparent text-base font-medium text-foreground outline-none placeholder:text-muted-foreground"
+                  aria-label="Job title, skill or company"
                 />
               </label>
               <div className="hidden h-8 w-px bg-border sm:block" />
               <label className="flex flex-1 items-center gap-3 px-4 py-3">
                 <MapPin className="h-5 w-5 shrink-0 text-muted-foreground" />
-                <input
+                <AutocompleteInput
                   value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  className="w-full min-w-0 bg-transparent text-base font-medium text-foreground outline-none placeholder:text-muted-foreground"
+                  onChange={setCity}
+                  onSubmit={submit}
+                  suggestions={INDIAN_CITIES}
                   placeholder="City or area"
+                  wrapperClassName="relative w-full min-w-0"
+                  inputClassName="w-full min-w-0 bg-transparent text-base font-medium text-foreground outline-none placeholder:text-muted-foreground"
+                  aria-label="City or area"
                 />
               </label>
               <button
@@ -250,7 +263,9 @@ function PhoneCluster() {
           <BadgeCheck className="h-5 w-5" strokeWidth={2.5} />
         </div>
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Verified</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Verified
+          </p>
           <p className="text-sm font-bold text-foreground">Employer · Amazon</p>
         </div>
       </motion.div>
@@ -265,7 +280,9 @@ function PhoneCluster() {
           <IndianRupee className="h-5 w-5" strokeWidth={2.5} />
         </div>
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Salary</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Salary
+          </p>
           <p className="text-sm font-bold text-foreground tabular-nums">₹28,000 / mo</p>
         </div>
       </motion.div>
@@ -280,7 +297,9 @@ function PhoneCluster() {
           <Users className="h-5 w-5" strokeWidth={2.5} />
         </div>
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">This week</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            This week
+          </p>
           <p className="text-sm font-bold text-foreground tabular-nums">1,240 hired</p>
         </div>
       </motion.div>
@@ -325,7 +344,12 @@ function StatsStrip() {
 
   const stats = [
     { icon: Briefcase, label: "Active jobs", value: data?.jobs ?? 0, fallback: "10,00,000+" },
-    { icon: Building2, label: "Verified companies", value: data?.companies ?? 0, fallback: "1,000+" },
+    {
+      icon: Building2,
+      label: "Verified companies",
+      value: data?.companies ?? 0,
+      fallback: "1,000+",
+    },
     { icon: Users, label: "Candidates", value: data?.candidates ?? 0, fallback: "5,00,000+" },
     { icon: Globe2, label: "Cities covered", value: data?.cities ?? 0, fallback: "500+" },
   ];
@@ -371,7 +395,9 @@ function CountUp({ end, fallback }: { end: number; fallback: string }) {
   if (end <= 0) {
     return <p className="text-xl font-bold text-foreground tabular-nums">{fallback}</p>;
   }
-  return <p className="text-xl font-bold text-foreground tabular-nums">{val.toLocaleString("en-IN")}+</p>;
+  return (
+    <p className="text-xl font-bold text-foreground tabular-nums">{val.toLocaleString("en-IN")}+</p>
+  );
 }
 
 /* ----------------------------- How it works ----------------------------- */
@@ -410,7 +436,15 @@ function HowItWorks() {
 }
 
 type Step = { icon: typeof Smartphone; t: string; d: string };
-function StepColumn({ title, tone, steps }: { title: string; tone: "primary" | "ink"; steps: Step[] }) {
+function StepColumn({
+  title,
+  tone,
+  steps,
+}: {
+  title: string;
+  tone: "primary" | "ink";
+  steps: Step[];
+}) {
   const isPrimary = tone === "primary";
   return (
     <div className="rounded-3xl border border-border bg-card p-6 sm:p-8">
@@ -559,9 +593,27 @@ function FeatureRowEmployer() {
 
 function PricingTeaser() {
   const plans = [
-    { name: "Starter", price: 999, credits: 50, perks: ["50 unlocks", "1 active job post", "Email support"], featured: false },
-    { name: "Growth", price: 4499, credits: 250, perks: ["250 unlocks", "5 active job posts", "Priority placement", "WhatsApp support"], featured: true },
-    { name: "Enterprise", price: 14999, credits: 1000, perks: ["1,000 unlocks", "Unlimited jobs", "Dedicated manager", "API access"], featured: false },
+    {
+      name: "Starter",
+      price: 999,
+      credits: 50,
+      perks: ["50 unlocks", "1 active job post", "Email support"],
+      featured: false,
+    },
+    {
+      name: "Growth",
+      price: 4499,
+      credits: 250,
+      perks: ["250 unlocks", "5 active job posts", "Priority placement", "WhatsApp support"],
+      featured: true,
+    },
+    {
+      name: "Enterprise",
+      price: 14999,
+      credits: 1000,
+      perks: ["1,000 unlocks", "Unlimited jobs", "Dedicated manager", "API access"],
+      featured: false,
+    },
   ];
   return (
     <section className="py-14 sm:py-20">
@@ -573,7 +625,9 @@ function PricingTeaser() {
           <h2 className="mt-2 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
             Simple pricing. Pay per unlock.
           </h2>
-          <p className="mt-3 text-muted-foreground">No subscriptions. No commitments. Buy credits as you grow.</p>
+          <p className="mt-3 text-muted-foreground">
+            No subscriptions. No commitments. Buy credits as you grow.
+          </p>
         </div>
 
         <div className="mt-12 grid gap-6 lg:grid-cols-3">

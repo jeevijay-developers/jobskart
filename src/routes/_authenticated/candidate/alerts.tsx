@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/_authenticated/candidate/alerts")({
-  head: () => ({ meta: [{ title: "Job alerts · JobsKart" }] }),
+  head: () => ({ meta: [{ title: "Job alerts ┬╖ JobsKart" }] }),
   component: Page,
 });
 
@@ -29,7 +29,7 @@ function Page() {
   const [items, setItems] = useState<Alert[]>([]);
   const [keyword, setKw] = useState("");
   const [city, setCity] = useState("");
-  const [freq, setFreq] = useState("daily");
+  const [freq, setFreq] = useState("instant");
   const [loading, setLoading] = useState(true);
   const [pendingDelete, setPendingDelete] = useState<Alert | null>(null);
 
@@ -50,7 +50,7 @@ function Page() {
     if (!kw && !ct) return toast.error("Add a keyword or city");
     const { data: u } = await supabase.auth.getUser();
     if (!u.user) return;
-    const name = [kw, ct].filter(Boolean).join(" · ") || "New alert";
+    const name = [kw, ct].filter(Boolean).join(" ┬╖ ") || "New alert";
     const { error } = await supabase.from("candidate_job_alerts").insert({
       user_id: u.user.id, name, query: { keyword: kw || null, city: ct || null }, frequency: freq,
     } as never);
