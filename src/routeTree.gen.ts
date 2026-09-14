@@ -44,7 +44,6 @@ import { Route as AuthenticatedCandidateAlertsRouteImport } from './routes/_auth
 import { Route as AuthenticatedCandidateApplicationsRouteImport } from './routes/_authenticated/candidate/applications'
 import { Route as AuthenticatedCandidateDashboardRouteImport } from './routes/_authenticated/candidate/dashboard'
 import { Route as AuthenticatedCandidateDocumentsRouteImport } from './routes/_authenticated/candidate/documents'
-import { Route as AuthenticatedCandidateInterviewsRouteImport } from './routes/_authenticated/candidate/interviews'
 import { Route as AuthenticatedCandidateNotificationsRouteImport } from './routes/_authenticated/candidate/notifications'
 import { Route as AuthenticatedCandidateProfileRouteImport } from './routes/_authenticated/candidate/profile'
 import { Route as AuthenticatedCandidateSavedRouteImport } from './routes/_authenticated/candidate/saved'
@@ -254,12 +253,6 @@ const AuthenticatedCandidateDocumentsRoute =
     path: '/candidate/documents',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedCandidateInterviewsRoute =
-  AuthenticatedCandidateInterviewsRouteImport.update({
-    id: '/candidate/interviews',
-    path: '/candidate/interviews',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 const AuthenticatedCandidateNotificationsRoute =
   AuthenticatedCandidateNotificationsRouteImport.update({
     id: '/candidate/notifications',
@@ -422,7 +415,6 @@ export interface FileRoutesByFullPath {
   '/candidate/applications': typeof AuthenticatedCandidateApplicationsRoute
   '/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
   '/candidate/documents': typeof AuthenticatedCandidateDocumentsRoute
-  '/candidate/interviews': typeof AuthenticatedCandidateInterviewsRoute
   '/candidate/notifications': typeof AuthenticatedCandidateNotificationsRoute
   '/candidate/profile': typeof AuthenticatedCandidateProfileRoute
   '/candidate/saved': typeof AuthenticatedCandidateSavedRoute
@@ -480,7 +472,6 @@ export interface FileRoutesByTo {
   '/candidate/applications': typeof AuthenticatedCandidateApplicationsRoute
   '/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
   '/candidate/documents': typeof AuthenticatedCandidateDocumentsRoute
-  '/candidate/interviews': typeof AuthenticatedCandidateInterviewsRoute
   '/candidate/notifications': typeof AuthenticatedCandidateNotificationsRoute
   '/candidate/profile': typeof AuthenticatedCandidateProfileRoute
   '/candidate/saved': typeof AuthenticatedCandidateSavedRoute
@@ -540,7 +531,6 @@ export interface FileRoutesById {
   '/_authenticated/candidate/applications': typeof AuthenticatedCandidateApplicationsRoute
   '/_authenticated/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
   '/_authenticated/candidate/documents': typeof AuthenticatedCandidateDocumentsRoute
-  '/_authenticated/candidate/interviews': typeof AuthenticatedCandidateInterviewsRoute
   '/_authenticated/candidate/notifications': typeof AuthenticatedCandidateNotificationsRoute
   '/_authenticated/candidate/profile': typeof AuthenticatedCandidateProfileRoute
   '/_authenticated/candidate/saved': typeof AuthenticatedCandidateSavedRoute
@@ -600,7 +590,6 @@ export interface FileRouteTypes {
     | '/candidate/applications'
     | '/candidate/dashboard'
     | '/candidate/documents'
-    | '/candidate/interviews'
     | '/candidate/notifications'
     | '/candidate/profile'
     | '/candidate/saved'
@@ -658,7 +647,6 @@ export interface FileRouteTypes {
     | '/candidate/applications'
     | '/candidate/dashboard'
     | '/candidate/documents'
-    | '/candidate/interviews'
     | '/candidate/notifications'
     | '/candidate/profile'
     | '/candidate/saved'
@@ -717,7 +705,6 @@ export interface FileRouteTypes {
     | '/_authenticated/candidate/applications'
     | '/_authenticated/candidate/dashboard'
     | '/_authenticated/candidate/documents'
-    | '/_authenticated/candidate/interviews'
     | '/_authenticated/candidate/notifications'
     | '/_authenticated/candidate/profile'
     | '/_authenticated/candidate/saved'
@@ -1010,13 +997,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCandidateDocumentsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/candidate/interviews': {
-      id: '/_authenticated/candidate/interviews'
-      path: '/candidate/interviews'
-      fullPath: '/candidate/interviews'
-      preLoaderRoute: typeof AuthenticatedCandidateInterviewsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/candidate/notifications': {
       id: '/_authenticated/candidate/notifications'
       path: '/candidate/notifications'
@@ -1226,7 +1206,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCandidateApplicationsRoute: typeof AuthenticatedCandidateApplicationsRoute
   AuthenticatedCandidateDashboardRoute: typeof AuthenticatedCandidateDashboardRoute
   AuthenticatedCandidateDocumentsRoute: typeof AuthenticatedCandidateDocumentsRoute
-  AuthenticatedCandidateInterviewsRoute: typeof AuthenticatedCandidateInterviewsRoute
   AuthenticatedCandidateNotificationsRoute: typeof AuthenticatedCandidateNotificationsRoute
   AuthenticatedCandidateProfileRoute: typeof AuthenticatedCandidateProfileRoute
   AuthenticatedCandidateSavedRoute: typeof AuthenticatedCandidateSavedRoute
@@ -1253,7 +1232,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedCandidateApplicationsRoute,
   AuthenticatedCandidateDashboardRoute: AuthenticatedCandidateDashboardRoute,
   AuthenticatedCandidateDocumentsRoute: AuthenticatedCandidateDocumentsRoute,
-  AuthenticatedCandidateInterviewsRoute: AuthenticatedCandidateInterviewsRoute,
   AuthenticatedCandidateNotificationsRoute:
     AuthenticatedCandidateNotificationsRoute,
   AuthenticatedCandidateProfileRoute: AuthenticatedCandidateProfileRoute,
