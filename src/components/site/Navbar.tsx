@@ -1,4 +1,4 @@
-import { Link, useLocation, useNavigate } from "@tanstack/react-router";
+﻿import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Bell, Bookmark, FolderOpen, LogOut, Menu, Settings, User, X, Zap } from "lucide-react";
@@ -10,7 +10,7 @@ import { signOut } from "@/lib/auth";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 // CandidateShell's bottom tab bar only surfaces Dashboard / Browse jobs /
-// Applications / Interviews / Profile on mobile — these are reachable on
+// Applications / Interviews / Profile on mobile ΓÇö these are reachable on
 // desktop via the candidate sidebar but have no mobile entry point otherwise.
 const candidateMenuLinks = [
   { to: "/candidate/saved", label: "Saved jobs", icon: Bookmark },
@@ -19,11 +19,11 @@ const candidateMenuLinks = [
   { to: "/candidate/settings", label: "Settings", icon: Settings },
 ] as const;
 
-// Public site nav — each item scrolls to its matching section on the home
+// Public site nav ΓÇö each item scrolls to its matching section on the home
 // page (see the `id`s on HowItWorks/FeatureRowCandidate/FeatureRowEmployer
 // in src/routes/index.tsx) rather than linking out to /jobs or /auth.
 // "Jobs" has no dedicated home-page section, so it's relabelled to match
-// the section it actually points to ("How it works" — the find-a-job flow).
+// the section it actually points to ("How it works" ΓÇö the find-a-job flow).
 const homeNavLinks = [
   { hash: "how-it-works", label: "How it works" },
   { hash: "employers", label: "For Employers" },
@@ -123,15 +123,6 @@ export function Navbar() {
         </div>
 
         <div className="flex items-center gap-2 lg:hidden">
-          {session && !isEmployer && (
-            <Link
-              to="/candidate/notifications"
-              aria-label="Notifications"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-foreground"
-            >
-              <Bell className="h-6 w-6" />
-            </Link>
-          )}
           {!session && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -141,17 +132,26 @@ export function Navbar() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem asChild>
-                  <Link to="/auth" search={{ tab: "candidate" }} className="cursor-pointer">
-                    Candidate Login
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
                   <Link to="/auth" search={{ tab: "employer" }} className="cursor-pointer">
                     Employer Login
                   </Link>
                 </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/auth" search={{ tab: "candidate" }} className="cursor-pointer">
+                    Candidate Login
+                  </Link>
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+          )}
+          {session && !isEmployer && (
+            <Link
+              to="/candidate/notifications"
+              aria-label="Notifications"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-foreground"
+            >
+              <Bell className="h-6 w-6" />
+            </Link>
           )}
           <button
             aria-label="Open menu"
@@ -208,9 +208,9 @@ export function Navbar() {
                 </nav>
               )
             )}
-            {session && (
-              <div className="mt-auto flex flex-col gap-3 pt-6">
-                {isHome ? (
+            <div className="mt-auto flex flex-col gap-3 pt-6">
+              {session ? (
+                isHome ? (
                   <>
                     <Link
                       to={dashboardPath}
@@ -233,9 +233,30 @@ export function Navbar() {
                   >
                     <LogOut className="h-4 w-4" /> Sign out
                   </button>
-                )}
-              </div>
-            )}
+                )
+              ) : (
+                !isHome && (
+                  <>
+                    <Link
+                      to="/auth"
+                      search={{ tab: "employer" }}
+                      onClick={() => setOpen(false)}
+                      className="inline-flex h-11 items-center justify-center rounded-lg border border-primary text-sm font-semibold text-primary"
+                    >
+                      Employer Login
+                    </Link>
+                    <Link
+                      to="/auth"
+                      search={{ tab: "candidate" }}
+                      onClick={() => setOpen(false)}
+                      className="inline-flex h-11 items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-foreground"
+                    >
+                      Candidate Login
+                    </Link>
+                  </>
+                )
+              )}
+            </div>
           </div>
         </div>,
         document.body,

@@ -46,17 +46,33 @@ function Page() {
   useEffect(() => { load(); }, []);
 
   const add = async () => {
-    const kw = keyword.trim(); const ct = city.trim();
+    const kw = keyword.trim();
+    const ct = city.trim();
     if (!kw && !ct) return toast.error("Add a keyword or city");
     const { data: u } = await supabase.auth.getUser();
     if (!u.user) return;
-    const name = [kw, ct].filter(Boolean).join(" ┬╖ ") || "New alert";
-    const { error } = await supabase.from("candidate_job_alerts").insert({
-      user_id: u.user.id, name, query: { keyword: kw || null, city: ct || null }, frequency: freq,
-    } as never);
+    const name = [kw, ct].filter(Boolean).join(" · ") || "New alert";
+    const { data: inserted, error } = await supabase
+      .from("candidate_job_alerts")
+      .insert({
+        user_id: u.user.id,
+        name,
+        query: { keyword: kw || null, city: ct || null },
+        frequency: freq,
+      } as never)
+      .select("id")
+      .single();
     if (error) return toast.error(error.message);
     toast.success("Alert saved");
-    setKw(""); setCity(""); load();
+    setKw("");
+    setCity("");
+    load();
+    // Fire-and-forget confirmation email — never blocks the alert-creation flow.
+    if (inserted) {
+      supabase.functions
+        .invoke("send-alert-confirmation", { body: { alertId: inserted.id } })
+        .catch(() => {});
+    }
   };
   const del = async (id: string) => {
     await supabase.from("candidate_job_alerts").delete().eq("id", id);
