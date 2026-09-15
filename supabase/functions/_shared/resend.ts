@@ -23,7 +23,7 @@ export async function sendEmail(opts: {
   if (!apiKey) {
     console.error("[resend] RESEND_API_KEY is not set");
     return { ok: false, error: "RESEND_API_KEY not configured" };
-  }
+  }    
   const from = Deno.env.get("RESEND_FROM_EMAIL") || DEFAULT_FROM;
 
   try {
