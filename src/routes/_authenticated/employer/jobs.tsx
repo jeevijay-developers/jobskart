@@ -1,5 +1,5 @@
 import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Briefcase, Copy, Eye, Pause, Play, Plus, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 import { EmployerShell } from "@/components/employer/EmployerShell";
@@ -42,6 +42,35 @@ function EmployerJobsList() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [allJobs, setAllJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const [tabsThumb, setTabsThumb] = useState({ widthPct: 100, leftPct: 0, scrollable: false });
+
+  const updateTabsThumb = () => {
+    const el = tabsRef.current;
+    if (!el) return;
+    const { scrollWidth, clientWidth, scrollLeft } = el;
+    if (scrollWidth <= clientWidth + 1) {
+      setTabsThumb({ widthPct: 100, leftPct: 0, scrollable: false });
+      return;
+    }
+    const widthPct = (clientWidth / scrollWidth) * 100;
+    const maxScroll = scrollWidth - clientWidth;
+    const leftPct = (scrollLeft / maxScroll) * (100 - widthPct);
+    setTabsThumb({ widthPct, leftPct, scrollable: true });
+  };
+
+  useEffect(() => {
+    updateTabsThumb();
+    const el = tabsRef.current;
+    if (!el) return;
+    const onScroll = () => updateTabsThumb();
+    el.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", updateTabsThumb);
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", updateTabsThumb);
+    };
+  }, [allJobs]);
 
   const load = async () => {
     setLoading(true);
@@ -123,28 +152,41 @@ function EmployerJobsList() {
         </Link>
       }
     >
-      <div className="mb-4 flex flex-wrap items-center gap-3">
+      <div className="mb-5 flex flex-col gap-3 sm:mb-4 sm:flex-row sm:flex-wrap sm:items-center">
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by title…"
-          className="form-input h-10 max-w-xs flex-1"
+          className="form-input h-10 w-full sm:max-w-xs sm:flex-1"
         />
-        <div className="flex gap-1.5 overflow-x-auto">
-          {STATUSES.map((s) => (
-            <button
-              key={s}
-              onClick={() => setStatusFilter(s)}
-              className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold capitalize ${
-                statusFilter === s ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-foreground/70 hover:border-foreground/30"
-              }`}
-            >
-              {s}
-              <span className={`tabular-nums ${statusFilter === s ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
-                ({counts[s] ?? 0})
-              </span>
-            </button>
-          ))}
+        <div className="sm:contents">
+          <div
+            ref={tabsRef}
+            className="-mx-4 flex gap-2 overflow-x-auto px-4 py-1 sm:mx-0 sm:overflow-x-visible sm:px-0 sm:py-0"
+          >
+            {STATUSES.map((s) => (
+              <button
+                key={s}
+                onClick={() => setStatusFilter(s)}
+                className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold capitalize ${
+                  statusFilter === s ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-foreground/70 hover:border-foreground/30"
+                }`}
+              >
+                {s}
+                <span className={`tabular-nums ${statusFilter === s ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+                  ({counts[s] ?? 0})
+                </span>
+              </button>
+            ))}
+          </div>
+          {tabsThumb.scrollable && (
+            <div className="mx-1 mt-1.5 h-1.5 rounded-full bg-surface sm:hidden" aria-hidden>
+              <div
+                className="h-full rounded-full bg-border"
+                style={{ width: `${tabsThumb.widthPct}%`, marginLeft: `${tabsThumb.leftPct}%` }}
+              />
+            </div>
+          )}
         </div>
       </div>
 
@@ -160,7 +202,7 @@ function EmployerJobsList() {
           </Link>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3 pb-4 lg:pb-0">
           {jobs.map((j) => (
             <div key={j.id} className="rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
               <div className="flex flex-wrap items-start justify-between gap-3">

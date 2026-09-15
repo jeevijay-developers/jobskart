@@ -72,9 +72,9 @@ export function EmployerShell({
   const primary = nav.slice(0, 4);
   const overflow = nav.slice(4);
   return (
-    <div className="min-h-screen bg-surface pb-20 lg:pb-0">
+    <div className="min-h-screen bg-surface pb-24 lg:pb-0">
       <Navbar />
-      <div className="mx-auto flex w-full max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:px-8">
+      <div className="mx-auto flex w-full max-w-7xl gap-6 overflow-x-hidden px-3 py-6 sm:px-6 lg:px-8">
         <aside className="hidden w-60 shrink-0 lg:block">
           <nav className="sticky top-20 space-y-1 rounded-2xl border border-border bg-card p-3 shadow-[var(--shadow-card)]">
             <Link
@@ -102,12 +102,12 @@ export function EmployerShell({
           </nav>
         </aside>
         <main className="min-w-0 flex-1">
-          <header className="mb-6 flex flex-wrap items-end justify-between gap-3">
+          <header className="mb-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
             <div className="min-w-0 flex-1">
-              <h1 className="truncate text-2xl font-bold text-foreground sm:text-3xl">{title}</h1>
+              <h1 className="whitespace-normal break-words text-xl font-bold leading-tight text-foreground sm:truncate sm:text-2xl lg:text-3xl">{title}</h1>
               {subtitle ? <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p> : null}
             </div>
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
               <CreditChip />
               <NotificationBell />
               {actions}
@@ -117,7 +117,10 @@ export function EmployerShell({
         </main>
       </div>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-6 border-t border-border bg-card/95 backdrop-blur lg:hidden">
+      <nav
+        className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-6 items-stretch border-t border-border bg-card/95 backdrop-blur lg:hidden"
+        style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+      >
         {primary.slice(0, 2).map((item) => {
           const active = pathname === item.to || pathname.startsWith(item.to + "/");
           const Icon = item.icon;
@@ -125,21 +128,24 @@ export function EmployerShell({
             <Link
               key={item.to}
               to={item.to}
-              className={`flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium ${
+              className={`flex min-w-0 flex-col items-center justify-center gap-1 px-0.5 py-2.5 text-center text-[10px] font-medium leading-none ${
                 active ? "text-primary" : "text-muted-foreground"
               }`}
             >
-              <Icon className="h-5 w-5" /> {item.label}
+              <Icon className="h-5 w-5 shrink-0" />
+              <span className="w-full truncate">{item.label}</span>
             </Link>
           );
         })}
-        <Link
-          to="/employer/jobs/new"
-          className="-mt-5 mx-1 flex flex-col items-center justify-center rounded-2xl bg-primary py-2 text-[10px] font-bold text-primary-foreground shadow-lg"
-        >
-          <Plus className="h-5 w-5" />
-          Post
-        </Link>
+        <div className="flex items-center justify-center py-2.5">
+          <Link
+            to="/employer/jobs/new"
+            className="flex h-11 w-11 flex-col items-center justify-center gap-0.5 rounded-2xl bg-primary text-[10px] font-bold leading-none text-primary-foreground shadow-md"
+          >
+            <Plus className="h-5 w-5 shrink-0" />
+            Post
+          </Link>
+        </div>
         {primary.slice(2, 4).map((item) => {
           const active = pathname === item.to || pathname.startsWith(item.to + "/");
           const Icon = item.icon;
@@ -147,20 +153,22 @@ export function EmployerShell({
             <Link
               key={item.to}
               to={item.to}
-              className={`flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium ${
+              className={`flex min-w-0 flex-col items-center justify-center gap-1 px-0.5 py-2.5 text-center text-[10px] font-medium leading-none ${
                 active ? "text-primary" : "text-muted-foreground"
               }`}
             >
-              <Icon className="h-5 w-5" /> {item.label}
+              <Icon className="h-5 w-5 shrink-0" />
+              <span className="w-full truncate">{item.label}</span>
             </Link>
           );
         })}
         <button
           type="button"
           onClick={() => setMoreOpen(true)}
-          className="flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium text-muted-foreground"
+          className="flex min-w-0 flex-col items-center justify-center gap-1 px-0.5 py-2.5 text-center text-[10px] font-medium leading-none text-muted-foreground"
         >
-          <MoreHorizontal className="h-5 w-5" /> More
+          <MoreHorizontal className="h-5 w-5 shrink-0" />
+          <span className="w-full truncate">More</span>
         </button>
       </nav>
 
@@ -236,12 +244,12 @@ export function StatCard({
     muted: "bg-surface text-muted-foreground",
   };
   return (
-    <div className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
-      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
-      <p className="mt-2 text-3xl font-bold text-foreground tabular-nums">{value}</p>
-      <div className="mt-2 flex items-center gap-2">
+    <div className="min-w-0 rounded-2xl border border-border bg-card p-3.5 shadow-[var(--shadow-card)] sm:p-5">
+      <p className="truncate text-[11px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-xs">{label}</p>
+      <p className="mt-2 text-2xl font-bold text-foreground tabular-nums sm:text-3xl">{value}</p>
+      <div className="mt-2 flex flex-wrap items-center gap-1.5 sm:gap-2">
         {hint ? (
-          <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${tones[tone]}`}>{hint}</span>
+          <span className={`inline-block truncate rounded-full px-2 py-0.5 text-[11px] font-medium sm:text-xs ${tones[tone]}`}>{hint}</span>
         ) : null}
         {typeof delta === "number" && delta !== 0 ? (
           <span className={`text-xs font-semibold tabular-nums ${delta > 0 ? "text-success" : "text-destructive"}`}>

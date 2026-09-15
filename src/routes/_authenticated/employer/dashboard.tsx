@@ -230,7 +230,7 @@ function EmployerDashboard() {
       actions={
         companies.length > 1 && (
           <ThemedSelect
-            className="form-input h-9 text-sm"
+            className="form-input h-9 w-full max-w-[220px] text-sm sm:w-auto"
             value={active.company_id}
             onChange={(e) => {
               const next = companies.find((c) => c.company_id === e.target.value);
@@ -247,14 +247,14 @@ function EmployerDashboard() {
       }
     >
       {/* HERO */}
-      <section className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-primary via-primary to-primary-dark p-6 text-primary-foreground shadow-[var(--shadow-elegant)] sm:p-8">
+      <section className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-primary via-primary to-primary-dark p-4 text-primary-foreground shadow-[var(--shadow-elegant)] sm:p-6 lg:p-8">
         <div
           aria-hidden
           className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-white/10 blur-3xl"
         />
-        <div className="relative grid gap-6 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-          <div className="flex min-w-0 items-center gap-4">
-            <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-white/15 text-2xl font-black ring-1 ring-white/20 sm:h-20 sm:w-20 sm:text-3xl">
+        <div className="relative grid gap-5 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+          <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+            <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-white/15 text-xl font-black ring-1 ring-white/20 sm:h-16 sm:w-16 sm:text-2xl lg:h-20 lg:w-20 lg:text-3xl">
               {active.companies.logo_url ? (
                 <img src={active.companies.logo_url} alt="" className="h-full w-full rounded-2xl object-cover" />
               ) : (
@@ -263,8 +263,8 @@ function EmployerDashboard() {
             </div>
             <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-wider text-white/70">Welcome back</p>
-              <h2 className="mt-1 truncate text-2xl font-black sm:text-3xl">{active.companies.name}</h2>
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+              <h2 className="mt-1 break-words text-xl font-black leading-tight sm:truncate sm:text-2xl lg:text-3xl">{active.companies.name}</h2>
+              <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs sm:gap-2">
                 {verified ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 font-semibold ring-1 ring-white/25">
                     <ShieldCheck className="h-3 w-3" /> Verified employer
@@ -290,25 +290,25 @@ function EmployerDashboard() {
               </div>
             </div>
           </div>
-          <div className="flex shrink-0 flex-wrap gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0 sm:flex-wrap">
             <Link
               to="/employer/jobs/new"
-              className="inline-flex h-11 items-center gap-2 rounded-xl bg-white px-4 text-sm font-bold text-primary shadow hover:bg-white/90"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-white px-3 text-sm font-bold text-primary shadow hover:bg-white/90 sm:px-4"
             >
-              <Plus className="h-4 w-4" /> Post a job
+              <Plus className="h-4 w-4 shrink-0" /> <span className="truncate">Post a job</span>
             </Link>
             <Link
               to="/employer/database"
-              className="inline-flex h-11 items-center gap-2 rounded-xl border border-white/30 bg-white/10 px-4 text-sm font-semibold text-white hover:bg-white/15"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 px-3 text-sm font-semibold text-white hover:bg-white/15 sm:px-4"
             >
-              <Database className="h-4 w-4" /> Search candidates
+              <Database className="h-4 w-4 shrink-0" /> <span className="truncate">Search candidates</span>
             </Link>
           </div>
         </div>
       </section>
 
       {/* STATS */}
-      <div className="mt-6 grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
         <StatCard
           label="Active jobs"
           value={stats.activeJobs}
@@ -323,54 +323,54 @@ function EmployerDashboard() {
           hint={delta >= 0 ? "vs last week" : "vs last week"}
         />
         <StatCard label="In interview" value={stats.interviews} tone="warning" />
-        <StatCard label="Job views" value={stats.views} tone="muted" />
+        <div className="col-span-2 sm:col-span-1">
+          <StatCard label="Job views" value={stats.views} tone="muted" />
+        </div>
       </div>
 
       {/* PIPELINE + SIDEBAR */}
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           {/* Pipeline */}
-          <section className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
+          <section className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-base font-bold">Hiring pipeline</h2>
               <Link to="/employer/reports" className="text-xs font-semibold text-primary">Full report →</Link>
             </div>
-            <div className="overflow-x-auto">
-              <div className="flex min-w-[560px] gap-2">
-                {FUNNEL.map((s, i) => {
-                  const v = funnel[s.id] ?? 0;
-                  const max = Math.max(...FUNNEL.map((f) => funnel[f.id] ?? 0), 1);
-                  return (
-                    <div key={s.id} className="flex-1">
-                      <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                        <span className={`h-2 w-2 rounded-full ${s.color}`} />
-                        {s.label}
-                      </div>
-                      <div className="rounded-xl bg-surface p-3 ring-1 ring-border">
-                        <p className="text-2xl font-black text-foreground tabular-nums">{v}</p>
-                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-card">
-                          <div
-                            className={`h-full rounded-full ${s.color}`}
-                            style={{ width: `${Math.round((v / max) * 100)}%` }}
-                          />
-                        </div>
-                      </div>
-                      {i < FUNNEL.length - 1 && (
-                        <p className="mt-1 text-center text-[10px] text-muted-foreground">
-                          {v && (funnel[FUNNEL[i + 1].id] ?? 0)
-                            ? `${Math.round(((funnel[FUNNEL[i + 1].id] ?? 0) / v) * 100)}% next`
-                            : "—"}
-                        </p>
-                      )}
+            <div className="grid grid-cols-2 gap-2.5 sm:flex sm:gap-2">
+              {FUNNEL.map((s, i) => {
+                const v = funnel[s.id] ?? 0;
+                const max = Math.max(...FUNNEL.map((f) => funnel[f.id] ?? 0), 1);
+                return (
+                  <div key={s.id} className="min-w-0 sm:flex-1">
+                    <div className="mb-2 flex items-center gap-1.5 truncate text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                      <span className={`h-2 w-2 shrink-0 rounded-full ${s.color}`} />
+                      <span className="truncate">{s.label}</span>
                     </div>
-                  );
-                })}
-              </div>
+                    <div className="rounded-xl bg-surface p-3 ring-1 ring-border">
+                      <p className="text-2xl font-black text-foreground tabular-nums">{v}</p>
+                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-card">
+                        <div
+                          className={`h-full rounded-full ${s.color}`}
+                          style={{ width: `${Math.round((v / max) * 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                    {i < FUNNEL.length - 1 && (
+                      <p className="mt-1 text-center text-[10px] text-muted-foreground sm:block">
+                        {v && (funnel[FUNNEL[i + 1].id] ?? 0)
+                          ? `${Math.round(((funnel[FUNNEL[i + 1].id] ?? 0) / v) * 100)}% next`
+                          : "—"}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </section>
 
           {/* Activity feed */}
-          <section className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
+          <section className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="flex items-center gap-2 text-base font-bold"><ActivityIcon className="h-4 w-4 text-primary" /> Activity</h2>
               <Link to="/employer/activity" className="text-xs font-semibold text-primary">View all →</Link>
@@ -379,14 +379,14 @@ function EmployerDashboard() {
           </section>
 
           {/* Recent applicants */}
-          <section className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
+          <section className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
             <div className="flex items-center justify-between">
               <h2 className="text-base font-bold">Recent applicants</h2>
               <Link to="/employer/responses" className="text-xs font-semibold text-primary">Open inbox →</Link>
             </div>
             <div className="mt-4 divide-y divide-border">
               {recent.length === 0 ? (
-                <p className="rounded-lg bg-surface px-4 py-8 text-center text-sm text-muted-foreground">
+                <p className="rounded-lg bg-surface px-4 py-8 text-center text-sm leading-relaxed text-muted-foreground break-words">
                   No applicants yet — post a job to start receiving applications.
                 </p>
               ) : (
@@ -424,7 +424,7 @@ function EmployerDashboard() {
         {/* RIGHT COLUMN */}
         <div className="space-y-6">
           {/* Top jobs */}
-          <section className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
+          <section className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-sm font-bold">Top performing jobs</h2>
               <Link to="/employer/jobs" className="text-xs font-semibold text-primary">All →</Link>
@@ -457,7 +457,7 @@ function EmployerDashboard() {
           </section>
 
           {/* KYC checklist */}
-          <section className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
+          <section className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-sm font-bold">Set up checklist</h2>
               <span className="text-xs font-semibold text-muted-foreground tabular-nums">
@@ -496,7 +496,7 @@ function EmployerDashboard() {
 
           {/* Learning */}
           {learn.length > 0 && (
-            <section className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
+            <section className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
               <div className="mb-3 flex items-center gap-2">
                 <GraduationCap className="h-4 w-4 text-primary" />
                 <h2 className="text-sm font-bold">Hire smarter</h2>
