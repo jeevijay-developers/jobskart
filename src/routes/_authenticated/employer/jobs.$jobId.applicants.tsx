@@ -1,10 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { ArrowLeft, Mail, Phone, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ArrowLeft, ArrowUpDown, Users } from "lucide-react";
 import { toast } from "sonner";
 import { EmployerShell } from "@/components/employer/EmployerShell";
+import { ApplicantCard } from "@/components/employer/ApplicantCard";
+import { ApplicantReviewPanel } from "@/components/employer/ApplicantReviewPanel";
 import { supabase } from "@/integrations/supabase/client";
-import { formatDistanceToNow } from "date-fns";
+import { APPLICANT_STATUSES, applicantStatusLabel } from "@/lib/applicantStatus";
 
 export const Route = createFileRoute("/_authenticated/employer/jobs/$jobId/applicants")({
   head: () => ({ meta: [{ title: "Applicants · JobsKart" }] }),
@@ -16,52 +18,134 @@ type Application = {
   status: string;
   created_at: string;
   cover_note: string | null;
+  expected_salary: number | null;
+  available_from: string | null;
   candidate_id: string;
   profiles: { full_name: string | null; email: string | null; mobile: string | null; avatar_url: string | null; city: string | null } | null;
-  candidate_profiles: { profile_slug: string | null } | null;
+  candidate_profiles: {
+    profile_slug: string | null;
+    headline: string | null;
+    last_role: string | null;
+    years_experience: number | null;
+    experience_status: string | null;
+    skills: string[] | null;
+  } | null;
+  education: { level: string; institute: string | null } | null;
 };
 
-const COLUMNS = [
-  { id: "applied", label: "Applied", tone: "bg-primary-light text-primary" },
-  { id: "shortlisted", label: "Shortlisted", tone: "bg-success-light text-success" },
-  { id: "interview", label: "Interview", tone: "bg-warning-light text-warning" },
-  { id: "hired", label: "Hired", tone: "bg-success text-success-foreground" },
-  { id: "rejected", label: "Rejected", tone: "bg-surface text-muted-foreground" },
-] as const;
+const TABS = [{ id: "all", label: "All" }, ...APPLICANT_STATUSES] as const;
+type Tab = (typeof TABS)[number]["id"];
+
+function emptyStateCopy(tab: Tab) {
+  switch (tab) {
+    case "all":
+      return { title: "No applicants yet", body: "Applications will show up here as candidates apply." };
+    case "applied":
+      return { title: "Nothing new to review", body: "New applications land here first." };
+    case "shortlisted":
+      return { title: "No one shortlisted yet", body: "Move promising applicants here to keep track of them." };
+    case "interview":
+      return { title: "No interviews in progress", body: "Applicants you're interviewing will show up here." };
+    case "hired":
+      return { title: "No hires yet", body: "Once you mark someone hired, they'll appear here." };
+    case "rejected":
+      return { title: "No rejections", body: "Applicants you pass on will be listed here." };
+  }
+}
 
 function ApplicantsPage() {
   const { jobId } = Route.useParams();
   const [job, setJob] = useState<{ title: string; status: string } | null>(null);
   const [apps, setApps] = useState<Application[]>([]);
-  const [active, setActive] = useState<Application | null>(null);
+  const [reviewing, setReviewing] = useState<Application | null>(null);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<Tab>("all");
+  const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const load = async () => {
     const [jRes, aRes] = await Promise.all([
       supabase.from("jobs").select("title, status").eq("id", jobId).single(),
-      supabase.from("applications").select("id, status, created_at, cover_note, candidate_id, profiles!applications_candidate_id_fkey (full_name, email, mobile, avatar_url, city)").eq("job_id", jobId).order("created_at", { ascending: false }),
+      supabase
+        .from("applications")
+        .select(
+          "id, status, created_at, cover_note, expected_salary, available_from, candidate_id, profiles!candidate_id (full_name, email, mobile, avatar_url, city)",
+        )
+        .eq("job_id", jobId)
+        .order("created_at", { ascending: false }),
     ]);
+    if (jRes.error) toast.error(jRes.error.message);
+    if (aRes.error) toast.error(aRes.error.message);
     setJob(jRes.data as { title: string; status: string } | null);
-    const rows = ((aRes.data || []) as unknown) as Array<Omit<Application, "candidate_profiles">>;
+
+    const rows = ((aRes.data || []) as unknown) as Array<Omit<Application, "candidate_profiles" | "education">>;
     const ids = Array.from(new Set(rows.map((r) => r.candidate_id)));
-    let slugMap: Record<string, string | null> = {};
+
+    let cpMap: Record<string, Application["candidate_profiles"]> = {};
+    const eduMap: Record<string, Application["education"]> = {};
     if (ids.length) {
-      const { data: cps } = await supabase
-        .from("candidate_profiles")
-        .select("user_id, profile_slug")
-        .in("user_id", ids);
-      slugMap = Object.fromEntries((cps || []).map((c) => [c.user_id, c.profile_slug]));
+      const [cpRes, eduRes] = await Promise.all([
+        supabase
+          .from("candidate_profiles")
+          .select("user_id, profile_slug, headline, last_role, years_experience, experience_status, skills")
+          .in("user_id", ids),
+        supabase
+          .from("candidate_education")
+          .select("user_id, level, institute, year_of_passing")
+          .in("user_id", ids)
+          .order("year_of_passing", { ascending: false, nullsFirst: false }),
+      ]);
+      cpMap = Object.fromEntries((cpRes.data || []).map((c) => [c.user_id, c]));
+      for (const e of eduRes.data || []) {
+        if (!eduMap[e.user_id]) eduMap[e.user_id] = { level: e.level, institute: e.institute };
+      }
     }
-    setApps(rows.map((r) => ({ ...r, candidate_profiles: { profile_slug: slugMap[r.candidate_id] ?? null } })) as Application[]);
+
+    setApps(
+      rows.map((r) => ({
+        ...r,
+        candidate_profiles: cpMap[r.candidate_id] ?? null,
+        education: eduMap[r.candidate_id] ?? null,
+      })) as Application[],
+    );
     setLoading(false);
   };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [jobId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, [jobId]);
 
-  const move = async (appId: string, status: string) => {
-    setApps((p) => p.map((a) => (a.id === appId ? { ...a, status } : a)));
-    const { error } = await supabase.from("applications").update({ status } as never).eq("id", appId);
-    if (error) { toast.error(error.message); load(); }
+  const updateStatus = async (ids: string[], status: string) => {
+    setApps((prev) => prev.map((a) => (ids.includes(a.id) ? { ...a, status } : a)));
+    setReviewing((r) => (r && ids.includes(r.id) ? { ...r, status } : r));
+    const { error } = await supabase.from("applications").update({ status } as never).in("id", ids);
+    if (error) { toast.error(error.message); load(); return; }
+    toast.success(ids.length > 1 ? `Moved ${ids.length} to ${applicantStatusLabel(status)}` : `Marked as ${applicantStatusLabel(status)}`);
+    setSelectedIds((prev) => { const n = new Set(prev); ids.forEach((id) => n.delete(id)); return n; });
   };
+
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { all: apps.length };
+    for (const s of APPLICANT_STATUSES) c[s.id] = apps.filter((a) => a.status === s.id).length;
+    return c;
+  }, [apps]);
+
+  const visible = useMemo(() => {
+    const filtered = tab === "all" ? apps : apps.filter((a) => a.status === tab);
+    const sorted = [...filtered].sort((a, b) => {
+      const diff = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      return sortOrder === "newest" ? -diff : diff;
+    });
+    return sorted;
+  }, [apps, tab, sortOrder]);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  };
+
+  const empty = emptyStateCopy(tab);
 
   return (
     <EmployerShell
@@ -76,102 +160,78 @@ function ApplicantsPage() {
       {loading ? (
         <div className="h-64 animate-pulse rounded-xl bg-card" />
       ) : (
-        <div className="flex gap-3 overflow-x-auto pb-2">
-          {COLUMNS.map((col) => {
-            const items = apps.filter((a) => a.status === col.id);
-            return (
-              <div key={col.id} className="flex w-72 shrink-0 flex-col">
-                <div className="mb-2 flex items-center justify-between">
-                  <h3 className="text-sm font-bold">{col.label}</h3>
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${col.tone}`}>{items.length}</span>
-                </div>
-                <div className="flex-1 space-y-2 rounded-xl border border-border bg-surface p-2">
-                  {items.length === 0 ? (
-                    <p className="rounded-lg border border-dashed border-border bg-card px-3 py-6 text-center text-xs text-muted-foreground">Drop candidates here</p>
-                  ) : items.map((a) => (
-                    <button
-                      key={a.id}
-                      onClick={() => setActive(a)}
-                      className="block w-full rounded-lg border border-border bg-card p-3 text-left hover:border-primary/40"
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className="grid h-8 w-8 place-items-center rounded-full bg-primary-light text-xs font-semibold text-primary">
-                          {(a.profiles?.full_name || "?").slice(0, 1).toUpperCase()}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium">{a.profiles?.full_name || "Candidate"}</p>
-                          <p className="truncate text-[10px] text-muted-foreground">{a.profiles?.city || ""}</p>
-                        </div>
-                      </div>
-                      <p className="mt-2 text-[10px] text-muted-foreground">Applied {formatDistanceToNow(new Date(a.created_at), { addSuffix: true })}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {active && (
-        <div className="fixed inset-0 z-50 flex">
-          <div className="flex-1 bg-foreground/40" onClick={() => setActive(null)} />
-          <aside className="w-full max-w-md overflow-y-auto bg-card p-6 shadow-2xl">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <div className="grid h-12 w-12 place-items-center rounded-full bg-primary-light text-base font-semibold text-primary">
-                  {(active.profiles?.full_name || "?").slice(0, 1).toUpperCase()}
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold">{active.profiles?.full_name || "Candidate"}</h3>
-                  <p className="text-xs text-muted-foreground">{active.profiles?.city}</p>
-                </div>
-              </div>
-              <button onClick={() => setActive(null)} className="rounded-lg p-2 hover:bg-surface"><X className="h-5 w-5" /></button>
+        <>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap gap-1 rounded-xl border border-border bg-card p-1">
+              {TABS.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => setTab(t.id)}
+                  className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                    tab === t.id ? "bg-primary text-primary-foreground" : "text-foreground/70 hover:bg-surface"
+                  }`}
+                >
+                  {t.label} {counts[t.id] > 0 && <span className="ml-1 opacity-80">({counts[t.id]})</span>}
+                </button>
+              ))}
             </div>
+            <button
+              onClick={() => setSortOrder((s) => (s === "newest" ? "oldest" : "newest"))}
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold hover:bg-surface"
+            >
+              <ArrowUpDown className="h-3.5 w-3.5" /> {sortOrder === "newest" ? "Newest first" : "Oldest first"}
+            </button>
+          </div>
 
-            <div className="mt-5 space-y-2 text-sm">
-              {active.profiles?.email && <p className="flex items-center gap-2"><Mail className="h-4 w-4 text-muted-foreground" /> {active.profiles.email}</p>}
-              {active.profiles?.mobile && <p className="flex items-center gap-2"><Phone className="h-4 w-4 text-muted-foreground" /> {active.profiles.mobile}</p>}
-            </div>
-
-            {active.cover_note && (
-              <div className="mt-5">
-                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Cover note</p>
-                <p className="mt-2 rounded-lg border border-border bg-surface p-3 text-sm">{active.cover_note}</p>
-              </div>
-            )}
-
-            <div className="mt-6">
-              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Move to</p>
-              <div className="mt-2 grid grid-cols-2 gap-2">
-                {COLUMNS.map((c) => (
+          {selectedIds.size > 0 && (
+            <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-primary/30 bg-primary-light p-3">
+              <span className="text-xs font-semibold text-primary">{selectedIds.size} selected</span>
+              <div className="flex flex-wrap gap-1.5">
+                {APPLICANT_STATUSES.map((s) => (
                   <button
-                    key={c.id}
-                    onClick={() => { move(active.id, c.id); setActive({ ...active, status: c.id }); }}
-                    className={`rounded-lg border px-3 py-2 text-xs font-semibold ${active.status === c.id ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card hover:bg-surface"}`}
+                    key={s.id}
+                    onClick={() => updateStatus([...selectedIds], s.id)}
+                    className="rounded-md bg-card px-2.5 py-1 text-xs font-semibold hover:bg-surface"
                   >
-                    {c.label}
+                    Move to {s.label}
                   </button>
                 ))}
               </div>
+              <button onClick={() => setSelectedIds(new Set())} className="ml-auto text-xs text-muted-foreground hover:underline">
+                Clear
+              </button>
             </div>
+          )}
 
-            {active.candidate_profiles?.profile_slug ? (
-              <Link
-                to="/u/$slug"
-                params={{ slug: active.candidate_profiles.profile_slug }}
-                className="mt-6 block rounded-lg border border-border bg-surface px-3 py-2 text-center text-sm font-semibold text-foreground hover:bg-card"
-              >
-                View full profile
-              </Link>
-            ) : (
-              <p className="mt-6 rounded-lg border border-dashed border-border px-3 py-2 text-center text-xs text-muted-foreground">
-                Candidate has not published a public profile yet
-              </p>
-            )}
-          </aside>
-        </div>
+          {visible.length === 0 ? (
+            <div className="grid place-items-center rounded-xl border border-dashed border-border bg-card p-12 text-center">
+              <Users className="mb-3 h-7 w-7 text-muted-foreground" />
+              <h2 className="text-lg font-semibold text-foreground">{empty.title}</h2>
+              <p className="mt-1 text-sm text-muted-foreground">{empty.body}</p>
+            </div>
+          ) : (
+            <div className="grid gap-3">
+              {visible.map((a) => (
+                <ApplicantCard
+                  key={a.id}
+                  applicant={a}
+                  selected={selectedIds.has(a.id)}
+                  onToggleSelect={() => toggleSelect(a.id)}
+                  onStatusChange={(status) => updateStatus([a.id], status)}
+                  onView={() => setReviewing(a)}
+                />
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {reviewing && (
+        <ApplicantReviewPanel
+          applicant={reviewing}
+          onClose={() => setReviewing(null)}
+          onStatusChange={(status) => updateStatus([reviewing.id], status)}
+        />
       )}
     </EmployerShell>
   );

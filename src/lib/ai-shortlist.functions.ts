@@ -48,7 +48,7 @@ export const recommendShortlist = createServerFn({ method: "POST" })
 
     const { data: apps } = await supabase
       .from("applications")
-      .select("id, candidate_id, status, created_at, profiles!applications_candidate_id_fkey (full_name, city, avatar_url)")
+      .select("id, candidate_id, status, created_at, profiles!candidate_id (full_name, city, avatar_url)")
       .eq("job_id", jobId)
       .order("created_at", { ascending: false })
       .limit(50);

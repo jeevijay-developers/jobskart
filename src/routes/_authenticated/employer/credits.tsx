@@ -279,40 +279,42 @@ function CreditsPage() {
               No transactions yet — buy your first credit pack above.
             </p>
           ) : (
-            <table className="w-full text-sm">
-              <thead className="bg-surface/60 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3">When</th>
-                  <th className="px-4 py-3">Type</th>
-                  <th className="px-4 py-3 text-right">Change</th>
-                  <th className="px-4 py-3 text-right">Balance</th>
-                </tr>
-              </thead>
-              <tbody>
-                {txns.map((t) => (
-                  <tr key={t.id} className="border-t border-border">
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {new Date(t.created_at).toLocaleString("en-IN", {
-                        dateStyle: "medium",
-                        timeStyle: "short",
-                      })}
-                    </td>
-                    <td className="px-4 py-3 font-medium text-foreground capitalize">{t.kind}</td>
-                    <td
-                      className={`px-4 py-3 text-right font-semibold tabular-nums ${
-                        t.delta >= 0 ? "text-success" : "text-foreground"
-                      }`}
-                    >
-                      {t.delta >= 0 ? "+" : ""}
-                      {t.delta}
-                    </td>
-                    <td className="px-4 py-3 text-right font-semibold tabular-nums text-foreground">
-                      {t.balance_after}
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-surface/60 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  <tr>
+                    <th className="px-4 py-3">When</th>
+                    <th className="px-4 py-3">Type</th>
+                    <th className="px-4 py-3 text-right">Change</th>
+                    <th className="px-4 py-3 text-right">Balance</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {txns.map((t) => (
+                    <tr key={t.id} className="border-t border-border">
+                      <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
+                        {new Date(t.created_at).toLocaleString("en-IN", {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                        })}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 font-medium text-foreground capitalize">{t.kind}</td>
+                      <td
+                        className={`whitespace-nowrap px-4 py-3 text-right font-semibold tabular-nums ${
+                          t.delta >= 0 ? "text-success" : "text-foreground"
+                        }`}
+                      >
+                        {t.delta >= 0 ? "+" : ""}
+                        {t.delta}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-right font-semibold tabular-nums text-foreground">
+                        {t.balance_after}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       </section>

@@ -16,8 +16,10 @@ import {
   ArrowUpRight,
   Download,
   AlertTriangle,
+  MoreVertical,
 } from "lucide-react";
 import { EmployerShell } from "@/components/employer/EmployerShell";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchMyCompanies, getActiveCompanyId } from "@/lib/employer";
 import { recommendShortlist } from "@/lib/ai-shortlist.functions";
@@ -112,13 +114,14 @@ function ResponsesPage() {
     setLoading(true);
     let qy = supabase
       .from("applications")
-      .select("id, status, created_at, candidate_id, jobs!inner (id, title, company_id), profiles!applications_candidate_id_fkey (full_name, city, avatar_url, mobile)")
+      .select("id, status, created_at, candidate_id, jobs!inner (id, title, company_id), profiles!candidate_id (full_name, city, avatar_url, mobile)")
       .eq("jobs.company_id", cid)
       .order("created_at", { ascending: false })
       .limit(200);
     if (jobFilter) qy = qy.eq("job_id", jobFilter);
     if (statusFilter) qy = qy.eq("status", statusFilter as never);
-    const { data } = await qy;
+    const { data, error } = await qy;
+    if (error) toast.error(error.message);
     setRows((data || []) as unknown as Row[]);
     setLoading(false);
   };
@@ -271,6 +274,29 @@ function ResponsesPage() {
                         <XCircle className="h-4 w-4" />
                       </button>
                     </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-border bg-card text-foreground hover:bg-surface sm:hidden"
+                          aria-label="Actions"
+                          title="Actions"
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setStatus([r.id], "shortlisted")}>
+                          <CheckCircle2 className="mr-2 h-4 w-4 text-success" /> Shortlist
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setStatus([r.id], "interview")}>
+                          <Calendar className="mr-2 h-4 w-4 text-warning" /> Interview
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setStatus([r.id], "rejected")}>
+                          <XCircle className="mr-2 h-4 w-4 text-muted-foreground" /> Reject
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                     <Link to="/employer/jobs/$jobId/applicants" params={{ jobId: r.jobs?.id || "" }} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-border bg-card hover:bg-surface" title="Open">
                       <ArrowUpRight className="h-4 w-4" />
                     </Link>

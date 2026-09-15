@@ -1,20 +1,9 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import {
-  Activity,
-  Building2,
-  Briefcase,
-  Inbox,
-  LayoutDashboard,
   Plus,
-  Users,
-  Database,
-  BarChart3,
   Coins,
   MoreHorizontal,
   X,
-  CalendarCheck,
-  FileSpreadsheet,
-  BadgeCheck,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
@@ -22,21 +11,7 @@ import { Navbar } from "@/components/site/Navbar";
 import { NotificationBell } from "@/components/site/NotificationBell";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchMyCompanies, getActiveCompanyId } from "@/lib/employer";
-
-const nav = [
-  { to: "/employer/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/employer/jobs", label: "Jobs", icon: Briefcase },
-  { to: "/employer/responses", label: "Responses", icon: Inbox },
-  { to: "/employer/interviews", label: "Interviews", icon: CalendarCheck },
-  { to: "/employer/database", label: "Database", icon: Database },
-  { to: "/employer/jobs/bulk", label: "Bulk post", icon: FileSpreadsheet },
-  { to: "/employer/verification", label: "Verification", icon: BadgeCheck },
-  { to: "/employer/reports", label: "Reports", icon: BarChart3 },
-  { to: "/employer/activity", label: "Activity", icon: Activity },
-  { to: "/employer/credits", label: "Credits", icon: Coins },
-  { to: "/employer/company", label: "Company", icon: Building2 },
-  { to: "/employer/team", label: "Team", icon: Users },
-] as const;
+import { EMPLOYER_NAV_LINKS as nav } from "@/lib/employer-nav";
 
 function CreditChip() {
   const [balance, setBalance] = useState<number | null>(null);

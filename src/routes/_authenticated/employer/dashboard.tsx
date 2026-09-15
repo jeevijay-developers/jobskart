@@ -125,7 +125,7 @@ function EmployerDashboard() {
           .order("applications_count", { ascending: false }),
         supabase
           .from("applications")
-          .select("id, status, created_at, jobs!inner (id, title, company_id), profiles!applications_candidate_id_fkey (full_name, avatar_url)")
+          .select("id, status, created_at, jobs!inner (id, title, company_id), profiles!candidate_id (full_name, avatar_url)")
           .eq("jobs.company_id", cid)
           .order("created_at", { ascending: false })
           .limit(8),
@@ -308,7 +308,7 @@ function EmployerDashboard() {
       </section>
 
       {/* STATS */}
-      <div className="mt-6 grid gap-4 grid-cols-2 lg:grid-cols-5">
+      <div className="mt-6 grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
         <StatCard
           label="Active jobs"
           value={stats.activeJobs}

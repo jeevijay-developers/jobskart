@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(supabase migration *)",
+      "Bash(supabase status *)",
+      "mcp__supabase__execute_sql",
+      "mcp__supabase__apply_migration",
+      "mcp__supabase__get_advisors",
+      "mcp__supabase__generate_typescript_types",
+      "Bash(node -e ' *)",
+      "Bash(bun run *)",
+      "PowerShell(bun run lint 2>&1)",
+      "Bash(npm --version)",
+      "Bash(node node_modules/eslint/bin/eslint.js .)",
+      "Bash(node node_modules/typescript/bin/tsc --noEmit -p tsconfig.json)",
+      "Read(//tmp/**)",
+      "Bash(node node_modules/eslint/bin/eslint.js 'src/routes/_authenticated/employer/jobs.$jobId.applicants.tsx' src/components/employer/ApplicantCard.tsx src/components/employer/ApplicantReviewPanel.tsx src/components/employer/ApplicantStatusMenu.tsx src/lib/applicantStatus.ts --no-warn-ignored)",
+      "Bash(node node_modules/eslint/bin/eslint.js 'src/routes/_authenticated/employer/jobs.$jobId.applicants.tsx' --no-warn-ignored)",
+      "Bash(node node_modules/vite/bin/vite.js dev --port 5183)",
+      "Bash(jobs)"
+    ]
+  }
+}

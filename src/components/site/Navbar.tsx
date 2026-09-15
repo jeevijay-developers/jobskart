@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
 import { signOut } from "@/lib/auth";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { EMPLOYER_OVERFLOW_LINKS } from "@/lib/employer-nav";
 
 // CandidateShell's bottom tab bar only surfaces Dashboard / Browse jobs /
 // Applications / Interviews / Profile on mobile ΓÇö these are reachable on
@@ -193,7 +194,20 @@ export function Navbar() {
               </nav>
             ) : (
               session &&
-              !isEmployer && (
+              (isEmployer ? (
+                <nav className="mt-8 flex flex-col gap-1">
+                  {EMPLOYER_OVERFLOW_LINKS.map((l) => (
+                    <Link
+                      key={l.to}
+                      to={l.to}
+                      onClick={() => setOpen(false)}
+                      className="flex items-center gap-2 rounded-lg px-3 py-3 text-base font-medium text-foreground hover:bg-surface"
+                    >
+                      <l.icon className="h-4 w-4" /> {l.label}
+                    </Link>
+                  ))}
+                </nav>
+              ) : (
                 <nav className="mt-8 flex flex-col gap-1">
                   {candidateMenuLinks.map((l) => (
                     <Link
@@ -206,7 +220,7 @@ export function Navbar() {
                     </Link>
                   ))}
                 </nav>
-              )
+              ))
             )}
             <div className="mt-auto flex flex-col gap-3 pt-6">
               {session ? (

@@ -303,13 +303,25 @@ function NewJob() {
           </div>
         ) : (
           <>
-            <div className="mb-6 flex items-center gap-2">
-              {steps.map((s, i) => (
-                <div key={s} className="flex-1">
-                  <div className={`h-1.5 rounded-full ${i <= step ? "bg-primary" : "bg-border"}`} />
-                  <p className={`mt-1 text-xs font-medium ${i === step ? "text-primary" : "text-muted-foreground"}`}>{i + 1}. {s}</p>
-                </div>
-              ))}
+            <div className="mb-6">
+              <div className="flex items-center gap-2">
+                {steps.map((s, i) => (
+                  <div key={s} className={`h-1.5 flex-1 rounded-full ${i <= step ? "bg-primary" : "bg-border"}`} />
+                ))}
+              </div>
+              <p className="mt-2 text-xs font-medium text-primary sm:hidden">
+                Step {step + 1} of {steps.length} · {steps[step]}
+              </p>
+              <div className="mt-1 hidden gap-2 sm:flex">
+                {steps.map((s, i) => (
+                  <p
+                    key={s}
+                    className={`flex-1 truncate text-xs font-medium ${i === step ? "text-primary" : "text-muted-foreground"}`}
+                  >
+                    {i + 1}. {s}
+                  </p>
+                ))}
+              </div>
             </div>
 
             <div className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
