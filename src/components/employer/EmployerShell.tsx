@@ -108,8 +108,12 @@ export function EmployerShell({
               {subtitle ? <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p> : null}
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-2">
-              <CreditChip />
-              <NotificationBell />
+              <div className="hidden sm:block">
+                <CreditChip />
+              </div>
+              <div className="hidden sm:block">
+                <NotificationBell />
+              </div>
               {actions}
             </div>
           </header>

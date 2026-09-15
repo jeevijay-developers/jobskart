@@ -9,6 +9,7 @@ import type { Session } from "@supabase/supabase-js";
 import { signOut } from "@/lib/auth";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { EMPLOYER_OVERFLOW_LINKS } from "@/lib/employer-nav";
+import { NotificationBell } from "@/components/site/NotificationBell";
 
 // CandidateShell's bottom tab bar only surfaces Dashboard / Browse jobs /
 // Applications / Interviews / Profile on mobile ΓÇö these are reachable on
@@ -154,6 +155,7 @@ export function Navbar() {
               <Bell className="h-6 w-6" />
             </Link>
           )}
+          {session && isEmployer && <NotificationBell />}
           <button
             aria-label="Open menu"
             className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-foreground"
