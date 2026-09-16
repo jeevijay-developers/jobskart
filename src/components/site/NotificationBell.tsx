@@ -1,7 +1,9 @@
 import { Bell, Check } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
+
+let notificationBellInstanceCount = 0;
 
 type Notification = {
   id: string;
@@ -17,6 +19,11 @@ type Notification = {
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<Notification[]>([]);
+  const instanceIdRef = useRef<number>();
+  if (instanceIdRef.current === undefined) {
+    notificationBellInstanceCount += 1;
+    instanceIdRef.current = notificationBellInstanceCount;
+  }
 
   useEffect(() => {
     let mounted = true;
@@ -30,8 +37,14 @@ export function NotificationBell() {
     };
     load();
 
+    // Each mounted bell needs its own channel: Supabase JS returns the same
+    // RealtimeChannel object for a repeated channel() name, and calling
+    // .on() on an already-subscribed channel throws ("cannot add
+    // 'postgres_changes' callbacks ... after subscribe()"). This bell can be
+    // mounted twice at once (mobile Navbar + desktop EmployerShell header),
+    // so the name must be unique per instance.
     const channel = supabase
-      .channel("notif")
+      .channel(`notif-${instanceIdRef.current}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications" }, (payload) => {
         setItems((prev) => [payload.new as Notification, ...prev].slice(0, 15));
       })
@@ -68,7 +81,7 @@ export function NotificationBell() {
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 z-50 mt-2 w-96 overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-card)]">
+          <div className="fixed left-3 right-3 z-50 mt-2 max-w-96 overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-card)] sm:absolute sm:left-auto sm:right-0 sm:w-96">
             <div className="flex items-center justify-between border-b border-border p-3">
               <p className="text-sm font-semibold">Notifications</p>
               {unread > 0 && (
