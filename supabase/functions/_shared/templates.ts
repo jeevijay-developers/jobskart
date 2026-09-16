@@ -32,8 +32,19 @@ function frequencyLabel(f: string): string {
 //   Text primary  : #111827   Text muted  : #6B7280
 //   Border        : #E5E7EB   Card bg     : #FFFFFF
 // ---------------------------------------------------------------------------
-function layout(preheader: string, bodyHtml: string): string {
+function layout(
+  preheader: string,
+  bodyHtml: string,
+  opts?: { eyebrow?: string; footerHtml?: string },
+): string {
   const appUrl = getPublicAppUrl();
+  const eyebrow = opts?.eyebrow ?? "Job Alerts";
+  const footerHtml =
+    opts?.footerHtml ??
+    "You're receiving this because you created a job alert on JobsKart.<br>\n" +
+      '            <a href="' +
+      appUrl +
+      '/candidate/alerts" style="color:#1A55BD;text-decoration:none;">Manage or delete your alerts</a>';
   return (
     "<!doctype html>\n" +
     '<html lang="en">\n' +
@@ -44,7 +55,9 @@ function layout(preheader: string, bodyHtml: string): string {
     "  <title>JobsKart</title>\n" +
     "</head>\n" +
     '<body style="margin:0;padding:0;background-color:#F4F6FB;font-family:Arial,Helvetica,sans-serif;color:#111827;-webkit-text-size-adjust:100%;mso-line-height-rule:exactly;">\n' +
-    '  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:#F4F6FB;">' + escapeHtml(preheader) + "&nbsp;</div>\n" +
+    '  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:#F4F6FB;">' +
+    escapeHtml(preheader) +
+    "&nbsp;</div>\n" +
     '  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#F4F6FB;">\n' +
     '    <tr><td align="center" style="padding:32px 16px 48px;">\n' +
     '      <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background-color:#FFFFFF;border-radius:16px;overflow:hidden;">\n' +
@@ -52,16 +65,21 @@ function layout(preheader: string, bodyHtml: string): string {
     '        <tr><td style="background-color:#1A55BD;padding:24px 32px;">\n' +
     '          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>\n' +
     '            <td><span style="font-size:22px;font-weight:700;color:#FFFFFF;letter-spacing:-0.3px;">Jobs<span style="color:#93C5FD;">Kart</span></span></td>\n' +
-    '            <td align="right"><span style="font-size:12px;color:#BFDBFE;letter-spacing:0.04em;text-transform:uppercase;">Job Alerts</span></td>\n' +
+    '            <td align="right"><span style="font-size:12px;color:#BFDBFE;letter-spacing:0.04em;text-transform:uppercase;">' +
+    escapeHtml(eyebrow) +
+    "</span></td>\n" +
     "          </tr></table>\n" +
     "        </td></tr>\n" +
     "        <!-- body -->\n" +
-    '        <tr><td style="padding:36px 32px 28px;">' + bodyHtml + "</td></tr>\n" +
+    '        <tr><td style="padding:36px 32px 28px;">' +
+    bodyHtml +
+    "</td></tr>\n" +
     "        <!-- footer -->\n" +
     '        <tr><td style="background-color:#F9FAFB;border-top:1px solid #E5E7EB;padding:20px 32px;">\n' +
     '          <p style="margin:0;font-size:12px;color:#9CA3AF;line-height:1.6;">\n' +
-    "            You're receiving this because you created a job alert on JobsKart.<br>\n" +
-    '            <a href="' + appUrl + '/candidate/alerts" style="color:#1A55BD;text-decoration:none;">Manage or delete your alerts</a>\n' +
+    "            " +
+    footerHtml +
+    "\n" +
     "          </p>\n" +
     "        </td></tr>\n" +
     "      </table>\n" +
@@ -89,9 +107,11 @@ export type MatchedJob = {
 // ---------------------------------------------------------------------------
 // Template 1 -- Alert confirmation
 // ---------------------------------------------------------------------------
-export function alertConfirmationEmail(
-  alert: AlertSummary,
-): { subject: string; html: string; text: string } {
+export function alertConfirmationEmail(alert: AlertSummary): {
+  subject: string;
+  html: string;
+  text: string;
+} {
   const appUrl = getPublicAppUrl();
   const watching = [alert.keyword, alert.city].filter(Boolean).join(" \u00b7 ") || "new jobs";
   const subject = 'Your job alert is active \u2014 "' + watching + '"';
@@ -127,21 +147,22 @@ export function alertConfirmationEmail(
     '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#F9FAFB;border:1px solid #E5E7EB;border-radius:12px;margin-bottom:28px;">' +
     '<tr><td style="padding:20px 24px;">' +
     '<p style="margin:0 0 14px;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#9CA3AF;">Your alert details</p>' +
-    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">' + rows + "</table>" +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">' +
+    rows +
+    "</table>" +
     "</td></tr></table>" +
     '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:28px;">' +
     '<tr><td style="background-color:#1A55BD;border-radius:8px;">' +
-    '<a href="' + appUrl + '/candidate/alerts" style="display:inline-block;padding:13px 28px;font-size:14px;font-weight:700;color:#FFFFFF;text-decoration:none;letter-spacing:0.01em;">Manage my alerts &rarr;</a>' +
+    '<a href="' +
+    appUrl +
+    '/candidate/alerts" style="display:inline-block;padding:13px 28px;font-size:14px;font-weight:700;color:#FFFFFF;text-decoration:none;letter-spacing:0.01em;">Manage my alerts &rarr;</a>' +
     "</td></tr></table>" +
     '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#EEF3FF;border-radius:10px;">' +
     '<tr><td style="padding:16px 20px;font-size:13px;color:#1A55BD;line-height:1.6;">' +
     "<strong>&#128161; Tip:</strong> You can create multiple alerts for different keywords or cities \u2014 we'll notify you separately for each." +
     "</td></tr></table>";
 
-  const html = layout(
-    'We\'ll notify you when we find jobs matching "' + watching + '".',
-    body,
-  );
+  const html = layout("We'll notify you when we find jobs matching \"" + watching + '".', body);
 
   const text = [
     "JobsKart \u2014 Alert Created",
@@ -178,10 +199,18 @@ function jobCard(job: MatchedJob): string {
     '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#FFFFFF;border:1px solid #E5E7EB;border-radius:12px;margin-bottom:12px;">' +
     '<tr><td style="padding:20px 24px;">' +
     '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">' +
-    '<tr><td style="padding-bottom:6px;"><a href="' + url + '" style="font-size:17px;font-weight:700;color:#111827;text-decoration:none;line-height:1.3;">' + escapeHtml(job.title) + "</a></td></tr>" +
-    '<tr><td style="padding-bottom:16px;"><span style="font-size:13px;color:#6B7280;">' + meta + "</span></td></tr>" +
+    '<tr><td style="padding-bottom:6px;"><a href="' +
+    url +
+    '" style="font-size:17px;font-weight:700;color:#111827;text-decoration:none;line-height:1.3;">' +
+    escapeHtml(job.title) +
+    "</a></td></tr>" +
+    '<tr><td style="padding-bottom:16px;"><span style="font-size:13px;color:#6B7280;">' +
+    meta +
+    "</span></td></tr>" +
     "<tr><td>" +
-    '<a href="' + url + '" style="display:inline-block;background-color:#1A55BD;border-radius:7px;padding:10px 22px;font-size:13px;font-weight:700;color:#FFFFFF;text-decoration:none;letter-spacing:0.01em;">View Job &rarr;</a>' +
+    '<a href="' +
+    url +
+    '" style="display:inline-block;background-color:#1A55BD;border-radius:7px;padding:10px 22px;font-size:13px;font-weight:700;color:#FFFFFF;text-decoration:none;letter-spacing:0.01em;">View Job &rarr;</a>' +
     "</td></tr>" +
     "</table></td></tr></table>"
   );
@@ -197,22 +226,32 @@ export function jobMatchEmail(
 
   const subject = isDigest
     ? jobs.length + ' new jobs match "' + watching + '" \u2014 apply before they close'
-    : 'New job match: ' + jobs[0].title + " \u2014 apply now";
+    : "New job match: " + jobs[0].title + " \u2014 apply now";
 
   const headingText = isDigest ? jobs.length + " new matches found" : "New job match!";
   const subText = isDigest
-    ? "We found <strong>" + jobs.length + " new jobs</strong> matching your alert for <strong>" + escapeHtml(watching) + "</strong>. Apply while they're fresh."
+    ? "We found <strong>" +
+      jobs.length +
+      " new jobs</strong> matching your alert for <strong>" +
+      escapeHtml(watching) +
+      "</strong>. Apply while they're fresh."
     : "We found a new job matching your alert for <strong>" + escapeHtml(watching) + "</strong>.";
 
   const body =
     '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;">' +
     "<tr>" +
     '<td style="width:48px;vertical-align:top;padding-right:14px;">' +
-    '<div style="width:48px;height:48px;background-color:#EEF3FF;border-radius:12px;text-align:center;line-height:48px;font-size:22px;">' + (isDigest ? "&#128203;" : "&#10024;") + "</div>" +
+    '<div style="width:48px;height:48px;background-color:#EEF3FF;border-radius:12px;text-align:center;line-height:48px;font-size:22px;">' +
+    (isDigest ? "&#128203;" : "&#10024;") +
+    "</div>" +
     "</td>" +
     '<td style="vertical-align:middle;">' +
-    '<h1 style="margin:0 0 4px;font-size:22px;font-weight:700;color:#111827;line-height:1.2;">' + escapeHtml(headingText) + "</h1>" +
-    '<p style="margin:0;font-size:14px;color:#6B7280;line-height:1.5;">' + subText + "</p>" +
+    '<h1 style="margin:0 0 4px;font-size:22px;font-weight:700;color:#111827;line-height:1.2;">' +
+    escapeHtml(headingText) +
+    "</h1>" +
+    '<p style="margin:0;font-size:14px;color:#6B7280;line-height:1.5;">' +
+    subText +
+    "</p>" +
     "</td></tr></table>" +
     '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:20px;">' +
     '<tr><td style="height:1px;background-color:#E5E7EB;font-size:0;line-height:0;">&nbsp;</td></tr></table>' +
@@ -221,7 +260,9 @@ export function jobMatchEmail(
     '<tr><td style="padding:16px 24px;">' +
     '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>' +
     '<td style="font-size:13px;color:#6B7280;vertical-align:middle;">Looking for more? Browse all open roles.</td>' +
-    '<td align="right" style="vertical-align:middle;"><a href="' + appUrl + '/jobs" style="font-size:13px;font-weight:600;color:#1A55BD;text-decoration:none;">Browse jobs &rarr;</a></td>' +
+    '<td align="right" style="vertical-align:middle;"><a href="' +
+    appUrl +
+    '/jobs" style="font-size:13px;font-weight:600;color:#1A55BD;text-decoration:none;">Browse jobs &rarr;</a></td>' +
     "</tr></table></td></tr></table>";
 
   const html = layout(
@@ -245,6 +286,142 @@ export function jobMatchEmail(
     "",
     "Browse all jobs: " + appUrl + "/jobs",
     "Manage alerts: " + appUrl + "/candidate/alerts",
+    "\u2014",
+    "JobsKart \u00b7 " + appUrl,
+  ].join("\n");
+
+  return { subject, html, text };
+}
+
+// ---------------------------------------------------------------------------
+// Template 3 -- Application status change (shortlisted / interview / rejected)
+// ---------------------------------------------------------------------------
+export type ApplicationStatusNotifyStatus = "shortlisted" | "interview" | "rejected";
+
+export type ApplicationStatusInfo = {
+  status: ApplicationStatusNotifyStatus;
+  candidateName: string | null;
+  jobTitle: string;
+  companyName: string | null;
+};
+
+const APPLICATION_STATUS_COPY: Record<
+  ApplicationStatusNotifyStatus,
+  {
+    icon: string;
+    heading: string;
+    subtext: (jobTitle: string, companyName: string) => string;
+    ctaLabel: string;
+    ctaPath: string;
+    preheader: (jobTitle: string) => string;
+    subjectPrefix: string;
+  }
+> = {
+  shortlisted: {
+    icon: "&#11088;",
+    heading: "You've been shortlisted!",
+    subtext: (jobTitle, companyName) =>
+      companyName +
+      " shortlisted you for <strong>" +
+      jobTitle +
+      "</strong>. Keep an eye on your inbox \u2014 they may reach out with next steps soon.",
+    ctaLabel: "View my applications &rarr;",
+    ctaPath: "/candidate/applications",
+    preheader: (jobTitle) => "You've been shortlisted for " + jobTitle + ".",
+    subjectPrefix: "You've been shortlisted for ",
+  },
+  interview: {
+    icon: "&#128197;",
+    heading: "You're moving to interview!",
+    subtext: (jobTitle, companyName) =>
+      companyName +
+      " wants to interview you for <strong>" +
+      jobTitle +
+      "</strong>. They'll be in touch with next steps soon.",
+    ctaLabel: "View my applications &rarr;",
+    ctaPath: "/candidate/applications",
+    preheader: (jobTitle) => "You're being considered for an interview for " + jobTitle + ".",
+    subjectPrefix: "Interview stage: ",
+  },
+  rejected: {
+    icon: "&#128172;",
+    heading: "Update on your application",
+    subtext: (jobTitle, companyName) =>
+      companyName +
+      " has decided not to move forward with your application for <strong>" +
+      jobTitle +
+      "</strong> at this time. Don't be discouraged \u2014 new roles are posted every day.",
+    ctaLabel: "Browse more jobs &rarr;",
+    ctaPath: "/jobs",
+    preheader: (jobTitle) => "An update on your application for " + jobTitle + ".",
+    subjectPrefix: "Update on your application: ",
+  },
+};
+
+export function applicationStatusEmail(info: ApplicationStatusInfo): {
+  subject: string;
+  html: string;
+  text: string;
+} {
+  const appUrl = getPublicAppUrl();
+  const copy = APPLICATION_STATUS_COPY[info.status];
+  const companyName = escapeHtml(info.companyName || "The employer");
+  const jobTitle = escapeHtml(info.jobTitle);
+  const greetingName = info.candidateName ? escapeHtml(info.candidateName.split(" ")[0]) : "there";
+  const url = appUrl + copy.ctaPath;
+  const subject = copy.subjectPrefix + info.jobTitle;
+
+  const body =
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;">' +
+    "<tr>" +
+    '<td style="width:48px;vertical-align:top;padding-right:14px;">' +
+    '<div style="width:48px;height:48px;background-color:#EEF3FF;border-radius:12px;text-align:center;line-height:48px;font-size:22px;">' +
+    copy.icon +
+    "</div>" +
+    "</td>" +
+    '<td style="vertical-align:middle;">' +
+    '<h1 style="margin:0 0 4px;font-size:22px;font-weight:700;color:#111827;line-height:1.2;">' +
+    escapeHtml(copy.heading) +
+    "</h1>" +
+    '<p style="margin:0;font-size:14px;color:#6B7280;">Hi ' +
+    greetingName +
+    ",</p>" +
+    "</td></tr></table>" +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#F9FAFB;border:1px solid #E5E7EB;border-radius:12px;margin-bottom:28px;">' +
+    '<tr><td style="padding:20px 24px;">' +
+    '<p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#9CA3AF;">' +
+    jobTitle +
+    "</p>" +
+    '<p style="margin:0;font-size:14px;color:#111827;line-height:1.6;">' +
+    copy.subtext(jobTitle, companyName) +
+    "</p>" +
+    "</td></tr></table>" +
+    '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:8px;">' +
+    '<tr><td style="background-color:#1A55BD;border-radius:8px;">' +
+    '<a href="' +
+    url +
+    '" style="display:inline-block;padding:13px 28px;font-size:14px;font-weight:700;color:#FFFFFF;text-decoration:none;letter-spacing:0.01em;">' +
+    copy.ctaLabel +
+    "</a>" +
+    "</td></tr></table>";
+
+  const html = layout(copy.preheader(info.jobTitle), body, {
+    eyebrow: "Application Update",
+    footerHtml:
+      "You're receiving this because an employer updated the status of your application on JobsKart.<br>\n" +
+      '            <a href="' +
+      appUrl +
+      '/candidate/applications" style="color:#1A55BD;text-decoration:none;">View your applications</a>',
+  });
+
+  const text = [
+    "JobsKart \u2014 " + copy.heading,
+    "",
+    "Hi " + greetingName + ",",
+    "",
+    (info.companyName || "The employer") + " \u2014 " + info.jobTitle,
+    "",
+    copy.ctaLabel.replace(" &rarr;", "") + ": " + url,
     "\u2014",
     "JobsKart \u00b7 " + appUrl,
   ].join("\n");
