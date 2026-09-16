@@ -1,10 +1,5 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import {
-  Plus,
-  Coins,
-  MoreHorizontal,
-  X,
-} from "lucide-react";
+import { Plus, Coins } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { Navbar } from "@/components/site/Navbar";
@@ -75,9 +70,7 @@ export function EmployerShell({
   hideCreditChip?: boolean;
 }) {
   const { pathname } = useLocation();
-  const [moreOpen, setMoreOpen] = useState(false);
   const primary = nav.slice(0, 4);
-  const overflow = nav.slice(4);
   return (
     <div className="min-h-screen bg-surface pb-24 lg:pb-0">
       <Navbar />
@@ -136,10 +129,10 @@ export function EmployerShell({
       </div>
 
       <nav
-        className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-6 items-stretch border-t border-border bg-card/95 backdrop-blur lg:hidden"
+        className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-4 items-stretch border-t border-border bg-card/95 backdrop-blur lg:hidden"
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       >
-        {primary.slice(0, 2).map((item) => {
+        {primary.map((item) => {
           const active = pathname === item.to || pathname.startsWith(item.to + "/");
           const Icon = item.icon;
           return (
@@ -155,89 +148,7 @@ export function EmployerShell({
             </Link>
           );
         })}
-        <div className="flex items-center justify-center py-2.5">
-          <Link
-            to="/employer/jobs/new"
-            className="flex h-11 w-11 flex-col items-center justify-center gap-0.5 rounded-2xl bg-primary text-[10px] font-bold leading-none text-primary-foreground shadow-md"
-          >
-            <Plus className="h-5 w-5 shrink-0" />
-            Post
-          </Link>
-        </div>
-        {primary.slice(2, 4).map((item) => {
-          const active = pathname === item.to || pathname.startsWith(item.to + "/");
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.to}
-              to={item.to}
-              className={`flex min-w-0 flex-col items-center justify-center gap-1 px-0.5 py-2.5 text-center text-[10px] font-medium leading-none ${
-                active ? "text-primary" : "text-muted-foreground"
-              }`}
-            >
-              <Icon className="h-5 w-5 shrink-0" />
-              <span className="w-full truncate">{item.label}</span>
-            </Link>
-          );
-        })}
-        <button
-          type="button"
-          onClick={() => setMoreOpen(true)}
-          className="flex min-w-0 flex-col items-center justify-center gap-1 px-0.5 py-2.5 text-center text-[10px] font-medium leading-none text-muted-foreground"
-        >
-          <MoreHorizontal className="h-5 w-5 shrink-0" />
-          <span className="w-full truncate">More</span>
-        </button>
       </nav>
-
-      {moreOpen && (
-        <div className="fixed inset-0 z-50 flex lg:hidden" role="dialog" aria-modal="true">
-          <button
-            type="button"
-            aria-label="Close menu"
-            className="flex-1 bg-foreground/40"
-            onClick={() => setMoreOpen(false)}
-          />
-          <aside className="w-72 max-w-[85vw] overflow-y-auto bg-card p-5 shadow-2xl">
-            <div className="mb-4 flex items-center justify-between">
-              <p className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Menu</p>
-              <button
-                type="button"
-                onClick={() => setMoreOpen(false)}
-                className="rounded-lg p-2 hover:bg-surface"
-                aria-label="Close"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <Link
-              to="/employer/jobs/new"
-              onClick={() => setMoreOpen(false)}
-              className="mb-4 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2.5 text-sm font-semibold text-primary-foreground"
-            >
-              <Plus className="h-4 w-4" /> Post a job
-            </Link>
-            <div className="space-y-1">
-              {overflow.map((item) => {
-                const Icon = item.icon;
-                const active = pathname === item.to || pathname.startsWith(item.to + "/");
-                return (
-                  <Link
-                    key={item.to}
-                    to={item.to}
-                    onClick={() => setMoreOpen(false)}
-                    className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium ${
-                      active ? "bg-primary-light text-primary" : "text-foreground/80 hover:bg-surface"
-                    }`}
-                  >
-                    <Icon className="h-4 w-4" /> {item.label}
-                  </Link>
-                );
-              })}
-            </div>
-          </aside>
-        </div>
-      )}
     </div>
   );
 }
@@ -262,10 +173,10 @@ export function StatCard({
     muted: "bg-surface text-muted-foreground",
   };
   return (
-    <div className="min-w-0 rounded-2xl border border-border bg-card p-3.5 shadow-[var(--shadow-card)] sm:p-5">
+    <div className="flex min-w-0 flex-col rounded-2xl border border-border bg-card p-3.5 shadow-[var(--shadow-card)] sm:p-5">
       <p className="truncate text-[11px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-xs">{label}</p>
       <p className="mt-2 text-2xl font-bold text-foreground tabular-nums sm:text-3xl">{value}</p>
-      <div className="mt-2 flex flex-wrap items-center gap-1.5 sm:gap-2">
+      <div className="mt-2 flex min-h-[22px] flex-wrap items-center gap-1.5 sm:gap-2">
         {hint ? (
           <span className={`inline-block truncate rounded-full px-2 py-0.5 text-[11px] font-medium sm:text-xs ${tones[tone]}`}>{hint}</span>
         ) : null}

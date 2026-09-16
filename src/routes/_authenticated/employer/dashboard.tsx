@@ -37,8 +37,6 @@ export const Route = createFileRoute("/_authenticated/employer/dashboard")({
 type DashStats = {
   activeJobs: number;
   totalApplications: number;
-  thisWeek: number;
-  lastWeek: number;
   interviews: number;
   views: number;
 };
@@ -66,13 +64,6 @@ type CompanyMeta = {
 
 type Learn = { id: string; title: string; slug: string; cover_url: string | null; kind: string; category: string | null };
 
-const FUNNEL = [
-  { id: "applied", label: "Applied", color: "bg-primary" },
-  { id: "shortlisted", label: "Shortlisted", color: "bg-success" },
-  { id: "interview", label: "Interview", color: "bg-warning" },
-  { id: "hired", label: "Hired", color: "bg-emerald-600" },
-] as const;
-
 function EmployerDashboard() {
   const navigate = useNavigate();
   useBackToHome();
@@ -80,11 +71,10 @@ function EmployerDashboard() {
   const [active, setActive] = useState<EmployerMembership | null>(null);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<DashStats>({
-    activeJobs: 0, totalApplications: 0, thisWeek: 0, lastWeek: 0, interviews: 0, views: 0,
+    activeJobs: 0, totalApplications: 0, interviews: 0, views: 0,
   });
   const [recent, setRecent] = useState<RecentApp[]>([]);
   const [topJobs, setTopJobs] = useState<TopJob[]>([]);
-  const [funnel, setFunnel] = useState<Record<string, number>>({});
   const [companyMeta, setCompanyMeta] = useState<CompanyMeta | null>(null);
   const [teamCount, setTeamCount] = useState(0);
   const [learn, setLearn] = useState<Learn[]>([]);
@@ -113,9 +103,6 @@ function EmployerDashboard() {
     if (!active) return;
     (async () => {
       const cid = active.company_id;
-      const now = Date.now();
-      const weekAgo = new Date(now - 7 * 86400e3).toISOString();
-      const twoWeekAgo = new Date(now - 14 * 86400e3).toISOString();
 
       const [jobsRes, recentRes, cMeta, tCount, learnRes] = await Promise.all([
         supabase
@@ -143,30 +130,16 @@ function EmployerDashboard() {
       const jobIds = jobs.map((j) => j.id);
       const safeIds = jobIds.length ? jobIds : ["00000000-0000-0000-0000-000000000000"];
 
-      const [appsAll, appsWeek, appsPrev, interviews, fApplied, fShort, fInt, fHired] = await Promise.all([
+      const [appsAll, interviews] = await Promise.all([
         supabase.from("applications").select("id", { count: "exact", head: true }).in("job_id", safeIds),
-        supabase.from("applications").select("id", { count: "exact", head: true }).in("job_id", safeIds).gte("created_at", weekAgo),
-        supabase.from("applications").select("id", { count: "exact", head: true }).in("job_id", safeIds).gte("created_at", twoWeekAgo).lt("created_at", weekAgo),
         supabase.from("applications").select("id", { count: "exact", head: true }).in("job_id", safeIds).eq("status", "interview"),
-        supabase.from("applications").select("id", { count: "exact", head: true }).in("job_id", safeIds).eq("status", "applied"),
-        supabase.from("applications").select("id", { count: "exact", head: true }).in("job_id", safeIds).eq("status", "shortlisted"),
-        supabase.from("applications").select("id", { count: "exact", head: true }).in("job_id", safeIds).eq("status", "interview"),
-        supabase.from("applications").select("id", { count: "exact", head: true }).in("job_id", safeIds).eq("status", "hired"),
       ]);
 
       setStats({
         activeJobs: jobs.filter((j) => j.status === "active").length,
         totalApplications: appsAll.count || 0,
-        thisWeek: appsWeek.count || 0,
-        lastWeek: appsPrev.count || 0,
         interviews: interviews.count || 0,
         views: jobs.reduce((a, b) => a + (b.views_count || 0), 0),
-      });
-      setFunnel({
-        applied: fApplied.count || 0,
-        shortlisted: fShort.count || 0,
-        interview: fInt.count || 0,
-        hired: fHired.count || 0,
       });
       setRecent((recentRes.data || []) as unknown as RecentApp[]);
       setTopJobs(jobs.slice(0, 5) as TopJob[]);
@@ -214,7 +187,6 @@ function EmployerDashboard() {
   }
 
   const verified = active.companies.verification_status === "verified";
-  const delta = stats.thisWeek - stats.lastWeek;
 
   const kyc = [
     { done: !!companyMeta?.logo_url, label: "Upload company logo", to: "/employer/company", icon: ImageIcon },
@@ -308,67 +280,20 @@ function EmployerDashboard() {
       </section>
 
       {/* STATS */}
-      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
+      <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard
           label="Active jobs"
           value={stats.activeJobs}
           hint={stats.activeJobs > 0 ? "Live now" : "Post your first"}
         />
         <StatCard label="Total applicants" value={stats.totalApplications} tone="primary" />
-        <StatCard
-          label="This week"
-          value={stats.thisWeek}
-          delta={delta}
-          tone="success"
-          hint={delta >= 0 ? "vs last week" : "vs last week"}
-        />
         <StatCard label="In interview" value={stats.interviews} tone="warning" />
-        <div className="col-span-2 sm:col-span-1">
-          <StatCard label="Job views" value={stats.views} tone="muted" />
-        </div>
+        <StatCard label="Job views" value={stats.views} tone="muted" />
       </div>
 
-      {/* PIPELINE + SIDEBAR */}
+      {/* SIDEBAR */}
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          {/* Pipeline */}
-          <section className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-base font-bold">Hiring pipeline</h2>
-              <Link to="/employer/reports" className="text-xs font-semibold text-primary">Full report →</Link>
-            </div>
-            <div className="grid grid-cols-2 gap-2.5 sm:flex sm:gap-2">
-              {FUNNEL.map((s, i) => {
-                const v = funnel[s.id] ?? 0;
-                const max = Math.max(...FUNNEL.map((f) => funnel[f.id] ?? 0), 1);
-                return (
-                  <div key={s.id} className="min-w-0 sm:flex-1">
-                    <div className="mb-2 flex items-center gap-1.5 truncate text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                      <span className={`h-2 w-2 shrink-0 rounded-full ${s.color}`} />
-                      <span className="truncate">{s.label}</span>
-                    </div>
-                    <div className="rounded-xl bg-surface p-3 ring-1 ring-border">
-                      <p className="text-2xl font-black text-foreground tabular-nums">{v}</p>
-                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-card">
-                        <div
-                          className={`h-full rounded-full ${s.color}`}
-                          style={{ width: `${Math.round((v / max) * 100)}%` }}
-                        />
-                      </div>
-                    </div>
-                    {i < FUNNEL.length - 1 && (
-                      <p className="mt-1 text-center text-[10px] text-muted-foreground sm:block">
-                        {v && (funnel[FUNNEL[i + 1].id] ?? 0)
-                          ? `${Math.round(((funnel[FUNNEL[i + 1].id] ?? 0) / v) * 100)}% next`
-                          : "—"}
-                      </p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-
           {/* Activity feed */}
           <section className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
             <div className="mb-4 flex items-center justify-between">
@@ -456,43 +381,45 @@ function EmployerDashboard() {
             )}
           </section>
 
-          {/* KYC checklist */}
-          <section className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-bold">Set up checklist</h2>
-              <span className="text-xs font-semibold text-muted-foreground tabular-nums">
-                {kycDone}/{kyc.length}
-              </span>
-            </div>
-            <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-surface">
-              <div className="h-full rounded-full bg-primary" style={{ width: `${(kycDone / kyc.length) * 100}%` }} />
-            </div>
-            <ul className="space-y-1">
-              {kyc.map((k) => {
-                const Icon = k.icon;
-                return (
-                  <li key={k.label}>
-                    <Link
-                      to={k.to}
-                      className={`flex items-center gap-3 rounded-lg p-2 text-sm transition-colors ${
-                        k.done ? "text-muted-foreground line-through" : "text-foreground hover:bg-surface"
-                      }`}
-                    >
-                      <span
-                        className={`grid h-7 w-7 shrink-0 place-items-center rounded-full ${
-                          k.done ? "bg-success-light text-success" : "bg-primary-light text-primary"
+          {/* KYC checklist — hidden once all steps are actually complete */}
+          {kycDone < kyc.length && (
+            <section className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-sm font-bold">Set up checklist</h2>
+                <span className="text-xs font-semibold text-muted-foreground tabular-nums">
+                  {kycDone}/{kyc.length}
+                </span>
+              </div>
+              <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-surface">
+                <div className="h-full rounded-full bg-primary" style={{ width: `${(kycDone / kyc.length) * 100}%` }} />
+              </div>
+              <ul className="space-y-1">
+                {kyc.map((k) => {
+                  const Icon = k.icon;
+                  return (
+                    <li key={k.label}>
+                      <Link
+                        to={k.to}
+                        className={`flex items-center gap-3 rounded-lg p-2 text-sm transition-colors ${
+                          k.done ? "text-muted-foreground line-through" : "text-foreground hover:bg-surface"
                         }`}
                       >
-                        {k.done ? <ShieldCheck className="h-3.5 w-3.5" /> : <Icon className="h-3.5 w-3.5" />}
-                      </span>
-                      <span className="flex-1">{k.label}</span>
-                      {!k.done && <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
+                        <span
+                          className={`grid h-7 w-7 shrink-0 place-items-center rounded-full ${
+                            k.done ? "bg-success-light text-success" : "bg-primary-light text-primary"
+                          }`}
+                        >
+                          {k.done ? <ShieldCheck className="h-3.5 w-3.5" /> : <Icon className="h-3.5 w-3.5" />}
+                        </span>
+                        <span className="flex-1">{k.label}</span>
+                        {!k.done && <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
 
           {/* Learning */}
           {learn.length > 0 && (
