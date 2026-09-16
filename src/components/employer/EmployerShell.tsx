@@ -109,7 +109,7 @@ export function EmployerShell({
           </nav>
         </aside>
         <main className="min-w-0 flex-1">
-          <header className="mb-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+          <header className="mb-6 flex flex-row flex-wrap items-start justify-between gap-3 sm:items-end">
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-3">
                 <h1 className="whitespace-normal break-words text-xl font-bold leading-tight text-foreground sm:truncate sm:text-2xl lg:text-3xl">{title}</h1>
@@ -117,7 +117,7 @@ export function EmployerShell({
               </div>
               {subtitle ? <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p> : null}
             </div>
-            <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <div className="flex shrink-0 flex-wrap items-center gap-2 sm:self-auto">
               {!hideCreditChip && (
                 <div className="hidden sm:block">
                   <CreditChip />

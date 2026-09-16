@@ -1,7 +1,7 @@
 import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
-  Briefcase, ChevronDown, Copy, Eye, Filter, Pause, Pencil, Play, Plus, Search, Trash2, Users,
+  Briefcase, ChevronDown, ChevronRight, Copy, Eye, Filter, MoreVertical, Pause, Pencil, Play, Plus, Search, Trash2, Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { EmployerShell, CreditChip } from "@/components/employer/EmployerShell";
@@ -10,7 +10,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchMyCompanies, getActiveCompanyId } from "@/lib/employer";
@@ -54,6 +54,18 @@ function EmployerJobsList() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
+  // Status filter popover anchors to the trigger's right edge on mobile (so it
+  // never overflows the viewport) and to the left edge on sm:+ desktop,
+  // matching the Tailwind `sm` breakpoint — Radix's `align` prop isn't
+  // settable via className, so it has to be tracked in JS.
+  const [statusAlign, setStatusAlign] = useState<"start" | "end">("start");
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 639px)");
+    const update = () => setStatusAlign(mq.matches ? "end" : "start");
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
 
   const load = async () => {
     setLoading(true);
@@ -168,12 +180,18 @@ function EmployerJobsList() {
       hideBell
       hideCreditChip
       headerLeft={
-        <div className="flex flex-wrap items-center gap-2">
-          <Link to="/employer/jobs/new" className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground hover:bg-primary-dark">
-            <Plus className="h-4 w-4" /> Post a job
-          </Link>
-          <CreditChip />
-        </div>
+        <>
+          {/* Mobile: credits chip sits beside the "Jobs" title; the Post button moves to the far right of the row (see the sm:hidden block right after the header). */}
+          <div className="sm:hidden">
+            <CreditChip />
+          </div>
+          <div className="hidden flex-wrap items-center gap-2 sm:flex">
+            <Link to="/employer/jobs/new" className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground hover:bg-primary-dark">
+              <Plus className="h-4 w-4" /> Post a job
+            </Link>
+            <CreditChip />
+          </div>
+        </>
       }
       actions={
         selected.size > 0 ? (
@@ -196,17 +214,24 @@ function EmployerJobsList() {
               <Trash2 className="h-4 w-4" /> Delete
             </button>
           </div>
-        ) : null
+        ) : (
+          <Link
+            to="/employer/jobs/new"
+            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground hover:bg-primary-dark sm:hidden"
+          >
+            <Plus className="h-4 w-4" /> Post a job
+          </Link>
+        )
       }
     >
-      <div className="mb-5 flex flex-wrap items-center gap-3">
-        <div className="relative w-full max-w-xs">
+      <div className="mb-5 flex flex-nowrap items-center gap-2 sm:flex-wrap sm:gap-3">
+        <div className="relative min-w-0 flex-1 sm:w-full sm:max-w-xs sm:flex-initial">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by title…"
-            className="form-input h-10 pl-9"
+            className="form-input h-10 w-full pl-9"
           />
         </div>
 
@@ -214,18 +239,23 @@ function EmployerJobsList() {
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-semibold text-foreground hover:bg-surface"
+              className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-sm font-semibold text-foreground hover:bg-surface sm:gap-2 sm:px-3"
             >
-              <Filter className="h-4 w-4 text-muted-foreground" />
-              {statusLabel}
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              <Filter className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span className="sm:hidden">{statusFilter === "all" ? "All status" : statusLabel}</span>
+              <span className="hidden sm:inline">{statusLabel}</span>
+              <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-52">
+          <DropdownMenuContent
+            align={statusAlign}
+            collisionPadding={12}
+            className="w-52 max-sm:w-[min(185px,calc(100vw-24px))] max-sm:max-w-[calc(100vw-24px)]"
+          >
             <DropdownMenuRadioGroup value={statusFilter} onValueChange={setStatusFilter}>
               {STATUSES.map((s) => (
-                <DropdownMenuRadioItem key={s} value={s} className="capitalize">
-                  {s === "all" ? "All statuses" : s}
+                <DropdownMenuRadioItem key={s} value={s} className="h-9 rounded-md px-2.5 capitalize">
+                  <span className="whitespace-nowrap">{s === "all" ? "All Status" : s}</span>
                   <span className="ml-auto pl-2 text-xs tabular-nums text-muted-foreground">({counts[s] ?? 0})</span>
                 </DropdownMenuRadioItem>
               ))}
@@ -271,22 +301,49 @@ function EmployerJobsList() {
                       j.status === "paused" ? "bg-warning-light text-warning" :
                       "bg-surface text-muted-foreground"
                     }`}>{j.status}</span>
-                    <button onClick={() => duplicate(j.id)} title="Duplicate" className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-border bg-card text-foreground hover:bg-surface">
+
+                    {/* Desktop: Copy/Edit stay as always-visible icon buttons. */}
+                    <button onClick={() => duplicate(j.id)} title="Duplicate" className="hidden h-7 w-7 shrink-0 place-items-center rounded-lg border border-border bg-card text-foreground hover:bg-surface sm:grid">
                       <Copy className="h-3.5 w-3.5" />
                     </button>
                     <Link
                       to="/employer/jobs/$jobId/edit"
                       params={{ jobId: j.id }}
                       title="Edit"
-                      className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-border bg-card text-foreground hover:bg-surface"
+                      className="hidden h-7 w-7 shrink-0 place-items-center rounded-lg border border-border bg-card text-foreground hover:bg-surface sm:grid"
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </Link>
+
                     {j.status === "paused" && (
                       <button onClick={() => setStatus(j.id, "active")} className="inline-flex h-7 shrink-0 items-center gap-1 rounded-lg border border-border bg-card px-2 text-xs font-semibold hover:bg-surface">
                         <Play className="h-3.5 w-3.5" /> Resume
                       </button>
                     )}
+
+                    {/* Mobile: Copy/Edit collapse into a single ⋮ menu, pinned to the far right of this row. */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          title="More actions"
+                          aria-label="More actions"
+                          className="ml-auto grid h-7 w-7 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-surface sm:hidden"
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-40">
+                        <DropdownMenuItem onClick={() => duplicate(j.id)}>
+                          <Copy className="mr-2 h-3.5 w-3.5" /> Copy
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link to="/employer/jobs/$jobId/edit" params={{ jobId: j.id }}>
+                            <Pencil className="mr-2 h-3.5 w-3.5" /> Edit
+                          </Link>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {jobTypeLabel(j.job_type)} · {j.city || "Multiple cities"} · {formatSalary(j.min_salary, j.max_salary, j.salary_period || "monthly")}
@@ -295,9 +352,10 @@ function EmployerJobsList() {
                     <Link
                       to="/employer/jobs/$jobId/applicants"
                       params={{ jobId: j.id }}
-                      className="inline-flex items-center gap-1 hover:text-primary hover:underline"
+                      className="inline-flex items-center gap-1 font-semibold text-foreground transition-colors hover:text-primary active:text-primary"
                     >
                       <Users className="h-3.5 w-3.5" /> {j.applications_count || 0} applicants
+                      <ChevronRight className="h-3.5 w-3.5" />
                     </Link>
                     <span className="inline-flex items-center gap-1">
                       <Eye className="h-3.5 w-3.5" /> {j.views_count || 0} views

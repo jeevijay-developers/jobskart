@@ -146,6 +146,10 @@ function ApplicantsPage() {
   };
 
   const empty = emptyStateCopy(tab);
+  // Mobile tabs: Hired/Rejected stay revealed once the user has moved into
+  // that part of the pipeline, not just while Interview itself is active —
+  // otherwise clicking Hired or Rejected would immediately hide its own row.
+  const showInterviewSubTabs = tab === "interview" || tab === "hired" || tab === "rejected";
 
   return (
     <EmployerShell
@@ -162,18 +166,37 @@ function ApplicantsPage() {
       ) : (
         <>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap gap-1 rounded-xl border border-border bg-card p-1">
-              {TABS.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => setTab(t.id)}
-                  className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                    tab === t.id ? "bg-primary text-primary-foreground" : "text-foreground/70 hover:bg-surface"
-                  }`}
-                >
-                  {t.label} {counts[t.id] > 0 && <span className="ml-1 opacity-80">({counts[t.id]})</span>}
-                </button>
-              ))}
+            {/* Mobile: primary tabs fill the container width in a 4-col grid;
+                Interview reveals a second 2-col row (Hired/Rejected) below,
+                inside this same container. Desktop (sm:) reverts to the
+                original single-row flex-wrap layout with all six tabs. */}
+            <div className="w-full rounded-xl border border-border bg-card p-1 sm:flex sm:w-auto sm:flex-wrap sm:gap-1">
+              <div className="grid grid-cols-4 gap-1 sm:contents">
+                {TABS.filter((t) => t.id !== "hired" && t.id !== "rejected").map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => setTab(t.id)}
+                    className={`rounded-lg px-2 py-2 text-sm font-medium transition-colors sm:px-3 ${
+                      tab === t.id ? "bg-primary text-primary-foreground" : "text-foreground/70 hover:bg-surface"
+                    }`}
+                  >
+                    {t.label} {counts[t.id] > 0 && <span className="ml-1 opacity-80">({counts[t.id]})</span>}
+                  </button>
+                ))}
+              </div>
+              <div className={`${showInterviewSubTabs ? "mt-1 grid grid-cols-2 gap-1" : "hidden"} sm:contents sm:mt-0`}>
+                {TABS.filter((t) => t.id === "hired" || t.id === "rejected").map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => setTab(t.id)}
+                    className={`rounded-lg px-2 py-2 text-sm font-medium transition-colors sm:px-3 ${
+                      tab === t.id ? "bg-primary text-primary-foreground" : "text-foreground/70 hover:bg-surface"
+                    }`}
+                  >
+                    {t.label} {counts[t.id] > 0 && <span className="ml-1 opacity-80">({counts[t.id]})</span>}
+                  </button>
+                ))}
+              </div>
             </div>
             <button
               onClick={() => setSortOrder((s) => (s === "newest" ? "oldest" : "newest"))}
