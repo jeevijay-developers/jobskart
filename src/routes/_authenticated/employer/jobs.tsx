@@ -170,7 +170,7 @@ function EmployerJobsList() {
   };
 
   const statusLabel = statusFilter === "all"
-    ? "All statuses"
+    ? "All status"
     : `${statusFilter[0].toUpperCase()}${statusFilter.slice(1)} (${counts[statusFilter] ?? 0})`;
 
   return (
@@ -181,14 +181,11 @@ function EmployerJobsList() {
       hideCreditChip
       headerLeft={
         <>
-          {/* Mobile: credits chip sits beside the "Jobs" title; the Post button moves to the far right of the row (see the sm:hidden block right after the header). */}
+          {/* Mobile: credits chip sits beside the "Jobs" title; the Post button moves to the far right of the row (see the sm:hidden block right after the header). Desktop: the Post button now lives in the search/filter controls row below, not here. */}
           <div className="sm:hidden">
             <CreditChip />
           </div>
-          <div className="hidden flex-wrap items-center gap-2 sm:flex">
-            <Link to="/employer/jobs/new" className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground hover:bg-primary-dark">
-              <Plus className="h-4 w-4" /> Post a job
-            </Link>
+          <div className="hidden sm:block">
             <CreditChip />
           </div>
         </>
@@ -262,6 +259,14 @@ function EmployerJobsList() {
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        {/* Desktop only: Post a job now lives in this controls row, aligned with Search and All status, instead of beside the "Jobs" heading. */}
+        <Link
+          to="/employer/jobs/new"
+          className="ml-auto hidden h-10 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground hover:bg-primary-dark sm:inline-flex"
+        >
+          <Plus className="h-4 w-4" /> Post a job
+        </Link>
       </div>
 
       {loading ? (

@@ -72,7 +72,12 @@ function ThemedSelect({
   const options = React.useMemo(() => collectOptions(children), [children]);
   const placeholder = options.find((option) => option.value === "")?.label ?? "Select an option";
   const selectableOptions = options.filter((option) => option.value !== "");
-  const controlledValue = value == null ? undefined : String(value);
+  // Radix's Select treats "" as a reserved/invalid value, not "nothing
+  // selected" — passing it through as a controlled value makes the trigger
+  // silently keep showing the placeholder text rather than actually clearing
+  // the selection, or in some cases falls back to the first item. Empty
+  // string must be normalized to undefined so Radix renders the placeholder.
+  const controlledValue = value == null || value === "" ? undefined : String(value);
   const initialValue = defaultValue == null ? undefined : String(defaultValue);
 
   const notifyChange = (nextValue: string) => {
