@@ -98,7 +98,7 @@ type AiRow = {
   created_at: string;
 };
 
-type PendingStatusChange = { id: string; name: string; status: string; label: string };
+type PendingStatusChange = { ids: string[]; names: string[]; status: string; label: string };
 
 function ResponsesPage() {
   const [cid, setCid] = useState<string | null>(null);
@@ -111,6 +111,7 @@ function ResponsesPage() {
   const [tab, setTab] = useState<"inbox" | "ai">("inbox");
   const [aiRows, setAiRows] = useState<AiRow[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
+  const [shortlistN, setShortlistN] = useState(10);
   const [downloading, setDownloading] = useState(false);
   const [expiringCount, setExpiringCount] = useState(0);
 
@@ -215,6 +216,11 @@ function ResponsesPage() {
     return aiRows.filter((r) => (r.full_name || "").toLowerCase().includes(needle));
   }, [aiRows, nameQuery]);
 
+  const eligibleAiRows = useMemo(
+    () => filteredAiRows.filter((r) => r.status === "applied"),
+    [filteredAiRows],
+  );
+
   const setStatus = async (ids: string[], status: string) => {
     setRows((p) => p.map((r) => (ids.includes(r.id) ? { ...r, status } : r)));
     setReviewing((r) => (r && ids.includes(r.id) ? { ...r, status } : r));
@@ -237,10 +243,10 @@ function ResponsesPage() {
     }
   };
 
-  const askConfirm = (id: string, name: string | null | undefined, status: string) => {
+  const askConfirm = (ids: string[], names: Array<string | null | undefined>, status: string) => {
     setPending({
-      id,
-      name: name || "this candidate",
+      ids,
+      names: names.map((n) => n || "this candidate"),
       status,
       label: applicantStatusLabel(status),
     });
@@ -249,9 +255,19 @@ function ResponsesPage() {
   const confirmStatusChange = async () => {
     if (!pending) return;
     setPendingBusy(true);
-    await setStatus([pending.id], pending.status);
+    await setStatus(pending.ids, pending.status);
     setPendingBusy(false);
     setPending(null);
+  };
+
+  const shortlistTopN = () => {
+    const top = eligibleAiRows.slice(0, shortlistN);
+    if (!top.length) return;
+    askConfirm(
+      top.map((r) => r.application_id),
+      top.map((r) => r.full_name),
+      "shortlisted",
+    );
   };
 
   const openFilters = () => {
@@ -445,13 +461,33 @@ function ResponsesPage() {
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
-          <button
-            onClick={() => loadAi(true)}
-            disabled={!jobFilter || aiLoading}
-            className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-primary bg-primary-light px-3 text-sm font-semibold text-primary disabled:opacity-50"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${aiLoading ? "animate-spin" : ""}`} /> Re-rank
-          </button>
+          <>
+            <button
+              onClick={() => loadAi(true)}
+              disabled={!jobFilter || aiLoading}
+              className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-primary bg-primary-light px-3 text-sm font-semibold text-primary disabled:opacity-50"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${aiLoading ? "animate-spin" : ""}`} /> Re-rank
+            </button>
+            <div className="flex items-center gap-1.5">
+              <input
+                type="number"
+                min={1}
+                max={50}
+                value={shortlistN}
+                onChange={(e) => setShortlistN(Math.max(1, Math.min(50, Number(e.target.value) || 1)))}
+                className="form-input h-10 w-16 text-center text-sm"
+                aria-label="Number of candidates to shortlist"
+              />
+              <button
+                onClick={shortlistTopN}
+                disabled={!jobFilter || aiLoading || eligibleAiRows.length === 0}
+                className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-success px-3 text-sm font-semibold text-success-foreground disabled:opacity-50"
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" /> Shortlist top {shortlistN}
+              </button>
+            </div>
+          </>
         )}
       </section>
 
@@ -505,17 +541,17 @@ function ResponsesPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
-                          onClick={() => askConfirm(r.id, r.profiles?.full_name, "shortlisted")}
+                          onClick={() => askConfirm([r.id], [r.profiles?.full_name], "shortlisted")}
                         >
                           <CheckCircle2 className="mr-2 h-4 w-4 text-success" /> Shortlist
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                          onClick={() => askConfirm(r.id, r.profiles?.full_name, "interview")}
+                          onClick={() => askConfirm([r.id], [r.profiles?.full_name], "interview")}
                         >
                           <Calendar className="mr-2 h-4 w-4 text-warning" /> Interview
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                          onClick={() => askConfirm(r.id, r.profiles?.full_name, "rejected")}
+                          onClick={() => askConfirm([r.id], [r.profiles?.full_name], "rejected")}
                         >
                           <XCircle className="mr-2 h-4 w-4 text-muted-foreground" /> Reject
                         </DropdownMenuItem>
@@ -594,19 +630,19 @@ function ResponsesPage() {
                       )}
                       <div className="mt-3 flex flex-wrap gap-1.5">
                         <button
-                          onClick={() => askConfirm(r.application_id, r.full_name, "shortlisted")}
+                          onClick={() => askConfirm([r.application_id], [r.full_name], "shortlisted")}
                           className="inline-flex h-8 items-center gap-1 rounded-lg bg-success px-2.5 text-xs font-semibold text-success-foreground hover:opacity-90"
                         >
                           <CheckCircle2 className="h-3 w-3" /> Shortlist
                         </button>
                         <button
-                          onClick={() => askConfirm(r.application_id, r.full_name, "interview")}
+                          onClick={() => askConfirm([r.application_id], [r.full_name], "interview")}
                           className="inline-flex h-8 items-center gap-1 rounded-lg border border-warning bg-warning-light px-2.5 text-xs font-semibold text-warning"
                         >
                           <Calendar className="h-3 w-3" /> Interview
                         </button>
                         <button
-                          onClick={() => askConfirm(r.application_id, r.full_name, "rejected")}
+                          onClick={() => askConfirm([r.application_id], [r.full_name], "rejected")}
                           className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-card px-2.5 text-xs font-semibold text-muted-foreground hover:bg-surface"
                         >
                           <XCircle className="h-3 w-3" /> Reject
@@ -630,11 +666,16 @@ function ResponsesPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Move {pending?.name} to {pending?.label}?
+              {pending && pending.ids.length > 1
+                ? `Move ${pending.ids.length} candidates to ${pending.label}?`
+                : `Move ${pending?.names[0]} to ${pending?.label}?`}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              This updates the candidate's application status right away. You can change it again
-              later if needed.
+              {pending && pending.ids.length > 1
+                ? `${pending.names.slice(0, 5).join(", ")}${
+                    pending.names.length > 5 ? ` and ${pending.names.length - 5} more` : ""
+                  } — this updates their application status right away. You can change it again later if needed.`
+                : "This updates the candidate's application status right away. You can change it again later if needed."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
