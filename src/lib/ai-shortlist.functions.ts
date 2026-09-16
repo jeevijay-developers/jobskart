@@ -1,12 +1,26 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { chat } from "@/lib/ai/provider";
+import { chatJSON } from "@/lib/ai/provider";
+import { assertNoProtectedFields } from "@/lib/ai-shortlist-guard";
 
 
 const input = z.object({
   jobId: z.string().uuid(),
   refresh: z.boolean().optional().default(false),
+});
+
+const AiScoreResponse = z.object({
+  results: z
+    .array(
+      z.object({
+        application_id: z.string(),
+        score: z.number(),
+        reasons: z.array(z.string()).default([]),
+        summary: z.string().optional(),
+      }),
+    )
+    .default([]),
 });
 
 type ScoreRow = {
@@ -33,10 +47,12 @@ export const recommendShortlist = createServerFn({ method: "POST" })
 
     const { data: job } = await supabase
       .from("jobs")
+      // Never add age_min/age_max/gender_pref here — see assertNoProtectedFields below.
       .select("id, company_id, title, description, skills, min_experience_years, city")
       .eq("id", jobId)
       .maybeSingle();
     if (!job) throw new Error("Job not found");
+    assertNoProtectedFields(job);
 
     const { data: membership } = await supabase
       .from("employer_members")
@@ -48,7 +64,9 @@ export const recommendShortlist = createServerFn({ method: "POST" })
 
     const { data: apps } = await supabase
       .from("applications")
-      .select("id, candidate_id, status, created_at, profiles!candidate_id (full_name, city, avatar_url)")
+      .select(
+        "id, candidate_id, status, created_at, cover_note, expected_salary, available_from, profiles!candidate_id (full_name, city, avatar_url)",
+      )
       .eq("job_id", jobId)
       .order("created_at", { ascending: false })
       .limit(50);
@@ -80,6 +98,11 @@ export const recommendShortlist = createServerFn({ method: "POST" })
 
       const items = needScoring.map((a) => {
         const p = profileMap.get(a.candidate_id);
+        const app = a as unknown as {
+          cover_note: string | null;
+          expected_salary: number | null;
+          available_from: string | null;
+        };
         return {
           application_id: a.id,
           candidate_id: a.candidate_id,
@@ -88,6 +111,9 @@ export const recommendShortlist = createServerFn({ method: "POST" })
           years_experience: p?.years_experience ?? null,
           skills: p?.skills ?? [],
           bio: (p?.bio ?? "").slice(0, 300),
+          cover_note: (app.cover_note ?? "").slice(0, 400),
+          expected_salary: app.expected_salary ?? null,
+          available_from: app.available_from ?? null,
         };
       });
 
@@ -104,20 +130,24 @@ Description: ${(job.description || "").slice(0, 800)}
 CANDIDATES
 ${JSON.stringify(items)}
 
+Each candidate also includes cover_note, expected_salary and available_from from their
+application form. Use these only as supporting context in your reasons/summary (e.g. flag
+a mismatched expected salary or a relevant point from their cover note) — they are NOT
+part of the numeric formula below.
+
 Scoring: skill overlap 50%, experience fit 25%, role/title relevance 15%, location 10%.
 Give 2-4 short bullet reasons each. Be honest — low scores when off-target.`;
 
-      const raw = await chat({
-        system: "You rank job candidates. Output only valid JSON.",
-        user: prompt,
-        json: true,
-      });
-      let parsed: { results?: Array<{ application_id: string; score: number; reasons?: string[]; summary?: string }> };
-      try { parsed = JSON.parse(raw || "{}"); } catch { parsed = JSON.parse(raw.replace(/```json|```/g, "").trim() || "{}"); }
+      const parsed = await chatJSON(
+        {
+          system: "You rank job candidates. Output only valid JSON.",
+          user: prompt,
+        },
+        AiScoreResponse,
+      );
 
-
-      const upserts = (parsed.results || [])
-        .filter((r) => r && r.application_id && needScoring.find((a) => a.id === r.application_id))
+      const upserts = parsed.results
+        .filter((r) => r.application_id && needScoring.find((a) => a.id === r.application_id))
         .map((r) => {
           const app = needScoring.find((a) => a.id === r.application_id)!;
           return {
@@ -125,7 +155,7 @@ Give 2-4 short bullet reasons each. Be honest — low scores when off-target.`;
             application_id: r.application_id,
             candidate_id: app.candidate_id,
             score: Math.max(0, Math.min(100, Math.round(r.score || 0))),
-            reasons: Array.isArray(r.reasons) ? r.reasons.slice(0, 5) : [],
+            reasons: r.reasons.slice(0, 5),
             summary: r.summary?.slice(0, 200) || null,
             computed_at: new Date().toISOString(),
           };
