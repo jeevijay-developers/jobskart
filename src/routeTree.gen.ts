@@ -65,6 +65,7 @@ import { Route as AuthenticatedEmployerJobsBulkRouteImport } from './routes/_aut
 import { Route as AuthenticatedEmployerJobsNewRouteImport } from './routes/_authenticated/employer/jobs.new'
 import { Route as ApiPublicWebhooksRazorpayRouteImport } from './routes/api/public/webhooks/razorpay'
 import { Route as AuthenticatedEmployerJobsJobIdApplicantsRouteImport } from './routes/_authenticated/employer/jobs.$jobId.applicants'
+import { Route as AuthenticatedEmployerJobsJobIdEditRouteImport } from './routes/_authenticated/employer/jobs.$jobId.edit'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -379,6 +380,12 @@ const AuthenticatedEmployerJobsJobIdApplicantsRoute =
     path: '/$jobId/applicants',
     getParentRoute: () => AuthenticatedEmployerJobsRoute,
   } as any)
+const AuthenticatedEmployerJobsJobIdEditRoute =
+  AuthenticatedEmployerJobsJobIdEditRouteImport.update({
+    id: '/$jobId/edit',
+    path: '/$jobId/edit',
+    getParentRoute: () => AuthenticatedEmployerJobsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -436,6 +443,7 @@ export interface FileRoutesByFullPath {
   '/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
   '/api/public/webhooks/razorpay': typeof ApiPublicWebhooksRazorpayRoute
   '/employer/jobs/$jobId/applicants': typeof AuthenticatedEmployerJobsJobIdApplicantsRoute
+  '/employer/jobs/$jobId/edit': typeof AuthenticatedEmployerJobsJobIdEditRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -493,6 +501,7 @@ export interface FileRoutesByTo {
   '/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
   '/api/public/webhooks/razorpay': typeof ApiPublicWebhooksRazorpayRoute
   '/employer/jobs/$jobId/applicants': typeof AuthenticatedEmployerJobsJobIdApplicantsRoute
+  '/employer/jobs/$jobId/edit': typeof AuthenticatedEmployerJobsJobIdEditRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -552,6 +561,7 @@ export interface FileRoutesById {
   '/_authenticated/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
   '/api/public/webhooks/razorpay': typeof ApiPublicWebhooksRazorpayRoute
   '/_authenticated/employer/jobs/$jobId/applicants': typeof AuthenticatedEmployerJobsJobIdApplicantsRoute
+  '/_authenticated/employer/jobs/$jobId/edit': typeof AuthenticatedEmployerJobsJobIdEditRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -611,6 +621,7 @@ export interface FileRouteTypes {
     | '/employer/jobs/new'
     | '/api/public/webhooks/razorpay'
     | '/employer/jobs/$jobId/applicants'
+    | '/employer/jobs/$jobId/edit'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -668,6 +679,7 @@ export interface FileRouteTypes {
     | '/employer/jobs/new'
     | '/api/public/webhooks/razorpay'
     | '/employer/jobs/$jobId/applicants'
+    | '/employer/jobs/$jobId/edit'
   id:
     | '__root__'
     | '/'
@@ -726,6 +738,7 @@ export interface FileRouteTypes {
     | '/_authenticated/employer/jobs/new'
     | '/api/public/webhooks/razorpay'
     | '/_authenticated/employer/jobs/$jobId/applicants'
+    | '/_authenticated/employer/jobs/$jobId/edit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1144,6 +1157,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedEmployerJobsJobIdApplicantsRouteImport
       parentRoute: typeof AuthenticatedEmployerJobsRoute
     }
+    '/_authenticated/employer/jobs/$jobId/edit': {
+      id: '/_authenticated/employer/jobs/$jobId/edit'
+      path: '/$jobId/edit'
+      fullPath: '/employer/jobs/$jobId/edit'
+      preLoaderRoute: typeof AuthenticatedEmployerJobsJobIdEditRouteImport
+      parentRoute: typeof AuthenticatedEmployerJobsRoute
+    }
   }
 }
 
@@ -1185,6 +1205,7 @@ interface AuthenticatedEmployerJobsRouteChildren {
   AuthenticatedEmployerJobsBulkRoute: typeof AuthenticatedEmployerJobsBulkRoute
   AuthenticatedEmployerJobsNewRoute: typeof AuthenticatedEmployerJobsNewRoute
   AuthenticatedEmployerJobsJobIdApplicantsRoute: typeof AuthenticatedEmployerJobsJobIdApplicantsRoute
+  AuthenticatedEmployerJobsJobIdEditRoute: typeof AuthenticatedEmployerJobsJobIdEditRoute
 }
 
 const AuthenticatedEmployerJobsRouteChildren: AuthenticatedEmployerJobsRouteChildren =
@@ -1193,6 +1214,8 @@ const AuthenticatedEmployerJobsRouteChildren: AuthenticatedEmployerJobsRouteChil
     AuthenticatedEmployerJobsNewRoute: AuthenticatedEmployerJobsNewRoute,
     AuthenticatedEmployerJobsJobIdApplicantsRoute:
       AuthenticatedEmployerJobsJobIdApplicantsRoute,
+    AuthenticatedEmployerJobsJobIdEditRoute:
+      AuthenticatedEmployerJobsJobIdEditRoute,
   }
 
 const AuthenticatedEmployerJobsRouteWithChildren =

@@ -1,8 +1,17 @@
 import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Briefcase, Copy, Eye, Pause, Play, Plus, Trash2, Users } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Briefcase, ChevronDown, Copy, Eye, Filter, Pause, Pencil, Play, Plus, Search, Trash2, Users,
+} from "lucide-react";
 import { toast } from "sonner";
-import { EmployerShell } from "@/components/employer/EmployerShell";
+import { EmployerShell, CreditChip } from "@/components/employer/EmployerShell";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchMyCompanies, getActiveCompanyId } from "@/lib/employer";
 import { formatSalary, jobTypeLabel } from "@/lib/format";
@@ -42,35 +51,9 @@ function EmployerJobsList() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [allJobs, setAllJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
-  const tabsRef = useRef<HTMLDivElement>(null);
-  const [tabsThumb, setTabsThumb] = useState({ widthPct: 100, leftPct: 0, scrollable: false });
-
-  const updateTabsThumb = () => {
-    const el = tabsRef.current;
-    if (!el) return;
-    const { scrollWidth, clientWidth, scrollLeft } = el;
-    if (scrollWidth <= clientWidth + 1) {
-      setTabsThumb({ widthPct: 100, leftPct: 0, scrollable: false });
-      return;
-    }
-    const widthPct = (clientWidth / scrollWidth) * 100;
-    const maxScroll = scrollWidth - clientWidth;
-    const leftPct = (scrollLeft / maxScroll) * (100 - widthPct);
-    setTabsThumb({ widthPct, leftPct, scrollable: true });
-  };
-
-  useEffect(() => {
-    updateTabsThumb();
-    const el = tabsRef.current;
-    if (!el) return;
-    const onScroll = () => updateTabsThumb();
-    el.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", updateTabsThumb);
-    return () => {
-      el.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", updateTabsThumb);
-    };
-  }, [allJobs]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -113,12 +96,23 @@ function EmployerJobsList() {
     return c;
   }, [allJobs]);
 
+  // A stale selection could otherwise silently act on jobs no longer visible
+  // once the filters change what's on screen.
+  useEffect(() => { setSelected(new Set()); }, [statusFilter, search]);
+
+  const toggleSelect = (id: string) => setSelected((s) => {
+    const n = new Set(s);
+    if (n.has(id)) n.delete(id); else n.add(id);
+    return n;
+  });
+
   const setStatus = async (id: string, status: "active" | "paused" | "closed") => {
     const { error } = await supabase.from("jobs").update({ status } as never).eq("id", id);
     if (error) return toast.error(error.message);
     toast.success(`Job ${status}.`);
     load();
   };
+
   const duplicate = async (id: string) => {
     const orig = allJobs.find((j) => j.id === id);
     if (!orig) return;
@@ -134,60 +128,110 @@ function EmployerJobsList() {
     toast.success("Job duplicated as draft.");
     load();
   };
-  const remove = async (id: string) => {
-    if (!confirm("Delete this job permanently?")) return;
-    const { error } = await supabase.from("jobs").delete().eq("id", id);
+
+  const bulkDelete = async () => {
+    const ids = [...selected];
+    if (!ids.length) return;
+    setBulkBusy(true);
+    const { error } = await supabase.from("jobs").delete().in("id", ids);
+    setBulkBusy(false);
+    setConfirmDeleteOpen(false);
     if (error) return toast.error(error.message);
-    toast.success("Job deleted.");
+    toast.success(`Deleted ${ids.length} job${ids.length === 1 ? "" : "s"}.`);
+    setSelected(new Set());
     load();
   };
+
+  // Mixed selections only pause the jobs that are currently active — already
+  // paused/closed/draft jobs in the selection are left untouched rather than
+  // a "Pause" click force-changing statuses it wasn't asked to touch.
+  const bulkPause = async () => {
+    const ids = jobs.filter((j) => selected.has(j.id) && j.status === "active").map((j) => j.id);
+    if (!ids.length) { toast.info("No active jobs in the selection to pause."); return; }
+    setBulkBusy(true);
+    const { error } = await supabase.from("jobs").update({ status: "paused" } as never).in("id", ids);
+    setBulkBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success(`Paused ${ids.length} job${ids.length === 1 ? "" : "s"}.`);
+    setSelected(new Set());
+    load();
+  };
+
+  const statusLabel = statusFilter === "all"
+    ? "All statuses"
+    : `${statusFilter[0].toUpperCase()}${statusFilter.slice(1)} (${counts[statusFilter] ?? 0})`;
 
   return (
     <EmployerShell
       title="Jobs"
       subtitle="Post, pause, or close your job listings."
+      hideBell
+      hideCreditChip
+      headerLeft={
+        <div className="flex flex-wrap items-center gap-2">
+          <Link to="/employer/jobs/new" className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground hover:bg-primary-dark">
+            <Plus className="h-4 w-4" /> Post a job
+          </Link>
+          <CreditChip />
+        </div>
+      }
       actions={
-        <Link to="/employer/jobs/new" className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary-dark">
-          <Plus className="h-4 w-4" /> Post a job
-        </Link>
+        selected.size > 0 ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-muted-foreground">{selected.size} selected</span>
+            <button
+              type="button"
+              onClick={bulkPause}
+              disabled={bulkBusy}
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-sm font-semibold hover:bg-surface disabled:opacity-50"
+            >
+              <Pause className="h-4 w-4" /> Pause
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmDeleteOpen(true)}
+              disabled={bulkBusy}
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-destructive/40 bg-destructive-light px-3 text-sm font-semibold text-destructive hover:bg-destructive/10 disabled:opacity-50"
+            >
+              <Trash2 className="h-4 w-4" /> Delete
+            </button>
+          </div>
+        ) : null
       }
     >
-      <div className="mb-5 flex flex-col gap-3 sm:mb-4 sm:flex-row sm:flex-wrap sm:items-center">
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by title…"
-          className="form-input h-10 w-full sm:max-w-xs sm:flex-1"
-        />
-        <div className="sm:contents">
-          <div
-            ref={tabsRef}
-            className="-mx-4 flex gap-2 overflow-x-auto px-4 py-1 sm:mx-0 sm:overflow-x-visible sm:px-0 sm:py-0"
-          >
-            {STATUSES.map((s) => (
-              <button
-                key={s}
-                onClick={() => setStatusFilter(s)}
-                className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold capitalize ${
-                  statusFilter === s ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-foreground/70 hover:border-foreground/30"
-                }`}
-              >
-                {s}
-                <span className={`tabular-nums ${statusFilter === s ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
-                  ({counts[s] ?? 0})
-                </span>
-              </button>
-            ))}
-          </div>
-          {tabsThumb.scrollable && (
-            <div className="mx-1 mt-1.5 h-1.5 rounded-full bg-surface sm:hidden" aria-hidden>
-              <div
-                className="h-full rounded-full bg-border"
-                style={{ width: `${tabsThumb.widthPct}%`, marginLeft: `${tabsThumb.leftPct}%` }}
-              />
-            </div>
-          )}
+      <div className="mb-5 flex flex-wrap items-center gap-3">
+        <div className="relative w-full max-w-xs">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by title…"
+            className="form-input h-10 pl-9"
+          />
         </div>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-semibold text-foreground hover:bg-surface"
+            >
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              {statusLabel}
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-52">
+            <DropdownMenuRadioGroup value={statusFilter} onValueChange={setStatusFilter}>
+              {STATUSES.map((s) => (
+                <DropdownMenuRadioItem key={s} value={s} className="capitalize">
+                  {s === "all" ? "All statuses" : s}
+                  <span className="ml-auto pl-2 text-xs tabular-nums text-muted-foreground">({counts[s] ?? 0})</span>
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {loading ? (
@@ -205,58 +249,88 @@ function EmployerJobsList() {
         <div className="space-y-3 pb-4 lg:pb-0">
           {jobs.map((j) => (
             <div key={j.id} className="rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
-              <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={selected.has(j.id)}
+                  onChange={() => toggleSelect(j.id)}
+                  className="mt-1.5 h-4 w-4 shrink-0 accent-primary"
+                  aria-label={`Select ${j.title}`}
+                />
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="truncate text-base font-semibold">{j.title}</h3>
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Link
+                      to="/jobs/$jobId"
+                      params={{ jobId: j.id }}
+                      className="truncate text-base font-semibold hover:text-primary hover:underline"
+                    >
+                      {j.title}
+                    </Link>
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
                       j.status === "active" ? "bg-success-light text-success" :
                       j.status === "paused" ? "bg-warning-light text-warning" :
                       "bg-surface text-muted-foreground"
                     }`}>{j.status}</span>
+                    <button onClick={() => duplicate(j.id)} title="Duplicate" className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-border bg-card text-foreground hover:bg-surface">
+                      <Copy className="h-3.5 w-3.5" />
+                    </button>
+                    <Link
+                      to="/employer/jobs/$jobId/edit"
+                      params={{ jobId: j.id }}
+                      title="Edit"
+                      className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-border bg-card text-foreground hover:bg-surface"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Link>
+                    {j.status === "paused" && (
+                      <button onClick={() => setStatus(j.id, "active")} className="inline-flex h-7 shrink-0 items-center gap-1 rounded-lg border border-border bg-card px-2 text-xs font-semibold hover:bg-surface">
+                        <Play className="h-3.5 w-3.5" /> Resume
+                      </button>
+                    )}
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {jobTypeLabel(j.job_type)} · {j.city || "Multiple cities"} · {formatSalary(j.min_salary, j.max_salary, j.salary_period || "monthly")}
                   </p>
-                  <p className="mt-2 text-xs text-muted-foreground">Posted {formatDistanceToNow(new Date(j.created_at), { addSuffix: true })}</p>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <Link
-                    to="/employer/jobs/$jobId/applicants"
-                    params={{ jobId: j.id }}
-                    className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-sm font-semibold hover:bg-surface"
-                  >
-                    <Users className="h-4 w-4" /> {j.applications_count || 0} applicants
-                  </Link>
-                  <Link
-                    to="/jobs/$jobId"
-                    params={{ jobId: j.id }}
-                    className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-sm hover:bg-surface"
-                  >
-                    <Eye className="h-4 w-4" /> {j.views_count || 0}
-                  </Link>
-                  {j.status === "active" ? (
-                    <button onClick={() => setStatus(j.id, "paused")} className="inline-flex h-9 items-center gap-1 rounded-lg border border-border bg-card px-3 text-sm hover:bg-surface">
-                      <Pause className="h-4 w-4" /> Pause
-                    </button>
-                  ) : j.status === "paused" ? (
-                    <button onClick={() => setStatus(j.id, "active")} className="inline-flex h-9 items-center gap-1 rounded-lg border border-border bg-card px-3 text-sm hover:bg-surface">
-                      <Play className="h-4 w-4" /> Resume
-                    </button>
-                  ) : null}
-                  <button onClick={() => duplicate(j.id)} title="Duplicate" className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-foreground hover:bg-surface">
-                    <Copy className="h-4 w-4" />
-                  </button>
-                  <button onClick={() => remove(j.id)} title="Delete" className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-destructive hover:bg-destructive-light">
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    <Link
+                      to="/employer/jobs/$jobId/applicants"
+                      params={{ jobId: j.id }}
+                      className="inline-flex items-center gap-1 hover:text-primary hover:underline"
+                    >
+                      <Users className="h-3.5 w-3.5" /> {j.applications_count || 0} applicants
+                    </Link>
+                    <span className="inline-flex items-center gap-1">
+                      <Eye className="h-3.5 w-3.5" /> {j.views_count || 0} views
+                    </span>
+                    <span>Posted {formatDistanceToNow(new Date(j.created_at), { addSuffix: true })}</span>
+                  </p>
                 </div>
               </div>
             </div>
           ))}
         </div>
       )}
+
+      <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selected.size} job{selected.size === 1 ? "" : "s"}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete {selected.size === 1 ? "this job posting" : `these ${selected.size} job postings`} and all of their applications. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkBusy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={bulkDelete}
+              disabled={bulkBusy}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </EmployerShell>
   );
 }

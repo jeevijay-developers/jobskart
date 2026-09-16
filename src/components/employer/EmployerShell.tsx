@@ -13,7 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchMyCompanies, getActiveCompanyId } from "@/lib/employer";
 import { EMPLOYER_NAV_LINKS as nav } from "@/lib/employer-nav";
 
-function CreditChip() {
+export function CreditChip() {
   const [balance, setBalance] = useState<number | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -61,11 +61,18 @@ export function EmployerShell({
   subtitle,
   children,
   actions,
+  headerLeft,
+  hideBell,
+  hideCreditChip,
 }: {
   title: string;
   subtitle?: string;
   children: ReactNode;
   actions?: ReactNode;
+  /** Extra content rendered inline next to the title, on the left side of the header row. */
+  headerLeft?: ReactNode;
+  hideBell?: boolean;
+  hideCreditChip?: boolean;
 }) {
   const { pathname } = useLocation();
   const [moreOpen, setMoreOpen] = useState(false);
@@ -104,12 +111,15 @@ export function EmployerShell({
         <main className="min-w-0 flex-1">
           <header className="mb-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
             <div className="min-w-0 flex-1">
-              <h1 className="whitespace-normal break-words text-xl font-bold leading-tight text-foreground sm:truncate sm:text-2xl lg:text-3xl">{title}</h1>
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="whitespace-normal break-words text-xl font-bold leading-tight text-foreground sm:truncate sm:text-2xl lg:text-3xl">{title}</h1>
+                {headerLeft}
+              </div>
               {subtitle ? <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p> : null}
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-2">
-              <CreditChip />
-              <NotificationBell />
+              {!hideCreditChip && <CreditChip />}
+              {!hideBell && <NotificationBell />}
               {actions}
             </div>
           </header>
