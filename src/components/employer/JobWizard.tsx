@@ -1,7 +1,8 @@
 import { ThemedSelect } from "@/components/ui/themed-form-controls";
+import { StateDropdown } from "@/components/candidate/StateDropdown";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, Check, Download, Loader2, RefreshCw } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ChevronDown, ChevronUp, Download, Loader2, RefreshCw } from "lucide-react";
 import { downloadJdPdf } from "@/lib/jd-pdf";
 import { toast } from "sonner";
 import { EmployerShell } from "@/components/employer/EmployerShell";
@@ -43,7 +44,7 @@ type Form = {
 
 const initialForm: Form = {
   title: "", category: "", industry: "",
-  job_type: "full_time", work_mode: "onsite", openings: 1, gender_pref: "any",
+  job_type: "", work_mode: "", openings: 1, gender_pref: "any",
   city: "", locality: "", pincode: "",
   pay_type: "fixed", min_salary: "", max_salary: "", avg_incentive: "", salary_period: "monthly",
   interview_type: "in_person", interview_same_as_company: true,
@@ -243,9 +244,6 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data: co } = await supabase.from("companies").select("is_consultant" as any).eq("id", chosen.company_id).maybeSingle();
         setIsConsultant(Boolean((co as { is_consultant?: boolean } | null)?.is_consultant));
-        if (chosen.companies?.industry) {
-          setForm((f) => ({ ...f, industry: f.industry || chosen.companies!.industry! }));
-        }
 
         if (editJobId) {
           const { data: job, error: jobErr } = await supabase
@@ -268,6 +266,16 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
   }, [editJobId]);
 
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
+
+  // These numeric fields are kept as strings (so the input can be briefly
+  // empty while typing), but must never be allowed to hold a negative number —
+  // strips a leading "-" as it's typed and floors any parsed value at 0.
+  type NonNegativeField =
+    | "min_salary" | "max_salary" | "avg_incentive"
+    | "min_experience_years" | "max_experience_years" | "age_min" | "age_max";
+  const setNonNegative = (k: NonNegativeField, v: string) => set(k, v.replace(/^-+/, ""));
+  const stepNonNegative = (k: NonNegativeField, delta: number) =>
+    set(k, String(Math.max(0, (Number(form[k]) || 0) + delta)));
 
   const jdInput: JdInput = useMemo(() => ({
     title: form.title, companyName, industry: form.industry, category: form.category,
@@ -468,31 +476,72 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                   </Field>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <Field label="Category" required>
-                      <ThemedSelect value={form.category} onChange={(e) => set("category", e.target.value)} className="form-input">
-                        <option value="">Select…</option>
-                        {JOB_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                      </ThemedSelect>
+                      <StateDropdown
+                        value={form.category}
+                        options={JOB_CATEGORIES}
+                        placeholder="Select…"
+                        onChange={(v) => set("category", v)}
+                      />
                     </Field>
                     <Field label="Industry" required>
-                      <ThemedSelect value={form.industry} onChange={(e) => set("industry", e.target.value)} className="form-input">
-                        <option value="">Select…</option>
-                        {INDUSTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                      </ThemedSelect>
+                      <StateDropdown
+                        value={form.industry}
+                        options={INDUSTRIES}
+                        placeholder="Select…"
+                        onChange={(v) => set("industry", v)}
+                      />
                     </Field>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-3">
                     <Field label="Job type" required>
-                      <ThemedSelect value={form.job_type} onChange={(e) => set("job_type", e.target.value)} className="form-input">
-                        {JOB_TYPE_OPTIONS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-                      </ThemedSelect>
+                      <StateDropdown
+                        value={JOB_TYPE_OPTIONS.find((o) => o.id === form.job_type)?.label || ""}
+                        options={JOB_TYPE_OPTIONS.map((o) => o.label)}
+                        placeholder="Select…"
+                        onChange={(label) => set("job_type", JOB_TYPE_OPTIONS.find((o) => o.label === label)?.id || "")}
+                      />
                     </Field>
                     <Field label="Work mode" required>
-                      <ThemedSelect value={form.work_mode} onChange={(e) => set("work_mode", e.target.value)} className="form-input">
-                        {WORK_MODES.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-                      </ThemedSelect>
+                      <StateDropdown
+                        value={WORK_MODES.find((o) => o.id === form.work_mode)?.label || ""}
+                        options={WORK_MODES.map((o) => o.label)}
+                        placeholder="Select…"
+                        onChange={(label) => set("work_mode", WORK_MODES.find((o) => o.label === label)?.id || "")}
+                      />
                     </Field>
                     <Field label="Openings">
-                      <input type="number" min={1} value={form.openings} onChange={(e) => set("openings", Number(e.target.value))} className="form-input" />
+                      {/* Desktop (sm: and up): unchanged native number input with its own
+                          native spin arrows — untouched. Mobile only: the native spinner
+                          is explicitly disabled (appearance-none) and replaced with a
+                          custom dark stepper overlaid on the same input, since mobile
+                          Safari/Chrome render it faint/inconsistently at best. */}
+                      <div className="relative">
+                        <input
+                          type="number"
+                          min={1}
+                          value={form.openings}
+                          onChange={(e) => set("openings", Number(e.target.value))}
+                          className="form-input max-sm:appearance-none pr-9 sm:pr-3.5 [&::-webkit-inner-spin-button]:max-sm:appearance-none [&::-webkit-outer-spin-button]:max-sm:appearance-none"
+                        />
+                        <div className="absolute inset-y-0 right-1 flex flex-col justify-center gap-0.5 py-1 sm:hidden">
+                          <button
+                            type="button"
+                            aria-label="Increase openings"
+                            onClick={() => set("openings", Math.max(1, (Number(form.openings) || 0) + 1))}
+                            className="grid h-4 w-6 place-items-center rounded-sm text-gray-700 active:bg-surface"
+                          >
+                            <ChevronUp className="h-3.5 w-3.5" strokeWidth={3} />
+                          </button>
+                          <button
+                            type="button"
+                            aria-label="Decrease openings"
+                            onClick={() => set("openings", Math.max(1, (Number(form.openings) || 0) - 1))}
+                            className="grid h-4 w-6 place-items-center rounded-sm text-gray-700 active:bg-surface"
+                          >
+                            <ChevronDown className="h-3.5 w-3.5" strokeWidth={3} />
+                          </button>
+                        </div>
+                      </div>
                     </Field>
                   </div>
                   <Field label="Gender preference">
@@ -517,10 +566,12 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                 <div className="space-y-5">
                   <div className="grid gap-3 sm:grid-cols-3">
                     <Field label="City" required>
-                      <ThemedSelect value={form.city} onChange={(e) => set("city", e.target.value)} className="form-input">
-                        <option value="">Select…</option>
-                        {INDIAN_CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                      </ThemedSelect>
+                      <StateDropdown
+                        value={form.city}
+                        options={INDIAN_CITIES}
+                        placeholder="Select…"
+                        onChange={(v) => set("city", v)}
+                      />
                     </Field>
                     <Field label="Locality">
                       <input value={form.locality} onChange={(e) => set("locality", e.target.value)} className="form-input" placeholder="Andheri East" />
@@ -545,16 +596,101 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                   {form.pay_type !== "incentive_only" && (
                     <div className="grid gap-3 sm:grid-cols-2">
                       <Field label="Fixed min / month (₹)" required>
-                        <input type="number" value={form.min_salary} onChange={(e) => set("min_salary", e.target.value)} className="form-input" placeholder="15000" />
+                        {/* Desktop (sm: and up): unchanged native number input with its own
+                            native spin arrows. Mobile only: native spinner disabled and
+                            replaced with the same custom dark stepper used for Openings,
+                            so every number field looks consistent on mobile. */}
+                        <div className="relative">
+                          <input
+                            type="number"
+                            min={0}
+                            value={form.min_salary}
+                            onChange={(e) => setNonNegative("min_salary", e.target.value)}
+                            className="form-input max-sm:appearance-none pr-9 sm:pr-3.5 [&::-webkit-inner-spin-button]:max-sm:appearance-none [&::-webkit-outer-spin-button]:max-sm:appearance-none"
+                            placeholder="15000"
+                          />
+                          <div className="absolute inset-y-0 right-1 flex flex-col justify-center gap-0.5 py-1 sm:hidden">
+                            <button
+                              type="button"
+                              aria-label="Increase fixed min salary"
+                              onClick={() => stepNonNegative("min_salary", 1)}
+                              className="grid h-4 w-6 place-items-center rounded-sm text-gray-700 active:bg-surface"
+                            >
+                              <ChevronUp className="h-3.5 w-3.5" strokeWidth={3} />
+                            </button>
+                            <button
+                              type="button"
+                              aria-label="Decrease fixed min salary"
+                              onClick={() => stepNonNegative("min_salary", -1)}
+                              className="grid h-4 w-6 place-items-center rounded-sm text-gray-700 active:bg-surface"
+                            >
+                              <ChevronDown className="h-3.5 w-3.5" strokeWidth={3} />
+                            </button>
+                          </div>
+                        </div>
                       </Field>
                       <Field label="Fixed max / month (₹)">
-                        <input type="number" value={form.max_salary} onChange={(e) => set("max_salary", e.target.value)} className="form-input" placeholder="25000" />
+                        <div className="relative">
+                          <input
+                            type="number"
+                            min={0}
+                            value={form.max_salary}
+                            onChange={(e) => setNonNegative("max_salary", e.target.value)}
+                            className="form-input max-sm:appearance-none pr-9 sm:pr-3.5 [&::-webkit-inner-spin-button]:max-sm:appearance-none [&::-webkit-outer-spin-button]:max-sm:appearance-none"
+                            placeholder="25000"
+                          />
+                          <div className="absolute inset-y-0 right-1 flex flex-col justify-center gap-0.5 py-1 sm:hidden">
+                            <button
+                              type="button"
+                              aria-label="Increase fixed max salary"
+                              onClick={() => stepNonNegative("max_salary", 1)}
+                              className="grid h-4 w-6 place-items-center rounded-sm text-gray-700 active:bg-surface"
+                            >
+                              <ChevronUp className="h-3.5 w-3.5" strokeWidth={3} />
+                            </button>
+                            <button
+                              type="button"
+                              aria-label="Decrease fixed max salary"
+                              onClick={() => stepNonNegative("max_salary", -1)}
+                              className="grid h-4 w-6 place-items-center rounded-sm text-gray-700 active:bg-surface"
+                            >
+                              <ChevronDown className="h-3.5 w-3.5" strokeWidth={3} />
+                            </button>
+                          </div>
+                        </div>
                       </Field>
                     </div>
                   )}
                   {form.pay_type !== "fixed" && (
                     <Field label="Average incentive / month (₹)" required>
-                      <input type="number" value={form.avg_incentive} onChange={(e) => set("avg_incentive", e.target.value)} className="form-input" placeholder="10000" />
+                      <div className="relative">
+                        <input
+                          type="number"
+                          min={0}
+                          value={form.avg_incentive}
+                          onChange={(e) => setNonNegative("avg_incentive", e.target.value)}
+                          className="form-input max-sm:appearance-none pr-9 sm:pr-3.5 [&::-webkit-inner-spin-button]:max-sm:appearance-none [&::-webkit-outer-spin-button]:max-sm:appearance-none"
+                          placeholder="10000"
+                        />
+                        <div className="absolute inset-y-0 right-1 flex flex-col justify-center gap-0.5 py-1 sm:hidden">
+                          <button
+                            type="button"
+                            aria-label="Increase average incentive"
+                            onClick={() => stepNonNegative("avg_incentive", 1)}
+                            className="grid h-4 w-6 place-items-center rounded-sm text-gray-700 active:bg-surface"
+                          >
+                            <ChevronUp className="h-3.5 w-3.5" strokeWidth={3} />
+                          </button>
+                          <button
+                            type="button"
+                            aria-label="Decrease average incentive"
+                            onClick={() => stepNonNegative("avg_incentive", -1)}
+                            className="grid h-4 w-6 place-items-center rounded-sm text-gray-700 active:bg-surface"
+                          >
+                            <ChevronDown className="h-3.5 w-3.5" strokeWidth={3} />
+                          </button>
+                        </div>
+                      </div>
                     </Field>
                   )}
 
@@ -633,10 +769,64 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <Field label="Minimum experience (yrs)">
-                      <input type="number" value={form.min_experience_years} onChange={(e) => set("min_experience_years", e.target.value)} className="form-input" placeholder="0" />
+                      <div className="relative">
+                        <input
+                          type="number"
+                          min={0}
+                          value={form.min_experience_years}
+                          onChange={(e) => setNonNegative("min_experience_years", e.target.value)}
+                          className="form-input max-sm:appearance-none pr-9 sm:pr-3.5 [&::-webkit-inner-spin-button]:max-sm:appearance-none [&::-webkit-outer-spin-button]:max-sm:appearance-none"
+                          placeholder="0"
+                        />
+                        <div className="absolute inset-y-0 right-1 flex flex-col justify-center gap-0.5 py-1 sm:hidden">
+                          <button
+                            type="button"
+                            aria-label="Increase minimum experience"
+                            onClick={() => stepNonNegative("min_experience_years", 1)}
+                            className="grid h-4 w-6 place-items-center rounded-sm text-gray-700 active:bg-surface"
+                          >
+                            <ChevronUp className="h-3.5 w-3.5" strokeWidth={3} />
+                          </button>
+                          <button
+                            type="button"
+                            aria-label="Decrease minimum experience"
+                            onClick={() => stepNonNegative("min_experience_years", -1)}
+                            className="grid h-4 w-6 place-items-center rounded-sm text-gray-700 active:bg-surface"
+                          >
+                            <ChevronDown className="h-3.5 w-3.5" strokeWidth={3} />
+                          </button>
+                        </div>
+                      </div>
                     </Field>
                     <Field label="Maximum experience (yrs)">
-                      <input type="number" value={form.max_experience_years} onChange={(e) => set("max_experience_years", e.target.value)} className="form-input" placeholder="10" />
+                      <div className="relative">
+                        <input
+                          type="number"
+                          min={0}
+                          value={form.max_experience_years}
+                          onChange={(e) => setNonNegative("max_experience_years", e.target.value)}
+                          className="form-input max-sm:appearance-none pr-9 sm:pr-3.5 [&::-webkit-inner-spin-button]:max-sm:appearance-none [&::-webkit-outer-spin-button]:max-sm:appearance-none"
+                          placeholder="10"
+                        />
+                        <div className="absolute inset-y-0 right-1 flex flex-col justify-center gap-0.5 py-1 sm:hidden">
+                          <button
+                            type="button"
+                            aria-label="Increase maximum experience"
+                            onClick={() => stepNonNegative("max_experience_years", 1)}
+                            className="grid h-4 w-6 place-items-center rounded-sm text-gray-700 active:bg-surface"
+                          >
+                            <ChevronUp className="h-3.5 w-3.5" strokeWidth={3} />
+                          </button>
+                          <button
+                            type="button"
+                            aria-label="Decrease maximum experience"
+                            onClick={() => stepNonNegative("max_experience_years", -1)}
+                            className="grid h-4 w-6 place-items-center rounded-sm text-gray-700 active:bg-surface"
+                          >
+                            <ChevronDown className="h-3.5 w-3.5" strokeWidth={3} />
+                          </button>
+                        </div>
+                      </div>
                     </Field>
                   </div>
 
@@ -674,10 +864,12 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
 
                   <div className="grid gap-3 sm:grid-cols-2">
                     <Field label="Degree">
-                      <ThemedSelect value={form.degree} onChange={(e) => set("degree", e.target.value)} className="form-input">
-                        <option value="">Any</option>
-                        {EDUCATION_LEVELS.map((e) => <option key={e} value={e}>{e}</option>)}
-                      </ThemedSelect>
+                      <StateDropdown
+                        value={form.degree}
+                        options={EDUCATION_LEVELS}
+                        placeholder="Any"
+                        onChange={(v) => set("degree", v)}
+                      />
                     </Field>
                     <Field label="Specialisation">
                       <input value={form.specialisation} onChange={(e) => set("specialisation", e.target.value)} className="form-input" placeholder="e.g. B.Sc IT" />
@@ -686,10 +878,62 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
 
                   <div className="grid gap-3 sm:grid-cols-2">
                     <Field label="Age min">
-                      <input type="number" value={form.age_min} onChange={(e) => set("age_min", e.target.value)} className="form-input" />
+                      <div className="relative">
+                        <input
+                          type="number"
+                          min={0}
+                          value={form.age_min}
+                          onChange={(e) => setNonNegative("age_min", e.target.value)}
+                          className="form-input max-sm:appearance-none pr-9 sm:pr-3.5 [&::-webkit-inner-spin-button]:max-sm:appearance-none [&::-webkit-outer-spin-button]:max-sm:appearance-none"
+                        />
+                        <div className="absolute inset-y-0 right-1 flex flex-col justify-center gap-0.5 py-1 sm:hidden">
+                          <button
+                            type="button"
+                            aria-label="Increase minimum age"
+                            onClick={() => stepNonNegative("age_min", 1)}
+                            className="grid h-4 w-6 place-items-center rounded-sm text-gray-700 active:bg-surface"
+                          >
+                            <ChevronUp className="h-3.5 w-3.5" strokeWidth={3} />
+                          </button>
+                          <button
+                            type="button"
+                            aria-label="Decrease minimum age"
+                            onClick={() => stepNonNegative("age_min", -1)}
+                            className="grid h-4 w-6 place-items-center rounded-sm text-gray-700 active:bg-surface"
+                          >
+                            <ChevronDown className="h-3.5 w-3.5" strokeWidth={3} />
+                          </button>
+                        </div>
+                      </div>
                     </Field>
                     <Field label="Age max">
-                      <input type="number" value={form.age_max} onChange={(e) => set("age_max", e.target.value)} className="form-input" />
+                      <div className="relative">
+                        <input
+                          type="number"
+                          min={0}
+                          value={form.age_max}
+                          onChange={(e) => setNonNegative("age_max", e.target.value)}
+                          className="form-input max-sm:appearance-none pr-9 sm:pr-3.5 [&::-webkit-inner-spin-button]:max-sm:appearance-none [&::-webkit-outer-spin-button]:max-sm:appearance-none"
+                        />
+                        <div className="absolute inset-y-0 right-1 flex flex-col justify-center gap-0.5 py-1 sm:hidden">
+                          <button
+                            type="button"
+                            aria-label="Increase maximum age"
+                            onClick={() => stepNonNegative("age_max", 1)}
+                            className="grid h-4 w-6 place-items-center rounded-sm text-gray-700 active:bg-surface"
+                          >
+                            <ChevronUp className="h-3.5 w-3.5" strokeWidth={3} />
+                          </button>
+                          <button
+                            type="button"
+                            aria-label="Decrease maximum age"
+                            onClick={() => stepNonNegative("age_max", -1)}
+                            className="grid h-4 w-6 place-items-center rounded-sm text-gray-700 active:bg-surface"
+                          >
+                            <ChevronDown className="h-3.5 w-3.5" strokeWidth={3} />
+                          </button>
+                        </div>
+                      </div>
                     </Field>
                   </div>
 
@@ -720,10 +964,12 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
 
                   <div className="grid gap-3 sm:grid-cols-2">
                     <Field label="Shift">
-                      <ThemedSelect value={form.shift} onChange={(e) => set("shift", e.target.value)} className="form-input">
-                        <option value="">Any</option>
-                        {SHIFTS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
-                      </ThemedSelect>
+                      <StateDropdown
+                        value={SHIFTS.find((s) => s.id === form.shift)?.label || ""}
+                        options={SHIFTS.map((s) => s.label)}
+                        placeholder="Any"
+                        onChange={(label) => set("shift", SHIFTS.find((s) => s.label === label)?.id || "")}
+                      />
                     </Field>
                     <Field label="Working days / week">
                       <input type="number" min={1} max={7} value={form.working_days} onChange={(e) => set("working_days", e.target.value)} className="form-input" placeholder="6" />

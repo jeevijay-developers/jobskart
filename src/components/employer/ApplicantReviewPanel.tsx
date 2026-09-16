@@ -101,7 +101,7 @@ export function ApplicantReviewPanel({ applicant: a, onClose, onStatusChange }: 
   return (
     <div className="fixed inset-0 z-50 flex">
       <div className="flex-1 bg-foreground/40" onClick={onClose} />
-      <aside className="w-full max-w-md overflow-y-auto bg-card p-6 shadow-2xl">
+      <aside className="w-[70vw] max-w-[70vw] min-w-0 overflow-y-auto bg-card p-6 shadow-2xl sm:w-full sm:max-w-md">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
             <div className="grid h-12 w-12 place-items-center rounded-full bg-primary-light text-base font-semibold text-primary">

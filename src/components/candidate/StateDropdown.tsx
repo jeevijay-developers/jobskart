@@ -6,6 +6,8 @@ type Props = {
   onChange: (v: string) => void;
   options: readonly string[];
   placeholder?: string;
+  /** Overrides the trigger button's className (default: the standard form-input look). */
+  triggerClassName?: string;
 };
 
 /**
@@ -14,7 +16,7 @@ type Props = {
  * scrollbar in favor of up/down arrow buttons, which can't be made to match
  * City/Town's look without touching the shared ThemedSelect used elsewhere).
  */
-export function StateDropdown({ value, onChange, options, placeholder = "Select state" }: Props) {
+export function StateDropdown({ value, onChange, options, placeholder = "Select state", triggerClassName }: Props) {
   const [open, setOpen] = useState(false);
   const [openUpward, setOpenUpward] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -44,7 +46,7 @@ export function StateDropdown({ value, onChange, options, placeholder = "Select 
     <div ref={containerRef} className="relative">
       <button
         type="button"
-        className="form-input flex items-center justify-between text-left"
+        className={triggerClassName ?? "form-input flex items-center justify-between text-left"}
         onClick={() => setOpen((o) => !o)}
       >
         <span className={value ? "" : "text-muted-foreground"}>{value || placeholder}</span>

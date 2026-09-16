@@ -99,9 +99,11 @@ export function ApplicantCard({ applicant: a, selected, onToggleSelect, onStatus
           <ApplicantStatusMenu value={a.status} onChange={onStatusChange} />
           <button
             onClick={onView}
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border px-2.5 text-xs font-semibold hover:bg-surface"
+            aria-label={`View ${a.profiles?.full_name || "candidate"}`}
+            title="View"
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-border hover:bg-surface"
           >
-            <Eye className="h-3.5 w-3.5" /> View
+            <Eye className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>
