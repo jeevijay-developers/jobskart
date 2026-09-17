@@ -31,7 +31,7 @@ export const Route = createFileRoute("/_authenticated/employer/reports")({
 
 function ReportsPage() {
   const [cid, setCid] = useState<string | null>(null);
-  const [range, setRange] = useState<7 | 30 | 90>(30);
+  const [range, setRange] = useState<7 | 30 | 90>(7);
   const [data, setData] = useState<EmployerAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const fetchAnalytics = useServerFn(getEmployerAnalytics);
@@ -125,7 +125,7 @@ function ReportsPage() {
                 config={applicationsChartConfig}
                 className="h-56 min-h-56 w-full aspect-auto lg:h-[148px] lg:min-h-0"
               >
-                <AreaChart data={data.daily} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
+                <AreaChart data={data.daily} margin={{ top: 4, right: 16, bottom: 0, left: 4 }}>
                   <defs>
                     <linearGradient id="applicationsFill" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.22} />
@@ -137,8 +137,9 @@ function ReportsPage() {
                     dataKey="date"
                     axisLine={false}
                     tickLine={false}
-                    tickMargin={8}
+                    tickMargin={10}
                     minTickGap={24}
+                    padding={{ left: 12, right: 12 }}
                     tickFormatter={formatChartDate}
                   />
                   <YAxis
@@ -146,7 +147,7 @@ function ReportsPage() {
                     axisLine={false}
                     tickLine={false}
                     tickMargin={8}
-                    width={36}
+                    width={40}
                     domain={[0, (dataMax: number) => Math.max(dataMax, 1)]}
                   />
                   <ChartTooltip
