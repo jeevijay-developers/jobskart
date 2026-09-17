@@ -62,7 +62,14 @@ type CompanyMeta = {
   logo_url: string | null;
 };
 
-type Learn = { id: string; title: string; slug: string; cover_url: string | null; kind: string; category: string | null };
+type Learn = {
+  id: string;
+  title: string;
+  slug: string;
+  cover_url: string | null;
+  kind: string;
+  category: string | null;
+};
 
 function EmployerDashboard() {
   const navigate = useNavigate();
@@ -71,7 +78,10 @@ function EmployerDashboard() {
   const [active, setActive] = useState<EmployerMembership | null>(null);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<DashStats>({
-    activeJobs: 0, totalApplications: 0, interviews: 0, views: 0,
+    activeJobs: 0,
+    totalApplications: 0,
+    interviews: 0,
+    views: 0,
   });
   const [recent, setRecent] = useState<RecentApp[]>([]);
   const [topJobs, setTopJobs] = useState<TopJob[]>([]);
@@ -112,12 +122,17 @@ function EmployerDashboard() {
           .order("applications_count", { ascending: false }),
         supabase
           .from("applications")
-          .select("id, status, created_at, jobs!inner (id, title, company_id), profiles!candidate_id (full_name, avatar_url)")
+          .select(
+            "id, status, created_at, jobs!inner (id, title, company_id), profiles!candidate_id (full_name, avatar_url)",
+          )
           .eq("jobs.company_id", cid)
           .order("created_at", { ascending: false })
           .limit(8),
         supabase.from("companies").select("about, logo_url").eq("id", cid).maybeSingle(),
-        supabase.from("employer_members").select("user_id", { count: "exact", head: true }).eq("company_id", cid),
+        supabase
+          .from("employer_members")
+          .select("user_id", { count: "exact", head: true })
+          .eq("company_id", cid),
         supabase
           .from("learning_resources")
           .select("id, title, slug, cover_url, kind, category")
@@ -131,8 +146,15 @@ function EmployerDashboard() {
       const safeIds = jobIds.length ? jobIds : ["00000000-0000-0000-0000-000000000000"];
 
       const [appsAll, interviews] = await Promise.all([
-        supabase.from("applications").select("id", { count: "exact", head: true }).in("job_id", safeIds),
-        supabase.from("applications").select("id", { count: "exact", head: true }).in("job_id", safeIds).eq("status", "interview"),
+        supabase
+          .from("applications")
+          .select("id", { count: "exact", head: true })
+          .in("job_id", safeIds),
+        supabase
+          .from("applications")
+          .select("id", { count: "exact", head: true })
+          .in("job_id", safeIds)
+          .eq("status", "interview"),
       ]);
 
       setStats({
@@ -187,11 +209,27 @@ function EmployerDashboard() {
   }
 
   const verified = active.companies.verification_status === "verified";
+  const roleLabel = active.role.replaceAll("_", " ");
 
   const kyc = [
-    { done: !!companyMeta?.logo_url, label: "Upload company logo", to: "/employer/company", icon: ImageIcon },
-    { done: !!(companyMeta?.about && companyMeta.about.length > 40), label: "Add company about (40+ chars)", to: "/employer/company", icon: FileText },
-    { done: verified, label: "Verify GST / get verified badge", to: "/employer/company", icon: ShieldCheck },
+    {
+      done: !!companyMeta?.logo_url,
+      label: "Upload company logo",
+      to: "/employer/company",
+      icon: ImageIcon,
+    },
+    {
+      done: !!(companyMeta?.about && companyMeta.about.length > 40),
+      label: "Add company about (40+ chars)",
+      to: "/employer/company",
+      icon: FileText,
+    },
+    {
+      done: verified,
+      label: "Verify GST / get verified badge",
+      to: "/employer/company",
+      icon: ShieldCheck,
+    },
     { done: teamCount > 1, label: "Invite a teammate", to: "/employer/team", icon: Users },
   ];
   const kycDone = kyc.filter((k) => k.done).length;
@@ -206,7 +244,10 @@ function EmployerDashboard() {
             value={active.company_id}
             onChange={(e) => {
               const next = companies.find((c) => c.company_id === e.target.value);
-              if (next) { setActive(next); setActiveCompanyId(next.company_id); }
+              if (next) {
+                setActive(next);
+                setActiveCompanyId(next.company_id);
+              }
             }}
           >
             {companies.map((c) => (
@@ -228,15 +269,26 @@ function EmployerDashboard() {
           <div className="flex min-w-0 items-center gap-3 sm:gap-4">
             <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-white/15 text-xl font-black ring-1 ring-white/20 sm:h-16 sm:w-16 sm:text-2xl lg:h-20 lg:w-20 lg:text-3xl">
               {active.companies.logo_url ? (
-                <img src={active.companies.logo_url} alt="" className="h-full w-full rounded-2xl object-cover" />
+                <img
+                  src={active.companies.logo_url}
+                  alt=""
+                  className="h-full w-full rounded-2xl object-cover"
+                />
               ) : (
                 active.companies.name.slice(0, 1).toUpperCase()
               )}
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wider text-white/70">Welcome back</p>
-              <h2 className="mt-1 break-words text-xl font-black leading-tight sm:truncate sm:text-2xl lg:text-3xl">{active.companies.name}</h2>
+              <p className="text-xs font-semibold uppercase tracking-wider text-white/70">
+                Welcome back
+              </p>
+              <h2 className="mt-1 break-words text-xl font-black leading-tight sm:truncate sm:text-2xl lg:text-3xl">
+                {active.companies.name}
+              </h2>
               <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs sm:gap-2">
+                <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-1 font-semibold capitalize ring-1 ring-white/30">
+                  <ShieldCheck className="h-3 w-3" /> {roleLabel}
+                </span>
                 {verified ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 font-semibold ring-1 ring-white/25">
                     <ShieldCheck className="h-3 w-3" /> Verified employer
@@ -273,7 +325,8 @@ function EmployerDashboard() {
               to="/employer/database"
               className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 px-3 text-sm font-semibold text-white hover:bg-white/15 sm:px-4"
             >
-              <Database className="h-4 w-4 shrink-0" /> <span className="truncate">Search candidates</span>
+              <Database className="h-4 w-4 shrink-0" />{" "}
+              <span className="truncate">Search candidates</span>
             </Link>
           </div>
         </div>
@@ -297,8 +350,12 @@ function EmployerDashboard() {
           {/* Activity feed */}
           <section className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="flex items-center gap-2 text-base font-bold"><ActivityIcon className="h-4 w-4 text-primary" /> Activity</h2>
-              <Link to="/employer/activity" className="text-xs font-semibold text-primary">View all →</Link>
+              <h2 className="flex items-center gap-2 text-base font-bold">
+                <ActivityIcon className="h-4 w-4 text-primary" /> Activity
+              </h2>
+              <Link to="/employer/activity" className="text-xs font-semibold text-primary">
+                View all →
+              </Link>
             </div>
             <ActivityFeed items={activity} loading={activityLoading} />
           </section>
@@ -307,7 +364,9 @@ function EmployerDashboard() {
           <section className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
             <div className="flex items-center justify-between">
               <h2 className="text-base font-bold">Recent applicants</h2>
-              <Link to="/employer/responses" className="text-xs font-semibold text-primary">Open inbox →</Link>
+              <Link to="/employer/responses" className="text-xs font-semibold text-primary">
+                Open inbox →
+              </Link>
             </div>
             <div className="mt-4 divide-y divide-border">
               {recent.length === 0 ? (
@@ -327,7 +386,9 @@ function EmployerDashboard() {
                         {(a.profiles?.full_name || "?").slice(0, 1).toUpperCase()}
                       </div>
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">{a.profiles?.full_name || "Candidate"}</p>
+                        <p className="truncate text-sm font-medium">
+                          {a.profiles?.full_name || "Candidate"}
+                        </p>
                         <p className="truncate text-xs text-muted-foreground">{a.jobs?.title}</p>
                       </div>
                     </div>
@@ -352,10 +413,14 @@ function EmployerDashboard() {
           <section className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-sm font-bold">Top performing jobs</h2>
-              <Link to="/employer/jobs" className="text-xs font-semibold text-primary">All →</Link>
+              <Link to="/employer/jobs" className="text-xs font-semibold text-primary">
+                All →
+              </Link>
             </div>
             {topJobs.length === 0 ? (
-              <p className="rounded-lg bg-surface px-3 py-6 text-center text-xs text-muted-foreground">No jobs posted yet</p>
+              <p className="rounded-lg bg-surface px-3 py-6 text-center text-xs text-muted-foreground">
+                No jobs posted yet
+              </p>
             ) : (
               <ul className="space-y-2">
                 {topJobs.map((j) => (
@@ -391,7 +456,10 @@ function EmployerDashboard() {
                 </span>
               </div>
               <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-surface">
-                <div className="h-full rounded-full bg-primary" style={{ width: `${(kycDone / kyc.length) * 100}%` }} />
+                <div
+                  className="h-full rounded-full bg-primary"
+                  style={{ width: `${(kycDone / kyc.length) * 100}%` }}
+                />
               </div>
               <ul className="space-y-1">
                 {kyc.map((k) => {
@@ -401,15 +469,23 @@ function EmployerDashboard() {
                       <Link
                         to={k.to}
                         className={`flex items-center gap-3 rounded-lg p-2 text-sm transition-colors ${
-                          k.done ? "text-muted-foreground line-through" : "text-foreground hover:bg-surface"
+                          k.done
+                            ? "text-muted-foreground line-through"
+                            : "text-foreground hover:bg-surface"
                         }`}
                       >
                         <span
                           className={`grid h-7 w-7 shrink-0 place-items-center rounded-full ${
-                            k.done ? "bg-success-light text-success" : "bg-primary-light text-primary"
+                            k.done
+                              ? "bg-success-light text-success"
+                              : "bg-primary-light text-primary"
                           }`}
                         >
-                          {k.done ? <ShieldCheck className="h-3.5 w-3.5" /> : <Icon className="h-3.5 w-3.5" />}
+                          {k.done ? (
+                            <ShieldCheck className="h-3.5 w-3.5" />
+                          ) : (
+                            <Icon className="h-3.5 w-3.5" />
+                          )}
                         </span>
                         <span className="flex-1">{k.label}</span>
                         {!k.done && <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />}
@@ -444,7 +520,9 @@ function EmployerDashboard() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium">{l.title}</p>
-                        <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{l.kind} · {l.category || "Tips"}</p>
+                        <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                          {l.kind} · {l.category || "Tips"}
+                        </p>
                       </div>
                     </a>
                   </li>
