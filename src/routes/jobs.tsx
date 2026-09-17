@@ -16,6 +16,7 @@ import { JobCard, type JobCardData } from "@/components/site/JobCard";
 import { AutocompleteInput } from "@/components/site/AutocompleteInput";
 import { CandidateMobileTabBar } from "@/components/candidate/CandidateShell";
 import { supabase } from "@/integrations/supabase/client";
+import { usePaginatedQuery } from "@/hooks/use-paginated-query";
 import {
   JOB_CATEGORIES,
   JOB_TYPE_OPTIONS,
@@ -188,9 +189,6 @@ function JobsList() {
   const [draft, setDraft] = useState<Filters>(() => filtersFromSearch(urlSearch));
   const sort: SortKey = urlSearch.sort ?? "newest";
   const page = Math.max(1, urlSearch.page ?? 1);
-  const [jobs, setJobs] = useState<JobCardData[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
   const [mobileFilters, setMobileFilters] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [isEmployer, setIsEmployer] = useState(false);
@@ -247,10 +245,22 @@ function JobsList() {
     urlSearch.verifiedOnly,
   ]);
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    (async () => {
+  const setPage = (next: number) => {
+    navigate({ search: buildSearch(filters, { sort, page: next }) });
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const {
+    rows: jobs,
+    total,
+    totalPages,
+    isLoading: loading,
+  } = usePaginatedQuery<JobCardData>({
+    queryKey: ["jobs-list", filters, sort],
+    pageSize: PAGE_SIZE,
+    page,
+    onPageChange: setPage,
+    fetchPage: async ({ from, to }) => {
       let q = supabase
         .from("jobs")
         .select(
@@ -288,22 +298,13 @@ function JobsList() {
       if (filters.vehicle) q = q.contains("required_assets", ["Two-wheeler"]);
       if (filters.verifiedOnly) q = q.eq("companies.is_verified", true);
 
-      const from = (page - 1) * PAGE_SIZE;
-      const to = from + PAGE_SIZE - 1;
       q = q.range(from, to);
 
       const { data, count, error } = await q;
-      if (!cancelled) {
-        if (error) console.error(error);
-        setJobs((data as unknown as JobCardData[]) || []);
-        setTotal(count ?? 0);
-        setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [filters, sort, page]);
+      if (error) throw error;
+      return { rows: (data as unknown as JobCardData[]) || [], total: count ?? 0 };
+    },
+  });
 
   const apply = () => {
     setFilters(draft);
@@ -319,13 +320,8 @@ function JobsList() {
   const setSort = (next: SortKey) => {
     navigate({ search: buildSearch(filters, { sort: next }), replace: true });
   };
-  const setPage = (next: number) => {
-    navigate({ search: buildSearch(filters, { sort, page: next }) });
-    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
-  };
 
   const activeCount = useMemo(() => Object.values(filters).filter(Boolean).length, [filters]);
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <div

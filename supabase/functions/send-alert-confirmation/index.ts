@@ -2,6 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { createAdminClient } from "../_shared/supabaseAdmin.ts";
 import { sendEmail } from "../_shared/resend.ts";
 import { alertConfirmationEmail } from "../_shared/templates.ts";
+import { CORS_HEADERS, handleCorsPreflight } from "../_shared/cors.ts";
 
 // Called directly from the client (src/routes/_authenticated/candidate/alerts.tsx)
 // right after a candidate creates a new alert — fire-and-forget, not tied to any
@@ -9,15 +10,18 @@ import { alertConfirmationEmail } from "../_shared/templates.ts";
 // deploy) and additionally checks that the JWT's user owns the alert being
 // confirmed, so one candidate can't trigger a confirmation email for another's alert.
 Deno.serve(async (req) => {
-  if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
+  const preflight = handleCorsPreflight(req);
+  if (preflight) return preflight;
+  if (req.method !== "POST")
+    return new Response("Method not allowed", { status: 405, headers: CORS_HEADERS });
 
   let alertId: string | undefined;
   try {
     ({ alertId } = await req.json());
   } catch {
-    return new Response("Invalid JSON", { status: 400 });
+    return new Response("Invalid JSON", { status: 400, headers: CORS_HEADERS });
   }
-  if (!alertId) return new Response("alertId required", { status: 400 });
+  if (!alertId) return new Response("alertId required", { status: 400, headers: CORS_HEADERS });
 
   const authHeader = req.headers.get("Authorization") ?? "";
   const anon = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
@@ -26,7 +30,7 @@ Deno.serve(async (req) => {
   const {
     data: { user },
   } = await anon.auth.getUser();
-  if (!user) return new Response("Unauthorized", { status: 401 });
+  if (!user) return new Response("Unauthorized", { status: 401, headers: CORS_HEADERS });
 
   const admin = createAdminClient();
   const { data: alert, error } = await admin
@@ -36,7 +40,7 @@ Deno.serve(async (req) => {
     .maybeSingle();
 
   if (error || !alert || alert.user_id !== user.id) {
-    return new Response("Not found", { status: 404 });
+    return new Response("Not found", { status: 404, headers: CORS_HEADERS });
   }
 
   const { data: profile } = await admin
@@ -44,7 +48,8 @@ Deno.serve(async (req) => {
     .select("email")
     .eq("id", user.id)
     .maybeSingle();
-  if (!profile?.email) return new Response("No email on file", { status: 200 });
+  if (!profile?.email)
+    return new Response("No email on file", { status: 200, headers: CORS_HEADERS });
 
   const query = (alert.query ?? {}) as { keyword?: string | null; city?: string | null };
   const { subject, html, text } = alertConfirmationEmail({
@@ -56,6 +61,6 @@ Deno.serve(async (req) => {
   const result = await sendEmail({ to: profile.email, subject, html, text });
   return new Response(JSON.stringify(result), {
     status: result.ok ? 200 : 502,
-    headers: { "Content-Type": "application/json" },
+    headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
   });
 });

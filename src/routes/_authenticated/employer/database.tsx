@@ -7,14 +7,18 @@ import {
   Briefcase,
   Lock,
   Loader2,
-  Phone,
   Mail,
   UserRound,
   Coins,
   X,
+  ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { EmployerShell } from "@/components/employer/EmployerShell";
+import {
+  ApplicantReviewPanel,
+  type ReviewApplicant,
+} from "@/components/employer/ApplicantReviewPanel";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchMyCompanies, getActiveCompanyId, type EmployerMembership } from "@/lib/employer";
 import {
@@ -23,6 +27,17 @@ import {
   unlockCandidateContact,
 } from "@/lib/credits.functions";
 import { INDIAN_CITIES } from "@/lib/options";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Pagination } from "@/components/site/Pagination";
+import { usePaginatedQuery } from "@/hooks/use-paginated-query";
+
+const DATABASE_PAGE_SIZE = 20;
 
 export const Route = createFileRoute("/_authenticated/employer/database")({
   head: () => ({ meta: [{ title: "Candidate database · JobsKart Employer" }] }),
@@ -38,13 +53,9 @@ type Candidate = {
   skills: string[] | null;
   preferred_cities: string[] | null;
   preferred_work_mode: string | null;
-  profiles: {
-    full_name: string | null;
-    avatar_url: string | null;
-    city: string | null;
-    mobile: string | null;
-    email: string | null;
-  } | null;
+  full_name: string | null;
+  avatar_url: string | null;
+  city: string | null;
 };
 
 function maskName(name: string | null) {
@@ -52,28 +63,31 @@ function maskName(name: string | null) {
   const parts = name.trim().split(" ");
   return parts.map((p) => (p ? p[0] + "•••" : "")).join(" ");
 }
-function maskMobile(m: string | null) {
-  if (!m) return "+91 •••• •• ••••";
-  const digits = m.replace(/\D/g, "").slice(-10);
-  return `+91 ${digits.slice(0, 2)}•••• ${digits.slice(-3)}`;
+const MASKED_MOBILE = "+91 •••• •• ••••";
+function experienceLabel(minExp: number) {
+  if (minExp === 0) return "Fresher (0+)";
+  return `${minExp}+ years`;
 }
 
 function DatabasePage() {
   const [active, setActive] = useState<EmployerMembership | null>(null);
   const [loading, setLoading] = useState(true);
   const [gated, setGated] = useState(false);
-  const [searching, setSearching] = useState(false);
   const [balance, setBalance] = useState(0);
   const [unlocked, setUnlocked] = useState<Set<string>>(new Set());
   const [contacts, setContacts] = useState<Record<string, { full_name: string; mobile: string; email: string }>>({});
 
-  // filters
+  // Draft filters (live as the employer types/picks) vs. submitted filters
+  // (what's actually searched) — city/query only take effect on Search;
+  // experience narrows immediately, matching the dropdown's existing UX.
   const [q, setQ] = useState("");
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [cityInput, setCityInput] = useState("");
   const [minExp, setMinExp] = useState<number | "">("");
-  const [results, setResults] = useState<Candidate[]>([]);
+  const [submitted, setSubmitted] = useState({ query: "", cities: [] as string[], minExp: "" as number | "" });
   const [unlockingId, setUnlockingId] = useState<string | null>(null);
+  const [reviewApplicant, setReviewApplicant] = useState<ReviewApplicant | null>(null);
+  const [reviewHasApplication, setReviewHasApplication] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -104,41 +118,56 @@ function DatabasePage() {
         setBalance(w.balance);
         setUnlocked(new Set(ids));
       }
-      await runSearch();
       setLoading(false);
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const runSearch = async () => {
-    setSearching(true);
-    try {
-      let query = supabase
-        .from("candidate_profiles")
-        .select(
-          "user_id, profile_slug, headline, last_role, years_experience, skills, preferred_cities, preferred_work_mode, profiles!candidate_profiles_user_id_fkey (full_name, avatar_url, city, mobile, email)",
-        )
-        .eq("onboarding_completed", true)
-        .order("profile_strength", { ascending: false })
-        .limit(40);
-
-      if (selectedCities.length > 0) {
-        query = query.overlaps("preferred_cities", selectedCities);
-      }
-      if (typeof minExp === "number") query = query.gte("years_experience", minExp);
-      if (q.trim()) {
-        const term = q.trim();
-        query = query.or(`headline.ilike.%${term}%,last_role.ilike.%${term}%`);
-      }
-      const { data, error } = await query;
+  const {
+    rows: results,
+    totalPages,
+    page,
+    setPage,
+    isLoading: searching,
+    error: searchError,
+  } = usePaginatedQuery<Candidate>({
+    queryKey: [
+      "employer-database-search",
+      active?.company_id,
+      submitted.query,
+      submitted.cities,
+      submitted.minExp,
+    ],
+    pageSize: DATABASE_PAGE_SIZE,
+    enabled: !!active && !gated,
+    fetchPage: async ({ from }) => {
+      if (!active) return { rows: [], total: 0 };
+      const { data, error } = await supabase.rpc("search_candidates_for_company", {
+        _company_id: active.company_id,
+        _query: submitted.query.trim() || undefined,
+        _cities: submitted.cities.length > 0 ? submitted.cities : undefined,
+        _min_experience: typeof submitted.minExp === "number" ? submitted.minExp : undefined,
+        _limit: DATABASE_PAGE_SIZE,
+        _offset: from,
+      });
       if (error) throw error;
-      setResults((data || []) as unknown as Candidate[]);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Search failed.");
-    } finally {
-      setSearching(false);
+      const rows = (data || []) as unknown as Array<Candidate & { total_count: number }>;
+      return { rows, total: rows[0]?.total_count ?? 0 };
+    },
+  });
+
+  useEffect(() => {
+    if (!searchError) return;
+    const message = searchError instanceof Error ? searchError.message : "";
+    if (message.includes("no_active_job")) {
+      toast.error("Post an active job to search the database.");
+    } else if (message.includes("insufficient_permissions")) {
+      toast.error("You don't have access to this company's database.");
+    } else {
+      toast.error(message || "Search failed.");
     }
-  };
+  }, [searchError]);
+
+  const runSearch = () => setSubmitted({ query: q, cities: selectedCities, minExp });
 
   const handleUnlock = async (c: Candidate) => {
     if (!active) return;
@@ -160,6 +189,78 @@ function DatabasePage() {
     } finally {
       setUnlockingId(null);
     }
+  };
+
+  // Unlocked candidates open the same review panel used on Responses/applicants.
+  // Most database-search candidates haven't applied to a job at this company, so
+  // there's no application row to seed it with — open immediately with what's
+  // already known (search result + unlocked contact), then upgrade in place if a
+  // real application to one of this company's jobs turns up.
+  const openProfile = (c: Candidate) => {
+    const contact = contacts[c.user_id];
+    setReviewHasApplication(false);
+    setReviewApplicant({
+      id: c.user_id,
+      candidate_id: c.user_id,
+      status: "",
+      created_at: new Date().toISOString(),
+      cover_note: null,
+      expected_salary: null,
+      available_from: null,
+      profiles: {
+        full_name: c.full_name ?? contact?.full_name ?? null,
+        email: contact?.email ?? null,
+        mobile: contact?.mobile ?? null,
+        city: c.city,
+      },
+      candidate_profiles: {
+        profile_slug: c.profile_slug,
+        headline: c.headline,
+        last_role: c.last_role,
+        skills: c.skills,
+      },
+    });
+
+    if (!active) return;
+    supabase
+      .from("applications")
+      .select("id, status, created_at, cover_note, expected_salary, available_from, jobs!inner (company_id)")
+      .eq("candidate_id", c.user_id)
+      .eq("jobs.company_id", active.company_id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!data) return;
+        setReviewHasApplication(true);
+        setReviewApplicant((prev) =>
+          prev && prev.candidate_id === c.user_id
+            ? {
+                ...prev,
+                id: data.id,
+                status: data.status,
+                created_at: data.created_at,
+                cover_note: data.cover_note,
+                expected_salary: data.expected_salary,
+                available_from: data.available_from,
+              }
+            : prev,
+        );
+      });
+  };
+
+  const handleReviewStatusChange = async (status: string) => {
+    if (!reviewApplicant || !reviewHasApplication) {
+      toast.info("This candidate hasn't applied to a job at your company yet.");
+      return;
+    }
+    const { error } = await supabase
+      .from("applications")
+      .update({ status } as never)
+      .eq("id", reviewApplicant.id);
+    if (error) return toast.error(error.message);
+    toast.success(`Marked as ${status}`);
+    setReviewApplicant((prev) => (prev ? { ...prev, status } : prev));
   };
 
   const cities = useMemo(() => ["", ...INDIAN_CITIES], []);
@@ -207,7 +308,7 @@ function DatabasePage() {
         }}
         className="rounded-2xl border border-border bg-card p-4 shadow-sm"
       >
-        <div className="grid gap-3 sm:grid-cols-[1fr_220px_160px_auto]">
+        <div className="grid gap-3 sm:grid-cols-[1fr_220px_auto]">
           <label className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
@@ -234,17 +335,6 @@ function DatabasePage() {
             </ThemedSelect>
             {void cityInput}{void setCityInput}
           </div>
-          <ThemedSelect
-            value={minExp}
-            onChange={(e) => setMinExp(e.target.value === "" ? "" : Number(e.target.value))}
-            className="h-11 rounded-lg border border-border bg-surface px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
-          >
-            <option value="">Any experience</option>
-            <option value={0}>Fresher (0+)</option>
-            <option value={1}>1+ years</option>
-            <option value={3}>3+ years</option>
-            <option value={5}>5+ years</option>
-          </ThemedSelect>
           <button
             type="submit"
             disabled={searching}
@@ -254,6 +344,37 @@ function DatabasePage() {
             Search
           </button>
         </div>
+
+        <div className="mt-3">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-sm font-semibold hover:bg-surface"
+              >
+                {typeof minExp === "number" ? experienceLabel(minExp) : "Any experience"}
+                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuRadioGroup
+                value={minExp === "" ? "any" : String(minExp)}
+                onValueChange={(v) => {
+                  const next = v === "any" ? "" : Number(v);
+                  setMinExp(next);
+                  setSubmitted((s) => ({ ...s, minExp: next }));
+                }}
+              >
+                <DropdownMenuRadioItem value="any">Any experience</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="0">Fresher (0+)</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="1">1+ years</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="3">3+ years</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="5">5+ years</DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
         {selectedCities.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-2">
             {selectedCities.map((c) => (
@@ -293,27 +414,41 @@ function DatabasePage() {
         {results.map((c) => {
           const isUnlocked = unlocked.has(c.user_id);
           const contact = contacts[c.user_id];
-          const profile = c.profiles;
           return (
             <article
               key={c.user_id}
-              className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 rounded-2xl border border-border bg-card p-4 shadow-sm sm:flex sm:flex-wrap"
+              onClick={isUnlocked ? () => openProfile(c) : undefined}
+              role={isUnlocked ? "button" : undefined}
+              tabIndex={isUnlocked ? 0 : undefined}
+              onKeyDown={
+                isUnlocked
+                  ? (e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        openProfile(c);
+                      }
+                    }
+                  : undefined
+              }
+              className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 rounded-2xl border border-border bg-card p-4 shadow-sm sm:flex sm:flex-wrap ${
+                isUnlocked ? "cursor-pointer hover:border-primary/40" : ""
+              }`}
             >
               <div className="flex min-w-0 items-center gap-3 sm:flex-1">
                 <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-primary-light text-primary font-bold">
-                  {(profile?.full_name?.[0] ?? "C").toUpperCase()}
+                  {(c.full_name?.[0] ?? "C").toUpperCase()}
                 </div>
                 <div className="min-w-0">
                   <p className="truncate font-semibold text-foreground">
-                    {isUnlocked ? profile?.full_name ?? contact?.full_name : maskName(profile?.full_name ?? null)}
+                    {isUnlocked ? c.full_name ?? contact?.full_name : maskName(c.full_name)}
                   </p>
                   <p className="truncate text-sm text-muted-foreground">
                     {c.headline || c.last_role || "Candidate"}
                   </p>
                   <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                    {profile?.city && (
+                    {c.city && (
                       <span className="inline-flex items-center gap-1">
-                        <MapPin className="h-3 w-3" /> {profile.city}
+                        <MapPin className="h-3 w-3" /> {c.city}
                       </span>
                     )}
                     {typeof c.years_experience === "number" && (
@@ -324,7 +459,7 @@ function DatabasePage() {
                   </div>
                   {c.skills && c.skills.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-1.5">
-                      {c.skills.slice(0, 5).map((s) => (
+                      {c.skills.slice(0, 4).map((s) => (
                         <span key={s} className="rounded-full bg-surface px-2 py-0.5 text-[11px] font-medium text-foreground">
                           {s}
                         </span>
@@ -337,19 +472,16 @@ function DatabasePage() {
               <div className="flex shrink-0 flex-col items-end gap-2 sm:items-end">
                 {isUnlocked ? (
                   <div className="space-y-1 text-right text-sm">
-                    <p className="inline-flex items-center gap-1.5 font-semibold text-foreground">
-                      <Phone className="h-3.5 w-3.5 text-primary" />
-                      {contact?.mobile || profile?.mobile}
-                    </p>
-                    {(contact?.email || profile?.email) && (
+                    <p className="font-semibold text-foreground">{contact?.mobile}</p>
+                    {contact?.email && (
                       <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Mail className="h-3 w-3" /> {contact?.email || profile?.email}
+                        <Mail className="h-3 w-3" /> {contact.email}
                       </p>
                     )}
                   </div>
                 ) : (
                   <>
-                    <p className="text-right text-xs text-muted-foreground">{maskMobile(profile?.mobile ?? null)}</p>
+                    <p className="text-right text-xs text-muted-foreground">{MASKED_MOBILE}</p>
                     <button
                       onClick={() => handleUnlock(c)}
                       disabled={unlockingId === c.user_id}
@@ -369,6 +501,15 @@ function DatabasePage() {
           );
         })}
       </div>
+      {totalPages > 1 && <Pagination page={page} totalPages={totalPages} onChange={setPage} className="mt-6" />}
+
+      {reviewApplicant && (
+        <ApplicantReviewPanel
+          applicant={reviewApplicant}
+          onClose={() => setReviewApplicant(null)}
+          onStatusChange={handleReviewStatusChange}
+        />
+      )}
     </EmployerShell>
   );
 }

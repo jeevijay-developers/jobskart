@@ -1,5 +1,5 @@
 import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Briefcase, ChevronDown, ChevronRight, Copy, Eye, Filter, MoreVertical, Pause, Pencil, Play, Plus, Search, Trash2, Users,
 } from "lucide-react";
@@ -16,6 +16,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchMyCompanies, getActiveCompanyId } from "@/lib/employer";
 import { formatSalary, jobTypeLabel } from "@/lib/format";
 import { formatDistanceToNow } from "date-fns";
+import { Pagination } from "@/components/site/Pagination";
+import { usePaginatedQuery } from "@/hooks/use-paginated-query";
+
+const JOBS_PAGE_SIZE = 20;
 
 export const Route = createFileRoute("/_authenticated/employer/jobs")({
   head: () => ({ meta: [{ title: "Manage Jobs · JobsKart" }] }),
@@ -46,11 +50,10 @@ function EmployerJobs() {
 }
 
 function EmployerJobsList() {
+  const [cid, setCid] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [allJobs, setAllJobs] = useState<Job[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [counts, setCounts] = useState<Record<string, number>>({ all: 0, active: 0, paused: 0, closed: 0, draft: 0 });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -67,50 +70,71 @@ function EmployerJobsList() {
     return () => mq.removeEventListener("change", update);
   }, []);
 
-  const load = async () => {
-    setLoading(true);
-    const { data: user } = await supabase.auth.getUser();
-    if (!user.user) return;
-    let cid = getActiveCompanyId();
-    if (!cid) {
-      const ms = await fetchMyCompanies(user.user.id);
-      cid = ms[0]?.company_id ?? null;
+  useEffect(() => {
+    (async () => {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) return;
+      let id = getActiveCompanyId();
+      if (!id) {
+        const ms = await fetchMyCompanies(user.user.id);
+        id = ms[0]?.company_id ?? null;
+      }
+      setCid(id);
+    })();
+  }, []);
+
+  const loadCounts = async (companyId: string) => {
+    const { data, error } = await supabase.from("jobs").select("status").eq("company_id", companyId);
+    if (error) return toast.error(error.message);
+    const rows = (data || []) as { status: string }[];
+    const c: Record<string, number> = { all: rows.length };
+    for (const s of ["active", "paused", "closed", "draft"]) {
+      c[s] = rows.filter((r) => r.status === s).length;
     }
-    if (!cid) { setJobs([]); setAllJobs([]); setLoading(false); return; }
-    const { data, error } = await supabase
-      .from("jobs")
-      .select("id, title, city, status, job_type, min_salary, max_salary, salary_period, applications_count, views_count, created_at")
-      .eq("company_id", cid)
-      .order("created_at", { ascending: false });
-    if (error) toast.error(error.message);
-    setAllJobs((data || []) as Job[]);
-    setLoading(false);
+    setCounts(c);
+  };
+  useEffect(() => { if (cid) loadCounts(cid); /* eslint-disable-next-line */ }, [cid]);
+
+  const {
+    rows: jobs,
+    totalPages,
+    page,
+    setPage,
+    isLoading: loading,
+    refetch: refetchJobs,
+  } = usePaginatedQuery<Job>({
+    queryKey: ["employer-jobs", cid, statusFilter, search],
+    pageSize: JOBS_PAGE_SIZE,
+    enabled: !!cid,
+    fetchPage: async ({ from, to }) => {
+      if (!cid) return { rows: [], total: 0 };
+      let q = supabase
+        .from("jobs")
+        .select(
+          "id, title, city, status, job_type, min_salary, max_salary, salary_period, applications_count, views_count, created_at",
+          { count: "exact" },
+        )
+        .eq("company_id", cid)
+        .order("created_at", { ascending: false });
+      if (statusFilter !== "all") q = q.eq("status", statusFilter as never);
+      if (search.trim()) q = q.ilike("title", `%${search.trim()}%`);
+      q = q.range(from, to);
+      const { data, count, error } = await q;
+      if (error) throw error;
+      return { rows: (data || []) as Job[], total: count ?? 0 };
+    },
+  });
+
+  // A full reload after a mutation (status change, duplicate, delete) needs
+  // both the current page's rows and the status-badge counts refreshed.
+  const reload = () => {
+    refetchJobs();
+    if (cid) loadCounts(cid);
   };
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
-
-  // client-side filter so counts always render
-  useEffect(() => {
-    let res = allJobs;
-    if (statusFilter !== "all") res = res.filter((j) => j.status === statusFilter);
-    if (search.trim()) {
-      const t = search.toLowerCase();
-      res = res.filter((j) => j.title.toLowerCase().includes(t));
-    }
-    setJobs(res);
-  }, [allJobs, statusFilter, search]);
-
-  const counts = useMemo(() => {
-    const c: Record<string, number> = { all: allJobs.length };
-    for (const s of ["active", "paused", "closed", "draft"]) {
-      c[s] = allJobs.filter((j) => j.status === s).length;
-    }
-    return c;
-  }, [allJobs]);
-
   // A stale selection could otherwise silently act on jobs no longer visible
-  // once the filters change what's on screen.
-  useEffect(() => { setSelected(new Set()); }, [statusFilter, search]);
+  // once the filters or page change what's on screen.
+  useEffect(() => { setSelected(new Set()); }, [statusFilter, search, page]);
 
   const toggleSelect = (id: string) => setSelected((s) => {
     const n = new Set(s);
@@ -122,23 +146,21 @@ function EmployerJobsList() {
     const { error } = await supabase.from("jobs").update({ status } as never).eq("id", id);
     if (error) return toast.error(error.message);
     toast.success(`Job ${status}.`);
-    load();
+    reload();
   };
 
   const duplicate = async (id: string) => {
-    const orig = allJobs.find((j) => j.id === id);
-    if (!orig) return;
     const { data: full, error: fErr } = await supabase.from("jobs").select("*").eq("id", id).single();
     if (fErr || !full) return toast.error(fErr?.message || "Could not load job");
     const f = full as Record<string, unknown>;
     delete f.id; delete f.created_at; delete f.updated_at; delete f.slug;
     delete f.applications_count; delete f.views_count; delete f.quality_score;
-    f.title = `${orig.title} (copy)`;
+    f.title = `${f.title} (copy)`;
     f.status = "draft";
     const { error } = await supabase.from("jobs").insert(f as never);
     if (error) return toast.error(error.message);
     toast.success("Job duplicated as draft.");
-    load();
+    reload();
   };
 
   const bulkDelete = async () => {
@@ -151,7 +173,7 @@ function EmployerJobsList() {
     if (error) return toast.error(error.message);
     toast.success(`Deleted ${ids.length} job${ids.length === 1 ? "" : "s"}.`);
     setSelected(new Set());
-    load();
+    reload();
   };
 
   // Mixed selections only pause the jobs that are currently active — already
@@ -166,7 +188,7 @@ function EmployerJobsList() {
     if (error) return toast.error(error.message);
     toast.success(`Paused ${ids.length} job${ids.length === 1 ? "" : "s"}.`);
     setSelected(new Set());
-    load();
+    reload();
   };
 
   const statusLabel = statusFilter === "all"
@@ -371,6 +393,7 @@ function EmployerJobsList() {
               </div>
             </div>
           ))}
+          {totalPages > 1 && <Pagination page={page} totalPages={totalPages} onChange={setPage} />}
         </div>
       )}
 

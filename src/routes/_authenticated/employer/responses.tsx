@@ -59,6 +59,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchMyCompanies, getActiveCompanyId } from "@/lib/employer";
 import { recommendShortlist } from "@/lib/ai-shortlist.functions";
 import { buildDownloadDataset } from "@/lib/downloads.functions";
+import { Pagination } from "@/components/site/Pagination";
+import { usePaginatedQuery } from "@/hooks/use-paginated-query";
 
 export const Route = createFileRoute("/_authenticated/employer/responses")({
   head: () => ({ meta: [{ title: "Responses · JobsKart Employer" }] }),
@@ -66,6 +68,7 @@ export const Route = createFileRoute("/_authenticated/employer/responses")({
 });
 
 const NOTIFY_STATUSES = new Set(["shortlisted", "interview", "rejected"]);
+const RESPONSES_PAGE_SIZE = 20;
 
 type Row = {
   id: string;
@@ -103,8 +106,6 @@ type PendingStatusChange = { ids: string[]; names: string[]; status: string; lab
 function ResponsesPage() {
   const [cid, setCid] = useState<string | null>(null);
   const [jobs, setJobs] = useState<{ id: string; title: string }[]>([]);
-  const [rows, setRows] = useState<Row[]>([]);
-  const [loading, setLoading] = useState(true);
   const [jobFilter, setJobFilter] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [nameQuery, setNameQuery] = useState("");
@@ -157,10 +158,7 @@ function ResponsesPage() {
           id = ms[0]?.company_id ?? null;
         }
       }
-      if (!id) {
-        setLoading(false);
-        return;
-      }
+      if (!id) return;
       setCid(id);
       const { data: js } = await supabase
         .from("jobs")
@@ -171,44 +169,51 @@ function ResponsesPage() {
     })();
   }, []);
 
-  const load = async () => {
-    if (!cid) return;
-    setLoading(true);
-    let qy = supabase
-      .from("applications")
-      .select(
-        "id, status, created_at, candidate_id, cover_note, expected_salary, available_from, jobs!inner (id, title, company_id), profiles!candidate_id (full_name, email, city, avatar_url, mobile)",
-      )
-      .eq("jobs.company_id", cid)
-      .order("created_at", { ascending: false })
-      .limit(200);
-    if (jobFilter) qy = qy.eq("job_id", jobFilter);
-    if (statusFilter) qy = qy.eq("status", statusFilter as never);
-    const { data, error } = await qy;
-    if (error) toast.error(error.message);
-    const loaded = (data || []) as unknown as Row[];
-    setRows(loaded);
-    setLoading(false);
+  const {
+    rows: filtered,
+    total: inboxTotal,
+    totalPages: inboxTotalPages,
+    page: inboxPage,
+    setPage: setInboxPage,
+    isLoading: loading,
+    refetch: refetchInbox,
+  } = usePaginatedQuery<Row>({
+    queryKey: ["employer-responses", "inbox", cid, jobFilter, statusFilter, nameQuery],
+    pageSize: RESPONSES_PAGE_SIZE,
+    enabled: !!cid,
+    fetchPage: async ({ from, to }) => {
+      if (!cid) return { rows: [], total: 0 };
+      let qy = supabase
+        .from("applications")
+        .select(
+          "id, status, created_at, candidate_id, cover_note, expected_salary, available_from, jobs!inner (id, title, company_id), profiles!candidate_id!inner (full_name, email, city, avatar_url, mobile)",
+          { count: "exact" },
+        )
+        .eq("jobs.company_id", cid)
+        .order("created_at", { ascending: false });
+      if (jobFilter) qy = qy.eq("job_id", jobFilter);
+      if (statusFilter) qy = qy.eq("status", statusFilter as never);
+      if (nameQuery.trim()) qy = qy.ilike("profiles.full_name", `%${nameQuery.trim()}%`);
+      qy = qy.range(from, to);
+      const { data, count, error } = await qy;
+      if (error) throw error;
+      return { rows: (data || []) as unknown as Row[], total: count ?? 0 };
+    },
+  });
 
-    const candidateIds = Array.from(new Set(loaded.map((r) => r.candidate_id)));
-    if (candidateIds.length) {
+  // Candidate-profile snippets (headline/skills) for the review panel, scoped
+  // to whichever page of the inbox is currently on screen.
+  useEffect(() => {
+    const candidateIds = Array.from(new Set(filtered.map((r) => r.candidate_id)));
+    if (!candidateIds.length) return;
+    (async () => {
       const { data: cps } = await supabase
         .from("candidate_profiles")
         .select("user_id, profile_slug, headline, last_role, skills")
         .in("user_id", candidateIds);
       setCpMap(Object.fromEntries((cps || []).map((c) => [c.user_id, c])));
-    }
-  };
-
-  useEffect(() => {
-    if (cid) load(); /* eslint-disable-next-line */
-  }, [cid, jobFilter, statusFilter]);
-
-  const filtered = useMemo(() => {
-    if (!nameQuery.trim()) return rows;
-    const needle = nameQuery.toLowerCase();
-    return rows.filter((r) => (r.profiles?.full_name || "").toLowerCase().includes(needle));
-  }, [rows, nameQuery]);
+    })();
+  }, [filtered]);
 
   const filteredAiRows = useMemo(() => {
     if (!nameQuery.trim()) return aiRows;
@@ -222,7 +227,6 @@ function ResponsesPage() {
   );
 
   const setStatus = async (ids: string[], status: string) => {
-    setRows((p) => p.map((r) => (ids.includes(r.id) ? { ...r, status } : r)));
     setReviewing((r) => (r && ids.includes(r.id) ? { ...r, status } : r));
     const { error } = await supabase
       .from("applications")
@@ -230,10 +234,10 @@ function ResponsesPage() {
       .in("id", ids);
     if (error) {
       toast.error(error.message);
-      load();
       return;
     }
     toast.success(`Marked ${ids.length} as ${status}`);
+    refetchInbox();
     if (NOTIFY_STATUSES.has(status)) {
       for (const id of ids) {
         supabase.functions
@@ -325,7 +329,7 @@ function ResponsesPage() {
             <span className="hidden sm:inline">Excel (max 300/day)</span>
           </button>
           <button
-            onClick={load}
+            onClick={() => refetchInbox()}
             className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold hover:bg-surface"
           >
             <RefreshCw className="h-3.5 w-3.5" /> Refresh
@@ -353,7 +357,7 @@ function ResponsesPage() {
         >
           <Inbox className="h-4 w-4" /> Inbox{" "}
           <span className="rounded-full bg-black/10 px-1.5 text-[10px] tabular-nums">
-            {filtered.length}
+            {inboxTotal}
           </span>
         </button>
         <button
@@ -561,6 +565,9 @@ function ResponsesPage() {
                 );
               })}
             </ul>
+          )}
+          {inboxTotalPages > 1 && (
+            <Pagination page={inboxPage} totalPages={inboxTotalPages} onChange={setInboxPage} className="mt-6" />
           )}
         </>
       ) : (
