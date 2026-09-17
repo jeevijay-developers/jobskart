@@ -2331,6 +2331,30 @@ export type Database = {
         Args: { _company_id: string; _user_id: string }
         Returns: undefined
       }
+      search_candidates_for_company: {
+        Args: {
+          _cities?: string[]
+          _company_id: string
+          _limit?: number
+          _min_experience?: number
+          _offset?: number
+          _query?: string
+        }
+        Returns: {
+          avatar_url: string
+          city: string
+          full_name: string
+          headline: string
+          last_role: string
+          preferred_cities: string[]
+          preferred_work_mode: string
+          profile_slug: string
+          skills: string[]
+          total_count: number
+          user_id: string
+          years_experience: number
+        }[]
+      }
       slugify: { Args: { _text: string }; Returns: string }
       suggest_skills_for_roles: {
         Args: { _roles: string[] }

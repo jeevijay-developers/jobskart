@@ -21,6 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { strengthLabel } from "@/lib/profileStrength";
 import { upsertNudgeShown } from "@/lib/candidate.functions";
 import { useBackToHome } from "@/hooks/use-back-to-home";
+import { usePaginatedQuery } from "@/hooks/use-paginated-query";
 
 export const Route = createFileRoute("/_authenticated/candidate/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard · JobsKart" }] }),
@@ -56,7 +57,6 @@ function CandidateDashboard() {
     appliedWeek: 0,
   });
   const [recommended, setRecommended] = useState<JobCardData[]>([]);
-  const [recPage, setRecPage] = useState(1);
   const [missing, setMissing] = useState<string[]>([]);
   const [learning, setLearning] = useState<LearningRow[]>([]);
   const [verified, setVerified] = useState(false);
@@ -129,7 +129,6 @@ function CandidateDashboard() {
           .map((x) => x.j);
       }
       setRecommended(recs);
-      setRecPage(1);
 
       // Missing items
       const miss: string[] = [];
@@ -146,6 +145,21 @@ function CandidateDashboard() {
   }, [navigate]);
 
   const firstName = name.split(" ")[0] || "there";
+
+  const {
+    page: recPage,
+    setPage: setRecPage,
+    rows: recommendedPage,
+    totalPages: recommendedTotalPages,
+  } = usePaginatedQuery<JobCardData>({
+    queryKey: ["candidate-dashboard", "recommended", recommended],
+    pageSize: REC_JOBS_PAGE_SIZE,
+    fetchPage: async ({ from, to }) => ({
+      rows: recommended.slice(from, to + 1),
+      total: recommended.length,
+    }),
+    enabled: recommended.length > 0,
+  });
 
   const mainContent = (
     <>
@@ -172,16 +186,14 @@ function CandidateDashboard() {
         ) : (
           <>
             <div className="grid gap-4">
-              {recommended
-                .slice((recPage - 1) * REC_JOBS_PAGE_SIZE, recPage * REC_JOBS_PAGE_SIZE)
-                .map((j) => (
-                  <JobCard key={j.id} job={j} />
-                ))}
+              {recommendedPage.map((j) => (
+                <JobCard key={j.id} job={j} />
+              ))}
             </div>
-            {recommended.length > REC_JOBS_PAGE_SIZE && (
+            {recommendedTotalPages > 1 && (
               <Pagination
                 page={recPage}
-                totalPages={Math.ceil(recommended.length / REC_JOBS_PAGE_SIZE)}
+                totalPages={recommendedTotalPages}
                 onChange={setRecPage}
                 ariaLabel="Recommended jobs pagination"
                 className="mt-6"
