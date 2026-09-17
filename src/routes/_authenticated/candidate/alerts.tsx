@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/_authenticated/candidate/alerts")({
-  head: () => ({ meta: [{ title: "Job alerts ┬╖ JobsKart" }] }),
+  head: () => ({ meta: [{ title: "Job alerts · JobsKart" }] }),
   component: Page,
 });
 

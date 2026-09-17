@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { timeAgo } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/candidate/documents")({
-  head: () => ({ meta: [{ title: "My documents ┬╖ JobsKart" }] }),
+  head: () => ({ meta: [{ title: "My documents · JobsKart" }] }),
   component: DocumentsPage,
 });
 
@@ -105,7 +105,7 @@ function DocumentsPage() {
   return (
     <CandidateShell
       title="My documents"
-      subtitle="Keep your resume, ID and certificates ready ΓÇö employers can verify you faster."
+      subtitle="Keep your resume, ID and certificates ready — employers can verify you faster."
     >
       <div className="grid grid-cols-1 gap-4">
         {DOC_TYPES.map((t) => {
@@ -118,7 +118,7 @@ function DocumentsPage() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h3 className="text-base font-semibold text-foreground">{t.label}</h3>
-                  <p className="text-xs text-muted-foreground">PDF, PNG or JPG ┬╖ max 5 MB</p>
+                  <p className="text-xs text-muted-foreground">PDF, PNG or JPG · max 5 MB</p>
                 </div>
                 <button
                   onClick={() => inputs.current[t.key]?.click()}
@@ -158,7 +158,7 @@ function DocumentsPage() {
                           {d.file_name}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {Math.round((d.size_bytes ?? 0) / 1024)} KB ┬╖ {timeAgo(d.created_at)}
+                          {Math.round((d.size_bytes ?? 0) / 1024)} KB · {timeAgo(d.created_at)}
                         </p>
                       </div>
                       <button
