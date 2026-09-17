@@ -1,4 +1,3 @@
-import { ThemedSelect } from "@/components/ui/themed-form-controls";
 import { StateDropdown } from "@/components/candidate/StateDropdown";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
@@ -35,7 +34,7 @@ type Form = {
   preferred_languages: string[]; required_assets: string[];
   degree: string; specialisation: string;
   certifications: string[]; preferred_industries: string[];
-  perks: string[]; joining_fee_required: boolean;
+  perks: string[]; joining_fee_required: boolean | null;
   shift: string; working_days: string;
 
   description: string; description_html: string;
@@ -55,7 +54,7 @@ const initialForm: Form = {
   preferred_languages: [], required_assets: [],
   degree: "", specialisation: "",
   certifications: [], preferred_industries: [],
-  perks: [], joining_fee_required: false,
+  perks: [], joining_fee_required: null,
   shift: "", working_days: "",
   description: "", description_html: "",
   hiring_for_company: "",
@@ -141,7 +140,7 @@ function jobToForm(job: JobRow): Form {
     certifications: job.certifications ?? [],
     preferred_industries: job.preferred_industries ?? [],
     perks: job.perks ?? [],
-    joining_fee_required: job.joining_fee_required ?? false,
+    joining_fee_required: job.joining_fee_required ?? null,
     shift: job.shift ?? "",
     working_days: job.working_days != null ? String(job.working_days) : "",
     description: job.description ?? "",
@@ -294,7 +293,7 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
     workingDays: form.working_days ? Number(form.working_days) : undefined,
     assets: form.required_assets,
     perks: form.perks,
-    joiningFeeRequired: form.joining_fee_required,
+    joiningFeeRequired: form.joining_fee_required ?? undefined,
     certifications: form.certifications,
     ageMin: form.age_min ? Number(form.age_min) : undefined,
     ageMax: form.age_max ? Number(form.age_max) : undefined,
@@ -337,6 +336,7 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
     }
     if (targetStep === 2) {
       if (!form.skills.length) return "Add at least one required skill.";
+      if (form.joining_fee_required === null) return "Select whether a joining fee or deposit is required.";
     }
     return null;
   };
@@ -735,10 +735,13 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                         <div className="space-y-3">
                           <div className="grid gap-3 sm:grid-cols-2">
                             <Field label="Interview city">
-                              <ThemedSelect value={form.interview_city} onChange={(e) => set("interview_city", e.target.value)} className="form-input">
-                                <option value="">Select…</option>
-                                {INDIAN_CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                              </ThemedSelect>
+                              <StateDropdown
+                                value={form.interview_city}
+                                options={INDIAN_CITIES}
+                                placeholder="Select…"
+                                onChange={(v) => set("interview_city", v)}
+                                maxMenuHeight={160}
+                              />
                             </Field>
                             <Field label="Locality">
                               <input value={form.interview_locality} onChange={(e) => set("interview_locality", e.target.value)} className="form-input" placeholder="Sector 132" />
@@ -980,10 +983,27 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                     <ChipInput values={form.perks} onChange={(v) => set("perks", v)} suggestions={PERKS} />
                   </Field>
 
-                  <label className="flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-sm">
-                    <input type="checkbox" checked={form.joining_fee_required} onChange={(e) => set("joining_fee_required", e.target.checked)} />
-                    Joining fee or deposit required from candidate
-                  </label>
+                  <div className="flex flex-col gap-2 rounded-xl border border-border bg-surface px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                    <p className="text-sm font-medium">
+                      Is there any joining fee or deposit required from the candidate? <span className="text-destructive">*</span>
+                    </p>
+                    <div className="flex shrink-0 items-center gap-2">
+                      {[{ id: "yes", label: "Yes", val: true }, { id: "no", label: "No", val: false }].map((o) => (
+                        <button
+                          key={o.id}
+                          type="button"
+                          onClick={() => set("joining_fee_required", o.val)}
+                          className={`rounded-full border px-4 py-1.5 text-sm ${
+                            form.joining_fee_required === o.val
+                              ? "border-primary bg-primary-light text-primary"
+                              : "border-border bg-card text-foreground/70"
+                          }`}
+                        >
+                          {o.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
 
