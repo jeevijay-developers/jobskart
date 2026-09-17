@@ -28,7 +28,7 @@ import {
 import { suggestSkills } from "@/lib/candidate.functions";
 
 export const Route = createFileRoute("/_authenticated/onboarding/candidate")({
-  head: () => ({ meta: [{ title: "Complete your profile ┬╖ JobsKart" }] }),
+  head: () => ({ meta: [{ title: "Complete your profile · JobsKart" }] }),
   component: OnboardingPage,
 });
 
@@ -513,7 +513,7 @@ function OnboardingPage() {
                     <Compass className="h-3 w-3" /> Step {step + 1} of {visibleSteps.length}
                   </p>
                   <h1 className="mt-3 truncate text-2xl font-bold leading-tight">{currentLabel}</h1>
-                  <p className="mt-1 text-xs text-white/60">Every field matters ΓÇö you can edit anytime later.</p>
+                  <p className="mt-1 text-xs text-white/60">Every field matters — you can edit anytime later.</p>
                 </div>
                 <div className="text-right">
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-white/60">Profile</p>
@@ -537,7 +537,7 @@ function OnboardingPage() {
                 Step {step + 1} of {visibleSteps.length}
               </p>
               <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-foreground">{currentLabel}</h1>
-              <p className="mt-1 text-sm text-muted-foreground">Every field matters ΓÇö you can edit anytime later.</p>
+              <p className="mt-1 text-sm text-muted-foreground">Every field matters — you can edit anytime later.</p>
             </div>
 
             <AnimatePresence mode="wait" initial={false}>
@@ -587,7 +587,7 @@ function OnboardingPage() {
                     )}
                     <SectionCard title="Tell us about yourself">
                       <div className="grid gap-4 sm:grid-cols-2">
-                        <Field label="Full name" required hint="Letters, spaces and dots only (3ΓÇô80 chars)">
+                        <Field label="Full name" required hint="Letters, spaces and dots only (3-80 chars)">
                           <input
                             className="form-input"
                             value={fullName}
@@ -613,7 +613,7 @@ function OnboardingPage() {
                         <Field
                           label="WhatsApp number"
                           required
-                          hint="Defaults to your mobile ΓÇö change if different"
+                          hint="Defaults to your mobile — change if different"
                           error={whatsapp.length === 10 && !mobileSchema.safeParse(whatsapp).success ? "Enter a valid 10-digit mobile number" : undefined}
                         >
                           <input
@@ -627,7 +627,7 @@ function OnboardingPage() {
                             <span>Receive updates, alerts, and notifications on WhatsApp</span>
                           </label>
                         </Field>
-                        <Field label="Headline" hint="One-line summary ΓÇö keep it short and specific">
+                        <Field label="Headline" hint="One-line summary — keep it short and specific">
                           <input className="form-input" value={headline} maxLength={200} onChange={(e) => setHeadline(e.target.value.slice(0, 200))} placeholder="e.g. Sales Executive with 2 years exp" />
                           <span className={`mt-1 block text-right text-xs tabular-nums ${headline.length >= 200 ? "text-destructive" : headline.length >= 180 ? "text-amber-600" : "text-muted-foreground"}`}>
                             {headline.length}/200
@@ -678,7 +678,7 @@ function OnboardingPage() {
                       </div>
                     )}
                     <div className="mt-4">
-                      <Field label="Interested job roles" required hint="Pick as many as you like ΓÇö we match jobs to all of them">
+                      <Field label="Interested job roles" required hint="Pick as many as you like — we match jobs to all of them">
                         <ChipInput values={interestedRoles} onChange={setInterestedRoles} placeholder="e.g. Sales Executive" suggestions={["Sales Executive", "Telecaller", "Customer Support Executive", "Delivery Executive", "Data Entry Operator", "Receptionist", "Office Assistant", "Beautician", "Driver", "Cashier"]} />
                       </Field>
                     </div>
@@ -689,7 +689,7 @@ function OnboardingPage() {
                       <p className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground">
                         <Sparkles className="h-3 w-3 text-primary" />
                         {aiSkills.length > 0
-                          ? `Suggestions based on employers hiring for ${interestedRoles.slice(0, 2).join(", ") || "your roles"} ΓÇö tap to add or remove.`
+                          ? `Suggestions based on employers hiring for ${interestedRoles.slice(0, 2).join(", ") || "your roles"} — tap to add or remove.`
                           : "Suggestions appear once you add a role above."}
                       </p>
                       <p className="mt-1 text-xs font-semibold text-foreground">
@@ -738,7 +738,7 @@ function OnboardingPage() {
                                 </label>
                               </Field>
                             </div>
-                            <Field label="Description" hint="Optional ┬╖ up to 1500 chars">
+                            <Field label="Description" hint="Optional · up to 1500 chars">
                               <textarea
                                 className="form-input min-h-[70px]"
                                 maxLength={1500}
@@ -757,7 +757,7 @@ function OnboardingPage() {
                 {currentLabel === "Education" && (
                   <SectionCard title="Highest qualification">
                     <p className="mb-4 text-sm text-muted-foreground">
-                      Pick your highest qualification now ΓÇö you can add school/college, board and marks later from your profile.
+                      Pick your highest qualification now — you can add school/college, board and marks later from your profile.
                     </p>
                     <div className="grid gap-3 sm:grid-cols-2">
                       {QUALIFICATIONS.map((q) => (
@@ -784,7 +784,7 @@ function OnboardingPage() {
                           ))}
                         </div>
                       ) : (
-                        <p className="text-sm text-muted-foreground">No skills added yet ΓÇö use Edit to add some.</p>
+                        <p className="text-sm text-muted-foreground">No skills added yet — use Edit to add some.</p>
                       )}
                     </SectionCard>
                     <SectionCard title="Languages you know" action={
@@ -855,12 +855,12 @@ function OnboardingPage() {
                           </div>
                         </Field>
                         <div className="sm:col-span-2">
-                          <Field label="Preferred cities" required hint="1ΓÇô4 cities">
+                          <Field label="Preferred cities" required hint="1–4 cities">
                             <ChipInput values={preferredCities} onChange={(v) => setPreferredCities(v.slice(0, 4))} suggestions={INDIAN_CITIES} placeholder="Add cities" />
                           </Field>
                         </div>
                         {expStatus !== "student" && (
-                          <Field label={`Expected monthly salary (Γé╣)${expStatus === "experienced" ? " *" : ""}`}>
+                          <Field label={`Expected monthly salary (₹)${expStatus === "experienced" ? " *" : ""}`}>
                             <input type="number" className="form-input" value={expectedSalary} onChange={(e) => setExpectedSalary(e.target.value ? Number(e.target.value) : "")} placeholder="e.g. 25000" />
                           </Field>
                         )}

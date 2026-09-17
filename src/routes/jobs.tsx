@@ -1,12 +1,13 @@
 ﻿import {
   createFileRoute,
+  Link,
   Outlet,
   useLocation,
   useNavigate,
   useSearch,
 } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Briefcase, Filter, Loader2, Search, X } from "lucide-react";
+import { ArrowLeft, Briefcase, Filter, Loader2, Search, X } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
 import { z } from "zod";
 import { Navbar } from "@/components/site/Navbar";
@@ -71,7 +72,7 @@ export const Route = createFileRoute("/jobs")({
   validateSearch: jobsSearchSchema,
   head: () => ({
     meta: [
-      { title: "Browse Jobs ┬╖ JobsKart" },
+      { title: "Browse Jobs · JobsKart" },
       {
         name: "description",
         content: "Search lakhs of full-time, part-time and field jobs across India on JobsKart.",
@@ -335,6 +336,14 @@ function JobsList() {
       <section className="border-b border-border bg-card">
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
           <div className="flex flex-row flex-nowrap items-center gap-2 sm:gap-3">
+            {showCandidateTabBar && (
+              <Link
+                to="/candidate/dashboard"
+                className="hidden h-11 shrink-0 items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-semibold text-foreground hover:bg-surface lg:inline-flex"
+              >
+                <ArrowLeft className="h-4 w-4" /> Back
+              </Link>
+            )}
             <div className="relative min-w-0 flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <AutocompleteInput
@@ -395,10 +404,10 @@ function JobsList() {
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-muted-foreground">
               {loading
-                ? "LoadingΓÇª"
+                ? "Loading…"
                 : total === 0
                   ? "No jobs found"
-                  : `${total.toLocaleString("en-IN")} job${total === 1 ? "" : "s"} ┬╖ page ${page} of ${totalPages}`}
+                  : `${total.toLocaleString("en-IN")} job${total === 1 ? "" : "s"} · page ${page} of ${totalPages}`}
             </p>
             <label className="flex items-center gap-2 text-sm">
               <span className="text-muted-foreground">Sort by</span>
@@ -526,7 +535,7 @@ function FilterPanel({
           ))}
         </select>
       </Section>
-      <Section label="Salary (Γé╣/month)">
+      <Section label="Salary (₹/month)">
         <div className="grid grid-cols-2 gap-2">
           <input
             type="number"

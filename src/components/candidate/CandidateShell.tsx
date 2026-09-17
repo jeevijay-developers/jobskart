@@ -43,7 +43,7 @@ export function CandidateShell({
   return (
     <div className="min-h-screen bg-surface pb-20 lg:pb-0">
       <Navbar />
-      <div className="mx-auto flex w-full max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:px-8">
+      <div className="mx-auto flex w-full max-w-7xl gap-6 overflow-x-hidden px-4 py-6 sm:px-6 lg:px-8">
         <aside className="hidden w-60 shrink-0 lg:block">
           <nav className="sticky top-20 space-y-1 rounded-2xl border border-border bg-card p-3 shadow-[var(--shadow-card)]">
             {navItems.map((item) => {
