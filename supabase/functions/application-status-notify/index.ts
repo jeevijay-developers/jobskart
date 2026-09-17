@@ -5,6 +5,7 @@ import {
   applicationStatusEmail,
   type ApplicationStatusNotifyStatus,
 } from "../_shared/templates.ts";
+import { CORS_HEADERS, handleCorsPreflight } from "../_shared/cors.ts";
 
 const NOTIFY_STATUSES = new Set<string>(["shortlisted", "interview", "rejected"]);
 
@@ -16,19 +17,23 @@ const NOTIFY_STATUSES = new Set<string>(["shortlisted", "interview", "rejected"]
 // Requires the caller's JWT and checks company membership on the application's job
 // so one employer can't fire notifications for another company's applications.
 Deno.serve(async (req) => {
-  if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
+  const preflight = handleCorsPreflight(req);
+  if (preflight) return preflight;
+  if (req.method !== "POST")
+    return new Response("Method not allowed", { status: 405, headers: CORS_HEADERS });
 
   let applicationId: string | undefined;
   let status: string | undefined;
   try {
     ({ applicationId, status } = await req.json());
   } catch {
-    return new Response("Invalid JSON", { status: 400 });
+    return new Response("Invalid JSON", { status: 400, headers: CORS_HEADERS });
   }
   if (!applicationId || !status) {
-    return new Response("applicationId and status required", { status: 400 });
+    return new Response("applicationId and status required", { status: 400, headers: CORS_HEADERS });
   }
-  if (!NOTIFY_STATUSES.has(status)) return new Response("ignored", { status: 200 });
+  if (!NOTIFY_STATUSES.has(status))
+    return new Response("ignored", { status: 200, headers: CORS_HEADERS });
 
   const authHeader = req.headers.get("Authorization") ?? "";
   const anon = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
@@ -37,7 +42,7 @@ Deno.serve(async (req) => {
   const {
     data: { user },
   } = await anon.auth.getUser();
-  if (!user) return new Response("Unauthorized", { status: 401 });
+  if (!user) return new Response("Unauthorized", { status: 401, headers: CORS_HEADERS });
 
   const admin = createAdminClient();
   const { data: application, error } = await admin
@@ -47,17 +52,20 @@ Deno.serve(async (req) => {
     )
     .eq("id", applicationId)
     .maybeSingle();
-  if (error || !application) return new Response("Not found", { status: 404 });
+  if (error || !application) return new Response("Not found", { status: 404, headers: CORS_HEADERS });
 
   const { data: isMember } = await anon.rpc("has_company_membership", {
     _user_id: user.id,
     _company_id: application.company_id,
   });
-  if (!isMember) return new Response("Forbidden", { status: 403 });
+  if (!isMember) return new Response("Forbidden", { status: 403, headers: CORS_HEADERS });
 
   const email = application.profiles?.email;
   if (!email)
-    return new Response(JSON.stringify({ ok: true, skipped: "no_email" }), { status: 200 });
+    return new Response(JSON.stringify({ ok: true, skipped: "no_email" }), {
+      status: 200,
+      headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+    });
 
   const { subject, html, text } = applicationStatusEmail({
     status: status as ApplicationStatusNotifyStatus,
@@ -69,6 +77,6 @@ Deno.serve(async (req) => {
   const result = await sendEmail({ to: email, subject, html, text });
   return new Response(JSON.stringify(result), {
     status: result.ok ? 200 : 502,
-    headers: { "Content-Type": "application/json" },
+    headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
   });
 });
