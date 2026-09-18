@@ -24,6 +24,24 @@ function frequencyLabel(f: string): string {
   return f;
 }
 
+function formatIst(iso: string): string {
+  const d = new Date(iso);
+  const datePart = new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(d);
+  const timePart = new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(d);
+  return datePart + " \u00b7 " + timePart + " IST";
+}
+
 // ---------------------------------------------------------------------------
 // Shared layout shell
 // Brand colours (design tokens from styles.css):
@@ -422,6 +440,200 @@ export function applicationStatusEmail(info: ApplicationStatusInfo): {
     (info.companyName || "The employer") + " \u2014 " + info.jobTitle,
     "",
     copy.ctaLabel.replace(" &rarr;", "") + ": " + url,
+    "\u2014",
+    "JobsKart \u00b7 " + appUrl,
+  ].join("\n");
+
+  return { subject, html, text };
+}
+
+// ---------------------------------------------------------------------------
+// Template 4 -- Interview scheduled (Email 1: no join link/password, sent
+// immediately after scheduling). The join link is deliberately withheld here
+// regardless of provider (Zoom or external) \u2014 it's sent 30 minutes before via
+// interviewReminderEmail so it can't sit in an inbox unused for days. See
+// Bottleneck 2.6 / the anti-fraud gating notes in INTERVIEW_FEATURE_IMPLEMENTATION_PLAN.md.
+// ---------------------------------------------------------------------------
+export type InterviewScheduledInfo = {
+  candidateName: string | null;
+  jobTitle: string;
+  companyName: string | null;
+  scheduledAtIso: string;
+  durationMin: number;
+  mode: "video" | "phone" | "onsite";
+};
+
+const MODE_LABEL: Record<InterviewScheduledInfo["mode"], string> = {
+  video: "Video call",
+  phone: "Phone call",
+  onsite: "In person",
+};
+
+export function interviewScheduledEmail(info: InterviewScheduledInfo): {
+  subject: string;
+  html: string;
+  text: string;
+} {
+  const appUrl = getPublicAppUrl();
+  const companyName = escapeHtml(info.companyName || "The employer");
+  const jobTitle = escapeHtml(info.jobTitle);
+  const greetingName = info.candidateName ? escapeHtml(info.candidateName.split(" ")[0]) : "there";
+  const when = formatIst(info.scheduledAtIso);
+  const url = appUrl + "/candidate/applications";
+  const subject = "Interview scheduled: " + info.jobTitle;
+
+  const rows =
+    '<tr><td style="font-size:13px;color:#6B7280;padding-bottom:8px;width:120px;">Date &amp; time</td>' +
+    '<td style="font-size:13px;font-weight:600;color:#111827;padding-bottom:8px;">' +
+    escapeHtml(when) +
+    "</td></tr>" +
+    '<tr><td style="font-size:13px;color:#6B7280;padding-bottom:8px;">Duration</td>' +
+    '<td style="font-size:13px;font-weight:600;color:#111827;padding-bottom:8px;">' +
+    info.durationMin +
+    " min</td></tr>" +
+    '<tr><td style="font-size:13px;color:#6B7280;">Format</td>' +
+    '<td style="font-size:13px;font-weight:600;color:#111827;">' +
+    MODE_LABEL[info.mode] +
+    "</td></tr>";
+
+  const body =
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;">' +
+    "<tr>" +
+    '<td style="width:48px;vertical-align:top;padding-right:14px;">' +
+    '<div style="width:48px;height:48px;background-color:#EEF3FF;border-radius:12px;text-align:center;line-height:48px;font-size:22px;">&#128197;</div>' +
+    "</td>" +
+    '<td style="vertical-align:middle;">' +
+    '<h1 style="margin:0 0 4px;font-size:22px;font-weight:700;color:#111827;line-height:1.2;">Interview scheduled!</h1>' +
+    '<p style="margin:0;font-size:14px;color:#6B7280;">Hi ' +
+    greetingName +
+    ",</p>" +
+    "</td></tr></table>" +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#F9FAFB;border:1px solid #E5E7EB;border-radius:12px;margin-bottom:20px;">' +
+    '<tr><td style="padding:20px 24px;">' +
+    '<p style="margin:0 0 14px;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#9CA3AF;">' +
+    jobTitle +
+    " \u00b7 " +
+    companyName +
+    "</p>" +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">' +
+    rows +
+    "</table>" +
+    "</td></tr></table>" +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#EEF3FF;border-radius:10px;margin-bottom:24px;">' +
+    '<tr><td style="padding:16px 20px;font-size:13px;color:#1A55BD;line-height:1.6;">' +
+    "<strong>&#128274; For your security,</strong> your direct interview join link will be sent to this email 30 minutes before the interview begins." +
+    "</td></tr></table>" +
+    '<table role="presentation" cellpadding="0" cellspacing="0" border="0">' +
+    '<tr><td style="background-color:#1A55BD;border-radius:8px;">' +
+    '<a href="' +
+    url +
+    '" style="display:inline-block;padding:13px 28px;font-size:14px;font-weight:700;color:#FFFFFF;text-decoration:none;letter-spacing:0.01em;">View my applications &rarr;</a>' +
+    "</td></tr></table>";
+
+  const html = layout("Your interview for " + info.jobTitle + " is scheduled for " + when + ".", body, {
+    eyebrow: "Interview",
+    footerHtml:
+      "You're receiving this because an employer scheduled an interview with you on JobsKart.<br>\n" +
+      '            <a href="' +
+      appUrl +
+      '/candidate/applications" style="color:#1A55BD;text-decoration:none;">View your applications</a>',
+  });
+
+  const text = [
+    "JobsKart \u2014 Interview scheduled",
+    "",
+    "Hi " + greetingName + ",",
+    "",
+    jobTitle + " \u00b7 " + companyName,
+    "When: " + when,
+    "Duration: " + info.durationMin + " min",
+    "Format: " + MODE_LABEL[info.mode],
+    "",
+    "For your security, your direct interview join link will be sent to this email 30 minutes before the interview begins.",
+    "",
+    "View your applications: " + url,
+    "\u2014",
+    "JobsKart \u00b7 " + appUrl,
+  ].join("\n");
+
+  return { subject, html, text };
+}
+
+// ---------------------------------------------------------------------------
+// Template 5 -- Interview reminder (Email 2: T-30 magic join link)
+// ---------------------------------------------------------------------------
+export type InterviewReminderInfo = {
+  candidateName: string | null;
+  jobTitle: string;
+  companyName: string | null;
+  scheduledAtIso: string;
+  mode: "video" | "phone" | "onsite";
+  joinUrl: string;
+};
+
+export function interviewReminderEmail(info: InterviewReminderInfo): {
+  subject: string;
+  html: string;
+  text: string;
+} {
+  const appUrl = getPublicAppUrl();
+  const companyName = escapeHtml(info.companyName || "The employer");
+  const jobTitle = escapeHtml(info.jobTitle);
+  const greetingName = info.candidateName ? escapeHtml(info.candidateName.split(" ")[0]) : "there";
+  const when = formatIst(info.scheduledAtIso);
+  const subject = "Starts in 30 min: " + info.jobTitle + " interview";
+  const ctaLabel = info.mode === "video" ? "Join interview &rarr;" : "View interview details &rarr;";
+
+  const body =
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;">' +
+    "<tr>" +
+    '<td style="width:48px;vertical-align:top;padding-right:14px;">' +
+    '<div style="width:48px;height:48px;background-color:#FEF3C7;border-radius:12px;text-align:center;line-height:48px;font-size:22px;">&#9200;</div>' +
+    "</td>" +
+    '<td style="vertical-align:middle;">' +
+    '<h1 style="margin:0 0 4px;font-size:22px;font-weight:700;color:#111827;line-height:1.2;">Your interview starts in 30 minutes</h1>' +
+    '<p style="margin:0;font-size:14px;color:#6B7280;">Hi ' +
+    greetingName +
+    ",</p>" +
+    "</td></tr></table>" +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#F9FAFB;border:1px solid #E5E7EB;border-radius:12px;margin-bottom:28px;">' +
+    '<tr><td style="padding:20px 24px;">' +
+    '<p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#9CA3AF;">' +
+    jobTitle +
+    " \u00b7 " +
+    companyName +
+    "</p>" +
+    '<p style="margin:0;font-size:14px;color:#111827;">' +
+    escapeHtml(when) +
+    "</p>" +
+    "</td></tr></table>" +
+    '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:8px;">' +
+    '<tr><td style="background-color:#1A55BD;border-radius:8px;">' +
+    '<a href="' +
+    info.joinUrl +
+    '" style="display:inline-block;padding:13px 28px;font-size:14px;font-weight:700;color:#FFFFFF;text-decoration:none;letter-spacing:0.01em;">' +
+    ctaLabel +
+    "</a>" +
+    "</td></tr></table>";
+
+  const html = layout("Your interview for " + info.jobTitle + " starts in 30 minutes.", body, {
+    eyebrow: "Interview reminder",
+    footerHtml:
+      "You're receiving this because you have an interview scheduled on JobsKart.<br>\n" +
+      '            <a href="' +
+      appUrl +
+      '/candidate/applications" style="color:#1A55BD;text-decoration:none;">View your applications</a>',
+  });
+
+  const text = [
+    "JobsKart \u2014 Interview starts in 30 minutes",
+    "",
+    "Hi " + greetingName + ",",
+    "",
+    jobTitle + " \u00b7 " + companyName,
+    "When: " + when,
+    "",
+    ctaLabel.replace(" &rarr;", "") + ": " + info.joinUrl,
     "\u2014",
     "JobsKart \u00b7 " + appUrl,
   ].join("\n");

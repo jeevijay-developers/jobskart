@@ -81,7 +81,7 @@ function ApplicationsPage() {
     const { data, error } = await supabase
       .from("applications")
       .select(
-        "id, status, created_at, expected_salary, available_from, cover_note, jobs (id, title, city, min_salary, max_salary, salary_period, companies (name)), interviews (id, scheduled_at, mode, status, location, meeting_url, notes)",
+        "id, status, created_at, expected_salary, available_from, cover_note, jobs (id, title, city, min_salary, max_salary, salary_period, companies (name)), interviews (id, scheduled_at, duration_min, mode, provider, status, location, meeting_url, notes)",
       )
       .eq("candidate_id", uid)
       .order("created_at", { ascending: false });

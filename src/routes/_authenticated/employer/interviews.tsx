@@ -1,185 +1,338 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { Calendar, ChevronRight } from "lucide-react";
+import { useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
+import { Calendar, ChevronRight, ExternalLink, MoreVertical, Video } from "lucide-react";
 import { toast } from "sonner";
+import { format } from "date-fns";
 import { EmployerShell } from "@/components/employer/EmployerShell";
-import { ApplicantCard } from "@/components/employer/ApplicantCard";
-import { ApplicantReviewPanel, type ReviewApplicant } from "@/components/employer/ApplicantReviewPanel";
+import { RescheduleInterviewModal } from "@/components/employer/RescheduleInterviewModal";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { getActiveCompanyId, fetchMyCompanies } from "@/lib/employer";
+import { getJoinWindowState } from "@/lib/interview-window";
+import { getHostStartUrl, cancelInterview } from "@/lib/interview.functions";
 
 export const Route = createFileRoute("/_authenticated/employer/interviews")({
   head: () => ({ meta: [{ title: "Interviews · JobsKart" }] }),
   component: Page,
 });
 
-// Same shape (and same columns) the job applicants page fetches — this page
-// just adds job_id and jobs.title, since it spans every job for the company
-// instead of one, and is pre-filtered to status = "interview".
-type Application = {
+type InterviewRow = {
   id: string;
-  status: string;
-  created_at: string;
-  cover_note: string | null;
-  expected_salary: number | null;
-  available_from: string | null;
+  application_id: string | null;
+  job_id: string | null;
   candidate_id: string;
-  job_id: string;
+  mode: string;
+  provider: string;
+  scheduled_at: string;
+  duration_min: number;
+  status: string;
+  location: string | null;
+  meeting_url: string | null;
+  notes: string | null;
   jobs: { title: string } | null;
-  profiles: { full_name: string | null; email: string | null; mobile: string | null; avatar_url: string | null; city: string | null } | null;
-  candidate_profiles: {
-    profile_slug: string | null;
-    headline: string | null;
-    last_role: string | null;
-    years_experience: number | null;
-    experience_status: string | null;
-    skills: string[] | null;
-  } | null;
-  education: { level: string; institute: string | null } | null;
+  candidateName: string | null;
+  candidateCity: string | null;
 };
 
+async function resolveCompanyId(): Promise<string | null> {
+  let cid = getActiveCompanyId();
+  if (!cid) {
+    const { data: u } = await supabase.auth.getUser();
+    if (u.user) {
+      const ms = await fetchMyCompanies(u.user.id);
+      cid = ms[0]?.company_id ?? null;
+    }
+  }
+  return cid;
+}
+
+async function fetchInterviews(cid: string): Promise<InterviewRow[]> {
+  const { data, error } = await supabase
+    .from("interviews")
+    .select(
+      "id, application_id, job_id, candidate_id, mode, provider, scheduled_at, duration_min, status, location, meeting_url, notes, jobs (title)",
+    )
+    .eq("company_id", cid)
+    .order("scheduled_at", { ascending: true });
+  if (error) throw error;
+
+  const rows = (data || []) as unknown as Array<
+    Omit<InterviewRow, "candidateName" | "candidateCity">
+  >;
+  const candidateIds = Array.from(new Set(rows.map((r) => r.candidate_id)));
+  let profileMap: Record<string, { full_name: string | null; city: string | null }> = {};
+  if (candidateIds.length) {
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, full_name, city")
+      .in("id", candidateIds);
+    profileMap = Object.fromEntries((profiles || []).map((p) => [p.id, p]));
+  }
+
+  const withNames = rows.map((r) => ({
+    ...r,
+    candidateName: profileMap[r.candidate_id]?.full_name ?? null,
+    candidateCity: profileMap[r.candidate_id]?.city ?? null,
+  }));
+
+  // Upcoming/active interviews soonest-first; past/cancelled/completed most-recent-first.
+  const now = new Date();
+  const isDone = (r: InterviewRow) =>
+    r.status === "cancelled" ||
+    r.status === "completed" ||
+    getJoinWindowState(r.scheduled_at, r.duration_min, now) === "expired";
+  const upcoming = withNames.filter((r) => !isDone(r));
+  const past = withNames.filter(isDone).reverse();
+  return [...upcoming, ...past];
+}
+
+type Badge = { label: string; tone: string };
+
+function getBadge(iv: InterviewRow, now: Date): Badge {
+  if (iv.status === "cancelled")
+    return { label: "Cancelled", tone: "bg-surface text-muted-foreground" };
+  if (iv.status === "completed")
+    return { label: "Completed", tone: "bg-success-light text-success" };
+
+  const windowState = getJoinWindowState(iv.scheduled_at, iv.duration_min, now);
+  if (windowState === "open") {
+    return { label: "Live now", tone: "bg-success text-success-foreground" };
+  }
+  if (windowState === "expired") {
+    return { label: "Time passed", tone: "bg-surface text-muted-foreground" };
+  }
+  const minutesToStart = (new Date(iv.scheduled_at).getTime() - now.getTime()) / 60_000;
+  if (minutesToStart <= 60)
+    return { label: "Starting soon", tone: "bg-warning-light text-warning" };
+  return {
+    label: iv.status === "rescheduled" ? "Rescheduled" : "Scheduled",
+    tone: "bg-primary-light text-primary",
+  };
+}
+
+function isActionable(status: string) {
+  return status !== "cancelled" && status !== "completed";
+}
+
 function Page() {
-  const [apps, setApps] = useState<Application[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [reviewing, setReviewing] = useState<Application | null>(null);
-  // ApplicantCard always renders a select checkbox; this page has no bulk
-  // action bar, so selection is just local UI state (no-op beyond toggling).
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const runGetHostStartUrl = useServerFn(getHostStartUrl);
+  const runCancel = useServerFn(cancelInterview);
 
-  const load = async () => {
-    setLoading(true);
-    let cid = getActiveCompanyId();
-    if (!cid) {
-      const { data: u } = await supabase.auth.getUser();
-      if (u.user) {
-        const ms = await fetchMyCompanies(u.user.id);
-        cid = ms[0]?.company_id ?? null;
-      }
-    }
-    if (!cid) { setApps([]); setLoading(false); return; }
+  const [rescheduling, setRescheduling] = useState<InterviewRow | null>(null);
+  const [cancelling, setCancelling] = useState<InterviewRow | null>(null);
+  const [cancelBusy, setCancelBusy] = useState(false);
+  const [joiningId, setJoiningId] = useState<string | null>(null);
 
-    // Same data source as the job applicants page (the applications table,
-    // status set by "Move to Interview" there) — scoped across every job for
-    // this company instead of a single job, and filtered to status=interview.
-    const { data, error } = await supabase
-      .from("applications")
-      .select(
-        "id, status, created_at, cover_note, expected_salary, available_from, candidate_id, job_id, jobs!inner (title, company_id), profiles!candidate_id (full_name, email, mobile, avatar_url, city)",
-      )
-      .eq("jobs.company_id", cid)
-      .eq("status", "interview")
-      .order("created_at", { ascending: false });
-    if (error) toast.error(error.message);
-
-    const rows = ((data || []) as unknown) as Array<Omit<Application, "candidate_profiles" | "education">>;
-    const ids = Array.from(new Set(rows.map((r) => r.candidate_id)));
-
-    let cpMap: Record<string, Application["candidate_profiles"]> = {};
-    const eduMap: Record<string, Application["education"]> = {};
-    if (ids.length) {
-      const [cpRes, eduRes] = await Promise.all([
-        supabase
-          .from("candidate_profiles")
-          .select("user_id, profile_slug, headline, last_role, years_experience, experience_status, skills")
-          .in("user_id", ids),
-        supabase
-          .from("candidate_education")
-          .select("user_id, level, institute, year_of_passing")
-          .in("user_id", ids)
-          .order("year_of_passing", { ascending: false, nullsFirst: false }),
-      ]);
-      cpMap = Object.fromEntries((cpRes.data || []).map((c) => [c.user_id, c]));
-      for (const e of eduRes.data || []) {
-        if (!eduMap[e.user_id]) eduMap[e.user_id] = { level: e.level, institute: e.institute };
-      }
-    }
-
-    setApps(
-      rows.map((r) => ({
-        ...r,
-        candidate_profiles: cpMap[r.candidate_id] ?? null,
-        education: eduMap[r.candidate_id] ?? null,
-      })) as Application[],
-    );
-    setLoading(false);
-  };
-
-  useEffect(() => { load(); }, []);
-
-  const updateStatus = async (id: string, status: string) => {
-    // Moving a card off "interview" (e.g. to Hired/Rejected) means it no
-    // longer belongs on this page, so drop it locally right away.
-    if (status !== "interview") setApps((prev) => prev.filter((a) => a.id !== id));
-    setReviewing((r) => (r && r.id === id ? { ...r, status } : r));
-    const { error } = await supabase.from("applications").update({ status } as never).eq("id", id);
-    if (error) { toast.error(error.message); load(); return; }
-  };
-
-  const toReviewApplicant = (a: Application): ReviewApplicant => ({
-    id: a.id,
-    candidate_id: a.candidate_id,
-    status: a.status,
-    created_at: a.created_at,
-    cover_note: a.cover_note,
-    expected_salary: a.expected_salary,
-    available_from: a.available_from,
-    profiles: a.profiles,
-    candidate_profiles: a.candidate_profiles
-      ? {
-          profile_slug: a.candidate_profiles.profile_slug ?? null,
-          headline: a.candidate_profiles.headline,
-          last_role: a.candidate_profiles.last_role,
-          skills: a.candidate_profiles.skills,
-        }
-      : null,
+  const { data: cid } = useQuery({
+    queryKey: ["employer-interviews-cid"],
+    queryFn: resolveCompanyId,
+  });
+  const {
+    data: interviews = [],
+    isLoading,
+    refetch,
+  } = useQuery({
+    queryKey: ["employer-interviews", cid],
+    queryFn: () => fetchInterviews(cid!),
+    enabled: !!cid,
   });
 
+  const now = new Date();
+
+  const joinAsHost = async (iv: InterviewRow) => {
+    if (!cid) return;
+    setJoiningId(iv.id);
+    try {
+      const { startUrl } = await runGetHostStartUrl({
+        data: { companyId: cid, interviewId: iv.id },
+      });
+      window.open(startUrl, "_blank", "noopener,noreferrer");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't open the host link");
+    } finally {
+      setJoiningId(null);
+    }
+  };
+
+  const confirmCancel = async () => {
+    if (!cancelling || !cid) return;
+    setCancelBusy(true);
+    try {
+      await runCancel({
+        data: { companyId: cid, interviewId: cancelling.id, reason: "Cancelled by employer" },
+      });
+      toast.success("Interview cancelled");
+      setCancelling(null);
+      refetch();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't cancel the interview");
+    } finally {
+      setCancelBusy(false);
+    }
+  };
+
   return (
-    <EmployerShell title="Interviews" subtitle="Applicants currently in your interview pipeline">
-      {loading ? (
+    <EmployerShell
+      title="Interviews"
+      subtitle="Every interview you've scheduled, across all your jobs"
+    >
+      {isLoading ? (
         <div className="h-64 animate-pulse rounded-xl bg-card" />
-      ) : !apps.length ? (
+      ) : !interviews.length ? (
         <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center">
           <Calendar className="mx-auto h-10 w-10 text-muted-foreground" />
-          <p className="mt-3 text-sm text-muted-foreground">No interviews scheduled yet. Schedule from an applicant's card.</p>
+          <p className="mt-3 text-sm text-muted-foreground">
+            No interviews scheduled yet. Schedule one from an applicant's card.
+          </p>
         </div>
       ) : (
         <div className="grid gap-3">
-          {apps.map((a) => (
-            <div key={a.id} className="rounded-xl border border-border bg-card shadow-[var(--shadow-card)]">
-              <Link
-                to="/employer/jobs/$jobId/applicants"
-                params={{ jobId: a.job_id }}
-                className="flex items-center justify-between gap-2 border-b border-border px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-primary"
+          {interviews.map((iv) => {
+            const badge = getBadge(iv, now);
+            const canJoinAsHost =
+              iv.provider === "jobskart_zoom" &&
+              isActionable(iv.status) &&
+              getJoinWindowState(iv.scheduled_at, iv.duration_min, now) === "open";
+
+            return (
+              <div
+                key={iv.id}
+                className="rounded-xl border border-border bg-card shadow-[var(--shadow-card)]"
               >
-                <span className="truncate">{a.jobs?.title || "Job"}</span>
-                <ChevronRight className="h-3.5 w-3.5 shrink-0" />
-              </Link>
-              <ApplicantCard
-                applicant={a}
-                selected={selectedIds.has(a.id)}
-                onToggleSelect={() =>
-                  setSelectedIds((prev) => {
-                    const next = new Set(prev);
-                    if (next.has(a.id)) next.delete(a.id); else next.add(a.id);
-                    return next;
-                  })
-                }
-                onStatusChange={(status) => updateStatus(a.id, status)}
-                onView={() => setReviewing(a)}
-              />
-            </div>
-          ))}
+                {iv.job_id && (
+                  <Link
+                    to="/employer/jobs/$jobId/applicants"
+                    params={{ jobId: iv.job_id }}
+                    className="flex items-center justify-between gap-2 border-b border-border px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-primary"
+                  >
+                    <span className="truncate">{iv.jobs?.title || "Job"}</span>
+                    <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+                  </Link>
+                )}
+                <div className="flex items-start gap-3 p-4">
+                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary-light text-sm font-semibold text-primary">
+                    {(iv.candidateName || "?").slice(0, 1).toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="truncate text-sm font-semibold text-foreground">
+                        {iv.candidateName || "Candidate"}
+                      </p>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${badge.tone}`}
+                      >
+                        {badge.label}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {format(new Date(iv.scheduled_at), "eee, dd MMM yyyy · h:mm a")} ·{" "}
+                      {iv.duration_min} min ·{" "}
+                      {iv.provider === "jobskart_zoom" ? "JobsKart Video" : iv.mode}
+                    </p>
+                    {iv.notes && (
+                      <p className="mt-2 rounded-lg bg-surface p-2 text-xs">{iv.notes}</p>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    {canJoinAsHost && (
+                      <button
+                        onClick={() => joinAsHost(iv)}
+                        disabled={joiningId === iv.id}
+                        className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-success px-2.5 text-xs font-semibold text-success-foreground hover:opacity-90 disabled:opacity-50"
+                      >
+                        <Video className="h-3.5 w-3.5" /> Join as host
+                      </button>
+                    )}
+                    {iv.provider === "external_link" && iv.meeting_url && (
+                      <a
+                        href={iv.meeting_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-xs font-semibold hover:bg-surface"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" /> Link
+                      </a>
+                    )}
+                    {isActionable(iv.status) && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-border hover:bg-surface"
+                            aria-label="Actions"
+                          >
+                            <MoreVertical className="h-3.5 w-3.5" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => setRescheduling(iv)}>
+                            Reschedule
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => setCancelling(iv)}
+                            className="text-destructive"
+                          >
+                            Cancel
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {reviewing && (
-        <ApplicantReviewPanel
-          applicant={toReviewApplicant(reviewing)}
-          onClose={() => setReviewing(null)}
-          onStatusChange={(status) => updateStatus(reviewing.id, status)}
+      {rescheduling && cid && (
+        <RescheduleInterviewModal
+          open
+          onOpenChange={(v) => !v && setRescheduling(null)}
+          companyId={cid}
+          interviewId={rescheduling.id}
+          currentDurationMin={rescheduling.duration_min}
+          onRescheduled={() => {
+            setRescheduling(null);
+            refetch();
+          }}
         />
       )}
+
+      <AlertDialog open={!!cancelling} onOpenChange={(o) => !o && setCancelling(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel this interview?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {cancelling?.candidateName || "The candidate"} will be notified. This can't be undone
+              — you'll need to schedule a new interview if you change your mind.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelBusy}>Keep it</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmCancel} disabled={cancelBusy}>
+              {cancelBusy ? "Cancelling…" : "Cancel interview"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </EmployerShell>
   );
 }

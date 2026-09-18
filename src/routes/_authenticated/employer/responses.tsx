@@ -23,6 +23,7 @@ import {
   ApplicantReviewPanel,
   type ReviewApplicant,
 } from "@/components/employer/ApplicantReviewPanel";
+import { ScheduleInterviewModal } from "@/components/employer/ScheduleInterviewModal";
 import {
   APPLICANT_STATUSES,
   applicantStatusLabel,
@@ -67,7 +68,9 @@ export const Route = createFileRoute("/_authenticated/employer/responses")({
   component: ResponsesPage,
 });
 
-const NOTIFY_STATUSES = new Set(["shortlisted", "interview", "rejected"]);
+// "interview" is scheduled through ScheduleInterviewModal, not setStatus(), so
+// it never reaches this set from this page — kept to shortlisted/rejected.
+const NOTIFY_STATUSES = new Set(["shortlisted", "rejected"]);
 const RESPONSES_PAGE_SIZE = 20;
 
 type Row = {
@@ -125,6 +128,10 @@ function ResponsesPage() {
 
   const [cpMap, setCpMap] = useState<Record<string, ReviewApplicant["candidate_profiles"]>>({});
   const [reviewing, setReviewing] = useState<Row | null>(null);
+  const [scheduling, setScheduling] = useState<{
+    applicationId: string;
+    candidateName: string | null;
+  } | null>(null);
 
   const recommend = useServerFn(recommendShortlist);
   const buildDownload = useServerFn(buildDownloadDataset);
@@ -479,7 +486,9 @@ function ResponsesPage() {
                 min={1}
                 max={50}
                 value={shortlistN}
-                onChange={(e) => setShortlistN(Math.max(1, Math.min(50, Number(e.target.value) || 1)))}
+                onChange={(e) =>
+                  setShortlistN(Math.max(1, Math.min(50, Number(e.target.value) || 1)))
+                }
                 className="form-input h-10 w-16 text-center text-sm"
                 aria-label="Number of candidates to shortlist"
               />
@@ -550,7 +559,12 @@ function ResponsesPage() {
                           <CheckCircle2 className="mr-2 h-4 w-4 text-success" /> Shortlist
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                          onClick={() => askConfirm([r.id], [r.profiles?.full_name], "interview")}
+                          onClick={() =>
+                            setScheduling({
+                              applicationId: r.id,
+                              candidateName: r.profiles?.full_name ?? null,
+                            })
+                          }
                         >
                           <Calendar className="mr-2 h-4 w-4 text-warning" /> Interview
                         </DropdownMenuItem>
@@ -567,7 +581,12 @@ function ResponsesPage() {
             </ul>
           )}
           {inboxTotalPages > 1 && (
-            <Pagination page={inboxPage} totalPages={inboxTotalPages} onChange={setInboxPage} className="mt-6" />
+            <Pagination
+              page={inboxPage}
+              totalPages={inboxTotalPages}
+              onChange={setInboxPage}
+              className="mt-6"
+            />
           )}
         </>
       ) : (
@@ -637,13 +656,20 @@ function ResponsesPage() {
                       )}
                       <div className="mt-3 flex flex-wrap gap-1.5">
                         <button
-                          onClick={() => askConfirm([r.application_id], [r.full_name], "shortlisted")}
+                          onClick={() =>
+                            askConfirm([r.application_id], [r.full_name], "shortlisted")
+                          }
                           className="inline-flex h-8 items-center gap-1 rounded-lg bg-success px-2.5 text-xs font-semibold text-success-foreground hover:opacity-90"
                         >
                           <CheckCircle2 className="h-3 w-3" /> Shortlist
                         </button>
                         <button
-                          onClick={() => askConfirm([r.application_id], [r.full_name], "interview")}
+                          onClick={() =>
+                            setScheduling({
+                              applicationId: r.application_id,
+                              candidateName: r.full_name ?? null,
+                            })
+                          }
                           className="inline-flex h-8 items-center gap-1 rounded-lg border border-warning bg-warning-light px-2.5 text-xs font-semibold text-warning"
                         >
                           <Calendar className="h-3 w-3" /> Interview
@@ -708,7 +734,28 @@ function ResponsesPage() {
             candidate_profiles: cpMap[reviewing.candidate_id] ?? null,
           }}
           onClose={() => setReviewing(null)}
-          onStatusChange={(status) => setStatus([reviewing.id], status)}
+          onStatusChange={(status) =>
+            status === "interview"
+              ? setScheduling({
+                  applicationId: reviewing.id,
+                  candidateName: reviewing.profiles?.full_name ?? null,
+                })
+              : setStatus([reviewing.id], status)
+          }
+        />
+      )}
+
+      {scheduling && cid && (
+        <ScheduleInterviewModal
+          open
+          onOpenChange={(v) => !v && setScheduling(null)}
+          companyId={cid}
+          applicationId={scheduling.applicationId}
+          candidateName={scheduling.candidateName}
+          onScheduled={() => {
+            setScheduling(null);
+            refetchInbox();
+          }}
         />
       )}
     </EmployerShell>
