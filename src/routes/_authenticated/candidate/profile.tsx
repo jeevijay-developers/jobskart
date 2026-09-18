@@ -35,6 +35,11 @@ type Candidate = {
 type Exp = { id?: string; job_title: string; company_name: string; start_date: string; end_date: string; is_current: boolean; description: string };
 type Edu = { id?: string; level: string; board_or_university: string; institute: string; year_of_passing: number | ""; marks: string };
 type Lang = { id?: string; language: string; proficiency: "basic" | "conversational" | "fluent" | "native"; can_read: boolean; can_write: boolean };
+// Same shape/table the candidate Documents page (candidate_documents,
+// doc_type = "resume") reads and writes — Profile's Documents card must
+// reflect this, not just candidate_profiles.resume_url, since a resume
+// uploaded from the Documents page only ever lands here.
+type ResumeDoc = { id: string; file_path: string; file_name: string; size_bytes: number | null; created_at: string };
 
 function ProfilePage() {
   const [uid, setUid] = useState<string | null>(null);
@@ -44,6 +49,7 @@ function ProfilePage() {
   const [experiences, setExperiences] = useState<Exp[]>([]);
   const [educations, setEducations] = useState<Edu[]>([]);
   const [languages, setLanguages] = useState<Lang[]>([]);
+  const [resumeDoc, setResumeDoc] = useState<ResumeDoc | null>(null);
   const [open, setOpen] = useState<null | "personal" | "headline" | "career" | "experience" | "education" | "skills" | "languages" | "resume" | "kyc" | "avatar">(null);
   const [email, setEmail] = useState<string | null>(null);
   const [counts, setCounts] = useState({ applications: 0, interviews: 0, saved: 0 });
@@ -54,18 +60,28 @@ function ProfilePage() {
     if (!u) return;
     setUid(u);
     setEmail(sess.session?.user.email ?? null);
-    const [{ data: pr }, { data: cp }, { data: ex }, { data: ed }, { data: lg }, apps, ivs, saved] = await Promise.all([
+    const [{ data: pr }, { data: cp }, { data: ex }, { data: ed }, { data: lg }, { data: docs }, apps, ivs, saved] = await Promise.all([
       supabase.from("profiles").select("full_name, mobile, city, avatar_url").eq("id", u).maybeSingle(),
       supabase.from("candidate_profiles").select("*").eq("user_id", u).maybeSingle(),
       supabase.from("candidate_experiences").select("*").eq("user_id", u).order("start_date", { ascending: false }),
       supabase.from("candidate_education").select("*").eq("user_id", u).order("year_of_passing", { ascending: false }),
       supabase.from("candidate_languages").select("*").eq("user_id", u),
+      // Same table/query the Documents page uses for the "Resume / CV" row —
+      // this is the actual source of truth for an uploaded resume.
+      supabase
+        .from("candidate_documents")
+        .select("id, file_path, file_name, size_bytes, created_at")
+        .eq("user_id", u)
+        .eq("doc_type", "resume")
+        .order("created_at", { ascending: false })
+        .limit(1),
       supabase.from("applications").select("id", { count: "exact", head: true }).eq("candidate_id", u),
       supabase.from("interviews").select("id", { count: "exact", head: true }).eq("candidate_id", u),
       supabase.from("saved_jobs").select("id", { count: "exact", head: true }).eq("user_id", u),
     ]);
     setP(pr as Profile);
     setC(cp as unknown as Candidate);
+    setResumeDoc(((docs as ResumeDoc[] | null) || [])[0] ?? null);
     setExperiences((ex || []).map((e) => ({ ...e, start_date: e.start_date || "", end_date: e.end_date || "", description: e.description || "" })) as Exp[]);
     setEducations((ed || []).map((e) => ({ ...e, board_or_university: e.board_or_university || "", institute: e.institute || "", year_of_passing: e.year_of_passing ?? "", marks: e.marks || "" })) as Edu[]);
     setLanguages((lg || []) as Lang[]);
@@ -118,8 +134,14 @@ function ProfilePage() {
     if (ids.length === 0) return;
 
     const t = window.setTimeout(() => {
+      // Mobile and desktop each render their own copy of these sections (only
+      // one is visible at a time via CSS), both tagged with the same
+      // data-section value — pick whichever copy is actually visible/laid out.
       const els = ids
-        .map((id) => document.getElementById(id))
+        .map((id) => {
+          const matches = Array.from(document.querySelectorAll<HTMLElement>(`[data-section="${id}"]`));
+          return matches.find((el) => el.offsetParent !== null) ?? matches[0] ?? document.getElementById(id);
+        })
         .filter((el): el is HTMLElement => !!el);
       if (els.length === 0) return;
       els[0].scrollIntoView({ behavior: "smooth", block: "start" });
@@ -166,7 +188,260 @@ function ProfilePage() {
         ) : null
       }
     >
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+      {/* Mobile-only layout: same sections/state as the desktop view below, but
+          reordered (Languages moves up under Personal details) and with
+          Profile completion tips / Profile highlights removed, per the
+          mobile-specific spec. Desktop's own markup further down is
+          untouched and only renders at xl: and up. */}
+      <div className="space-y-6 xl:hidden">
+        {/* Compact profile card */}
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
+          <div className="flex items-center gap-3">
+            <div className="relative shrink-0">
+              {p.avatar_url ? (
+                <img src={p.avatar_url} alt={p.full_name || "Profile photo"} className="h-14 w-14 rounded-full object-cover" />
+              ) : (
+                <div className="grid h-14 w-14 place-items-center rounded-full bg-primary/80 text-lg font-medium text-primary-foreground">{initials}</div>
+              )}
+              <button onClick={() => setOpen("avatar")} aria-label="Change photo" className="absolute -bottom-1 -right-1 rounded-full border border-border bg-card p-1 text-muted-foreground shadow-sm hover:bg-surface">
+                <Camera className="h-3 w-3" />
+              </button>
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
+                <h2 className="truncate text-base font-bold text-foreground">{p.full_name || "Add your name"}</h2>
+                {c.kyc_status === "verified" && (
+                  <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-success/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-success">
+                    <ShieldCheck className="h-2.5 w-2.5" /> Verified
+                  </span>
+                )}
+              </div>
+              <button onClick={() => setOpen("personal")} className="mt-0.5 flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+                {c.headline || c.last_role || "Add a headline"} <Pencil className="h-3 w-3" />
+                {incompleteKeys.has("headline") && <IncompleteTag />}
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" /> {p.city || "Add your city"}</span>
+            <span className="flex items-center gap-1"><Eye className="h-3.5 w-3.5" /> {c.profile_views} profile views</span>
+          </div>
+
+          <div className="mt-4 border-t border-border pt-3">
+            <div className="mb-1.5 flex items-center justify-between text-xs">
+              <span className="flex items-center gap-1 font-bold text-foreground">Profile strength <HelpCircle className="h-3 w-3 text-muted-foreground" /></span>
+              <span className="font-bold text-foreground">{strength}%</span>
+            </div>
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface">
+              <div className="h-full rounded-full bg-gradient-to-r from-primary to-success transition-all" style={{ width: `${strength}%` }} />
+            </div>
+            <p className={`mt-1 text-xs ${sLabel.color}`}>{sLabel.label}</p>
+          </div>
+        </div>
+
+        {/* Verify identity — mobile shows this as its own card, only for unverified users */}
+        {c.kyc_status !== "verified" && (
+          <div data-section="kyc" className="flex w-full flex-col items-center gap-2 rounded-2xl border border-border bg-card px-4 py-4 text-center shadow-[var(--shadow-card)]">
+            <div className="grid h-10 w-10 place-items-center rounded-full bg-primary-light text-primary"><BadgeCheck className="h-5 w-5" /></div>
+            <h3 className="text-[15px] font-bold text-foreground">Verify your identity</h3>
+            <p className="text-[13px] text-muted-foreground">Build trust with recruiters by verifying your identity.</p>
+            <button onClick={() => setOpen("kyc")} className="mt-1 w-full rounded-lg border border-primary py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary-light">
+              Verify now
+            </button>
+          </div>
+        )}
+
+        {/* Personal details + Languages (merged into one card on mobile) */}
+        <div data-section="personal" className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
+          <div className="mb-6 flex items-center justify-between">
+            <h3 className="text-lg font-bold text-foreground">Personal details</h3>
+            <EditBtn onClick={() => setOpen("personal")} />
+          </div>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+            <Info label="Full name" value={p.full_name} incomplete={incompleteKeys.has("full_name")} />
+            <Info label="Mobile" value={p.mobile} incomplete={incompleteKeys.has("mobile")} />
+            <Info label="City" value={p.city} incomplete={incompleteKeys.has("city")} />
+            <Info label="Email" value={email} />
+            <Info label="Gender" value={c.gender} />
+            <Info label="DOB" value={c.date_of_birth ? new Date(c.date_of_birth).toLocaleDateString() : null} />
+            <Info label="Bio" value={c.bio} wide incomplete={incompleteKeys.has("bio")} />
+          </div>
+
+          <div data-section="languages" className="mt-6 border-t border-border pt-6">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="flex items-center gap-2 text-[15px] font-bold text-foreground">
+                Languages {incompleteKeys.has("languages_count") && <IncompleteTag />}
+              </h3>
+              <button onClick={() => setOpen("languages")} className="text-sm font-semibold text-primary hover:underline">Manage</button>
+            </div>
+            {languages.length === 0 ? (
+              <EmptyRow icon={LangIcon} title="No languages added" hint="Add the languages you speak." />
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {languages.map((l) => (
+                  <span key={l.id} className="flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-sm text-foreground">
+                    <LangIcon className="h-3.5 w-3.5 text-primary" /> {l.language} <span className="text-muted-foreground">· {l.proficiency}</span>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Documents & resume — reflects the same candidate_documents row the
+            Documents page shows (falls back to the profile-uploaded resume_url
+            only if no candidate_documents resume row exists). */}
+        <div data-section="resume" className="flex flex-col rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
+          <div className="mb-6 flex items-center justify-between">
+            <h3 className="flex items-center gap-2 text-lg font-bold text-foreground">
+              Documents {incompleteKeys.has("resume_url") && <IncompleteTag />}
+            </h3>
+            <Link to="/candidate/documents" className="text-sm font-semibold text-primary hover:underline">View all</Link>
+          </div>
+          {resumeDoc ? (
+            <div className="mb-4 flex items-start gap-3 rounded-lg border border-border bg-surface p-3">
+              <div className="shrink-0 rounded border border-border bg-card p-2 text-muted-foreground"><FileText className="h-5 w-5" /></div>
+              <div className="min-w-0 flex-1">
+                <div className="mb-1 flex items-center gap-2">
+                  <h4 className="truncate text-sm font-bold text-foreground">{resumeDoc.file_name}</h4>
+                  <span className="rounded bg-success/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-success">Latest</span>
+                </div>
+                <p className="text-xs text-muted-foreground">Attached to your applications</p>
+              </div>
+              <button
+                onClick={async () => {
+                  const { data } = await supabase.storage.from("candidate-docs").createSignedUrl(resumeDoc.file_path, 3600);
+                  if (data?.signedUrl) window.open(data.signedUrl, "_blank", "noopener");
+                }}
+                className="text-sm font-semibold text-primary hover:underline"
+              >
+                View
+              </button>
+            </div>
+          ) : c.resume_url ? (
+            <div className="mb-4 flex items-start gap-3 rounded-lg border border-border bg-surface p-3">
+              <div className="shrink-0 rounded border border-border bg-card p-2 text-muted-foreground"><FileText className="h-5 w-5" /></div>
+              <div className="min-w-0 flex-1">
+                <div className="mb-1 flex items-center gap-2">
+                  <h4 className="truncate text-sm font-bold text-foreground">{c.resume_name || "Resume"}</h4>
+                  <span className="rounded bg-success/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-success">Latest</span>
+                </div>
+                <p className="text-xs text-muted-foreground">Attached to your applications</p>
+              </div>
+              <button
+                onClick={async () => {
+                  const { data } = await supabase.storage.from("candidate-docs").createSignedUrl(c.resume_url!, 60);
+                  if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+                }}
+                className="text-sm font-semibold text-primary hover:underline"
+              >
+                View
+              </button>
+            </div>
+          ) : null}
+          <button
+            onClick={() => setOpen("resume")}
+            className="mt-auto flex flex-col items-center justify-center rounded-lg border border-dashed border-border bg-card p-6 text-center transition-colors hover:bg-surface"
+          >
+            <Upload className="mb-2 h-5 w-5 text-muted-foreground" />
+            <span className="text-sm font-bold text-foreground">{resumeDoc || c.resume_url ? "Upload new resume" : "Upload your resume"}</span>
+            <span className="mt-1 text-xs text-muted-foreground">PDF, DOC, DOCX (Max 5MB)</span>
+          </button>
+        </div>
+
+        {/* Skills */}
+        <div data-section="skills" className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="flex items-center gap-2 text-lg font-bold text-foreground">
+              Skills {incompleteKeys.has("skills") && <IncompleteTag />}
+            </h3>
+            <button onClick={() => setOpen("skills")} className="text-sm font-semibold text-primary hover:underline">Edit</button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {c.skills.map((s) => (
+              <span key={s} className="rounded-full border border-border bg-surface px-3 py-1.5 text-sm text-foreground">{s}</span>
+            ))}
+            <button onClick={() => setOpen("skills")} className="flex items-center gap-1 rounded-full border border-dashed border-border px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-surface">
+              <Plus className="h-3.5 w-3.5" /> Add skill
+            </button>
+          </div>
+        </div>
+
+        {/* Career preferences */}
+        <div data-section="career" className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
+          <div className="mb-6 flex items-center justify-between">
+            <h3 className="text-lg font-bold text-foreground">Career preferences</h3>
+            <EditBtn onClick={() => setOpen("career")} />
+          </div>
+          <Grid>
+            <Info label="Status" value={c.experience_status} />
+            <Info label="Experience" value={c.years_experience ? `${c.years_experience} years` : null} incomplete={incompleteKeys.has("years_experience")} />
+            <Info label="Last role" value={c.last_role} incomplete={incompleteKeys.has("last_role")} />
+            <Info label="Job types" value={c.preferred_job_types?.length ? c.preferred_job_types.map((t) => JOB_TYPE_OPTIONS.find((x) => x.id === t)?.label || t).join(", ") : null} incomplete={incompleteKeys.has("preferred_job_types")} />
+            <Info label="Work mode" value={WORK_MODES.find((w) => w.id === c.preferred_work_mode)?.label || null} />
+            <Info label="Expected salary" value={c.expected_salary ? `₹${c.expected_salary.toLocaleString()}/mo` : null} incomplete={incompleteKeys.has("expected_salary")} />
+            <Info label="Notice period" value={c.notice_period_days != null ? `${c.notice_period_days} days` : null} />
+            <Info label="Preferred cities" value={c.preferred_cities?.join(", ") || null} wide incomplete={incompleteKeys.has("preferred_cities")} />
+          </Grid>
+        </div>
+
+        {/* Work experience */}
+        <div data-section="experience" className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
+          <div className="mb-6 flex items-center justify-between">
+            <h3 className="flex items-center gap-2 text-[15px] font-bold text-foreground">
+              Work experience {incompleteKeys.has("experiences_count") && <IncompleteTag />}
+            </h3>
+            <button onClick={() => setOpen("experience")} className="text-sm font-semibold text-primary hover:underline">Manage</button>
+          </div>
+          {experiences.length === 0 ? (
+            <EmptyRow icon={Briefcase} title="No experience added" hint="Add your work history to get better matches." />
+          ) : (
+            <ul className="divide-y divide-border">
+              {experiences.map((e) => (
+                <li key={e.id} className="flex items-start gap-3 py-3">
+                  <Briefcase className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <div className="min-w-0">
+                    <p className="font-semibold text-foreground">{e.job_title}</p>
+                    <p className="text-sm text-muted-foreground">{e.company_name} · {fmtPeriod(e.start_date, e.end_date, e.is_current)}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* Education */}
+        <div data-section="education" className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
+          <div className="mb-6 flex items-center justify-between">
+            <h3 className="flex items-center gap-2 text-[15px] font-bold text-foreground">
+              Education {incompleteKeys.has("education_count") && <IncompleteTag />}
+            </h3>
+            <button onClick={() => setOpen("education")} className="text-sm font-semibold text-primary hover:underline">Manage</button>
+          </div>
+          {educations.length === 0 ? (
+            <EmptyRow icon={GraduationCap} title="No education added" hint="Add at least your 10th class." />
+          ) : (
+            <ul className="divide-y divide-border">
+              {educations.map((e) => (
+                <li key={e.id} className="flex items-start gap-3 py-3">
+                  <GraduationCap className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <div className="min-w-0">
+                    <p className="font-semibold text-foreground">{e.level}{e.year_of_passing ? ` · ${e.year_of_passing}` : ""}</p>
+                    <p className="text-sm text-muted-foreground">{[e.institute, e.board_or_university].filter(Boolean).join(" — ")}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <SummaryCard title="Recent applications" to="/candidate/applications" icon={FileText} empty={counts.applications === 0} emptyTitle="No applications yet" emptyHint="Start applying to jobs and track them here." count={counts.applications} countLabel="applications submitted" />
+        <SummaryCard title="Saved jobs" to="/candidate/saved" icon={Bookmark} empty={counts.saved === 0} emptyTitle="No saved jobs yet" emptyHint="Save jobs you like and view them here." count={counts.saved} countLabel="jobs saved" />
+      </div>
+
+      {/* Desktop/web layout — unchanged */}
+      <div className="hidden xl:grid xl:grid-cols-3 gap-6">
         {/* Main column */}
         <div className="space-y-6 xl:col-span-2">
           {/* Profile overview */}
@@ -222,7 +497,7 @@ function ProfilePage() {
                   <ShieldCheck className="h-4 w-4" /> Identity verified
                 </div>
               ) : (
-                <div id="kyc" className="flex w-full flex-col items-center gap-2 rounded-lg border border-border bg-card px-4 py-4 text-center lg:w-64">
+                <div id="kyc" data-section="kyc" className="flex w-full flex-col items-center gap-2 rounded-lg border border-border bg-card px-4 py-4 text-center lg:w-64">
                   <div className="grid h-10 w-10 place-items-center rounded-full bg-primary-light text-primary"><BadgeCheck className="h-5 w-5" /></div>
                   <h3 className="text-[15px] font-bold text-foreground">Verify your identity</h3>
                   <p className="text-[13px] text-muted-foreground">Build trust with recruiters by verifying your identity.</p>
@@ -236,7 +511,7 @@ function ProfilePage() {
 
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             {/* Personal details */}
-            <div id="personal" className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
+            <div id="personal" data-section="personal" className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
               <div className="mb-6 flex items-center justify-between">
                 <h3 className="text-lg font-bold text-foreground">Personal details</h3>
                 <EditBtn onClick={() => setOpen("personal")} />
@@ -253,7 +528,7 @@ function ProfilePage() {
             </div>
 
             {/* Documents & resume */}
-            <div id="resume" className="flex flex-col rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
+            <div id="resume" data-section="resume" className="flex flex-col rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
               <div className="mb-6 flex items-center justify-between">
                 <h3 className="flex items-center gap-2 text-lg font-bold text-foreground">
                   Documents {incompleteKeys.has("resume_url") && <IncompleteTag />}
@@ -293,7 +568,7 @@ function ProfilePage() {
           </div>
 
           {/* Skills */}
-          <div id="skills" className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
+          <div id="skills" data-section="skills" className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="flex items-center gap-2 text-lg font-bold text-foreground">
                 Skills {incompleteKeys.has("skills") && <IncompleteTag />}
@@ -311,7 +586,7 @@ function ProfilePage() {
           </div>
 
           {/* Career preferences */}
-          <div id="career" className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
+          <div id="career" data-section="career" className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
             <div className="mb-6 flex items-center justify-between">
               <h3 className="text-lg font-bold text-foreground">Career preferences</h3>
               <EditBtn onClick={() => setOpen("career")} />
@@ -330,7 +605,7 @@ function ProfilePage() {
 
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             {/* Work experience */}
-            <div id="experience" className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
+            <div id="experience" data-section="experience" className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
               <div className="mb-6 flex items-center justify-between">
                 <h3 className="flex items-center gap-2 text-[15px] font-bold text-foreground">
                   Work experience {incompleteKeys.has("experiences_count") && <IncompleteTag />}
@@ -355,7 +630,7 @@ function ProfilePage() {
             </div>
 
             {/* Education */}
-            <div id="education" className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
+            <div id="education" data-section="education" className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
               <div className="mb-6 flex items-center justify-between">
                 <h3 className="flex items-center gap-2 text-[15px] font-bold text-foreground">
                   Education {incompleteKeys.has("education_count") && <IncompleteTag />}
@@ -416,7 +691,7 @@ function ProfilePage() {
           </div>
 
           {/* Languages */}
-          <div id="languages" className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
+          <div id="languages" data-section="languages" className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="flex items-center gap-2 text-[15px] font-bold text-foreground">
                 Languages {incompleteKeys.has("languages_count") && <IncompleteTag />}

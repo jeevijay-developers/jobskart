@@ -1,10 +1,10 @@
-import { ThemedSelect } from "@/components/ui/themed-form-controls";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { Building2, Camera, Loader2, ShieldCheck, Upload } from "lucide-react";
+import { Building2, Camera, ChevronDown, ChevronUp, Loader2, ShieldCheck, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { EmployerShell } from "@/components/employer/EmployerShell";
 import { Field } from "@/components/candidate/primitives";
+import { StateDropdown } from "@/components/candidate/StateDropdown";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchMyCompanies, getActiveCompanyId } from "@/lib/employer";
 import { INDIAN_CITIES } from "@/lib/options";
@@ -70,9 +70,13 @@ function CompanyPage() {
   const save = async () => {
     if (!c) return;
     setSaving(true);
+    // Founded year is already sanitized on every keystroke (see the field's
+    // onChange), but guard again here so a negative value can never reach
+    // the database regardless of how state was set.
+    const foundedYear = c.founded_year != null && c.founded_year >= 0 ? c.founded_year : null;
     const { error } = await supabase.from("companies").update({
       name: c.name, industry: c.industry, website: c.website, about: c.about,
-      hq_city: c.hq_city, founded_year: c.founded_year, gst_number: c.gst_number, pan_number: c.pan_number,
+      hq_city: c.hq_city, founded_year: foundedYear, gst_number: c.gst_number, pan_number: c.pan_number,
     }).eq("id", c.id);
     setSaving(false);
     if (error) return toast.error(error.message);
@@ -180,10 +184,12 @@ function CompanyPage() {
                   <input value={c.industry || ""} onChange={(e) => setC({ ...c, industry: e.target.value })} className="form-input" />
                 </Field>
                 <Field label="HQ city">
-                  <ThemedSelect value={c.hq_city || ""} onChange={(e) => setC({ ...c, hq_city: e.target.value })} className="form-input">
-                    <option value="">Select…</option>
-                    {INDIAN_CITIES.map((city) => <option key={city} value={city}>{city}</option>)}
-                  </ThemedSelect>
+                  <StateDropdown
+                    value={c.hq_city || ""}
+                    options={INDIAN_CITIES}
+                    placeholder="Select…"
+                    onChange={(v) => setC({ ...c, hq_city: v })}
+                  />
                 </Field>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
@@ -191,7 +197,43 @@ function CompanyPage() {
                   <input value={c.website || ""} onChange={(e) => setC({ ...c, website: e.target.value })} className="form-input" placeholder="https://…" />
                 </Field>
                 <Field label="Founded year">
-                  <input type="number" value={c.founded_year || ""} onChange={(e) => setC({ ...c, founded_year: e.target.value ? Number(e.target.value) : null })} className="form-input" />
+                  {/* Desktop (sm: and up): unchanged native number input with its own
+                      native spin arrows. Mobile only: mobile browsers don't render
+                      those arrows at all (a platform limitation, not CSS-controlled
+                      here — no rule in this project hides them), so the native
+                      spinner is disabled and replaced with the same custom dark
+                      stepper already used for other numeric fields on mobile. */}
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={c.founded_year || 2000}
+                      min={1900}
+                      max={new Date().getFullYear()}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/^-+/, "");
+                        setC({ ...c, founded_year: raw ? Math.max(0, Number(raw)) : null });
+                      }}
+                      className="form-input max-sm:appearance-none pr-9 sm:pr-3.5 [&::-webkit-inner-spin-button]:max-sm:appearance-none [&::-webkit-outer-spin-button]:max-sm:appearance-none"
+                    />
+                    <div className="absolute inset-y-0 right-1 flex flex-col justify-center gap-0.5 py-1 sm:hidden">
+                      <button
+                        type="button"
+                        aria-label="Increase founded year"
+                        onClick={() => setC({ ...c, founded_year: Math.min(new Date().getFullYear(), Math.max(1900, (c.founded_year || 2000) + 1)) })}
+                        className="grid h-4 w-6 place-items-center rounded-sm text-gray-700 active:bg-surface"
+                      >
+                        <ChevronUp className="h-3.5 w-3.5" strokeWidth={3} />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Decrease founded year"
+                        onClick={() => setC({ ...c, founded_year: Math.max(1900, (c.founded_year || 2000) - 1) })}
+                        className="grid h-4 w-6 place-items-center rounded-sm text-gray-700 active:bg-surface"
+                      >
+                        <ChevronDown className="h-3.5 w-3.5" strokeWidth={3} />
+                      </button>
+                    </div>
+                  </div>
                 </Field>
               </div>
               <Field label="About" hint={`${(c.about || "").length}/1000`}>

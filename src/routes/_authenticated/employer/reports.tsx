@@ -2,10 +2,27 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { BarChart3, Briefcase, Eye, TrendingUp, Users } from "lucide-react";
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { EmployerShell, StatCard } from "@/components/employer/EmployerShell";
+import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchMyCompanies, getActiveCompanyId } from "@/lib/employer";
 import { getEmployerAnalytics, type EmployerAnalytics } from "@/lib/employer-analytics.functions";
+
+const applicationsChartConfig = {
+  applications: {
+    label: "Applications",
+    color: "var(--primary)",
+  },
+} satisfies ChartConfig;
+
+function formatChartDate(date: string) {
+  return new Date(`${date}T00:00:00Z`).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  });
+}
 
 export const Route = createFileRoute("/_authenticated/employer/reports")({
   head: () => ({ meta: [{ title: "Reports · JobsKart Employer" }] }),
@@ -14,7 +31,7 @@ export const Route = createFileRoute("/_authenticated/employer/reports")({
 
 function ReportsPage() {
   const [cid, setCid] = useState<string | null>(null);
-  const [range, setRange] = useState<7 | 30 | 90>(30);
+  const [range, setRange] = useState<7 | 30 | 90>(7);
   const [data, setData] = useState<EmployerAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const fetchAnalytics = useServerFn(getEmployerAnalytics);
@@ -63,7 +80,6 @@ function ReportsPage() {
     ["Rejected", data.funnel.rejected + data.funnel.withdrawn],
   ];
 
-  const maxDay = Math.max(...data.daily.map((d) => d.applications), 1);
   const empty = data.totals.jobs === 0;
 
   return (
@@ -105,21 +121,57 @@ function ReportsPage() {
                 <TrendingUp className="h-4 w-4 text-primary" />
                 <h2 className="text-base font-bold">Applications · last {range} days</h2>
               </div>
-              <div className="flex h-32 items-end gap-0.5">
-                {data.daily.map((d) => (
-                  <div key={d.date} className="group relative flex-1">
-                    <div
-                      className="w-full rounded-t bg-primary/80 transition-colors hover:bg-primary"
-                      style={{ height: `${(d.applications / maxDay) * 100}%`, minHeight: d.applications ? "2px" : "0" }}
-                      title={`${d.date}: ${d.applications}`}
-                    />
-                  </div>
-                ))}
-              </div>
-              <div className="mt-2 flex justify-between text-[10px] text-muted-foreground">
-                <span>{data.daily[0]?.date.slice(5)}</span>
-                <span>{data.daily[data.daily.length - 1]?.date.slice(5)}</span>
-              </div>
+              <ChartContainer
+                config={applicationsChartConfig}
+                className="h-56 min-h-56 w-full aspect-auto lg:h-[148px] lg:min-h-0"
+              >
+                <AreaChart data={data.daily} margin={{ top: 4, right: 16, bottom: 0, left: 4 }}>
+                  <defs>
+                    <linearGradient id="applicationsFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.22} />
+                      <stop offset="100%" stopColor="var(--primary)" stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid vertical={false} />
+                  <XAxis
+                    dataKey="date"
+                    axisLine={false}
+                    tickLine={false}
+                    tickMargin={10}
+                    minTickGap={24}
+                    padding={{ left: 12, right: 12 }}
+                    tickFormatter={formatChartDate}
+                  />
+                  <YAxis
+                    allowDecimals={false}
+                    axisLine={false}
+                    tickLine={false}
+                    tickMargin={8}
+                    width={40}
+                    domain={[0, (dataMax: number) => Math.max(dataMax, 1)]}
+                  />
+                  <ChartTooltip
+                    cursor={{ stroke: "var(--border)" }}
+                    labelFormatter={(date) => formatChartDate(String(date))}
+                    formatter={(value) => [Number(value).toLocaleString(), "Applications"]}
+                    contentStyle={{
+                      borderColor: "var(--border)",
+                      borderRadius: "var(--radius)",
+                      backgroundColor: "var(--background)",
+                      color: "var(--foreground)",
+                      fontSize: "12px",
+                    }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="applications"
+                    stroke="var(--primary)"
+                    strokeWidth={2}
+                    fill="url(#applicationsFill)"
+                    activeDot={{ r: 4, fill: "var(--primary)", stroke: "var(--card)", strokeWidth: 2 }}
+                  />
+                </AreaChart>
+              </ChartContainer>
             </section>
 
             <section className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
@@ -151,7 +203,7 @@ function ReportsPage() {
             <ul className="divide-y divide-border">
               {data.topJobs.map((j) => (
                 <li key={j.id} className="flex items-center justify-between gap-3 py-3">
-                  <div className="min-w-0">
+                  <div className="min-w-0 lg:flex lg:min-h-9 lg:items-center lg:gap-2">
                     <p className="truncate text-sm font-semibold">{j.title}</p>
                     <p className="text-[11px] text-muted-foreground">Status: {j.status}</p>
                   </div>

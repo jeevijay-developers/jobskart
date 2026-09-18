@@ -456,7 +456,7 @@ function OnboardingPage() {
                 <Compass className="h-3 w-3" /> Onboarding
               </p>
               <h2 className="mt-3 text-xl font-bold leading-tight">Let's build your profile</h2>
-              <p className="mt-1 text-xs text-white/60">A complete profile gets you hired 3├ù faster.</p>
+              <p className="mt-1 text-xs text-white/60">A complete profile gets you hired 3x faster.</p>
 
               <div className="mt-5 rounded-2xl bg-white/5 p-3 ring-1 ring-white/10">
                 <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-white/70">
