@@ -1,6 +1,11 @@
-import { Link } from "@tanstack/react-router";
-import { Briefcase, GraduationCap, IndianRupee, MapPin } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { Briefcase, GraduationCap, IndianRupee, MapPin, Share2 } from "lucide-react";
 import { formatExperience, formatSalary, jobTypeLabel, timeAgo, workModeLabel } from "@/lib/format";
+import { supabase } from "@/integrations/supabase/client";
+import { useSavedJob } from "@/hooks/use-saved-job";
+import { useShareJob } from "@/hooks/use-share-job";
+import { ApplyDialog } from "@/components/candidate/ApplyDialog";
 
 export type JobCardData = {
   id: string;
@@ -20,57 +25,170 @@ export type JobCardData = {
   created_at: string;
   pay_type?: string | null;
   avg_incentive_monthly?: number | null;
+  company_id?: string;
   companies?: { name: string; is_verified: boolean | null } | null;
 };
 
 export function JobCard({ job }: { job: JobCardData }) {
+  const navigate = useNavigate();
   const location = [job.locality, job.city].filter(Boolean).join(", ") || job.city || "India";
+
+  const [userId, setUserId] = useState<string | null>(null);
+  const [applied, setApplied] = useState(false);
+  const [applyOpen, setApplyOpen] = useState(false);
+  const { saved, toggle: toggleSaved } = useSavedJob(job.id, userId);
+  const { share } = useShareJob();
+
+  useEffect(() => {
+    let cancelled = false;
+    supabase.auth.getSession().then(({ data }) => {
+      if (cancelled) return;
+      setUserId(data.session?.user.id ?? null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!userId) {
+      setApplied(false);
+      return;
+    }
+    supabase
+      .from("applications")
+      .select("id")
+      .eq("job_id", job.id)
+      .eq("candidate_id", userId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled) setApplied(!!data);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [job.id, userId]);
+
+  const requireAuth = () => {
+    navigate({ to: "/auth", search: { tab: "candidate" } as never });
+  };
+
+  const handleApplyClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!userId) return requireAuth();
+    if (applied) return;
+    setApplyOpen(true);
+  };
+
+  const handleSaveClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!userId) return requireAuth();
+    toggleSaved();
+  };
+
+  const handleShareClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    share(job, userId);
+  };
+
   return (
-    <Link
-      to="/jobs/$jobId"
-      params={{ jobId: job.id }}
-      className="group block rounded-xl border border-border bg-card p-5 transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-[var(--shadow-card)]"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="truncate text-base font-semibold text-foreground group-hover:text-primary">{job.title}</h3>
-          <p className="mt-0.5 truncate text-sm text-muted-foreground">
-            {job.companies?.name || "Confidential employer"}
-            {job.companies?.is_verified ? <span className="ml-1.5 text-xs text-success">✓ Verified</span> : null}
-          </p>
+    <div className="group rounded-xl border border-border bg-card p-5 transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-[var(--shadow-card)]">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <Link to="/jobs/$jobId" params={{ jobId: job.id }} className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-baseline gap-x-2">
+                <h3 className="truncate text-base font-semibold text-foreground group-hover:text-primary">{job.title}</h3>
+                <span className="shrink-0 text-xs text-muted-foreground">{timeAgo(job.created_at)}</span>
+              </div>
+              <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                {job.companies?.name || "Confidential employer"}
+                {job.companies?.is_verified ? <span className="ml-1.5 text-xs text-success">✓ Verified</span> : null}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+            <span className="flex items-center gap-1.5 text-foreground/80">
+              <IndianRupee className="h-3.5 w-3.5 text-primary" />
+              {formatSalary(job.min_salary, job.max_salary, job.salary_period || "monthly")}
+              {job.pay_type === "fixed_incentive" && job.avg_incentive_monthly
+                ? ` + up to ₹${job.avg_incentive_monthly.toLocaleString("en-IN")} incentive`
+                : ""}
+            </span>
+            <span className="flex items-center gap-1.5 text-foreground/80">
+              <MapPin className="h-3.5 w-3.5 text-primary" /> {location}
+            </span>
+            <span className="flex items-center gap-1.5 text-foreground/80">
+              <Briefcase className="h-3.5 w-3.5 text-primary" />
+              {formatExperience(job.min_experience_years, job.max_experience_years)}
+            </span>
+            <span className="flex items-center gap-1.5 text-foreground/80">
+              <GraduationCap className="h-3.5 w-3.5 text-primary" /> {job.education || "Any qualification"}
+            </span>
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-1.5">
+            <span className="rounded-full bg-primary-light px-2.5 py-1 text-xs font-medium text-primary">{jobTypeLabel(job.job_type)}</span>
+            <span className="rounded-full bg-surface px-2.5 py-1 text-xs font-medium text-foreground/70">{workModeLabel(job.work_mode)}</span>
+            {(job.skills || []).slice(0, 3).map((s) => (
+              <span key={s} className="rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground">
+                {s}
+              </span>
+            ))}
+          </div>
+        </Link>
+
+        <div className="flex shrink-0 flex-col gap-2 sm:w-36">
+          <button
+            type="button"
+            onClick={handleApplyClick}
+            disabled={applied}
+            className="h-10 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {applied ? "Applied" : "Apply Now"}
+          </button>
+          <button
+            type="button"
+            onClick={handleSaveClick}
+            className={`h-10 rounded-lg border px-4 text-sm font-semibold ${
+              saved ? "border-primary text-primary" : "border-border text-foreground hover:bg-surface"
+            }`}
+          >
+            {saved ? "Saved" : "Save Job"}
+          </button>
+          <button
+            type="button"
+            onClick={handleShareClick}
+            className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-border px-4 text-sm font-semibold text-foreground hover:bg-surface"
+          >
+            <Share2 className="h-3.5 w-3.5" /> Share
+          </button>
         </div>
-        <span className="shrink-0 text-xs text-muted-foreground">{timeAgo(job.created_at)}</span>
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
-        <span className="flex items-center gap-1.5 text-foreground/80">
-          <IndianRupee className="h-3.5 w-3.5 text-primary" />
-          {formatSalary(job.min_salary, job.max_salary, job.salary_period || "monthly")}
-          {job.pay_type === "fixed_incentive" && job.avg_incentive_monthly
-            ? ` + up to ₹${job.avg_incentive_monthly.toLocaleString("en-IN")} incentive`
-            : ""}
-        </span>
-        <span className="flex items-center gap-1.5 text-foreground/80">
-          <MapPin className="h-3.5 w-3.5 text-primary" /> {location}
-        </span>
-        <span className="flex items-center gap-1.5 text-foreground/80">
-          <Briefcase className="h-3.5 w-3.5 text-primary" />
-          {formatExperience(job.min_experience_years, job.max_experience_years)}
-        </span>
-        <span className="flex items-center gap-1.5 text-foreground/80">
-          <GraduationCap className="h-3.5 w-3.5 text-primary" /> {job.education || "Any qualification"}
-        </span>
-      </div>
-
-      <div className="mt-4 flex flex-wrap gap-1.5">
-        <span className="rounded-full bg-primary-light px-2.5 py-1 text-xs font-medium text-primary">{jobTypeLabel(job.job_type)}</span>
-        <span className="rounded-full bg-surface px-2.5 py-1 text-xs font-medium text-foreground/70">{workModeLabel(job.work_mode)}</span>
-        {(job.skills || []).slice(0, 3).map((s) => (
-          <span key={s} className="rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground">
-            {s}
-          </span>
-        ))}
-      </div>
-    </Link>
+      {userId && job.company_id && (
+        <ApplyDialog
+          open={applyOpen}
+          onClose={() => setApplyOpen(false)}
+          userId={userId}
+          job={{
+            id: job.id,
+            company_id: job.company_id,
+            title: job.title,
+            min_salary: job.min_salary,
+            max_salary: job.max_salary,
+          }}
+          onApplied={() => {
+            setApplied(true);
+            setApplyOpen(false);
+          }}
+        />
+      )}
+    </div>
   );
 }

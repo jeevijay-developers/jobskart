@@ -8,7 +8,7 @@ import { Navbar } from "@/components/site/Navbar";
 import { ChipInput, Field, SectionCard } from "@/components/candidate/primitives";
 import { JobTitleAutocomplete } from "@/components/candidate/JobTitleAutocomplete";
 import { supabase } from "@/integrations/supabase/client";
-import { INDIAN_CITIES, SUGGESTED_LANGUAGES, JOB_TYPE_OPTIONS, WORK_MODES } from "@/lib/options";
+import { INDIAN_CITIES, SUGGESTED_LANGUAGES, JOB_TYPE_OPTIONS, WORK_MODES, suggestRelatedRoles, suggestSkillsForRoles, DEFAULT_SKILL_SUGGESTIONS } from "@/lib/options";
 import { computeProfileStrength } from "@/lib/profileStrength";
 import { ResumeUpload } from "@/components/candidate/ResumeUpload";
 import type { ParsedResumePayload } from "@/lib/resume.functions";
@@ -46,6 +46,19 @@ const to10 = (v: string | null | undefined) => {
   return d.length >= 10 ? d.slice(-10) : d;
 };
 const toE164 = (v: string) => (to10(v).length === 10 ? `+91${to10(v)}` : null);
+
+/** Maps the resume parser's education level enum onto our fixed QUALIFICATIONS options. */
+function mapEducationLevel(level: string | null | undefined): (typeof QUALIFICATIONS)[number] | null {
+  switch (level) {
+    case "10th": return "10th or Below";
+    case "12th": return "12th Pass";
+    case "Diploma": return "Diploma";
+    case "Graduate": return "Graduate";
+    case "Post Graduate": return "Post Graduate";
+    case "PhD": return "Doctorate";
+    default: return null;
+  }
+}
 
 /**
  * Single native <input type="date"> so the browser's real calendar picker still opens,
@@ -179,6 +192,27 @@ function OnboardingPage() {
       .catch(() => { });
     return () => { cancelled = true; };
   }, [interestedRoles, experiences, highestQualification, suggest]);
+
+  const roleSuggestions = useMemo(() => suggestRelatedRoles(interestedRoles), [interestedRoles]);
+
+  // Merge the server/AI-driven suggestions (ranked by real employer job
+  // postings, kept first) with a deterministic role->skills lookup so the
+  // list is still role-relevant even when there isn't enough live job data
+  // for the selected role(s) yet — instead of falling back to a fully
+  // generic list.
+  const skillSuggestions = useMemo(() => {
+    const roleBased = suggestSkillsForRoles(interestedRoles);
+    if (!aiSkills.length) return roleBased.length ? roleBased : DEFAULT_SKILL_SUGGESTIONS;
+    const seen = new Set(aiSkills.map((s) => s.toLowerCase()));
+    const merged = [...aiSkills];
+    for (const s of roleBased) {
+      const key = s.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.push(s);
+    }
+    return merged;
+  }, [aiSkills, interestedRoles]);
 
   // Asset visibility: derive from selected roles
   const visibleAssets = useMemo(() => {
@@ -553,13 +587,20 @@ function OnboardingPage() {
                   <div className="space-y-5">
                     <ResumeUpload
                       existingName={resume?.name ?? null}
-                      onParsed={(d: ParsedResumePayload, file: File) => {
-                        // Upload to storage in the background so the Preferences step still has the file
+                      onUploaded={(file: File) => {
+                        // Saves the raw file immediately, independent of AI parsing below.
                         uploadResume(file);
+                      }}
+                      onParsed={(d: ParsedResumePayload) => {
                         if (d.full_name && !fullName) setFullName(titleCase(sanitizeText(d.full_name)));
                         if (d.mobile && !mobile) setMobile(d.mobile.replace(/\D/g, "").slice(-10));
-                        if (d.city && !city) setCity(d.city);
-                        if (d.headline) setHeadline(d.headline);
+                        if (d.city && !city) {
+                          // City is a strict <select> bound to INDIAN_CITIES — only
+                          // accept a resume city that matches one of those options.
+                          const match = INDIAN_CITIES.find((c) => c.toLowerCase() === d.city!.trim().toLowerCase());
+                          if (match) setCity(match);
+                        }
+                        if (d.headline && !headline) setHeadline(d.headline.slice(0, 200));
                         if (typeof d.years_experience === "number") {
                           setYears(d.years_experience);
                           setExpStatus(d.years_experience > 0 ? "experienced" : "fresher");
@@ -577,6 +618,13 @@ function OnboardingPage() {
                             })),
                           );
                           if (d.experiences[0]?.job_title) setLastRole(d.experiences[0].job_title);
+                        }
+                        if (d.education?.length && !highestQualification) {
+                          // Onboarding only tracks a single "highest qualification" level
+                          // (richer institute/board/marks detail is filled in later from
+                          // the profile page) — map the AI's level to our fixed enum.
+                          const level = mapEducationLevel(d.education[0]?.level);
+                          if (level) setHighestQualification(level);
                         }
                       }}
                     />
@@ -679,17 +727,17 @@ function OnboardingPage() {
                     )}
                     <div className="mt-4">
                       <Field label="Interested job roles" required hint="Pick as many as you like — we match jobs to all of them">
-                        <ChipInput values={interestedRoles} onChange={setInterestedRoles} placeholder="e.g. Sales Executive" suggestions={["Sales Executive", "Telecaller", "Customer Support Executive", "Delivery Executive", "Data Entry Operator", "Receptionist", "Office Assistant", "Beautician", "Driver", "Cashier"]} />
+                        <ChipInput values={interestedRoles} onChange={setInterestedRoles} placeholder="e.g. Sales Executive" suggestions={roleSuggestions} />
                       </Field>
                     </div>
                     <div className="mt-4">
                       <Field label="Skills" required hint="Tap a suggestion to add it, or type your own and press Enter">
-                        <ChipInput values={skills} onChange={setSkills} max={25} suggestions={aiSkills.length ? aiSkills : ["Communication", "MS Office", "Customer Service", "Sales", "Hindi", "English"]} placeholder="Add a skill" />
+                        <ChipInput values={skills} onChange={setSkills} max={25} suggestions={skillSuggestions} placeholder="Add a skill" />
                       </Field>
                       <p className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground">
                         <Sparkles className="h-3 w-3 text-primary" />
-                        {aiSkills.length > 0
-                          ? `Suggestions based on employers hiring for ${interestedRoles.slice(0, 2).join(", ") || "your roles"} — tap to add or remove.`
+                        {interestedRoles.length > 0
+                          ? `Suggestions based on ${interestedRoles.slice(0, 2).join(", ")} — tap to add or remove.`
                           : "Suggestions appear once you add a role above."}
                       </p>
                       <p className="mt-1 text-xs font-semibold text-foreground">

@@ -264,7 +264,7 @@ function JobsList() {
       let q = supabase
         .from("jobs")
         .select(
-          "id, title, city, state, locality, min_salary, max_salary, salary_period, job_type, work_mode, min_experience_years, max_experience_years, education, skills, created_at, companies!inner (name, is_verified)",
+          "id, company_id, title, city, state, locality, min_salary, max_salary, salary_period, job_type, work_mode, min_experience_years, max_experience_years, education, skills, created_at, companies!inner (name, is_verified)",
           { count: "exact" },
         )
         .eq("status", "active");

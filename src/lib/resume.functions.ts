@@ -71,6 +71,35 @@ Rules:
 const UNREADABLE =
   "We could not read this file. Please fill your details manually — it takes 2 minutes.";
 
+export const RESUME_SERVICE_UNAVAILABLE_MESSAGE =
+  "Resume parsing is temporarily unavailable. Please try again in a moment or continue filling your details manually.";
+
+// mapError() in ai/provider.ts builds one of a few messages for a failed AI
+// call: two already clean, user-safe ones for 429 (rate limit) and 402 (out
+// of credits), and a generic "AI request failed (<status>). <raw provider
+// body>" for everything else — that last one, plus any raw fetch/network
+// error, is what must never reach the candidate. Anything that isn't one of
+// our own deliberately-thrown, already-clean Error messages (including
+// mapError's two safe ones) gets normalized to the same safe fallback copy.
+// Exported so the client (ResumeUpload.tsx) can apply the same allowlist as
+// a second layer of defense if a request fails before ever reaching this
+// handler.
+export const RESUME_SAFE_ERROR_MESSAGES = new Set<string>([
+  UNREADABLE,
+  "Old .doc files aren't supported. Please upload a PDF or DOCX instead.",
+  "Unsupported file. Please upload a PDF, DOCX or image (JPG/PNG).",
+  RESUME_SERVICE_UNAVAILABLE_MESSAGE,
+  // Mirrors mapError()'s 429 and 402 messages in ai/provider.ts.
+  "Too many requests. Try again in a minute.",
+  "AI credits exhausted. Add credits in your workspace.",
+]);
+
+function toSafeError(e: unknown): Error {
+  if (e instanceof Error && RESUME_SAFE_ERROR_MESSAGES.has(e.message)) return e;
+  console.error("[resume] parse failed:", e);
+  return new Error(RESUME_SERVICE_UNAVAILABLE_MESSAGE);
+}
+
 async function extractPdfText(base64: string): Promise<string> {
   const { extractText, getDocumentProxy } = await import("unpdf");
   const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
@@ -106,84 +135,98 @@ const fromText = (text: string) =>
     `Parse this resume text and return the JSON.\n\n---RESUME TEXT---\n${text.slice(0, 18000)}`,
   );
 
+async function parseResumeInner(data: z.infer<typeof inputSchema>) {
+  const mime = data.mimeType.toLowerCase();
+  const name = data.fileName.toLowerCase();
+  const isPdf = mime === "application/pdf" || name.endsWith(".pdf");
+  const isImage = mime.startsWith("image/");
+  const isDocx =
+    mime === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+    name.endsWith(".docx");
+  const isDoc = mime === "application/msword" || name.endsWith(".doc");
+
+  let raw = "";
+
+  if (isPdf) {
+    let text = "";
+    try {
+      text = (await extractPdfText(data.base64)).trim();
+    } catch (e) {
+      console.error("[resume] pdf extract failed:", e);
+    }
+    if (text.length >= 200) {
+      raw = await fromText(text);
+    } else {
+      // Scanned / image-only PDF — send the document itself down the vision path.
+      try {
+        raw = await callGateway(
+          "This resume is a scanned document. Read it visually and return the JSON.",
+          undefined,
+          [{ mime: "application/pdf", b64: data.base64, name: data.fileName }],
+        );
+      } catch (e) {
+        console.error("[resume] pdf vision failed:", e);
+        if (text.length >= 30) raw = await fromText(text);
+        else throw e; // no text fallback available — surface the real failure (mapped to a safe message by the caller)
+      }
+      if (!raw.trim() && text.length < 30) throw new Error(UNREADABLE);
+    }
+  } else if (isImage) {
+    raw = await callGateway("Parse this resume image and return the JSON.", [
+      { mime: data.mimeType, b64: data.base64 },
+    ]);
+  } else if (isDocx) {
+    let text = "";
+    try {
+      text = (await extractDocxText(data.base64)).trim();
+    } catch (e) {
+      console.error("[resume] docx extract failed:", e);
+    }
+    if (text.length < 30) throw new Error(UNREADABLE);
+    raw = await fromText(text);
+  } else if (isDoc) {
+    throw new Error("Old .doc files aren't supported. Please upload a PDF or DOCX instead.");
+  } else {
+    throw new Error("Unsupported file. Please upload a PDF, DOCX or image (JPG/PNG).");
+  }
+
+  if (!raw.trim()) throw new Error(UNREADABLE);
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    try {
+      parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
+    } catch {
+      throw new Error(UNREADABLE);
+    }
+  }
+
+  const result = ParsedResume.parse(parsed);
+  const hasAnything =
+    !!(result.full_name || result.email || result.mobile || result.headline || result.city) ||
+    (result.skills?.length ?? 0) > 0 ||
+    (result.experiences?.length ?? 0) > 0 ||
+    (result.education?.length ?? 0) > 0;
+
+  if (!hasAnything) {
+    throw new Error(UNREADABLE);
+  }
+  return result;
+}
+
 export const parseResume = createServerFn({ method: "POST" })
   .validator((data: unknown) => inputSchema.parse(data))
   .handler(async ({ data }) => {
-    const mime = data.mimeType.toLowerCase();
-    const name = data.fileName.toLowerCase();
-    const isPdf = mime === "application/pdf" || name.endsWith(".pdf");
-    const isImage = mime.startsWith("image/");
-    const isDocx =
-      mime === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
-      name.endsWith(".docx");
-    const isDoc = mime === "application/msword" || name.endsWith(".doc");
-
-    let raw = "";
-
-    if (isPdf) {
-      let text = "";
-      try {
-        text = (await extractPdfText(data.base64)).trim();
-      } catch (e) {
-        console.error("[resume] pdf extract failed:", e);
-      }
-      if (text.length >= 200) {
-        raw = await fromText(text);
-      } else {
-        // Scanned / image-only PDF — send the document itself down the vision path.
-        try {
-          raw = await callGateway(
-            "This resume is a scanned document. Read it visually and return the JSON.",
-            undefined,
-            [{ mime: "application/pdf", b64: data.base64, name: data.fileName }],
-          );
-        } catch (e) {
-          console.error("[resume] pdf vision failed:", e);
-          if (text.length >= 30) raw = await fromText(text);
-        }
-        if (!raw.trim() && text.length < 30) throw new Error(UNREADABLE);
-      }
-    } else if (isImage) {
-      raw = await callGateway("Parse this resume image and return the JSON.", [
-        { mime: data.mimeType, b64: data.base64 },
-      ]);
-    } else if (isDocx) {
-      let text = "";
-      try {
-        text = (await extractDocxText(data.base64)).trim();
-      } catch (e) {
-        console.error("[resume] docx extract failed:", e);
-      }
-      if (text.length < 30) throw new Error(UNREADABLE);
-      raw = await fromText(text);
-    } else if (isDoc) {
-      throw new Error("Old .doc files aren't supported. Please upload a PDF or DOCX instead.");
-    } else {
-      throw new Error("Unsupported file. Please upload a PDF, DOCX or image (JPG/PNG).");
-    }
-
-    if (!raw.trim()) throw new Error(UNREADABLE);
-
-    let parsed: unknown;
+    // Every code path above can throw a raw AI-gateway/network error (e.g. a
+    // 503 from mapError() in ai/provider.ts, which embeds the provider's own
+    // response body). None of that is safe to show a candidate — only our
+    // own deliberately-thrown, already-clean messages should ever reach the
+    // client; everything else is normalized to one calm fallback message.
     try {
-      parsed = JSON.parse(raw);
-    } catch {
-      try {
-        parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
-      } catch {
-        throw new Error(UNREADABLE);
-      }
+      return await parseResumeInner(data);
+    } catch (e) {
+      throw toSafeError(e);
     }
-
-    const result = ParsedResume.parse(parsed);
-    const hasAnything =
-      !!(result.full_name || result.email || result.mobile || result.headline || result.city) ||
-      (result.skills?.length ?? 0) > 0 ||
-      (result.experiences?.length ?? 0) > 0 ||
-      (result.education?.length ?? 0) > 0;
-
-    if (!hasAnything) {
-      throw new Error(UNREADABLE);
-    }
-    return result;
   });

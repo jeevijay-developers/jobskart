@@ -195,7 +195,7 @@ function Hero() {
 
           <div className="mt-6 flex flex-wrap items-center gap-2">
             <span className="text-sm text-muted-foreground">Popular:</span>
-            {["Work from Home", "Fresher Jobs", "Part Time", "Driver Jobs"].map((t) => (
+            {["Work from Home", "Fresher Jobs", "Driver Jobs"].map((t) => (
               <button
                 key={t}
                 type="button"

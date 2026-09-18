@@ -22,7 +22,7 @@ function SavedJobsPage() {
       const { data } = await supabase
         .from("saved_jobs")
         .select(
-          "job_id, jobs (id, title, city, state, locality, min_salary, max_salary, salary_period, job_type, work_mode, min_experience_years, max_experience_years, education, skills, created_at, companies (name, is_verified))",
+          "job_id, jobs (id, company_id, title, city, state, locality, min_salary, max_salary, salary_period, job_type, work_mode, min_experience_years, max_experience_years, education, skills, created_at, companies (name, is_verified))",
         )
         .eq("user_id", uid)
         .order("created_at", { ascending: false });

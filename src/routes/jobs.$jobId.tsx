@@ -39,6 +39,7 @@ import { formatExperience, formatSalary, jobTypeLabel, timeAgo, workModeLabel } 
 import { rankSimilarJobs, type RankableJob } from "@/lib/similarJobs";
 import { getSeenJobIds, markJobSeen } from "@/lib/seenJobs";
 import { FormattedJobDescription } from "@/lib/jdFormat";
+import { useShareJob } from "@/hooks/use-share-job";
 
 export const Route = createFileRoute("/jobs/$jobId")({
   head: () => ({ meta: [{ title: "Job · JobsKart" }] }),
@@ -110,6 +111,7 @@ function JobDetailPage() {
   const [reportOpen, setReportOpen] = useState(false);
   const [applicantCount, setApplicantCount] = useState<number>(0);
   const [similar, setSimilar] = useState<JobCardData[]>([]);
+  const { share: shareJob } = useShareJob();
 
   useEffect(() => {
     let cancelled = false;
@@ -144,7 +146,7 @@ function JobDetailPage() {
         supabase
           .from("jobs")
           .select(
-            "id, title, city, state, locality, min_salary, max_salary, salary_period, job_type, work_mode, min_experience_years, max_experience_years, education, skills, category, applications_count, created_at, companies (name, is_verified)",
+            "id, company_id, title, city, state, locality, min_salary, max_salary, salary_period, job_type, work_mode, min_experience_years, max_experience_years, education, skills, category, applications_count, created_at, companies (name, is_verified)",
           )
           .eq("status", "active")
           .neq("id", jobId)
@@ -246,22 +248,7 @@ function JobDetailPage() {
 
   const handleShare = async () => {
     if (!job) return;
-    const url = typeof window !== "undefined" ? window.location.href : "";
-    const text = `${job.title} at ${job.companies?.name || "a top company"} · ${formatSalary(job.min_salary, job.max_salary, job.salary_period || "monthly")}`;
-    if (typeof navigator !== "undefined" && (navigator as Navigator).share) {
-      try {
-        await (navigator as Navigator).share({ title: job.title, text, url });
-        return;
-      } catch {
-        /* user cancelled */
-      }
-    }
-    try {
-      await navigator.clipboard.writeText(url);
-      toast.success("Link copied to clipboard");
-    } catch {
-      toast.error("Could not copy link");
-    }
+    await shareJob(job, userId);
   };
 
   if (loading) {

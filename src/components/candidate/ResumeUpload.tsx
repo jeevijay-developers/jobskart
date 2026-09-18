@@ -1,10 +1,18 @@
 import { useRef, useState } from "react";
 import { FileText, Loader2, FileSearch, Wand2, Upload, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
-import { parseResume, type ParsedResumePayload } from "@/lib/resume.functions";
+import {
+  parseResume,
+  RESUME_SAFE_ERROR_MESSAGES,
+  RESUME_SERVICE_UNAVAILABLE_MESSAGE,
+  type ParsedResumePayload,
+} from "@/lib/resume.functions";
 import { RESUME_ACCEPT, validateResumeFile } from "@/lib/validators";
 
 type Props = {
+  /** Called as soon as the file itself is validated — upload/save it here, independent of AI parsing. */
+  onUploaded?: (file: File) => void;
+  /** Called only if AI auto-fill succeeds. Never gates the file save. */
   onParsed: (data: ParsedResumePayload, file: File) => void;
   /** Existing resume filename, if one was already uploaded. */
   existingName?: string | null;
@@ -18,7 +26,10 @@ const STAGE_LABEL: Record<Exclude<Stage, "idle" | "done">, string> = {
   filling: "Filling your details…",
 };
 
-export function ResumeUpload({ onParsed, existingName }: Props) {
+const AUTOFILL_UNAVAILABLE_MESSAGE =
+  "Resume uploaded successfully, but auto-fill is temporarily unavailable. You can continue manually.";
+
+export function ResumeUpload({ onUploaded, onParsed, existingName }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [stage, setStage] = useState<Stage>("idle");
   const [done, setDone] = useState<string | null>(null);
@@ -41,7 +52,12 @@ export function ResumeUpload({ onParsed, existingName }: Props) {
       return;
     }
 
+    // The file itself is valid — save it now. This must succeed (or fail)
+    // independently of whatever happens with AI parsing below.
     setStage("uploading");
+    onUploaded?.(file);
+    setDone(file.name);
+
     try {
       const base64 = await fileToBase64(file);
       setStage("reading");
@@ -50,16 +66,30 @@ export function ResumeUpload({ onParsed, existingName }: Props) {
       });
       setStage("filling");
       onParsed(data, file);
-      setDone(file.name);
       setStage("done");
       toast.success("Resume parsed — review the auto-filled fields below.");
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Could not parse resume.";
-      setError(msg);
-      setStage("idle");
-      toast.error(msg);
+      // parseResume's server handler already normalizes AI-gateway/network
+      // failures into one of the safe messages below before throwing — but
+      // if the request never reached the server at all (offline, RPC
+      // failure, etc.), e.message could still be a raw fetch/transport
+      // string. Only ever show a message we recognize; anything else falls
+      // back to the same calm copy so a candidate never sees technical text.
+      // Either way, the file above is already saved — parsing is a
+      // best-effort add-on, not a precondition, so we don't retry and we
+      // don't roll the upload back.
+      const msg = e instanceof Error && RESUME_SAFE_ERROR_MESSAGES.has(e.message)
+        ? e.message
+        : RESUME_SERVICE_UNAVAILABLE_MESSAGE;
+      const notice = onUploaded ? AUTOFILL_UNAVAILABLE_MESSAGE : msg;
+      setError(notice);
+      setStage("done");
+      if (onUploaded) toast.info(notice);
+      else toast.error(notice);
     }
   };
+
+  const isAutofillNotice = error === AUTOFILL_UNAVAILABLE_MESSAGE;
 
   return (
     <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/5 via-card to-card p-5 shadow-sm">
@@ -124,7 +154,11 @@ export function ResumeUpload({ onParsed, existingName }: Props) {
           )}
 
           {error && (
-            <p className="mt-3 inline-flex items-center gap-1.5 rounded-md bg-destructive/10 px-2.5 py-1.5 text-xs font-medium text-destructive">
+            <p
+              className={`mt-3 inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium ${
+                isAutofillNotice ? "bg-muted text-muted-foreground" : "bg-destructive/10 text-destructive"
+              }`}
+            >
               <FileText className="h-3.5 w-3.5" /> {error}
             </p>
           )}
