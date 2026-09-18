@@ -1239,56 +1239,121 @@ export type Database = {
         }
         Relationships: []
       }
+      interview_zoom_secrets: {
+        Row: {
+          created_at: string
+          interview_id: string
+          updated_at: string
+          zoom_host_user_id: string
+          zoom_join_url: string | null
+          zoom_meeting_id: string
+          zoom_meeting_uuid: string | null
+          zoom_password: string
+          zoom_start_url: string | null
+        }
+        Insert: {
+          created_at?: string
+          interview_id: string
+          updated_at?: string
+          zoom_host_user_id: string
+          zoom_join_url?: string | null
+          zoom_meeting_id: string
+          zoom_meeting_uuid?: string | null
+          zoom_password: string
+          zoom_start_url?: string | null
+        }
+        Update: {
+          created_at?: string
+          interview_id?: string
+          updated_at?: string
+          zoom_host_user_id?: string
+          zoom_join_url?: string | null
+          zoom_meeting_id?: string
+          zoom_meeting_uuid?: string | null
+          zoom_password?: string
+          zoom_start_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_zoom_secrets_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: true
+            referencedRelation: "interviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       interviews: {
         Row: {
           application_id: string | null
+          cancel_reason: string | null
+          cancelled_at: string | null
           candidate_id: string
           company_id: string
           created_at: string
           created_by: string | null
           duration_min: number
+          host_user_id: string | null
           id: string
           job_id: string | null
           location: string | null
           meeting_url: string | null
           mode: Database["public"]["Enums"]["interview_mode"]
           notes: string | null
+          provider: Database["public"]["Enums"]["interview_provider"]
+          reminder_email_sent_at: string | null
           scheduled_at: string
+          scheduled_email_sent_at: string | null
           status: Database["public"]["Enums"]["interview_status"]
+          timezone: string
           updated_at: string
         }
         Insert: {
           application_id?: string | null
+          cancel_reason?: string | null
+          cancelled_at?: string | null
           candidate_id: string
           company_id: string
           created_at?: string
           created_by?: string | null
           duration_min?: number
+          host_user_id?: string | null
           id?: string
           job_id?: string | null
           location?: string | null
           meeting_url?: string | null
           mode?: Database["public"]["Enums"]["interview_mode"]
           notes?: string | null
+          provider?: Database["public"]["Enums"]["interview_provider"]
+          reminder_email_sent_at?: string | null
           scheduled_at: string
+          scheduled_email_sent_at?: string | null
           status?: Database["public"]["Enums"]["interview_status"]
+          timezone?: string
           updated_at?: string
         }
         Update: {
           application_id?: string | null
+          cancel_reason?: string | null
+          cancelled_at?: string | null
           candidate_id?: string
           company_id?: string
           created_at?: string
           created_by?: string | null
           duration_min?: number
+          host_user_id?: string | null
           id?: string
           job_id?: string | null
           location?: string | null
           meeting_url?: string | null
           mode?: Database["public"]["Enums"]["interview_mode"]
           notes?: string | null
+          provider?: Database["public"]["Enums"]["interview_provider"]
+          reminder_email_sent_at?: string | null
           scheduled_at?: string
+          scheduled_email_sent_at?: string | null
           status?: Database["public"]["Enums"]["interview_status"]
+          timezone?: string
           updated_at?: string
         }
         Relationships: [
@@ -2202,7 +2267,52 @@ export type Database = {
         }
         Returns: number
       }
+      attach_zoom_meeting_secrets: {
+        Args: {
+          _interview_id: string
+          _zoom_host_user_id: string
+          _zoom_join_url?: string
+          _zoom_meeting_id: string
+          _zoom_meeting_uuid: string
+          _zoom_password: string
+          _zoom_start_url?: string
+        }
+        Returns: undefined
+      }
       can_access_job_responses: { Args: { _job_id: string }; Returns: boolean }
+      cancel_video_interview: {
+        Args: { _actor?: string; _interview_id: string; _reason?: string }
+        Returns: {
+          application_id: string | null
+          cancel_reason: string | null
+          cancelled_at: string | null
+          candidate_id: string
+          company_id: string
+          created_at: string
+          created_by: string | null
+          duration_min: number
+          host_user_id: string | null
+          id: string
+          job_id: string | null
+          location: string | null
+          meeting_url: string | null
+          mode: Database["public"]["Enums"]["interview_mode"]
+          notes: string | null
+          provider: Database["public"]["Enums"]["interview_provider"]
+          reminder_email_sent_at: string | null
+          scheduled_at: string
+          scheduled_email_sent_at: string | null
+          status: Database["public"]["Enums"]["interview_status"]
+          timezone: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "interviews"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       create_company_with_owner: {
         Args: {
           _about: string
@@ -2331,6 +2441,89 @@ export type Database = {
         Args: { _company_id: string; _user_id: string }
         Returns: undefined
       }
+      reschedule_video_interview: {
+        Args: {
+          _actor?: string
+          _interview_id: string
+          _new_duration_min?: number
+          _new_scheduled_at: string
+          _notes?: string
+        }
+        Returns: {
+          application_id: string | null
+          cancel_reason: string | null
+          cancelled_at: string | null
+          candidate_id: string
+          company_id: string
+          created_at: string
+          created_by: string | null
+          duration_min: number
+          host_user_id: string | null
+          id: string
+          job_id: string | null
+          location: string | null
+          meeting_url: string | null
+          mode: Database["public"]["Enums"]["interview_mode"]
+          notes: string | null
+          provider: Database["public"]["Enums"]["interview_provider"]
+          reminder_email_sent_at: string | null
+          scheduled_at: string
+          scheduled_email_sent_at: string | null
+          status: Database["public"]["Enums"]["interview_status"]
+          timezone: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "interviews"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      reserve_video_interview_slot: {
+        Args: {
+          _actor?: string
+          _application_id: string
+          _duration_min: number
+          _host_user_id?: string
+          _location?: string
+          _meeting_url?: string
+          _mode: Database["public"]["Enums"]["interview_mode"]
+          _notes?: string
+          _provider: Database["public"]["Enums"]["interview_provider"]
+          _scheduled_at: string
+        }
+        Returns: {
+          application_id: string | null
+          cancel_reason: string | null
+          cancelled_at: string | null
+          candidate_id: string
+          company_id: string
+          created_at: string
+          created_by: string | null
+          duration_min: number
+          host_user_id: string | null
+          id: string
+          job_id: string | null
+          location: string | null
+          meeting_url: string | null
+          mode: Database["public"]["Enums"]["interview_mode"]
+          notes: string | null
+          provider: Database["public"]["Enums"]["interview_provider"]
+          reminder_email_sent_at: string | null
+          scheduled_at: string
+          scheduled_email_sent_at: string | null
+          status: Database["public"]["Enums"]["interview_status"]
+          timezone: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "interviews"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       search_candidates_for_company: {
         Args: {
           _cities?: string[]
@@ -2411,6 +2604,7 @@ export type Database = {
       employer_role: "super_admin" | "hr_admin" | "recruiter"
       experience_status: "fresher" | "experienced" | "student"
       interview_mode: "video" | "phone" | "onsite"
+      interview_provider: "jobskart_zoom" | "external_link"
       interview_status:
         | "scheduled"
         | "confirmed"
@@ -2585,6 +2779,7 @@ export const Constants = {
       employer_role: ["super_admin", "hr_admin", "recruiter"],
       experience_status: ["fresher", "experienced", "student"],
       interview_mode: ["video", "phone", "onsite"],
+      interview_provider: ["jobskart_zoom", "external_link"],
       interview_status: [
         "scheduled",
         "confirmed",

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { EmployerShell } from "@/components/employer/EmployerShell";
 import { ApplicantCard } from "@/components/employer/ApplicantCard";
 import { ApplicantReviewPanel } from "@/components/employer/ApplicantReviewPanel";
+import { ScheduleInterviewModal } from "@/components/employer/ScheduleInterviewModal";
 import { supabase } from "@/integrations/supabase/client";
 import { APPLICANT_STATUSES, applicantStatusLabel } from "@/lib/applicantStatus";
 
@@ -21,7 +22,13 @@ type Application = {
   expected_salary: number | null;
   available_from: string | null;
   candidate_id: string;
-  profiles: { full_name: string | null; email: string | null; mobile: string | null; avatar_url: string | null; city: string | null } | null;
+  profiles: {
+    full_name: string | null;
+    email: string | null;
+    mobile: string | null;
+    avatar_url: string | null;
+    city: string | null;
+  } | null;
   candidate_profiles: {
     profile_slug: string | null;
     headline: string | null;
@@ -39,13 +46,22 @@ type Tab = (typeof TABS)[number]["id"];
 function emptyStateCopy(tab: Tab) {
   switch (tab) {
     case "all":
-      return { title: "No applicants yet", body: "Applications will show up here as candidates apply." };
+      return {
+        title: "No applicants yet",
+        body: "Applications will show up here as candidates apply.",
+      };
     case "applied":
       return { title: "Nothing new to review", body: "New applications land here first." };
     case "shortlisted":
-      return { title: "No one shortlisted yet", body: "Move promising applicants here to keep track of them." };
+      return {
+        title: "No one shortlisted yet",
+        body: "Move promising applicants here to keep track of them.",
+      };
     case "interview":
-      return { title: "No interviews in progress", body: "Applicants you're interviewing will show up here." };
+      return {
+        title: "No interviews in progress",
+        body: "Applicants you're interviewing will show up here.",
+      };
     case "hired":
       return { title: "No hires yet", body: "Once you mark someone hired, they'll appear here." };
     case "rejected":
@@ -55,17 +71,20 @@ function emptyStateCopy(tab: Tab) {
 
 function ApplicantsPage() {
   const { jobId } = Route.useParams();
-  const [job, setJob] = useState<{ title: string; status: string } | null>(null);
+  const [job, setJob] = useState<{ title: string; status: string; company_id: string } | null>(
+    null,
+  );
   const [apps, setApps] = useState<Application[]>([]);
   const [reviewing, setReviewing] = useState<Application | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>("all");
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [scheduling, setScheduling] = useState<Application | null>(null);
 
   const load = async () => {
     const [jRes, aRes] = await Promise.all([
-      supabase.from("jobs").select("title, status").eq("id", jobId).single(),
+      supabase.from("jobs").select("title, status, company_id").eq("id", jobId).single(),
       supabase
         .from("applications")
         .select(
@@ -76,9 +95,11 @@ function ApplicantsPage() {
     ]);
     if (jRes.error) toast.error(jRes.error.message);
     if (aRes.error) toast.error(aRes.error.message);
-    setJob(jRes.data as { title: string; status: string } | null);
+    setJob(jRes.data as { title: string; status: string; company_id: string } | null);
 
-    const rows = ((aRes.data || []) as unknown) as Array<Omit<Application, "candidate_profiles" | "education">>;
+    const rows = (aRes.data || []) as unknown as Array<
+      Omit<Application, "candidate_profiles" | "education">
+    >;
     const ids = Array.from(new Set(rows.map((r) => r.candidate_id)));
 
     let cpMap: Record<string, Application["candidate_profiles"]> = {};
@@ -87,7 +108,9 @@ function ApplicantsPage() {
       const [cpRes, eduRes] = await Promise.all([
         supabase
           .from("candidate_profiles")
-          .select("user_id, profile_slug, headline, last_role, years_experience, experience_status, skills")
+          .select(
+            "user_id, profile_slug, headline, last_role, years_experience, experience_status, skills",
+          )
           .in("user_id", ids),
         supabase
           .from("candidate_education")
@@ -110,16 +133,43 @@ function ApplicantsPage() {
     );
     setLoading(false);
   };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load(); }, [jobId]);
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobId]);
 
   const updateStatus = async (ids: string[], status: string) => {
+    // Scheduling an interview needs a date/time/provider from the employer,
+    // so a single-candidate move to "interview" opens the scheduling modal
+    // instead of flipping the status field directly — the schedule server
+    // function sets applications.status itself once a slot is reserved.
+    if (status === "interview" && ids.length === 1) {
+      const applicant = apps.find((a) => a.id === ids[0]);
+      if (applicant) setScheduling(applicant);
+      return;
+    }
     setApps((prev) => prev.map((a) => (ids.includes(a.id) ? { ...a, status } : a)));
     setReviewing((r) => (r && ids.includes(r.id) ? { ...r, status } : r));
-    const { error } = await supabase.from("applications").update({ status } as never).in("id", ids);
-    if (error) { toast.error(error.message); load(); return; }
-    toast.success(ids.length > 1 ? `Moved ${ids.length} to ${applicantStatusLabel(status)}` : `Marked as ${applicantStatusLabel(status)}`);
-    setSelectedIds((prev) => { const n = new Set(prev); ids.forEach((id) => n.delete(id)); return n; });
+    const { error } = await supabase
+      .from("applications")
+      .update({ status } as never)
+      .in("id", ids);
+    if (error) {
+      toast.error(error.message);
+      load();
+      return;
+    }
+    toast.success(
+      ids.length > 1
+        ? `Moved ${ids.length} to ${applicantStatusLabel(status)}`
+        : `Marked as ${applicantStatusLabel(status)}`,
+    );
+    setSelectedIds((prev) => {
+      const n = new Set(prev);
+      ids.forEach((id) => n.delete(id));
+      return n;
+    });
   };
 
   const counts = useMemo(() => {
@@ -140,7 +190,8 @@ function ApplicantsPage() {
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
       const n = new Set(prev);
-      if (n.has(id)) n.delete(id); else n.add(id);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
       return n;
     });
   };
@@ -156,7 +207,10 @@ function ApplicantsPage() {
       title={job?.title ?? "Applicants"}
       subtitle={`${apps.length} applicant${apps.length === 1 ? "" : "s"}`}
       actions={
-        <Link to="/employer/jobs" className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm">
+        <Link
+          to="/employer/jobs"
+          className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm"
+        >
           <ArrowLeft className="h-4 w-4" /> All jobs
         </Link>
       }
@@ -177,23 +231,31 @@ function ApplicantsPage() {
                     key={t.id}
                     onClick={() => setTab(t.id)}
                     className={`rounded-lg px-2 py-2 text-sm font-medium transition-colors sm:px-3 ${
-                      tab === t.id ? "bg-primary text-primary-foreground" : "text-foreground/70 hover:bg-surface"
+                      tab === t.id
+                        ? "bg-primary text-primary-foreground"
+                        : "text-foreground/70 hover:bg-surface"
                     }`}
                   >
-                    {t.label} {counts[t.id] > 0 && <span className="ml-1 opacity-80">({counts[t.id]})</span>}
+                    {t.label}{" "}
+                    {counts[t.id] > 0 && <span className="ml-1 opacity-80">({counts[t.id]})</span>}
                   </button>
                 ))}
               </div>
-              <div className={`${showInterviewSubTabs ? "mt-1 grid grid-cols-2 gap-1" : "hidden"} sm:contents sm:mt-0`}>
+              <div
+                className={`${showInterviewSubTabs ? "mt-1 grid grid-cols-2 gap-1" : "hidden"} sm:contents sm:mt-0`}
+              >
                 {TABS.filter((t) => t.id === "hired" || t.id === "rejected").map((t) => (
                   <button
                     key={t.id}
                     onClick={() => setTab(t.id)}
                     className={`rounded-lg px-2 py-2 text-sm font-medium transition-colors sm:px-3 ${
-                      tab === t.id ? "bg-primary text-primary-foreground" : "text-foreground/70 hover:bg-surface"
+                      tab === t.id
+                        ? "bg-primary text-primary-foreground"
+                        : "text-foreground/70 hover:bg-surface"
                     }`}
                   >
-                    {t.label} {counts[t.id] > 0 && <span className="ml-1 opacity-80">({counts[t.id]})</span>}
+                    {t.label}{" "}
+                    {counts[t.id] > 0 && <span className="ml-1 opacity-80">({counts[t.id]})</span>}
                   </button>
                 ))}
               </div>
@@ -202,15 +264,20 @@ function ApplicantsPage() {
               onClick={() => setSortOrder((s) => (s === "newest" ? "oldest" : "newest"))}
               className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold hover:bg-surface"
             >
-              <ArrowUpDown className="h-3.5 w-3.5" /> {sortOrder === "newest" ? "Newest first" : "Oldest first"}
+              <ArrowUpDown className="h-3.5 w-3.5" />{" "}
+              {sortOrder === "newest" ? "Newest first" : "Oldest first"}
             </button>
           </div>
 
           {selectedIds.size > 0 && (
             <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-primary/30 bg-primary-light p-3">
-              <span className="text-xs font-semibold text-primary">{selectedIds.size} selected</span>
+              <span className="text-xs font-semibold text-primary">
+                {selectedIds.size} selected
+              </span>
               <div className="flex flex-wrap gap-1.5">
-                {APPLICANT_STATUSES.map((s) => (
+                {/* "Interview" needs a per-candidate date/time via the scheduling
+                    modal, so it's excluded from this bulk bar. */}
+                {APPLICANT_STATUSES.filter((s) => s.id !== "interview").map((s) => (
                   <button
                     key={s.id}
                     onClick={() => updateStatus([...selectedIds], s.id)}
@@ -220,7 +287,10 @@ function ApplicantsPage() {
                   </button>
                 ))}
               </div>
-              <button onClick={() => setSelectedIds(new Set())} className="ml-auto text-xs text-muted-foreground hover:underline">
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="ml-auto text-xs text-muted-foreground hover:underline"
+              >
                 Clear
               </button>
             </div>
@@ -254,6 +324,22 @@ function ApplicantsPage() {
           applicant={reviewing}
           onClose={() => setReviewing(null)}
           onStatusChange={(status) => updateStatus([reviewing.id], status)}
+        />
+      )}
+
+      {scheduling && job && (
+        <ScheduleInterviewModal
+          open
+          onOpenChange={(v) => !v && setScheduling(null)}
+          companyId={job.company_id}
+          applicationId={scheduling.id}
+          candidateName={scheduling.profiles?.full_name}
+          onScheduled={() => {
+            setApps((prev) =>
+              prev.map((a) => (a.id === scheduling.id ? { ...a, status: "interview" } : a)),
+            );
+            setScheduling(null);
+          }}
         />
       )}
     </EmployerShell>
