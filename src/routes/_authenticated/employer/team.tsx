@@ -187,9 +187,9 @@ function TeamPage() {
 
   return (
     <EmployerShell title="Team" subtitle="Invite recruiters, HR admins, and super admins.">
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-4">
-          <section className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
+      <div className="grid min-w-0 gap-6 lg:grid-cols-3">
+        <div className="min-w-0 space-y-4 lg:col-span-2">
+          <section className="min-w-0 rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
             <h2 className="text-sm font-bold">
               Members{" "}
               <span className="ml-1 text-xs font-medium text-muted-foreground">
@@ -260,7 +260,7 @@ function TeamPage() {
           </section>
 
           {invites.length > 0 && (
-            <section className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
+            <section className="min-w-0 rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
               <h2 className="text-sm font-bold">Pending invites</h2>
               <div className="mt-4 space-y-2">
                 {invites.map((i) => (
@@ -296,7 +296,7 @@ function TeamPage() {
           )}
         </div>
 
-        <section className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
+        <section className="min-w-0 rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
           <h2 className="flex items-center gap-2 text-sm font-bold">
             <UserPlus className="h-4 w-4" /> Invite teammate
           </h2>

@@ -11,12 +11,10 @@ import { ArrowLeft, Briefcase, Filter, Loader2, Search, X } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
 import { z } from "zod";
 import { Navbar } from "@/components/site/Navbar";
-import { Pagination } from "@/components/site/Pagination";
 import { JobCard, type JobCardData } from "@/components/site/JobCard";
 import { AutocompleteInput } from "@/components/site/AutocompleteInput";
 import { CandidateMobileTabBar } from "@/components/candidate/CandidateShell";
 import { supabase } from "@/integrations/supabase/client";
-import { usePaginatedQuery } from "@/hooks/use-paginated-query";
 import {
   JOB_CATEGORIES,
   JOB_TYPE_OPTIONS,
@@ -28,7 +26,11 @@ import {
 } from "@/lib/options";
 import { useJobTitleSuggestions } from "@/lib/useJobTitleSuggestions";
 
-const PAGE_SIZE = 20;
+// "Load More Jobs" batch size (mirrors the employer Activity page's pattern):
+// reveal BATCH_SIZE more jobs per click, buffered from a larger server chunk
+// so most clicks don't need a fresh network round-trip.
+const BATCH_SIZE = 5;
+const FETCH_CHUNK = 50;
 const SORT_OPTIONS = ["newest", "oldest", "salary_high", "salary_low"] as const;
 type SortKey = (typeof SORT_OPTIONS)[number];
 
@@ -188,7 +190,6 @@ function JobsList() {
   const [filters, setFilters] = useState<Filters>(() => filtersFromSearch(urlSearch));
   const [draft, setDraft] = useState<Filters>(() => filtersFromSearch(urlSearch));
   const sort: SortKey = urlSearch.sort ?? "newest";
-  const page = Math.max(1, urlSearch.page ?? 1);
   const [mobileFilters, setMobileFilters] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [isEmployer, setIsEmployer] = useState(false);
@@ -245,66 +246,115 @@ function JobsList() {
     urlSearch.verifiedOnly,
   ]);
 
-  const setPage = (next: number) => {
-    navigate({ search: buildSearch(filters, { sort, page: next }) });
-    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  // "Load More Jobs": `jobs` is the full buffer fetched so far for the
+  // current filters/sort, `visibleCount` is how many of those are actually
+  // shown. Load More only ever increases `visibleCount` (by BATCH_SIZE) — it
+  // re-fetches more rows from the server only once the buffer runs out.
+  // Mirrors the employer Activity page's Load More pattern.
+  const [jobs, setJobs] = useState<JobCardData[]>([]);
+  const [visibleCount, setVisibleCount] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMoreOnServer, setHasMoreOnServer] = useState(false);
+
+  const runQuery = (from: number, to: number) => {
+    let q = supabase
+      .from("jobs")
+      .select(
+        "id, company_id, title, city, state, locality, min_salary, max_salary, salary_period, job_type, work_mode, min_experience_years, max_experience_years, education, skills, created_at, companies!inner (name, is_verified)",
+        { count: "exact" },
+      )
+      .eq("status", "active");
+
+    if (sort === "newest") q = q.order("created_at", { ascending: false });
+    else if (sort === "oldest") q = q.order("created_at", { ascending: true });
+    else if (sort === "salary_high")
+      q = q.order("max_salary", { ascending: false, nullsFirst: false });
+    else if (sort === "salary_low")
+      q = q.order("min_salary", { ascending: true, nullsFirst: false });
+
+    if (filters.q) q = q.ilike("title", `%${filters.q}%`);
+    if (filters.city) q = q.ilike("city", `%${filters.city}%`);
+    if (filters.category) q = q.eq("category", filters.category);
+    if (filters.jobType) q = q.eq("job_type", filters.jobType as never);
+    if (filters.workMode) q = q.eq("work_mode", filters.workMode as never);
+    if (filters.minSalary) q = q.gte("min_salary", Number(filters.minSalary));
+    if (filters.maxSalary) q = q.lte("max_salary", Number(filters.maxSalary));
+    // Job's accepted experience range must overlap the candidate's selected range.
+    if (filters.maxExp) q = q.lte("min_experience_years", Number(filters.maxExp));
+    if (filters.minExp)
+      q = q.or(`max_experience_years.gte.${Number(filters.minExp)},max_experience_years.is.null`);
+    if (filters.datePosted) {
+      const cutoff = datePostedCutoffIso(filters.datePosted);
+      if (cutoff) q = q.gte("created_at", cutoff);
+    }
+    if (filters.education) q = q.eq("education", filters.education);
+    if (filters.shift) q = q.eq("shift", filters.shift as never);
+    if (filters.englishLevel) q = q.eq("english_level", filters.englishLevel);
+    if (filters.company) q = q.ilike("companies.name", `%${filters.company}%`);
+    if (filters.vehicle) q = q.contains("required_assets", ["Two-wheeler"]);
+    if (filters.verifiedOnly) q = q.eq("companies.is_verified", true);
+
+    return q.range(from, to);
   };
 
-  const {
-    rows: jobs,
-    total,
-    totalPages,
-    isLoading: loading,
-  } = usePaginatedQuery<JobCardData>({
-    queryKey: ["jobs-list", filters, sort],
-    pageSize: PAGE_SIZE,
-    page,
-    onPageChange: setPage,
-    fetchPage: async ({ from, to }) => {
-      let q = supabase
-        .from("jobs")
-        .select(
-          "id, company_id, title, city, state, locality, min_salary, max_salary, salary_period, job_type, work_mode, min_experience_years, max_experience_years, education, skills, created_at, companies!inner (name, is_verified)",
-          { count: "exact" },
-        )
-        .eq("status", "active");
-
-      if (sort === "newest") q = q.order("created_at", { ascending: false });
-      else if (sort === "oldest") q = q.order("created_at", { ascending: true });
-      else if (sort === "salary_high")
-        q = q.order("max_salary", { ascending: false, nullsFirst: false });
-      else if (sort === "salary_low")
-        q = q.order("min_salary", { ascending: true, nullsFirst: false });
-
-      if (filters.q) q = q.ilike("title", `%${filters.q}%`);
-      if (filters.city) q = q.ilike("city", `%${filters.city}%`);
-      if (filters.category) q = q.eq("category", filters.category);
-      if (filters.jobType) q = q.eq("job_type", filters.jobType as never);
-      if (filters.workMode) q = q.eq("work_mode", filters.workMode as never);
-      if (filters.minSalary) q = q.gte("min_salary", Number(filters.minSalary));
-      if (filters.maxSalary) q = q.lte("max_salary", Number(filters.maxSalary));
-      // Job's accepted experience range must overlap the candidate's selected range.
-      if (filters.maxExp) q = q.lte("min_experience_years", Number(filters.maxExp));
-      if (filters.minExp)
-        q = q.or(`max_experience_years.gte.${Number(filters.minExp)},max_experience_years.is.null`);
-      if (filters.datePosted) {
-        const cutoff = datePostedCutoffIso(filters.datePosted);
-        if (cutoff) q = q.gte("created_at", cutoff);
+  // Filters/sort change: reset the buffer and visible count back to the
+  // first BATCH_SIZE, then fetch a fresh chunk for the new query.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      const { data, count, error } = await runQuery(0, FETCH_CHUNK);
+      if (cancelled) return;
+      if (error) {
+        setLoading(false);
+        return;
       }
-      if (filters.education) q = q.eq("education", filters.education);
-      if (filters.shift) q = q.eq("shift", filters.shift as never);
-      if (filters.englishLevel) q = q.eq("english_level", filters.englishLevel);
-      if (filters.company) q = q.ilike("companies.name", `%${filters.company}%`);
-      if (filters.vehicle) q = q.contains("required_assets", ["Two-wheeler"]);
-      if (filters.verifiedOnly) q = q.eq("companies.is_verified", true);
+      const rows = (data as unknown as JobCardData[]) || [];
+      const page = rows.slice(0, FETCH_CHUNK);
+      setJobs(page);
+      setTotal(count ?? 0);
+      setVisibleCount(Math.min(BATCH_SIZE, page.length));
+      setHasMoreOnServer(rows.length > FETCH_CHUNK);
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters, sort]);
 
-      q = q.range(from, to);
+  const loadMore = async () => {
+    if (loadingMore) return;
+    const nextVisible = visibleCount + BATCH_SIZE;
 
-      const { data, count, error } = await q;
-      if (error) throw error;
-      return { rows: (data as unknown as JobCardData[]) || [], total: count ?? 0 };
-    },
-  });
+    // Enough already buffered to reveal the next batch — no network call needed.
+    if (nextVisible <= jobs.length) {
+      setVisibleCount(Math.min(nextVisible, jobs.length));
+      return;
+    }
+
+    if (!hasMoreOnServer) {
+      setVisibleCount(jobs.length);
+      return;
+    }
+    setLoadingMore(true);
+    const { data, count, error } = await runQuery(jobs.length, jobs.length + FETCH_CHUNK);
+    if (!error) {
+      const rows = (data as unknown as JobCardData[]) || [];
+      const page = rows.slice(0, FETCH_CHUNK);
+      const merged = [...jobs, ...page];
+      setJobs(merged);
+      setTotal(count ?? 0);
+      setHasMoreOnServer(rows.length > FETCH_CHUNK);
+      setVisibleCount(Math.min(nextVisible, merged.length));
+    }
+    setLoadingMore(false);
+  };
+
+  const visibleJobs = jobs.slice(0, visibleCount);
+  const hasMore = visibleCount < jobs.length || hasMoreOnServer;
 
   const apply = () => {
     setFilters(draft);
@@ -403,7 +453,7 @@ function JobsList() {
                 ? "Loading…"
                 : total === 0
                   ? "No jobs found"
-                  : `${total.toLocaleString("en-IN")} job${total === 1 ? "" : "s"} · page ${page} of ${totalPages}`}
+                  : `${total.toLocaleString("en-IN")} job${total === 1 ? "" : "s"} · showing ${Math.min(visibleCount, total).toLocaleString("en-IN")}`}
             </p>
             <label className="flex items-center gap-2 text-sm">
               <span className="text-muted-foreground">Sort by</span>
@@ -424,7 +474,7 @@ function JobsList() {
             <div className="grid place-items-center rounded-xl border border-border bg-card p-12">
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
             </div>
-          ) : jobs.length === 0 ? (
+          ) : visibleJobs.length === 0 ? (
             <div className="grid place-items-center rounded-xl border border-dashed border-border bg-card p-12 text-center">
               <Briefcase className="mb-3 h-8 w-8 text-muted-foreground" />
               <h2 className="text-lg font-semibold text-foreground">No jobs match your filters</h2>
@@ -441,12 +491,22 @@ function JobsList() {
           ) : (
             <>
               <div className="grid gap-4">
-                {jobs.map((j) => (
+                {visibleJobs.map((j) => (
                   <JobCard key={j.id} job={j} />
                 ))}
               </div>
-              {totalPages > 1 && (
-                <Pagination page={page} totalPages={totalPages} onChange={setPage} />
+              {hasMore && (
+                <div className="mt-6 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={loadMore}
+                    disabled={loadingMore}
+                    className="inline-flex h-10 max-w-full items-center justify-center gap-2 rounded-lg border border-primary px-5 text-sm font-semibold text-primary hover:bg-primary-light disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {loadingMore ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    Load More Jobs
+                  </button>
+                </div>
               )}
             </>
           )}
