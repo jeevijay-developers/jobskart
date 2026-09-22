@@ -345,15 +345,15 @@ function EmployerDashboard() {
       </div>
 
       {/* SIDEBAR */}
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
+      <div className="mt-6 grid min-w-0 gap-6 lg:grid-cols-3">
+        <div className="min-w-0 space-y-6 lg:col-span-2">
           {/* Activity feed */}
-          <section className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="flex items-center gap-2 text-base font-bold">
-                <ActivityIcon className="h-4 w-4 text-primary" /> Activity
+          <section className="min-w-0 rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h2 className="flex min-w-0 items-center gap-2 text-base font-bold">
+                <ActivityIcon className="h-4 w-4 shrink-0 text-primary" /> <span className="truncate">Activity</span>
               </h2>
-              <Link to="/employer/activity" className="text-xs font-semibold text-primary">
+              <Link to="/employer/activity" className="shrink-0 text-xs font-semibold text-primary">
                 View all →
               </Link>
             </div>
@@ -361,14 +361,14 @@ function EmployerDashboard() {
           </section>
 
           {/* Recent applicants */}
-          <section className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
-            <div className="flex items-center justify-between">
-              <h2 className="text-base font-bold">Recent applicants</h2>
-              <Link to="/employer/responses" className="text-xs font-semibold text-primary">
+          <section className="min-w-0 rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="min-w-0 truncate text-base font-bold">Recent applicants</h2>
+              <Link to="/employer/responses" className="shrink-0 text-xs font-semibold text-primary">
                 Open inbox →
               </Link>
             </div>
-            <div className="mt-4 divide-y divide-border">
+            <div className="mt-4 min-w-0 divide-y divide-border">
               {recent.length === 0 ? (
                 <p className="rounded-lg bg-surface px-4 py-8 text-center text-sm leading-relaxed text-muted-foreground break-words">
                   No applicants yet — post a job to start receiving applications.
@@ -379,9 +379,9 @@ function EmployerDashboard() {
                     key={a.id}
                     to="/employer/jobs/$jobId/applicants"
                     params={{ jobId: a.jobs?.id || "" }}
-                    className="flex items-center justify-between gap-3 py-3 hover:bg-surface"
+                    className="flex min-w-0 items-center justify-between gap-3 py-3 hover:bg-surface"
                   >
-                    <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
                       <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary-light text-sm font-semibold text-primary">
                         {(a.profiles?.full_name || "?").slice(0, 1).toUpperCase()}
                       </div>

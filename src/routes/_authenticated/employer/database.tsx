@@ -430,15 +430,29 @@ function DatabasePage() {
                     }
                   : undefined
               }
-              className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 rounded-2xl border border-border bg-card p-4 shadow-sm sm:flex sm:flex-wrap ${
+              className={`relative rounded-2xl border border-border bg-card p-4 shadow-sm sm:flex sm:flex-wrap sm:items-center sm:gap-4 ${
                 isUnlocked ? "cursor-pointer hover:border-primary/40" : ""
               }`}
             >
+              {/*
+                Mobile (below sm:): the masked-mobile/Unlock block is
+                absolutely positioned to the card's top-right, since the
+                original side-by-side grid vertically centered it next to
+                the *whole* left column — including the skills chips, which
+                could grow taller than the button and end up overlapped by
+                it. Only the name/headline/location row reserves right-side
+                `pr-*` space for the button — skills sit in their own
+                full-width row below, clear of the button vertically, so
+                they get the full card width to wrap horizontally instead of
+                being squeezed into a narrow leftover column. Desktop
+                (sm: and up) is untouched — same sm:flex sm:flex-wrap as
+                before, `sm:static`/`sm:pr-0` cancel the mobile-only changes.
+              */}
               <div className="flex min-w-0 items-center gap-3 sm:flex-1">
                 <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-primary-light text-primary font-bold">
                   {(c.full_name?.[0] ?? "C").toUpperCase()}
                 </div>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1 pr-32 sm:pr-0">
                   <p className="truncate font-semibold text-foreground">
                     {isUnlocked ? c.full_name ?? contact?.full_name : maskName(c.full_name)}
                   </p>
@@ -458,7 +472,7 @@ function DatabasePage() {
                     )}
                   </div>
                   {c.skills && c.skills.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1.5">
+                    <div className="mt-2 hidden flex-wrap gap-1.5 sm:flex">
                       {c.skills.slice(0, 4).map((s) => (
                         <span key={s} className="rounded-full bg-surface px-2 py-0.5 text-[11px] font-medium text-foreground">
                           {s}
@@ -469,7 +483,22 @@ function DatabasePage() {
                 </div>
               </div>
 
-              <div className="flex shrink-0 flex-col items-end gap-2 sm:items-end">
+              {/* Mobile-only: skills get their own full-width row below the
+                  info block (not squeezed into the pr-32-constrained
+                  column), so chips actually wrap side-by-side instead of
+                  stacking one per line. Desktop keeps the original chips
+                  block above, inside the info column. */}
+              {c.skills && c.skills.length > 0 && (
+                <div className="mt-2 flex w-full flex-wrap gap-1.5 sm:hidden">
+                  {c.skills.slice(0, 4).map((s) => (
+                    <span key={s} className="rounded-full bg-surface px-2 py-0.5 text-[11px] font-medium text-foreground">
+                      {s}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <div className="absolute right-4 top-4 flex shrink-0 flex-col items-end gap-2 sm:static sm:items-end">
                 {isUnlocked ? (
                   <div className="space-y-1 text-right text-sm">
                     <p className="font-semibold text-foreground">{contact?.mobile}</p>

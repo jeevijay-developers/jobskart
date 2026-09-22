@@ -21,7 +21,7 @@ type Form = {
   job_type: string; work_mode: string; openings: number; gender_pref: string;
 
   city: string; locality: string; pincode: string;
-  pay_type: "fixed" | "fixed_incentive" | "incentive_only";
+  pay_type: "fixed" | "fixed_incentive" | "incentive_only" | "";
   min_salary: string; max_salary: string; avg_incentive: string; salary_period: string;
   interview_type: "in_person" | "telephonic" | "";
   interview_same_as_company: boolean;
@@ -45,7 +45,7 @@ const initialForm: Form = {
   title: "", category: "", industry: "",
   job_type: "", work_mode: "", openings: 1, gender_pref: "any",
   city: "", locality: "", pincode: "",
-  pay_type: "fixed", min_salary: "", max_salary: "", avg_incentive: "", salary_period: "monthly",
+  pay_type: "", min_salary: "", max_salary: "", avg_incentive: "", salary_period: "monthly",
   interview_type: "in_person", interview_same_as_company: true,
   interview_city: "", interview_locality: "", interview_address: "",
   experience_bucket: "any", min_experience_years: "0", max_experience_years: "",
@@ -116,7 +116,7 @@ function jobToForm(job: JobRow): Form {
     city: job.city ?? "",
     locality: job.locality ?? "",
     pincode: job.pincode ?? "",
-    pay_type: (job.pay_type as Form["pay_type"]) || "fixed",
+    pay_type: (job.pay_type as Form["pay_type"]) || "",
     min_salary: job.min_salary != null ? String(job.min_salary) : "",
     max_salary: job.max_salary != null ? String(job.max_salary) : "",
     avg_incentive: job.avg_incentive_monthly != null ? String(job.avg_incentive_monthly) : "",
@@ -176,7 +176,7 @@ function buildFieldsFromForm(form: Form, jdInput: JdInput, isConsultant: boolean
     skills: form.skills,
     perks: form.perks,
     gender_pref: form.gender_pref,
-    pay_type: form.pay_type,
+    pay_type: form.pay_type || null,
     experience_bucket: form.experience_bucket,
     joining_fee_required: form.joining_fee_required,
     preferred_languages: form.preferred_languages,
@@ -279,7 +279,7 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
   const jdInput: JdInput = useMemo(() => ({
     title: form.title, companyName, industry: form.industry, category: form.category,
     workMode: form.work_mode, jobType: form.job_type,
-    payType: form.pay_type,
+    payType: form.pay_type || "fixed",
     minSalary: form.min_salary ? Number(form.min_salary) : undefined,
     maxSalary: form.max_salary ? Number(form.max_salary) : undefined,
     avgIncentive: form.avg_incentive ? Number(form.avg_incentive) : undefined,
@@ -325,10 +325,8 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
     if (targetStep === 1) {
       if (!form.city) return "Pick a city.";
       if (form.pincode && form.pincode.length !== 6) return "Pincode must be 6 digits.";
-      if (form.pay_type !== "incentive_only" && !form.min_salary) return "Enter minimum monthly salary.";
       if (form.min_salary && form.max_salary && Number(form.max_salary) < Number(form.min_salary))
         return "Max salary must be higher than min salary.";
-      if (form.pay_type !== "fixed" && !form.avg_incentive) return "Enter average monthly incentive.";
       if (!form.interview_type) return "Select interview type.";
       if (form.interview_type === "in_person" && !form.interview_same_as_company) {
         if (!form.interview_city || !form.interview_address) return "Add interview city & address.";
@@ -582,10 +580,10 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                   </div>
 
                   <div>
-                    <p className="mb-1.5 text-sm font-medium">Compensation · Pay type <span className="text-destructive">*</span></p>
+                    <p className="mb-1.5 text-sm font-medium">Compensation · Pay type</p>
                     <div className="flex flex-wrap gap-2">
                       {PAY_TYPES.map((p) => (
-                        <button key={p.id} type="button" onClick={() => set("pay_type", p.id as Form["pay_type"])}
+                        <button key={p.id} type="button" onClick={() => set("pay_type", form.pay_type === p.id ? "" : (p.id as Form["pay_type"]))}
                           className={`rounded-full border px-4 py-1.5 text-sm ${form.pay_type === p.id ? "border-primary bg-primary-light text-primary" : "border-border bg-surface text-foreground/70"}`}>
                           {p.label}
                         </button>
@@ -595,7 +593,7 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
 
                   {form.pay_type !== "incentive_only" && (
                     <div className="grid gap-3 sm:grid-cols-2">
-                      <Field label="Fixed min / month (₹)" required>
+                      <Field label="Fixed min / month (₹)">
                         {/* Desktop (sm: and up): unchanged native number input with its own
                             native spin arrows. Mobile only: native spinner disabled and
                             replaced with the same custom dark stepper used for Openings,
@@ -662,7 +660,7 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                     </div>
                   )}
                   {form.pay_type !== "fixed" && (
-                    <Field label="Average incentive / month (₹)" required>
+                    <Field label="Average incentive / month (₹)">
                       <div className="relative">
                         <input
                           type="number"
