@@ -24,6 +24,17 @@ function interviewTopic(jobTitle: string | null): string {
   return jobTitle ? `JobsKart Interview – ${jobTitle}` : "JobsKart Interview";
 }
 
+// pg_cron is the primary T-30 sender. If cron/secrets were missing, opening
+// an interview screen around T-30 still tries once — claim is idempotent.
+function kickInterviewReminders(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabaseAdmin: any,
+) {
+  void supabaseAdmin.functions
+    .invoke("interview-reminder", { body: {} })
+    .catch((e: unknown) => console.error("interview-reminder invoke failed", e));
+}
+
 // A jobskart_zoom interview always has a secrets row (attach happens in the
 // same scheduling flow right after reserve_video_interview_slot succeeds),
 // so a missing row here means data got corrupted, not a normal "not yet" state.
@@ -261,6 +272,7 @@ export const getHostStartUrl = createServerFn({ method: "POST" })
     await assertCompanyMember(context.supabase, context.userId, data.companyId);
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    kickInterviewReminders(supabaseAdmin);
     const { data: iv, error } = await supabaseAdmin
       .from("interviews")
       .select("id, provider, status")
@@ -339,6 +351,7 @@ export const getCandidateJoinPayloadByToken = createServerFn({ method: "POST" })
     if (!verified.ok) throw new Error(`invalid_join_link:${verified.reason}`);
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    kickInterviewReminders(supabaseAdmin);
     const { data: iv, error } = await supabaseAdmin
       .from("interviews")
       .select("*")
@@ -374,5 +387,14 @@ export const getCandidateJoinPayloadForOwnInterview = createServerFn({ method: "
     }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    kickInterviewReminders(supabaseAdmin);
     return buildCandidateJoinPayload(supabaseAdmin, iv as InterviewRow);
+  });
+
+export const flushDueInterviewReminders = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    kickInterviewReminders(supabaseAdmin);
+    return { ok: true as const };
   });

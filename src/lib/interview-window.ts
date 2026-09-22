@@ -9,6 +9,10 @@
 export type JoinWindowState = "too_early" | "open" | "expired";
 
 const BUFFER_MIN = 15;
+/** Email 2 (join link) becomes due this many minutes before scheduled_at. */
+export const REMINDER_LEAD_MIN = 30;
+/** Matches reserve_video_interview_slot max duration — used to bound the cron claim query. */
+export const MAX_INTERVIEW_DURATION_MIN = 240;
 
 export function getJoinWindow(
   scheduledAtIso: string,
@@ -37,4 +41,17 @@ export function isInsideJoinWindow(
   now: Date = new Date(),
 ): boolean {
   return getJoinWindowState(scheduledAtIso, durationMin, now) === "open";
+}
+
+/** T-30 has arrived and the join window has not closed yet (cron-miss catch-up). */
+export function isInReminderSendWindow(
+  scheduledAtIso: string,
+  durationMin: number,
+  now: Date = new Date(),
+): boolean {
+  const scheduledAt = new Date(scheduledAtIso).getTime();
+  const t30 = scheduledAt - REMINDER_LEAD_MIN * 60_000;
+  const { closesAt } = getJoinWindow(scheduledAtIso, durationMin);
+  const t = now.getTime();
+  return t >= t30 && t <= closesAt.getTime();
 }

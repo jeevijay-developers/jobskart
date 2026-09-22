@@ -1,8 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { chatJSON } from "@/lib/ai/provider";
+import { chatJSON, decide, isJevEnabled } from "@/lib/ai/provider";
 import { assertNoProtectedFields } from "@/lib/ai-shortlist-guard";
+import {
+  buildShortlistQuestions,
+  parseGateAnswers,
+  scoreRowFromGate,
+} from "@/lib/ai/jev-shortlist-gate";
 
 
 const input = z.object({
@@ -37,6 +42,45 @@ type ScoreRow = {
 };
 
 const CACHE_HOURS = 1;
+const JEV_CONCURRENCY = 6;
+
+type CandidateScoreItem = {
+  application_id: string;
+  candidate_id: string;
+  headline: string | null;
+  last_role: string | null;
+  years_experience: number | null;
+  skills: string[];
+  bio: string;
+  cover_note: string;
+  expected_salary: number | null;
+  available_from: string | null;
+  city: string | null;
+};
+
+type ScoreUpsert = {
+  job_id: string;
+  application_id: string;
+  candidate_id: string;
+  score: number;
+  reasons: string[];
+  summary: string | null;
+  computed_at: string;
+};
+
+async function mapPool<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let next = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (true) {
+      const idx = next++;
+      if (idx >= items.length) return;
+      out[idx] = await fn(items[idx]);
+    }
+  });
+  await Promise.all(workers);
+  return out;
+}
 
 export const recommendShortlist = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -96,12 +140,13 @@ export const recommendShortlist = createServerFn({ method: "POST" })
         .in("user_id", candidateIds);
       const profileMap = new Map((profilesData || []).map((p) => [p.user_id, p]));
 
-      const items = needScoring.map((a) => {
+      const items: CandidateScoreItem[] = needScoring.map((a) => {
         const p = profileMap.get(a.candidate_id);
         const app = a as unknown as {
           cover_note: string | null;
           expected_salary: number | null;
           available_from: string | null;
+          profiles: { city: string | null } | null;
         };
         return {
           application_id: a.id,
@@ -114,10 +159,74 @@ export const recommendShortlist = createServerFn({ method: "POST" })
           cover_note: (app.cover_note ?? "").slice(0, 400),
           expected_salary: app.expected_salary ?? null,
           available_from: app.available_from ?? null,
+          city: app.profiles?.city ?? null,
         };
       });
 
-      const prompt = `Score each candidate 0-100 against this job. Return strict JSON only:
+      const nowIso = () => new Date().toISOString();
+      const upserts: ScoreUpsert[] = [];
+      let geminiItems = items;
+
+      if (isJevEnabled()) {
+        const jobHasCity = !!(job.city && String(job.city).trim());
+        const locationSkipped = !jobHasCity;
+        const questions = buildShortlistQuestions(jobHasCity);
+        const jobState = {
+          title: job.title,
+          skills: job.skills || [],
+          min_experience_years: job.min_experience_years ?? 0,
+          city: job.city ?? null,
+          description: (job.description || "").slice(0, 800),
+        };
+
+        try {
+          const gated = await mapPool(items, JEV_CONCURRENCY, async (item) => {
+            try {
+              const result = await decide({
+                state: {
+                  job: jobState,
+                  candidate: {
+                    headline: item.headline,
+                    last_role: item.last_role,
+                    years_experience: item.years_experience,
+                    skills: item.skills,
+                    city: item.city,
+                    bio: item.bio,
+                  },
+                },
+                questions,
+              });
+              const scored = scoreRowFromGate(parseGateAnswers(result.answers), { locationSkipped });
+              return { item, scored };
+            } catch {
+              return { item, scored: scoreRowFromGate({}, { locationSkipped }) };
+            }
+          });
+
+          const remaining: CandidateScoreItem[] = [];
+          for (const { item, scored } of gated) {
+            if (scored.route === "gemini") {
+              remaining.push(item);
+              continue;
+            }
+            upserts.push({
+              job_id: jobId,
+              application_id: item.application_id,
+              candidate_id: item.candidate_id,
+              score: scored.score,
+              reasons: scored.reasons,
+              summary: scored.summary.slice(0, 200) || null,
+              computed_at: nowIso(),
+            });
+          }
+          geminiItems = remaining;
+        } catch {
+          geminiItems = items;
+        }
+      }
+
+      if (geminiItems.length) {
+        const prompt = `Score each candidate 0-100 against this job. Return strict JSON only:
 {"results":[{"application_id":"...","score":85,"reasons":["..."],"summary":"one line"}]}
 
 JOB
@@ -128,7 +237,7 @@ City: ${job.city ?? "any"}
 Description: ${(job.description || "").slice(0, 800)}
 
 CANDIDATES
-${JSON.stringify(items)}
+${JSON.stringify(geminiItems)}
 
 Each candidate also includes cover_note, expected_salary and available_from from their
 application form. Use these only as supporting context in your reasons/summary (e.g. flag
@@ -138,28 +247,28 @@ part of the numeric formula below.
 Scoring: skill overlap 50%, experience fit 25%, role/title relevance 15%, location 10%.
 Give 2-4 short bullet reasons each. Be honest — low scores when off-target.`;
 
-      const parsed = await chatJSON(
-        {
-          system: "You rank job candidates. Output only valid JSON.",
-          user: prompt,
-        },
-        AiScoreResponse,
-      );
+        const parsed = await chatJSON(
+          {
+            system: "You rank job candidates. Output only valid JSON.",
+            user: prompt,
+          },
+          AiScoreResponse,
+        );
 
-      const upserts = parsed.results
-        .filter((r) => r.application_id && needScoring.find((a) => a.id === r.application_id))
-        .map((r) => {
-          const app = needScoring.find((a) => a.id === r.application_id)!;
-          return {
+        for (const r of parsed.results) {
+          const app = geminiItems.find((a) => a.application_id === r.application_id);
+          if (!app) continue;
+          upserts.push({
             job_id: jobId,
             application_id: r.application_id,
             candidate_id: app.candidate_id,
             score: Math.max(0, Math.min(100, Math.round(r.score || 0))),
             reasons: r.reasons.slice(0, 5),
             summary: r.summary?.slice(0, 200) || null,
-            computed_at: new Date().toISOString(),
-          };
-        });
+            computed_at: nowIso(),
+          });
+        }
+      }
 
       if (upserts.length) {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

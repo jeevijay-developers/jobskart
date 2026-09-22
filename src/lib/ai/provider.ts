@@ -17,7 +17,10 @@ export type ChatArgs = {
 
 const LOVABLE_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+const OPENROUTER_DECISIONS_URL = "https://openrouter.ai/api/alpha/decisions";
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
+const DEFAULT_JEV_MODEL = "~typesafe/jev-latest";
 
 function cfg() {
   return {
@@ -118,6 +121,12 @@ export async function chat(args: ChatArgs): Promise<string> {
     return chatOpenAICompatible(OPENAI_URL, { Authorization: `Bearer ${key}` }, model, args);
   }
 
+  if (provider === "openrouter") {
+    const key = process.env.OPENROUTER_API_KEY;
+    if (!key) throw new Error("AI not configured.");
+    return chatOpenAICompatible(OPENROUTER_URL, { Authorization: `Bearer ${key}` }, model, args);
+  }
+
   const key = process.env.LOVABLE_API_KEY;
   if (!key) throw new Error("AI not configured.");
   return chatOpenAICompatible(LOVABLE_URL, { "Lovable-API-Key": key }, model, args);
@@ -127,10 +136,71 @@ export async function chatJSON<T>(args: ChatArgs, schema: ZodType<T>): Promise<T
   const raw = await chat({
     ...args,
     json: true,
-    system:
-      (args.system ?? "") +
-      "\nRespond with JSON only. No markdown fences, no preamble.",
+    system: (args.system ?? "") + "\nRespond with JSON only. No markdown fences, no preamble.",
   });
   const cleaned = raw.replace(/```json|```/g, "").trim();
   return schema.parse(JSON.parse(cleaned || "{}"));
+}
+
+export type DecideQuestion = {
+  type: "noul" | "choice" | "score";
+  instructions: string;
+  criteria?: Record<string, string | null> | string[];
+};
+
+export type DecideArgs = {
+  state: unknown;
+  questions: Record<string, DecideQuestion>;
+};
+
+export type DecideNoul = { type: "noul"; noul: number };
+export type DecideChoice = {
+  type: "choice";
+  choice: string;
+  probabilities?: Record<string, number>;
+  confidence?: number;
+};
+export type DecideScore = {
+  type: "score";
+  score: number;
+  probabilities?: Record<string, number>;
+  confidence?: number;
+};
+export type DecideAnswer = DecideNoul | DecideChoice | DecideScore;
+
+export type DecideResult = {
+  model: string;
+  answers: Record<string, DecideAnswer>;
+};
+
+/** Opt-in Jev gate. Off unless JEV_ENABLED=true and OPENROUTER_API_KEY is set. */
+export function isJevEnabled(): boolean {
+  return process.env.JEV_ENABLED === "true" && !!process.env.OPENROUTER_API_KEY;
+}
+
+export async function decide(args: DecideArgs): Promise<DecideResult> {
+  const key = process.env.OPENROUTER_API_KEY;
+  if (!key) throw new Error("AI not configured.");
+  const model = process.env.JEV_MODEL || DEFAULT_JEV_MODEL;
+  const res = await fetch(OPENROUTER_DECISIONS_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${key}`,
+    },
+    body: JSON.stringify({
+      model,
+      state: args.state,
+      questions: args.questions,
+    }),
+  });
+  if (!res.ok) throw mapError(res.status, await res.text().catch(() => ""));
+  const json = (await res.json()) as {
+    model?: string;
+    answers?: Record<string, DecideAnswer>;
+  };
+  if (!json.answers || typeof json.answers !== "object") {
+    throw new Error("AI request failed (empty Jev answers).");
+  }
+  return { model: json.model ?? model, answers: json.answers };
 }
