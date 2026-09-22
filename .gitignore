@@ -42,3 +42,6 @@ supabase/.temp/
 Jobskart docs
 prompt structure
 docs
+
+# Local MCP config (contains personal API keys/tokens) - copy .mcp.json.example instead
+.mcp.json
