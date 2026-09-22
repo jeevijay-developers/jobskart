@@ -1,6 +1,7 @@
 import { ThemedSelect } from "@/components/ui/themed-form-controls";
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import {
   Search,
   MapPin,
@@ -36,6 +37,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Pagination } from "@/components/site/Pagination";
 import { usePaginatedQuery } from "@/hooks/use-paginated-query";
+import { remainingBroadenDims, applyBroaden, fallbackNextDim, broadenLabel, type SearchFilters } from "@/lib/ai/jev-search-broaden";
+import { pickNextSearchBroadening } from "@/lib/search-broaden.functions";
 
 const DATABASE_PAGE_SIZE = 20;
 
@@ -84,7 +87,15 @@ function DatabasePage() {
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [cityInput, setCityInput] = useState("");
   const [minExp, setMinExp] = useState<number | "">("");
-  const [submitted, setSubmitted] = useState({ query: "", cities: [] as string[], minExp: "" as number | "" });
+  const [submitted, setSubmitted] = useState<SearchFilters>({
+    query: "",
+    cities: [] as string[],
+    minExp: "" as number | "",
+  });
+  const [effective, setEffective] = useState<SearchFilters>(submitted);
+  const [widenLabels, setWidenLabels] = useState<string[]>([]);
+  const pickNext = useServerFn(pickNextSearchBroadening);
+  const triedBroadenKeys = useRef(new Set<string>());
   const [unlockingId, setUnlockingId] = useState<string | null>(null);
   const [reviewApplicant, setReviewApplicant] = useState<ReviewApplicant | null>(null);
   const [reviewHasApplication, setReviewHasApplication] = useState(false);
@@ -124,18 +135,20 @@ function DatabasePage() {
 
   const {
     rows: results,
+    total,
     totalPages,
     page,
     setPage,
     isLoading: searching,
+    isFetching,
     error: searchError,
   } = usePaginatedQuery<Candidate>({
     queryKey: [
       "employer-database-search",
       active?.company_id,
-      submitted.query,
-      submitted.cities,
-      submitted.minExp,
+      effective.query,
+      effective.cities,
+      effective.minExp,
     ],
     pageSize: DATABASE_PAGE_SIZE,
     enabled: !!active && !gated,
@@ -143,9 +156,9 @@ function DatabasePage() {
       if (!active) return { rows: [], total: 0 };
       const { data, error } = await supabase.rpc("search_candidates_for_company", {
         _company_id: active.company_id,
-        _query: submitted.query.trim() || undefined,
-        _cities: submitted.cities.length > 0 ? submitted.cities : undefined,
-        _min_experience: typeof submitted.minExp === "number" ? submitted.minExp : undefined,
+        _query: effective.query.trim() || undefined,
+        _cities: effective.cities.length > 0 ? effective.cities : undefined,
+        _min_experience: typeof effective.minExp === "number" ? effective.minExp : undefined,
         _limit: DATABASE_PAGE_SIZE,
         _offset: from,
       });
@@ -166,6 +179,54 @@ function DatabasePage() {
       toast.error(message || "Search failed.");
     }
   }, [searchError]);
+
+  useEffect(() => {
+    setEffective(submitted);
+    setWidenLabels([]);
+    triedBroadenKeys.current = new Set();
+  }, [submitted.query, submitted.cities, submitted.minExp]);
+
+  useEffect(() => {
+    if (!active || gated || searching || isFetching) return;
+    if (total > 0) return;
+    const remaining = remainingBroadenDims(effective);
+    if (!remaining.length) return;
+    const key = JSON.stringify(effective);
+    if (triedBroadenKeys.current.has(key)) return;
+    triedBroadenKeys.current.add(key);
+    let cancelled = false;
+    void pickNext({
+      data: {
+        query: effective.query,
+        cities: effective.cities,
+        minExp: effective.minExp,
+        resultCount: total,
+      },
+    })
+      .then((r) => {
+        if (cancelled || !r.dim || !r.label) return;
+        setEffective(r.filters);
+        setWidenLabels((prev) => [...prev, r.label!]);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        const dim = fallbackNextDim(remaining);
+        if (!dim) return;
+        setEffective(applyBroaden(effective, dim));
+        setWidenLabels((prev) => [...prev, broadenLabel(dim, effective)]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    active,
+    gated,
+    searching,
+    isFetching,
+    total,
+    effective,
+    pickNext,
+  ]);
 
   const runSearch = () => setSubmitted({ query: q, cities: selectedCities, minExp });
 
@@ -403,11 +464,29 @@ function DatabasePage() {
 
       {/* results */}
       <div className="mt-6 space-y-3">
-        {results.length === 0 && !searching && (
+        {widenLabels.length > 0 && (
+          <div className="rounded-xl border border-primary/20 bg-primary-light/40 px-4 py-3 text-sm text-foreground">
+            <p className="font-semibold">Widened search</p>
+            <ul className="mt-1 list-disc space-y-0.5 pl-5 text-muted-foreground">
+              {widenLabels.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {results.length === 0 && !searching && remainingBroadenDims(effective).length === 0 && (
           <div className="rounded-2xl border border-dashed border-border bg-surface/40 p-10 text-center">
             <UserRound className="mx-auto h-10 w-10 text-muted-foreground/50" />
-            <p className="mt-3 text-sm font-semibold text-foreground">No matching candidates</p>
-            <p className="mt-1 text-xs text-muted-foreground">Try widening your filters.</p>
+            <p className="mt-3 text-sm font-semibold text-foreground">
+              {widenLabels.length > 0
+                ? "Still no candidates after widening filters"
+                : "No matching candidates"}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {widenLabels.length > 0
+                ? "We did not pad the list with unrelated profiles."
+                : "Try a different role, city, or experience range."}
+            </p>
           </div>
         )}
 
