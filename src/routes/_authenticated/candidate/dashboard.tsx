@@ -57,6 +57,7 @@ function CandidateDashboard() {
     appliedWeek: 0,
   });
   const [recommended, setRecommended] = useState<JobCardData[]>([]);
+  const [candidateId, setCandidateId] = useState<string | null>(null);
   const [missing, setMissing] = useState<string[]>([]);
   const [learning, setLearning] = useState<LearningRow[]>([]);
   const [verified, setVerified] = useState(false);
@@ -66,6 +67,7 @@ function CandidateDashboard() {
       const { data: sess } = await supabase.auth.getSession();
       const uid = sess.session?.user.id;
       if (!uid) return;
+      setCandidateId(uid);
 
       const { data: cand } = await supabase
         .from("candidate_profiles")
@@ -88,7 +90,7 @@ function CandidateDashboard() {
         supabase
           .from("jobs")
           .select(
-            "id, title, city, state, locality, min_salary, max_salary, salary_period, job_type, work_mode, min_experience_years, max_experience_years, education, skills, created_at, companies (name, is_verified)",
+            "id, company_id, title, city, state, locality, min_salary, max_salary, salary_period, job_type, work_mode, min_experience_years, max_experience_years, education, skills, created_at, companies (name, is_verified)",
           )
           .eq("status", "active")
           .order("created_at", { ascending: false })
@@ -144,6 +146,28 @@ function CandidateDashboard() {
     })();
   }, [navigate]);
 
+  const refreshApplicationTotals = async () => {
+    if (!candidateId) return;
+    const weekStart = new Date(Date.now() - RECENT_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    const [all, recent] = await Promise.all([
+      supabase
+        .from("applications")
+        .select("id", { count: "exact", head: true })
+        .eq("candidate_id", candidateId),
+      supabase
+        .from("applications")
+        .select("id", { count: "exact", head: true })
+        .eq("candidate_id", candidateId)
+        .gte("created_at", weekStart),
+    ]);
+    if (all.error || recent.error) return;
+    setCounts((current) => ({
+      ...current,
+      applied: all.count ?? current.applied,
+      appliedWeek: recent.count ?? current.appliedWeek,
+    }));
+  };
+
   const firstName = name.split(" ")[0] || "there";
 
   const {
@@ -187,7 +211,7 @@ function CandidateDashboard() {
           <>
             <div className="grid gap-4">
               {recommendedPage.map((j) => (
-                <JobCard key={j.id} job={j} />
+                <JobCard key={j.id} job={j} onApplied={refreshApplicationTotals} />
               ))}
             </div>
             {recommendedTotalPages > 1 && (
