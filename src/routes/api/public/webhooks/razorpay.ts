@@ -1,5 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { createHmac, timingSafeEqual } from "crypto";
+
+type PaymentEntity = {
+  id?: string;
+  order_id?: string;
+  amount?: number;
+  error_code?: string;
+  error_description?: string;
+};
+
+type RazorpayEvent = {
+  event?: string;
+  payload?: {
+    payment?: { entity?: PaymentEntity };
+    order?: { entity?: { id?: string } };
+  };
+};
 
 export const Route = createFileRoute("/api/public/webhooks/razorpay")({
   server: {
@@ -13,61 +28,69 @@ export const Route = createFileRoute("/api/public/webhooks/razorpay")({
         const body = await request.text();
         if (!signature) return new Response("Missing signature", { status: 401 });
 
-        const expected = createHmac("sha256", secret).update(body).digest("hex");
-        const a = Buffer.from(signature);
-        const b = Buffer.from(expected);
-        if (a.length !== b.length || !timingSafeEqual(a, b)) {
+        const { hmacSha256Matches, fulfilRazorpayOrder } = await import("@/lib/razorpay.server");
+        if (!hmacSha256Matches(secret, body, signature)) {
           return new Response("Invalid signature", { status: 401 });
         }
 
-        let event: { event?: string; payload?: { payment?: { entity?: { order_id?: string; id?: string } } } };
+        let event: RazorpayEvent;
         try {
           event = JSON.parse(body);
         } catch {
           return new Response("Invalid JSON", { status: 400 });
         }
 
-        if (event.event !== "payment.captured") {
+        const payment = event.payload?.payment?.entity;
+        const orderId = payment?.order_id ?? event.payload?.order?.entity?.id;
+        const paymentId = payment?.id;
+        if (!orderId || !paymentId) return new Response("ignored", { status: 200 });
+
+        if (event.event === "payment.failed") {
+          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          const reason = [payment?.error_code, payment?.error_description]
+            .filter(Boolean)
+            .join(": ");
+          const { error } = await supabaseAdmin.rpc("mark_razorpay_order_failed", {
+            _razorpay_order_id: orderId,
+            _razorpay_payment_id: paymentId,
+            _reason: reason || "payment_failed",
+          });
+          if (error) {
+            console.error("mark_razorpay_order_failed failed", error.message);
+            return new Response("error", { status: 500 });
+          }
+          return new Response("ok", { status: 200 });
+        }
+
+        if (event.event !== "payment.captured" && event.event !== "order.paid") {
           return new Response("ignored", { status: 200 });
         }
 
-        const orderId = event.payload?.payment?.entity?.order_id;
-        const paymentId = event.payload?.payment?.entity?.id;
-        if (!orderId || !paymentId) return new Response("ignored", { status: 200 });
-
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-        const { data: order } = await supabaseAdmin
-          .from("razorpay_orders")
-          .select("id, company_id, credits, status")
-          .eq("razorpay_order_id", orderId)
-          .maybeSingle();
-
-        if (!order) return new Response("order not found", { status: 200 });
-        if (order.status === "paid") return new Response("ok", { status: 200 });
-
-        await supabaseAdmin.rpc("apply_credit_delta", {
-          _company_id: order.company_id,
-          _delta: order.credits,
-          _kind: "purchase",
-          _reference: { order_id: order.id, razorpay_payment_id: paymentId, via: "webhook" },
-          _actor: undefined,
-        });
-
-        // Issue the GST tax invoice (idempotent per order).
-        const { error: invErr } = await supabaseAdmin.rpc("issue_credit_pack_invoice", {
-          _order_id: order.id,
-          _razorpay_payment_id: paymentId,
-        });
-        if (invErr) console.error("issue_credit_pack_invoice failed", invErr.message);
-
-
-        await supabaseAdmin
-          .from("razorpay_orders")
-          .update({ status: "paid", razorpay_payment_id: paymentId })
-          .eq("id", order.id);
-
-        return new Response("ok", { status: 200 });
+        try {
+          const result = await fulfilRazorpayOrder({
+            razorpayOrderId: orderId,
+            razorpayPaymentId: paymentId,
+            amountPaise: typeof payment?.amount === "number" ? payment.amount : null,
+            via: "webhook",
+            actor: null,
+          });
+          if (result.status === "amount_mismatch") {
+            console.error("Razorpay amount mismatch", {
+              orderId,
+              paymentId,
+              amount: payment?.amount,
+            });
+          }
+          return new Response("ok", { status: 200 });
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          // Orders not created by JobsKart: acknowledge so Razorpay stops retrying.
+          if (msg.includes("order_not_found"))
+            return new Response("order not found", { status: 200 });
+          // Anything else: 500 so Razorpay retries (fulfilment is idempotent).
+          console.error("fulfill_razorpay_order failed", msg);
+          return new Response("error", { status: 500 });
+        }
       },
     },
   },

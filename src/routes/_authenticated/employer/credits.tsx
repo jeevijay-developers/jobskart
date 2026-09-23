@@ -14,14 +14,20 @@ import { toast } from "sonner";
 import { EmployerShell } from "@/components/employer/EmployerShell";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchMyCompanies, getActiveCompanyId, type EmployerMembership } from "@/lib/employer";
-import { buildStoredInvoiceData, downloadInvoicePdf } from "@/lib/invoice-pdf";
+import { buildStoredInvoiceData, downloadInvoicePdf, GST_RATE } from "@/lib/invoice-pdf";
 import {
   createRazorpayOrder,
   getCompanyWallet,
   listCompanyInvoices,
   listCreditPacks,
+  reportRazorpayPaymentFailure,
   verifyRazorpayPayment,
 } from "@/lib/credits.functions";
+
+// Display only — the charged amount is quoted server-side by create_credit_pack_order().
+const withGst = (priceInr: number) => Math.round(priceInr * (1 + GST_RATE) * 100) / 100;
+const formatInr = (n: number) =>
+  n.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
 export const Route = createFileRoute("/_authenticated/employer/credits")({
   head: () => ({ meta: [{ title: "Credits & usage · JobsKart Employer" }] }),
@@ -56,7 +62,15 @@ type Invoice = {
 
 declare global {
   interface Window {
-    Razorpay?: new (options: Record<string, unknown>) => { open: () => void };
+    Razorpay?: new (options: Record<string, unknown>) => {
+      open: () => void;
+      on: (
+        event: "payment.failed",
+        cb: (resp: {
+          error?: { description?: string; reason?: string; metadata?: { order_id?: string; payment_id?: string } };
+        }) => void,
+      ) => void;
+    };
   }
 }
 
@@ -117,22 +131,25 @@ function CreditsPage() {
 
   const handleBuy = async (pack: Pack) => {
     if (!active) return;
+    if (typeof window === "undefined" || !window.Razorpay) {
+      toast.error("Checkout not loaded yet. Refresh and try again.");
+      return;
+    }
     setBuyingId(pack.id);
+    // The button stays busy while Checkout is open; it is released by the
+    // success handler, dismissal, or an error starting checkout.
     try {
       const order = await createRazorpayOrder({
         data: { companyId: active.company_id, packId: pack.id },
       });
-      if (typeof window === "undefined" || !window.Razorpay) {
-        toast.error("Checkout not loaded yet. Refresh and try again.");
-        return;
-      }
       const rzp = new window.Razorpay({
         key: order.keyId,
         order_id: order.orderId,
         amount: order.amount,
         currency: order.currency,
         name: "JobsKart",
-        description: `${pack.name} — ${pack.credits} credits`,
+        description: `${order.packName} — ${order.credits} credits (₹${formatInr(order.subtotalInr)} + ₹${formatInr(order.gstInr)} GST)`,
+        prefill: order.prefill,
         theme: { color: "#1A55BD" },
         handler: async (resp: {
           razorpay_order_id: string;
@@ -147,18 +164,32 @@ function CreditsPage() {
                 razorpaySignature: resp.razorpay_signature,
               },
             });
-            toast.success(`+${pack.credits} credits added · balance ${r.balance}`);
+            toast.success(`+${order.credits} credits added · balance ${r.balance}`);
             await refreshWallet(active.company_id);
           } catch (e) {
             toast.error(e instanceof Error ? e.message : "Verification failed.");
+          } finally {
+            setBuyingId(null);
           }
         },
         modal: { ondismiss: () => setBuyingId(null) },
       });
+      // Checkout stays open after a failure so the user can retry on the same order.
+      rzp.on("payment.failed", (resp) => {
+        toast.error(resp.error?.description || "Payment failed. Try another method.");
+        void reportRazorpayPaymentFailure({
+          data: {
+            razorpayOrderId: resp.error?.metadata?.order_id ?? order.orderId,
+            razorpayPaymentId: resp.error?.metadata?.payment_id,
+            reason: [resp.error?.reason, resp.error?.description].filter(Boolean).join(": ") || undefined,
+          },
+        }).catch(() => {
+          /* best-effort; the webhook records failures too */
+        });
+      });
       rzp.open();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not start checkout.");
-    } finally {
       setBuyingId(null);
     }
   };
@@ -221,7 +252,9 @@ function CreditsPage() {
         <header className="mb-4 flex items-end justify-between">
           <div>
             <h2 className="text-lg font-bold text-foreground">Buy credits</h2>
-            <p className="text-sm text-muted-foreground">All packs are billed in INR. GST extra at checkout.</p>
+            <p className="text-sm text-muted-foreground">
+              Prices in INR, exclusive of GST. 18% GST is added at checkout.
+            </p>
           </div>
         </header>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -247,14 +280,18 @@ function CreditsPage() {
               <p className="mt-1 text-sm text-muted-foreground">
                 ₹{(p.price_inr / p.credits).toFixed(2)} per credit
               </p>
-              <div className="mt-4 flex items-end justify-between">
+              <div className="mt-4">
                 <p className="text-2xl font-bold text-foreground">
                   ₹{p.price_inr.toLocaleString("en-IN")}
+                  <span className="ml-1 text-sm font-semibold text-muted-foreground">+ GST</span>
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  ₹{formatInr(withGst(p.price_inr))} incl. 18% GST
                 </p>
               </div>
               <button
                 onClick={() => handleBuy(p)}
-                disabled={buyingId === p.id}
+                disabled={buyingId !== null}
                 className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-50"
               >
                 {buyingId === p.id ? (

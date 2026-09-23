@@ -1,20 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { createHmac, timingSafeEqual } from "crypto";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-
-const RAZORPAY_API = "https://api.razorpay.com/v1";
-
-function getRazorpayKeys() {
-  const keyId = process.env.RAZORPAY_KEY_ID;
-  const secret = process.env.RAZORPAY_KEY_SECRET;
-  if (!keyId || !secret) {
-    throw new Error(
-      "Razorpay not configured yet. Ask the admin to add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.",
-    );
-  }
-  return { keyId, secret };
-}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function assertCompanyMember(supabase: any, userId: string, companyId: string) {
@@ -70,62 +56,94 @@ export const createRazorpayOrder = createServerFn({ method: "POST" })
     z.object({ companyId: z.string().uuid(), packId: z.string().uuid() }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    await assertCompanyMember(context.supabase, context.userId, data.companyId);
+    const { getRazorpayKeys, paymentErrorMessage, RAZORPAY_API } = await import(
+      "@/lib/razorpay.server"
+    );
     const { keyId, secret } = getRazorpayKeys();
 
+    // Membership check + GST quote + pending order row, all in Postgres.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: pack, error: packErr } = await supabaseAdmin
-      .from("credit_packs")
-      .select("id, name, credits, price_inr")
-      .eq("id", data.packId)
-      .eq("active", true)
-      .maybeSingle();
-    if (packErr || !pack) throw new Error("Pack not available.");
+    const { data: quoteRaw, error: quoteErr } = await supabaseAdmin.rpc(
+      "create_credit_pack_order",
+      { _company_id: data.companyId, _pack_id: data.packId, _actor: context.userId },
+    );
+    if (quoteErr) throw new Error(paymentErrorMessage(quoteErr.message));
+    const quote = quoteRaw as unknown as {
+      order_id: string;
+      amount_paise: number;
+      subtotal_inr: number;
+      gst_inr: number;
+      credits: number;
+      pack_name: string;
+    };
 
-    const amountPaise = pack.price_inr * 100;
-    const receipt = `jk_${Date.now()}_${data.companyId.slice(0, 8)}`;
+    const markFailed = (reason: string) =>
+      supabaseAdmin
+        .from("razorpay_orders")
+        .update({ status: "failed", failure_reason: reason })
+        .eq("id", quote.order_id);
 
     const auth = Buffer.from(`${keyId}:${secret}`).toString("base64");
-    const res = await fetch(`${RAZORPAY_API}/orders`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Basic ${auth}`,
-      },
-      body: JSON.stringify({
-        amount: amountPaise,
-        currency: "INR",
-        receipt,
-        notes: {
-          company_id: data.companyId,
-          pack_id: pack.id,
-          credits: String(pack.credits),
+    let order: { id: string; amount: number; currency: string };
+    try {
+      const res = await fetch(`${RAZORPAY_API}/orders`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Basic ${auth}`,
         },
-      }),
-    });
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      throw new Error(`Razorpay order failed (${res.status}). ${text.slice(0, 200)}`);
+        body: JSON.stringify({
+          amount: quote.amount_paise,
+          currency: "INR",
+          receipt: `jk_${quote.order_id}`,
+          notes: {
+            jk_order_id: quote.order_id,
+            company_id: data.companyId,
+            pack_id: data.packId,
+            credits: String(quote.credits),
+          },
+        }),
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(`Razorpay order failed (${res.status}). ${text.slice(0, 200)}`);
+      }
+      order = (await res.json()) as { id: string; amount: number; currency: string };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Razorpay order failed.";
+      await markFailed(`gateway_error: ${msg}`.slice(0, 500));
+      throw new Error(msg);
     }
-    const order = (await res.json()) as { id: string; amount: number; currency: string };
 
-    await supabaseAdmin.from("razorpay_orders").insert({
-      company_id: data.companyId,
-      pack_id: pack.id,
-      amount_inr: pack.price_inr,
-      credits: pack.credits,
-      razorpay_order_id: order.id,
-      status: "created",
-      created_by: context.userId,
-    });
+    const { error: attachErr } = await supabaseAdmin
+      .from("razorpay_orders")
+      .update({ razorpay_order_id: order.id })
+      .eq("id", quote.order_id);
+    if (attachErr) {
+      await markFailed(`attach_failed: ${attachErr.message}`.slice(0, 500));
+      throw new Error("Could not start checkout. Please try again.");
+    }
+
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("full_name, email, mobile")
+      .eq("id", context.userId)
+      .maybeSingle();
 
     return {
       orderId: order.id,
       amount: order.amount,
       currency: order.currency,
       keyId,
-      packName: pack.name,
-      credits: pack.credits,
+      packName: quote.pack_name,
+      credits: quote.credits,
+      subtotalInr: Number(quote.subtotal_inr),
+      gstInr: Number(quote.gst_inr),
+      prefill: {
+        name: profile?.full_name ?? "",
+        email: profile?.email ?? "",
+        contact: profile?.mobile ?? "",
+      },
     };
   });
 
@@ -142,62 +160,69 @@ export const verifyRazorpayPayment = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
+    const { getRazorpayKeys, hmacSha256Matches, fulfilRazorpayOrder, paymentErrorMessage } =
+      await import("@/lib/razorpay.server");
     const { secret } = getRazorpayKeys();
 
-    const expected = createHmac("sha256", secret)
-      .update(`${data.razorpayOrderId}|${data.razorpayPaymentId}`)
-      .digest("hex");
-    const a = Buffer.from(expected);
-    const b = Buffer.from(data.razorpaySignature);
-    if (a.length !== b.length || !timingSafeEqual(a, b)) {
+    const signed = `${data.razorpayOrderId}|${data.razorpayPaymentId}`;
+    if (!hmacSha256Matches(secret, signed, data.razorpaySignature)) {
       throw new Error("Invalid payment signature.");
     }
 
+    // Membership is enforced inside the RPC via _actor. Invoice issuing,
+    // idempotency and the row lock against the webhook all live there too.
+    let result;
+    try {
+      result = await fulfilRazorpayOrder({
+        razorpayOrderId: data.razorpayOrderId,
+        razorpayPaymentId: data.razorpayPaymentId,
+        amountPaise: null,
+        via: "client",
+        actor: context.userId,
+      });
+    } catch (e) {
+      throw new Error(paymentErrorMessage(e instanceof Error ? e.message : String(e)));
+    }
+    if (result.status === "amount_mismatch") {
+      throw new Error(
+        `Payment amount didn't match the order. Contact support with payment ID ${data.razorpayPaymentId}.`,
+      );
+    }
+    return { balance: result.balance ?? 0, alreadyApplied: result.already_applied };
+  });
+
+// ---------------- reportRazorpayPaymentFailure ----------------
+// Records a failed attempt from Checkout's payment.failed event. Only moves an
+// order from 'created' to 'failed'; a later successful retry on the same
+// order still fulfils normally.
+export const reportRazorpayPaymentFailure = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z
+      .object({
+        razorpayOrderId: z.string().min(1),
+        razorpayPaymentId: z.string().min(1).optional(),
+        reason: z.string().max(500).optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: order, error } = await supabaseAdmin
+    const { data: order } = await supabaseAdmin
       .from("razorpay_orders")
-      .select("id, company_id, credits, status")
+      .select("company_id")
       .eq("razorpay_order_id", data.razorpayOrderId)
       .maybeSingle();
-    if (error || !order) throw new Error("Order not found.");
-
-    // Caller must be a member of the company that owns the order
+    if (!order) return { ok: false };
     await assertCompanyMember(context.supabase, context.userId, order.company_id);
 
-    if (order.status === "paid") {
-      const { data: w } = await supabaseAdmin
-        .from("employer_credit_wallets")
-        .select("balance")
-        .eq("company_id", order.company_id)
-        .maybeSingle();
-      return { balance: w?.balance ?? 0, alreadyApplied: true };
-    }
-
-    const { data: bal, error: rpcErr } = await supabaseAdmin.rpc("apply_credit_delta", {
-      _company_id: order.company_id,
-      _delta: order.credits,
-      _kind: "purchase",
-      _reference: { order_id: order.id, razorpay_payment_id: data.razorpayPaymentId },
-      _actor: context.userId,
+    const { error } = await supabaseAdmin.rpc("mark_razorpay_order_failed", {
+      _razorpay_order_id: data.razorpayOrderId,
+      _razorpay_payment_id: (data.razorpayPaymentId ?? null) as string,
+      _reason: data.reason ?? "payment_failed",
     });
-    if (rpcErr) throw new Error(rpcErr.message);
-
-    // Issue the GST tax invoice. Idempotent per order — never blocks credit delivery.
-    const { error: invErr } = await supabaseAdmin.rpc("issue_credit_pack_invoice", {
-      _order_id: order.id,
-      _razorpay_payment_id: data.razorpayPaymentId,
-    });
-    if (invErr) console.error("issue_credit_pack_invoice failed", invErr.message);
-
-    await supabaseAdmin
-      .from("razorpay_orders")
-      .update({
-        status: "paid",
-        razorpay_payment_id: data.razorpayPaymentId,
-      })
-      .eq("id", order.id);
-
-    return { balance: bal as number, alreadyApplied: false };
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });
 
 // ---------------- listCompanyInvoices ----------------

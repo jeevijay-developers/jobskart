@@ -29,7 +29,7 @@ const SELLER = {
   website: "indiadrive-jobs.lovable.app", // placeholder — swap for the production domain
 };
 
-const GST_RATE = 0.18; // 9% CGST + 9% SGST (intra-state) or 18% IGST (inter-state)
+export const GST_RATE = 0.18; // 9% CGST + 9% SGST (intra-state) or 18% IGST (inter-state)
 
 // ---------------------------------------------------------------------
 // Types
