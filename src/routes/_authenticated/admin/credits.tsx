@@ -89,7 +89,10 @@ function Page() {
             <div key={o.id} className="flex items-center justify-between border-b border-border px-4 py-3 text-sm last:border-0">
               <div className="min-w-0">
                 <p className="font-mono text-xs text-muted-foreground">{o.razorpay_order_id}</p>
-                <p className="text-foreground">₹{(o.amount / 100).toLocaleString("en-IN")} • {o.status}</p>
+                <p className="text-foreground">
+                  ₹{((o.amount_paise ?? o.amount_inr * 100) / 100).toLocaleString("en-IN")} • {o.status}
+                  {o.failure_reason ? <span className="text-muted-foreground"> — {o.failure_reason}</span> : null}
+                </p>
               </div>
               <p className="text-xs text-muted-foreground">{new Date(o.created_at).toLocaleString()}</p>
             </div>

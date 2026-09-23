@@ -199,9 +199,10 @@ export const adminStats = createServerFn({ method: "GET" })
       supabaseAdmin.from("companies").select("id", { count: "exact", head: true }),
       supabaseAdmin.from("jobs").select("id", { count: "exact", head: true }),
       supabaseAdmin.from("applications").select("id", { count: "exact", head: true }),
-      supabaseAdmin.from("razorpay_orders").select("amount").eq("status", "paid"),
+      supabaseAdmin.from("razorpay_orders").select("amount_inr").eq("status", "paid"),
     ]);
-    const revenue = (rzp.data ?? []).reduce((s, r: any) => s + (r.amount ?? 0), 0) / 100;
+    // amount_inr is the ex-GST pack price (GST collected is not revenue).
+    const revenue = (rzp.data ?? []).reduce((s, r) => s + (r.amount_inr ?? 0), 0);
     return {
       users: u.count ?? 0,
       companies: c.count ?? 0,

@@ -2094,41 +2094,56 @@ export type Database = {
       razorpay_orders: {
         Row: {
           amount_inr: number
+          amount_paise: number | null
           company_id: string
           created_at: string
           created_by: string | null
           credits: number
+          failure_reason: string | null
+          fulfilled_via: string | null
+          gst_inr: number | null
           id: string
           pack_id: string
           razorpay_order_id: string | null
           razorpay_payment_id: string | null
           status: string
+          subtotal_inr: number | null
           updated_at: string
         }
         Insert: {
           amount_inr: number
+          amount_paise?: number | null
           company_id: string
           created_at?: string
           created_by?: string | null
           credits: number
+          failure_reason?: string | null
+          fulfilled_via?: string | null
+          gst_inr?: number | null
           id?: string
           pack_id: string
           razorpay_order_id?: string | null
           razorpay_payment_id?: string | null
           status?: string
+          subtotal_inr?: number | null
           updated_at?: string
         }
         Update: {
           amount_inr?: number
+          amount_paise?: number | null
           company_id?: string
           created_at?: string
           created_by?: string | null
           credits?: number
+          failure_reason?: string | null
+          fulfilled_via?: string | null
+          gst_inr?: number | null
           id?: string
           pack_id?: string
           razorpay_order_id?: string | null
           razorpay_payment_id?: string | null
           status?: string
+          subtotal_inr?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -2279,6 +2294,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      buyer_gst_state_code: {
+        Args: { _gstin: string; _pincode: string }
+        Returns: string
+      }
       can_access_job_responses: { Args: { _job_id: string }; Returns: boolean }
       cancel_video_interview: {
         Args: { _actor?: string; _interview_id: string; _reason?: string }
@@ -2326,6 +2345,10 @@ export type Database = {
         }
         Returns: string
       }
+      create_credit_pack_order: {
+        Args: { _actor: string; _company_id: string; _pack_id: string }
+        Returns: Json
+      }
       current_financial_year: { Args: never; Returns: string }
       find_auth_user_by_phone_or_email: {
         Args: { _email: string; _phone: string }
@@ -2334,6 +2357,16 @@ export type Database = {
           id: string
           phone: string
         }[]
+      }
+      fulfill_razorpay_order: {
+        Args: {
+          _actor: string
+          _amount_paise: number
+          _razorpay_order_id: string
+          _razorpay_payment_id: string
+          _via: string
+        }
+        Returns: Json
       }
       get_company_private: {
         Args: { _company_id: string }
@@ -2394,6 +2427,7 @@ export type Database = {
           website: string
         }[]
       }
+      gst_state_name: { Args: { _code: string }; Returns: string }
       has_company_membership: {
         Args: { _company_id: string; _user_id: string }
         Returns: boolean
@@ -2427,6 +2461,14 @@ export type Database = {
           _link?: string
           _metadata?: Json
           _title: string
+        }
+        Returns: undefined
+      }
+      mark_razorpay_order_failed: {
+        Args: {
+          _razorpay_order_id: string
+          _razorpay_payment_id: string
+          _reason: string
         }
         Returns: undefined
       }
