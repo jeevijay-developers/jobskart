@@ -436,8 +436,6 @@ function ProfilePage() {
           )}
         </div>
 
-        <SummaryCard title="Recent applications" to="/candidate/applications" icon={FileText} empty={counts.applications === 0} emptyTitle="No applications yet" emptyHint="Start applying to jobs and track them here." count={counts.applications} countLabel="applications submitted" />
-        <SummaryCard title="Saved jobs" to="/candidate/saved" icon={Bookmark} empty={counts.saved === 0} emptyTitle="No saved jobs yet" emptyHint="Save jobs you like and view them here." count={counts.saved} countLabel="jobs saved" />
       </div>
 
       {/* Desktop/web layout — unchanged */}
@@ -711,8 +709,6 @@ function ProfilePage() {
             )}
           </div>
 
-          <SummaryCard title="Recent applications" to="/candidate/applications" icon={FileText} empty={counts.applications === 0} emptyTitle="No applications yet" emptyHint="Start applying to jobs and track them here." count={counts.applications} countLabel="applications submitted" />
-          <SummaryCard title="Saved jobs" to="/candidate/saved" icon={Bookmark} empty={counts.saved === 0} emptyTitle="No saved jobs yet" emptyHint="Save jobs you like and view them here." count={counts.saved} countLabel="jobs saved" />
         </div>
       </div>
 
@@ -769,31 +765,6 @@ function EmptyRow({ icon: Icon, title, hint }: { icon: LucideIcon; title: string
         <h4 className="text-[15px] font-bold text-foreground">{title}</h4>
         <p className="text-[13px] text-muted-foreground">{hint}</p>
       </div>
-    </div>
-  );
-}
-
-function SummaryCard({ title, to, icon, empty, emptyTitle, emptyHint, count, countLabel }: {
-  title: string; to: string; icon: LucideIcon; empty: boolean; emptyTitle: string; emptyHint: string; count: number; countLabel: string;
-}) {
-  const Icon = icon;
-  return (
-    <div className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
-      <div className="mb-6 flex min-w-0 items-center justify-between gap-3">
-        <h3 className="min-w-0 truncate text-[15px] font-bold text-foreground">{title}</h3>
-        <Link to={to} className="shrink-0 whitespace-nowrap text-sm font-semibold text-primary hover:underline">View all</Link>
-      </div>
-      {empty ? (
-        <EmptyRow icon={Icon} title={emptyTitle} hint={emptyHint} />
-      ) : (
-        <div className="flex items-center gap-4">
-          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-primary-light text-primary"><Icon className="h-5 w-5" /></div>
-          <div className="min-w-0">
-            <h4 className="text-xl font-bold text-foreground">{count}</h4>
-            <p className="text-[13px] text-muted-foreground">{countLabel}</p>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

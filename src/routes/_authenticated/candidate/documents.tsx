@@ -12,13 +12,21 @@ export const Route = createFileRoute("/_authenticated/candidate/documents")({
 });
 
 const DOC_TYPES = [
-  { key: "resume", label: "Resume / CV" },
-  { key: "id_proof", label: "ID proof (Aadhaar/PAN)" },
-  { key: "education", label: "Education certificate" },
-  { key: "experience", label: "Experience letter" },
-  { key: "other", label: "Other" },
+  { key: "resume", dbType: "resume", label: "Resume / CV" },
+  { key: "id_proof", dbType: "id_proof", label: "ID proof (Aadhaar/PAN)" },
+  { key: "education", dbType: "certificate", label: "Education certificate" },
+  { key: "experience", dbType: "certificate", label: "Experience letter" },
+  { key: "other", dbType: "other", label: "Other" },
 ] as const;
 type DocKey = (typeof DOC_TYPES)[number]["key"];
+
+function errorMessage(error: unknown) {
+  if (error && typeof error === "object" && "message" in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string" && message) return message;
+  }
+  return error instanceof Error && error.message ? error.message : "Upload failed";
+}
 
 type Doc = {
   id: string;
@@ -64,6 +72,7 @@ function DocumentsPage() {
     if (!uid) return toast.error("Please sign in again.");
     setUploading(docType);
     try {
+      const dbType = DOC_TYPES.find((type) => type.key === docType)!.dbType;
       const path = `${uid}/${docType}/${Date.now()}-${file.name}`;
       const { error: upErr } = await supabase.storage
         .from("candidate-docs")
@@ -71,16 +80,19 @@ function DocumentsPage() {
       if (upErr) throw upErr;
       const { error: insErr } = await supabase.from("candidate_documents").insert({
         user_id: uid,
-        doc_type: docType,
+        doc_type: dbType,
         file_path: path,
         file_name: file.name,
         size_bytes: file.size,
       });
-      if (insErr) throw insErr;
+      if (insErr) {
+        await supabase.storage.from("candidate-docs").remove([path]);
+        throw insErr;
+      }
       toast.success("Uploaded");
       await load();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Upload failed");
+      toast.error(errorMessage(e));
     } finally {
       setUploading(null);
     }
@@ -109,7 +121,10 @@ function DocumentsPage() {
     >
       <div className="grid grid-cols-1 gap-4">
         {DOC_TYPES.map((t) => {
-          const owned = rows.filter((r) => r.doc_type === t.key);
+          const owned = rows.filter((r) => {
+            if (r.doc_type !== t.dbType) return false;
+            return t.dbType !== "certificate" || r.file_path.split("/")[1] === t.key;
+          });
           return (
             <div
               key={t.key}
