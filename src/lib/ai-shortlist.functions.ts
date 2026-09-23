@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { chatJSON, decide, isJevEnabled } from "@/lib/ai/provider";
+import { chatJSON, chatJSONCascade, decide, isJevEnabled } from "@/lib/ai/provider";
 import { assertNoProtectedFields } from "@/lib/ai-shortlist-guard";
 import {
   buildShortlistQuestions,
@@ -226,31 +226,32 @@ export const recommendShortlist = createServerFn({ method: "POST" })
       }
 
       if (geminiItems.length) {
-        const prompt = `Score each candidate 0-100 against this job. Return strict JSON only:
+        const systemPrompt = `You rank job candidates. Output only valid JSON.
+Score each candidate 0-100 against this job. Return strict JSON only:
 {"results":[{"application_id":"...","score":85,"reasons":["..."],"summary":"one line"}]}
 
-JOB
+JOB REQUIREMENTS:
 Title: ${job.title}
 Skills required: ${(job.skills || []).join(", ") || "n/a"}
 Min experience: ${job.min_experience_years ?? 0} years
 City: ${job.city ?? "any"}
 Description: ${(job.description || "").slice(0, 800)}
 
-CANDIDATES
+Scoring rules: skill overlap 50%, experience fit 25%, role/title relevance 15%, location 10%.
+Give 2-4 short bullet reasons each. Be honest — low scores when off-target.`;
+
+        const userPrompt = `CANDIDATES:
 ${JSON.stringify(geminiItems)}
 
 Each candidate also includes cover_note, expected_salary and available_from from their
 application form. Use these only as supporting context in your reasons/summary (e.g. flag
 a mismatched expected salary or a relevant point from their cover note) — they are NOT
-part of the numeric formula below.
+part of the numeric formula.`;
 
-Scoring: skill overlap 50%, experience fit 25%, role/title relevance 15%, location 10%.
-Give 2-4 short bullet reasons each. Be honest — low scores when off-target.`;
-
-        const parsed = await chatJSON(
+        const parsed = await chatJSONCascade(
           {
-            system: "You rank job candidates. Output only valid JSON.",
-            user: prompt,
+            system: systemPrompt,
+            user: userPrompt,
           },
           AiScoreResponse,
         );

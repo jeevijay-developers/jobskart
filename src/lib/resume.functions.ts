@@ -1,6 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { chat } from "@/lib/ai/provider";
+import { chat, decide, isJevEnabled } from "@/lib/ai/provider";
+import {
+  buildResumeGateQuestion,
+  isLikelyResume,
+  parseResumeGateAnswers,
+  RESUME_NON_RESUME_MESSAGE,
+} from "@/lib/ai/jev-resume-gate";
 
 
 const inputSchema = z.object({
@@ -86,6 +92,7 @@ export const RESUME_SERVICE_UNAVAILABLE_MESSAGE =
 // handler.
 export const RESUME_SAFE_ERROR_MESSAGES = new Set<string>([
   UNREADABLE,
+  RESUME_NON_RESUME_MESSAGE,
   "Old .doc files aren't supported. Please upload a PDF or DOCX instead.",
   "Unsupported file. Please upload a PDF, DOCX or image (JPG/PNG).",
   RESUME_SERVICE_UNAVAILABLE_MESSAGE,
@@ -135,6 +142,29 @@ const fromText = (text: string) =>
     `Parse this resume text and return the JSON.\n\n---RESUME TEXT---\n${text.slice(0, 18000)}`,
   );
 
+async function preCheckResumeWithJev(fileName: string, textSnippet: string): Promise<void> {
+  if (!isJevEnabled()) return;
+  try {
+    const res = await decide({
+      state: {
+        file_name: fileName,
+        text_snippet: textSnippet.slice(0, 1000),
+      },
+      questions: buildResumeGateQuestion(),
+    });
+    const parsed = parseResumeGateAnswers(res.answers);
+    if (!isLikelyResume(parsed)) {
+      throw new Error(RESUME_NON_RESUME_MESSAGE);
+    }
+  } catch (err) {
+    if (err instanceof Error && err.message === RESUME_NON_RESUME_MESSAGE) {
+      throw err;
+    }
+    // Fail-open on network/Jev error so legitimate users are never blocked
+    console.warn("[resume] Jev resume pre-gate check failed, falling back to full review:", err);
+  }
+}
+
 async function parseResumeInner(data: z.infer<typeof inputSchema>) {
   const mime = data.mimeType.toLowerCase();
   const name = data.fileName.toLowerCase();
@@ -155,6 +185,7 @@ async function parseResumeInner(data: z.infer<typeof inputSchema>) {
       console.error("[resume] pdf extract failed:", e);
     }
     if (text.length >= 200) {
+      await preCheckResumeWithJev(data.fileName, text);
       raw = await fromText(text);
     } else {
       // Scanned / image-only PDF — send the document itself down the vision path.
@@ -183,6 +214,7 @@ async function parseResumeInner(data: z.infer<typeof inputSchema>) {
       console.error("[resume] docx extract failed:", e);
     }
     if (text.length < 30) throw new Error(UNREADABLE);
+    await preCheckResumeWithJev(data.fileName, text);
     raw = await fromText(text);
   } else if (isDoc) {
     throw new Error("Old .doc files aren't supported. Please upload a PDF or DOCX instead.");

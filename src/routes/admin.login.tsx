@@ -1,13 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
+import { useState } from "react";
 import { Shield } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
-import { bootstrapSeedAdmins } from "@/lib/admin.functions";
 
 export const Route = createFileRoute("/admin/login")({
   component: AdminLogin,
@@ -21,16 +19,10 @@ function normalize(raw: string) {
 }
 
 function AdminLogin() {
-  const [identifier, setIdentifier] = useState("9098326235");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const bootstrap = useServerFn(bootstrapSeedAdmins);
-
-  useEffect(() => {
-    // Idempotent: ensures seeded super admin exists with default password on first visit
-    bootstrap({ data: { password: "11223344@" } }).catch(() => {});
-  }, [bootstrap]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -44,7 +36,11 @@ function AdminLogin() {
       toast.success("Welcome, admin");
       navigate({ to: "/admin/dashboard" });
     } catch (err: any) {
-      toast.error(err?.message ?? "Login failed");
+      toast.error(
+        err?.code === "phone_provider_disabled"
+          ? "Mobile login is not enabled. Sign in with your admin email."
+          : (err?.message ?? "Login failed"),
+      );
     } finally {
       setLoading(false);
     }
@@ -65,7 +61,7 @@ function AdminLogin() {
         <form onSubmit={onSubmit} className="space-y-4">
           <div>
             <Label htmlFor="ident">Mobile or Email</Label>
-            <Input id="ident" value={identifier} onChange={(e) => setIdentifier(e.target.value)} placeholder="9098326235" />
+            <Input id="ident" value={identifier} onChange={(e) => setIdentifier(e.target.value)} placeholder="admin@example.com" />
           </div>
           <div>
             <Label htmlFor="pw">Password</Label>
