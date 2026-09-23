@@ -1,6 +1,5 @@
-import { ThemedSelect } from "@/components/ui/themed-form-controls";
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Search,
@@ -20,6 +19,7 @@ import {
   ApplicantReviewPanel,
   type ReviewApplicant,
 } from "@/components/employer/ApplicantReviewPanel";
+import { CityMultiSelect } from "@/components/employer/CityMultiSelect";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchMyCompanies, getActiveCompanyId, type EmployerMembership } from "@/lib/employer";
 import {
@@ -85,7 +85,6 @@ function DatabasePage() {
   // experience narrows immediately, matching the dropdown's existing UX.
   const [q, setQ] = useState("");
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
-  const [cityInput, setCityInput] = useState("");
   const [minExp, setMinExp] = useState<number | "">("");
   const [submitted, setSubmitted] = useState<SearchFilters>({
     query: "",
@@ -324,8 +323,6 @@ function DatabasePage() {
     setReviewApplicant((prev) => (prev ? { ...prev, status } : prev));
   };
 
-  const cities = useMemo(() => ["", ...INDIAN_CITIES], []);
-
   if (loading) {
     return (
       <EmployerShell title="Candidate database">
@@ -380,22 +377,20 @@ function DatabasePage() {
               className="h-11 w-full rounded-lg border border-border bg-surface pl-9 pr-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
             />
           </label>
-          <div className="relative">
-            <ThemedSelect
-              value=""
-              onChange={(e) => {
-                const v = e.target.value;
-                if (v && !selectedCities.includes(v)) setSelectedCities([...selectedCities, v]);
-              }}
-              className="h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
-            >
-              <option value="">+ Add city ({selectedCities.length})</option>
-              {cities.filter((c) => c && !selectedCities.includes(c)).map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </ThemedSelect>
-            {void cityInput}{void setCityInput}
-          </div>
+          <CityMultiSelect
+            options={INDIAN_CITIES}
+            selected={selectedCities}
+            onAdd={(city) => {
+              // TEMP DEBUG — remove after root cause found
+              console.log("[database.tsx] onAdd called with:", city, "prev selectedCities:", selectedCities);
+              setSelectedCities((prev) => {
+                const next = prev.includes(city) ? prev : [...prev, city];
+                // TEMP DEBUG — remove after root cause found
+                console.log("[database.tsx] selectedCities updated to:", next);
+                return next;
+              });
+            }}
+          />
           <button
             type="submit"
             disabled={searching}
