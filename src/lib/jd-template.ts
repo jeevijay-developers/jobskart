@@ -13,6 +13,7 @@ export type JdInput = {
   companyName: string;
   industry?: string;
   category?: string;
+  city?: string;
   workMode?: string;
   jobType?: string;
 
@@ -44,6 +45,9 @@ export type JdInput = {
 
   /** Optional employer override for the auto-summary. */
   summaryOverride?: string;
+
+  /** JD length/tone preset. Defaults to "standard" when omitted. */
+  style?: "standard" | "quick_read" | "detailed";
 };
 
 function fmtInr(n?: number) {
@@ -137,6 +141,7 @@ function summaryFor(input: JdInput, tpl: RoleTemplate | null): [string, string] 
 }
 
 export function buildJd(input: JdInput): { markdown: string; html: string } {
+  const style = input.style ?? "standard";
   const tpl = findRoleTemplate(input.title, input.industry);
   const [line1, line2] = summaryFor(input, tpl);
   const responsibilities = responsibilitiesFor(input.skills ?? [], tpl);
@@ -164,6 +169,59 @@ export function buildJd(input: JdInput): { markdown: string; html: string } {
   if (input.preferredLanguages?.length) notes.push(`Preferred Language: ${input.preferredLanguages.join(", ")}`);
   if (input.preferredIndustries?.length) notes.push(`Preferred Industry: ${input.preferredIndustries.join(", ")}`);
 
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const allResp = [...responsibilities, ...(tpl?.fixedResponsibilities ?? [])];
+
+  if (style === "quick_read") {
+    // Mobile/WhatsApp-friendly: one summary line, top 3 bullets, salary,
+    // no Notes section — optimised for fast scanning, not completeness.
+    const md = [
+      `${input.title || "Job opening"} @ ${input.companyName || "our team"}${input.city ? ` · ${input.city}` : ""}`,
+      "",
+      compClause,
+      "",
+      "**Top requirements:**",
+      ...allResp.slice(0, 3).map((r) => `- ${r}`),
+      "",
+      reqBits.slice(0, 2).join(" "),
+    ];
+    const html = [
+      `<p><strong>${esc(input.title || "Job opening")}</strong> @ ${esc(input.companyName || "our team")}</p>`,
+      `<p><em>${esc(compClause)}</em></p>`,
+      `<ul>${allResp.slice(0, 3).map((r) => `<li>${esc(r)}</li>`).join("")}</ul>`,
+      `<p>${esc(reqBits.slice(0, 2).join(" "))}</p>`,
+    ];
+    return { markdown: md.join("\n"), html: html.join("") };
+  }
+
+  if (style === "detailed") {
+    // Enterprise: formal company-intro line + growth-path line ahead of the
+    // standard body, full responsibilities/requirements/perks/notes kept.
+    const intro = `About ${input.companyName || "the company"}: ${input.companyName || "We"} ${input.industry ? `operate in ${input.industry} and are` : "are"} looking to grow our team with driven professionals.`;
+    const growth = "This role offers a clear path for growth within the company for strong performers.";
+    const md: string[] = [intro, "", line1];
+    if (line2) md.push(line2);
+    md.push(growth, "", compClause, "");
+    md.push("**Key Responsibilities:**");
+    allResp.forEach((r) => md.push(`- ${r}`));
+    md.push("", "**Job Requirements:**", reqBits.join(" "));
+    if (input.perks?.length) { md.push("", "**Perks:**", input.perks.join(" · ")); }
+    if (notes.length) { md.push("", "**Notes:**"); notes.forEach((n) => md.push(`- ${n}`)); }
+
+    const html = [
+      `<p><em>${esc(intro)}</em></p>`,
+      `<p>${esc(line1)}${line2 ? ` ${esc(line2)}` : ""}</p>`,
+      `<p>${esc(growth)}</p>`,
+      `<p><em>${esc(compClause)}</em></p>`,
+      `<h4>Key Responsibilities</h4><ul>${allResp.map((r) => `<li>${esc(r)}</li>`).join("")}</ul>`,
+      `<h4>Job Requirements</h4><p>${esc(reqBits.join(" "))}</p>`,
+    ];
+    if (input.perks?.length) html.push(`<h4>Perks</h4><p>${input.perks.map(esc).join(" · ")}</p>`);
+    if (notes.length) html.push(`<h4>Notes</h4><ul>${notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>`);
+    return { markdown: md.join("\n"), html: html.join("") };
+  }
+
+  // "standard" — identical to this function's pre-existing behaviour.
   const md: string[] = [];
   md.push(line1);
   if (line2) md.push(line2);
@@ -188,8 +246,6 @@ export function buildJd(input: JdInput): { markdown: string; html: string } {
     notes.forEach((n) => md.push(`- ${n}`));
   }
 
-  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  const allResp = [...responsibilities, ...(tpl?.fixedResponsibilities ?? [])];
   const html: string[] = [];
   html.push(`<p>${esc(line1)}${line2 ? ` ${esc(line2)}` : ""}</p>`);
   html.push(`<p><em>${esc(compClause)}</em></p>`);
@@ -197,8 +253,6 @@ export function buildJd(input: JdInput): { markdown: string; html: string } {
   html.push(`<h4>Job Requirements</h4><p>${esc(reqBits.join(" "))}</p>`);
   if (input.perks?.length) html.push(`<h4>Perks</h4><p>${input.perks.map(esc).join(" · ")}</p>`);
   if (notes.length) html.push(`<h4>Notes</h4><ul>${notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>`);
-
-
 
   return { markdown: md.join("\n"), html: html.join("") };
 }

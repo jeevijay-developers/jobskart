@@ -78,9 +78,10 @@ function ApplicantsPage() {
   const [reviewing, setReviewing] = useState<Application | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>("all");
-  const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
+  const [sortOrder, setSortOrder] = useState<"match" | "newest" | "oldest">("match");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [scheduling, setScheduling] = useState<Application | null>(null);
+  const [ranked, setRanked] = useState<Record<string, { score: number; tags: string[] }>>({});
 
   const load = async () => {
     const [jRes, aRes] = await Promise.all([
@@ -136,6 +137,18 @@ function ApplicantsPage() {
 
   useEffect(() => {
     load();
+    // Ranking is an enhancement — if the RPC fails, applicants still render,
+    // just without scores/tags. Never blocks the applicants list.
+    supabase
+      .rpc("get_ranked_job_applicants", { _job_id: jobId, _sort_by: "match" })
+      .then(({ data, error }) => {
+        if (error) return; // ranking is best-effort; the RPC never throws, just resolves { error }
+        const map: Record<string, { score: number; tags: string[] }> = {};
+        for (const row of data ?? []) {
+          map[row.application_id] = { score: row.match_score ?? 0, tags: row.tags ?? [] };
+        }
+        setRanked(map);
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobId]);
 
@@ -180,12 +193,15 @@ function ApplicantsPage() {
 
   const visible = useMemo(() => {
     const filtered = tab === "all" ? apps : apps.filter((a) => a.status === tab);
+    if (sortOrder === "match") {
+      return [...filtered].sort((a, b) => (ranked[b.id]?.score ?? -1) - (ranked[a.id]?.score ?? -1));
+    }
     const sorted = [...filtered].sort((a, b) => {
       const diff = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
       return sortOrder === "newest" ? -diff : diff;
     });
     return sorted;
-  }, [apps, tab, sortOrder]);
+  }, [apps, tab, sortOrder, ranked]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -261,11 +277,11 @@ function ApplicantsPage() {
               </div>
             </div>
             <button
-              onClick={() => setSortOrder((s) => (s === "newest" ? "oldest" : "newest"))}
+              onClick={() => setSortOrder((s) => (s === "match" ? "newest" : s === "newest" ? "oldest" : "match"))}
               className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold hover:bg-surface"
             >
               <ArrowUpDown className="h-3.5 w-3.5" />{" "}
-              {sortOrder === "newest" ? "Newest first" : "Oldest first"}
+              {sortOrder === "match" ? "Best match" : sortOrder === "newest" ? "Newest first" : "Oldest first"}
             </button>
           </div>
 
@@ -312,6 +328,8 @@ function ApplicantsPage() {
                   onToggleSelect={() => toggleSelect(a.id)}
                   onStatusChange={(status) => updateStatus([a.id], status)}
                   onView={() => setReviewing(a)}
+                  matchScore={ranked[a.id]?.score}
+                  tags={ranked[a.id]?.tags}
                 />
               ))}
             </div>

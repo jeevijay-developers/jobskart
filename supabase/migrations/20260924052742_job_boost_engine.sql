@@ -1,0 +1,36 @@
+-- Boost Job feature (see boost-job-feature-implementation.md):
+--   Same Day Restriction, Credit Based, Multiple Usage, Temporary Priority,
+--   Dynamic Priority. Boost is an additive, linearly-decaying score bonus
+--   inside a server-side feed ranking function, never a pin to position 1.
+--
+-- Deviations from the literal plan doc, worth calling out:
+--   - jobs.tier / job_tier ('classic'/'classic_plus'/'trending') does not
+--     exist anywhere in this codebase yet (verified: no migration, no src
+--     reference), despite CLAUDE.md describing it as already built. The
+--     ranking formula below omits the trending_bonus term until that ships.
+--   - match_scoring_config does not exist either (candidate<->job scoring
+--     lives in compute_candidate_match(), added 20260924051445). Boost's own
+--     tunables (boost/freshness/quality weights) live in boost_settings
+--     instead of a config table that isn't there.
+--   - "one boost per job per IST calendar day" is enforced via a plain
+--     UNIQUE index on a stored `boost_day date` column (defaulted from
+--     timezone('Asia/Kolkata', now()) at insert time), not a unique index on
+--     a timezone() expression directly — Postgres requires index expressions
+--     to be IMMUTABLE and timezone(text, timestamptz) is only STABLE, so an
+--     expression index on it is rejected at CREATE INDEX time.
+--   - feed_jobs() is SECURITY DEFINER (not INVOKER as sketched in the plan):
+--     it needs to read job_boosts.ends_at for every job to score boosts, but
+--     job_boosts RLS only lets a company see its own boosts — an anon/
+--     candidate caller under INVOKER would see no boost rows at all and the
+--     decay term would silently always be 0. DEFINER lets it read what it
+--     needs while still only ever returning already-public job/company
+--     columns plus the computed score.
+--   - candidate-feed transparency tag is labelled "Boosted", not "Featured"
+--     — jobs.is_featured already exists as an unrelated admin curation flag
+--     (src/routes/_authenticated/admin/jobs.tsx), so reusing "Featured" for
+--     the boost badge would misrepresent what that existing column means.
+
+-- 1) Credit ledger gets a 'boost' kind (own ALTER TYPE statement — can't be
+--    used in the same transaction it's added in, per Postgres's in-transaction
+--    enum-value restriction).
+ALTER TYPE public.credit_txn_kind ADD VALUE IF NOT EXISTS 'boost';

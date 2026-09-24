@@ -1,5 +1,6 @@
 import { FileText, Loader2, Upload } from "lucide-react";
 import { ThemedDatePicker } from "@/components/ui/themed-form-controls";
+import { OptionalSection } from "@/components/forms/OptionalSection";
 
 type Props = {
   readOnly?: boolean;
@@ -55,14 +56,73 @@ export function ApplicationFormFields({
   onCoverNoteChange,
   coverError,
 }: Props) {
+  const detailsFilled = (availableFrom ? 1 : 0) + (coverNote.trim() ? 1 : 0);
+
+  const availableFromField = readOnly ? (
+    <div>
+      <label className="text-sm font-semibold text-foreground">Available from</label>
+      <p className="mt-1.5 text-sm font-medium text-foreground">
+        {availableFrom
+          ? new Date(availableFrom).toLocaleDateString("en-IN", {
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+            })
+          : "—"}
+      </p>
+    </div>
+  ) : (
+    <div>
+      <label className="text-sm font-semibold text-foreground">Available from</label>
+      <ThemedDatePicker
+        value={availableFrom}
+        min={minAvailableDate}
+        onChange={(e) => onAvailableFromChange?.(e.target.value)}
+        className="mt-1 h-10 w-full rounded-lg border border-input bg-card px-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+      />
+      {availableError && (
+        <p className="mt-1 text-xs font-medium text-destructive">{availableError}</p>
+      )}
+    </div>
+  );
+
+  const coverNoteField = readOnly ? (
+    <div>
+      <label className="text-sm font-semibold text-foreground">Cover note</label>
+      <p className="mt-1.5 whitespace-pre-wrap rounded-lg bg-surface p-3 text-sm text-foreground">
+        {coverNote || <span className="text-muted-foreground">No cover note added.</span>}
+      </p>
+    </div>
+  ) : (
+    <div>
+      <label className="text-sm font-semibold text-foreground">
+        Cover note <span className="text-xs font-normal text-muted-foreground">(optional)</span>
+      </label>
+      <textarea
+        rows={4}
+        value={coverNote}
+        onChange={(e) => onCoverNoteChange?.(e.target.value.slice(0, 1000))}
+        placeholder="Tell the employer why you're a great fit…"
+        className="mt-1 w-full rounded-lg border border-input bg-card px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+      />
+      <div className="mt-1 flex items-center justify-between text-[11px] text-muted-foreground">
+        <span className={coverError ? "text-destructive font-medium" : ""}>
+          {coverError || " "}
+        </span>
+        <span>{coverNote.length}/1000</span>
+      </div>
+    </div>
+  );
+
   return (
     <>
-      {/* Resume */}
-      <div>
+      {/* Resume — emphasized in the editable apply flow: it's the one field
+          that most determines whether the application even gets opened. */}
+      <div className={!readOnly ? "rounded-xl border border-primary/20 bg-primary-light/50 p-3" : undefined}>
         <label className="text-sm font-semibold text-foreground">
           Resume {!readOnly && <span className="text-destructive">*</span>}
         </label>
-        {!readOnly && (
+        {!readOnly && !resumeLabel && (
           <p className="mt-0.5 text-xs text-muted-foreground">
             PDF, DOC, DOCX, PNG or JPG · max 5 MB
           </p>
@@ -97,19 +157,28 @@ export function ApplicationFormFields({
                 Remove
               </button>
             )}
+            {!readOnly && onPickResume && !showRemoveResume && (
+              <button
+                type="button"
+                onClick={onPickResume}
+                className="shrink-0 text-xs font-semibold text-primary hover:underline"
+              >
+                Change
+              </button>
+            )}
           </div>
         ) : readOnly ? (
           <p className="mt-2 text-sm text-muted-foreground">No resume on file.</p>
         ) : null}
 
-        {!readOnly && onPickResume && (
+        {!readOnly && onPickResume && !resumeLabel && (
           <button
             type="button"
             onClick={onPickResume}
             className="mt-2 inline-flex h-10 items-center gap-2 rounded-lg border border-dashed border-primary/40 bg-primary/5 px-4 text-sm font-semibold text-primary hover:bg-primary/10"
           >
             <Upload className="h-4 w-4" />
-            {resumeLabel ? "Upload a different resume" : "Upload resume"}
+            Upload resume
           </button>
         )}
         {resumeError && (
@@ -117,93 +186,53 @@ export function ApplicationFormFields({
         )}
       </div>
 
-      {/* Salary + available from */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <label className="text-sm font-semibold text-foreground">
-            Expected salary (₹/month) {!readOnly && <span className="text-destructive">*</span>}
-          </label>
-          {readOnly ? (
-            <p className="mt-1.5 text-sm font-medium text-foreground">
-              {expectedSalary ? `₹${Number(expectedSalary).toLocaleString("en-IN")}/month` : "—"}
-            </p>
-          ) : (
-            <input
-              type="number"
-              inputMode="numeric"
-              min={0}
-              value={expectedSalary}
-              onChange={(e) => onExpectedSalaryChange?.(e.target.value)}
-              placeholder="e.g. 35000"
-              className="mt-1 h-10 w-full rounded-lg border border-input bg-card px-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-            />
-          )}
-          {!readOnly && (jobSalaryRange?.min || jobSalaryRange?.max) ? (
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              Job range: ₹{(jobSalaryRange?.min ?? 0).toLocaleString("en-IN")} – ₹
-              {(jobSalaryRange?.max ?? 0).toLocaleString("en-IN")} /month
-            </p>
-          ) : null}
-          {salaryError && (
-            <p className="mt-1 text-xs font-medium text-destructive">{salaryError}</p>
-          )}
-        </div>
-        <div>
-          <label className="text-sm font-semibold text-foreground">Available from</label>
-          {readOnly ? (
-            <p className="mt-1.5 text-sm font-medium text-foreground">
-              {availableFrom
-                ? new Date(availableFrom).toLocaleDateString("en-IN", {
-                    day: "numeric",
-                    month: "short",
-                    year: "numeric",
-                  })
-                : "—"}
-            </p>
-          ) : (
-            <ThemedDatePicker
-              value={availableFrom}
-              min={minAvailableDate}
-              onChange={(e) => onAvailableFromChange?.(e.target.value)}
-              className="mt-1 h-10 w-full rounded-lg border border-input bg-card px-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-            />
-          )}
-          {availableError && (
-            <p className="mt-1 text-xs font-medium text-destructive">{availableError}</p>
-          )}
-        </div>
-      </div>
-
-      {/* Cover note */}
+      {/* Expected salary — required, so it stays visible (never hidden in a collapsed section) */}
       <div>
         <label className="text-sm font-semibold text-foreground">
-          Cover note{" "}
-          {!readOnly && (
-            <span className="text-xs font-normal text-muted-foreground">(optional)</span>
-          )}
+          Expected salary (₹/month) {!readOnly && <span className="text-destructive">*</span>}
         </label>
         {readOnly ? (
-          <p className="mt-1.5 whitespace-pre-wrap rounded-lg bg-surface p-3 text-sm text-foreground">
-            {coverNote || <span className="text-muted-foreground">No cover note added.</span>}
+          <p className="mt-1.5 text-sm font-medium text-foreground">
+            {expectedSalary ? `₹${Number(expectedSalary).toLocaleString("en-IN")}/month` : "—"}
           </p>
         ) : (
-          <>
-            <textarea
-              rows={4}
-              value={coverNote}
-              onChange={(e) => onCoverNoteChange?.(e.target.value.slice(0, 1000))}
-              placeholder="Tell the employer why you're a great fit…"
-              className="mt-1 w-full rounded-lg border border-input bg-card px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-            />
-            <div className="mt-1 flex items-center justify-between text-[11px] text-muted-foreground">
-              <span className={coverError ? "text-destructive font-medium" : ""}>
-                {coverError || " "}
-              </span>
-              <span>{coverNote.length}/1000</span>
-            </div>
-          </>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={0}
+            value={expectedSalary}
+            onChange={(e) => onExpectedSalaryChange?.(e.target.value)}
+            placeholder="e.g. 35000"
+            className="mt-1 h-10 w-full rounded-lg border border-input bg-card px-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+          />
+        )}
+        {!readOnly && (jobSalaryRange?.min || jobSalaryRange?.max) ? (
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Job range: ₹{(jobSalaryRange?.min ?? 0).toLocaleString("en-IN")} – ₹
+            {(jobSalaryRange?.max ?? 0).toLocaleString("en-IN")} /month
+          </p>
+        ) : null}
+        {salaryError && (
+          <p className="mt-1 text-xs font-medium text-destructive">{salaryError}</p>
         )}
       </div>
+
+      {readOnly ? (
+        <>
+          {availableFromField}
+          {coverNoteField}
+        </>
+      ) : (
+        <OptionalSection
+          title="More details"
+          summary="Available from, cover note"
+          badge={detailsFilled}
+          hasValues={Boolean(availableError || coverError)}
+        >
+          {availableFromField}
+          {coverNoteField}
+        </OptionalSection>
+      )}
     </>
   );
 }

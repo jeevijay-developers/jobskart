@@ -303,6 +303,42 @@ export type Database = {
           },
         ]
       }
+      boost_settings: {
+        Row: {
+          boost_weight: number
+          cost_credits: number
+          enabled: boolean
+          freshness_weight: number
+          id: number
+          max_boosts_per_company_day: number
+          quality_weight: number
+          updated_at: string
+          window_hours: number
+        }
+        Insert: {
+          boost_weight?: number
+          cost_credits?: number
+          enabled?: boolean
+          freshness_weight?: number
+          id?: number
+          max_boosts_per_company_day?: number
+          quality_weight?: number
+          updated_at?: string
+          window_hours?: number
+        }
+        Update: {
+          boost_weight?: number
+          cost_credits?: number
+          enabled?: boolean
+          freshness_weight?: number
+          id?: number
+          max_boosts_per_company_day?: number
+          quality_weight?: number
+          updated_at?: string
+          window_hours?: number
+        }
+        Relationships: []
+      }
       candidate_assets_master: {
         Row: {
           category: string
@@ -655,6 +691,7 @@ export type Database = {
           created_at: string
           credits_spent: number
           id: string
+          job_id: string | null
           unlocked_by: string | null
         }
         Insert: {
@@ -663,6 +700,7 @@ export type Database = {
           created_at?: string
           credits_spent?: number
           id?: string
+          job_id?: string | null
           unlocked_by?: string | null
         }
         Update: {
@@ -671,6 +709,7 @@ export type Database = {
           created_at?: string
           credits_spent?: number
           id?: string
+          job_id?: string | null
           unlocked_by?: string | null
         }
         Relationships: [
@@ -679,6 +718,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_unlocks_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
             referencedColumns: ["id"]
           },
         ]
@@ -849,6 +895,54 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_plans: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          ends_at: string | null
+          id: string
+          plan_id: string
+          starts_at: string
+          status: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          ends_at?: string | null
+          id?: string
+          plan_id: string
+          starts_at?: string
+          status?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          ends_at?: string | null
+          id?: string
+          plan_id?: string
+          starts_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_plans_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_plans_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
             referencedColumns: ["id"]
           },
         ]
@@ -1469,6 +1563,57 @@ export type Database = {
           },
         ]
       }
+      job_boosts: {
+        Row: {
+          boost_day: string
+          boosted_by: string | null
+          company_id: string
+          created_at: string
+          credits_spent: number
+          ends_at: string
+          id: string
+          job_id: string
+          starts_at: string
+        }
+        Insert: {
+          boost_day?: string
+          boosted_by?: string | null
+          company_id: string
+          created_at?: string
+          credits_spent: number
+          ends_at: string
+          id?: string
+          job_id: string
+          starts_at?: string
+        }
+        Update: {
+          boost_day?: string
+          boosted_by?: string | null
+          company_id?: string
+          created_at?: string
+          credits_spent?: number
+          ends_at?: string
+          id?: string
+          job_id?: string
+          starts_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_boosts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_boosts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_categories: {
         Row: {
           created_at: string
@@ -1495,6 +1640,29 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      job_purge_reminders: {
+        Row: {
+          job_id: string
+          sent_at: string
+        }
+        Insert: {
+          job_id: string
+          sent_at?: string
+        }
+        Update: {
+          job_id?: string
+          sent_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_purge_reminders_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: true
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       job_reports: {
         Row: {
@@ -1537,6 +1705,35 @@ export type Database = {
           },
         ]
       }
+      job_response_purges: {
+        Row: {
+          id: string
+          job_id: string
+          purged_at: string
+          purged_count: number
+        }
+        Insert: {
+          id?: string
+          job_id: string
+          purged_at?: string
+          purged_count?: number
+        }
+        Update: {
+          id?: string
+          job_id?: string
+          purged_at?: string
+          purged_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_response_purges_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_titles_master: {
         Row: {
           created_at: string
@@ -1564,6 +1761,48 @@ export type Database = {
         }
         Relationships: []
       }
+      job_unlock_allowance: {
+        Row: {
+          company_id: string
+          created_at: string
+          job_id: string
+          total: number
+          updated_at: string
+          used: number
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          job_id: string
+          total: number
+          updated_at?: string
+          used?: number
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          job_id?: string
+          total?: number
+          updated_at?: string
+          used?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_unlock_allowance_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_unlock_allowance_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: true
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       jobs: {
         Row: {
           age_max: number | null
@@ -1575,6 +1814,7 @@ export type Database = {
           category: string | null
           certifications: string[] | null
           city: string | null
+          closed_at: string | null
           company_id: string
           contact_pref: string | null
           created_at: string
@@ -1613,8 +1853,12 @@ export type Database = {
           preferred_industries: string[] | null
           preferred_languages: string[] | null
           quality_score: number | null
+          reopened_at: string | null
+          repost_count: number
+          reposted_from: string | null
           required_assets: string[] | null
           responses_locked_after: string | null
+          responses_purge_at: string | null
           role_type: string | null
           salary_period: string | null
           screening_questions: Json
@@ -1624,6 +1868,8 @@ export type Database = {
           specialisation: string | null
           state: string | null
           status: Database["public"]["Enums"]["job_status"]
+          tier: Database["public"]["Enums"]["job_tier"]
+          tier_source: string | null
           title: string
           updated_at: string
           views_count: number | null
@@ -1642,6 +1888,7 @@ export type Database = {
           category?: string | null
           certifications?: string[] | null
           city?: string | null
+          closed_at?: string | null
           company_id: string
           contact_pref?: string | null
           created_at?: string
@@ -1680,8 +1927,12 @@ export type Database = {
           preferred_industries?: string[] | null
           preferred_languages?: string[] | null
           quality_score?: number | null
+          reopened_at?: string | null
+          repost_count?: number
+          reposted_from?: string | null
           required_assets?: string[] | null
           responses_locked_after?: string | null
+          responses_purge_at?: string | null
           role_type?: string | null
           salary_period?: string | null
           screening_questions?: Json
@@ -1691,6 +1942,8 @@ export type Database = {
           specialisation?: string | null
           state?: string | null
           status?: Database["public"]["Enums"]["job_status"]
+          tier?: Database["public"]["Enums"]["job_tier"]
+          tier_source?: string | null
           title: string
           updated_at?: string
           views_count?: number | null
@@ -1709,6 +1962,7 @@ export type Database = {
           category?: string | null
           certifications?: string[] | null
           city?: string | null
+          closed_at?: string | null
           company_id?: string
           contact_pref?: string | null
           created_at?: string
@@ -1747,8 +2001,12 @@ export type Database = {
           preferred_industries?: string[] | null
           preferred_languages?: string[] | null
           quality_score?: number | null
+          reopened_at?: string | null
+          repost_count?: number
+          reposted_from?: string | null
           required_assets?: string[] | null
           responses_locked_after?: string | null
+          responses_purge_at?: string | null
           role_type?: string | null
           salary_period?: string | null
           screening_questions?: Json
@@ -1758,6 +2016,8 @@ export type Database = {
           specialisation?: string | null
           state?: string | null
           status?: Database["public"]["Enums"]["job_status"]
+          tier?: Database["public"]["Enums"]["job_tier"]
+          tier_source?: string | null
           title?: string
           updated_at?: string
           views_count?: number | null
@@ -1772,6 +2032,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jobs_reposted_from_fkey"
+            columns: ["reposted_from"]
+            isOneToOne: false
+            referencedRelation: "jobs"
             referencedColumns: ["id"]
           },
         ]
@@ -1903,6 +2170,8 @@ export type Database = {
         Row: {
           credits_per_unlock: number
           custom_plan_min_amount: number
+          db_rows_per_day: number
+          db_searches_per_hour: number
           free_plan_validity_days: number | null
           free_post_enabled: boolean
           free_response_cap: number
@@ -1912,11 +2181,15 @@ export type Database = {
           free_whatsapp_rajasthan_only: boolean
           id: number
           spam_jobs_per_hour: number
+          tier_prices: Json
+          unlocks_per_job: number
           updated_at: string
         }
         Insert: {
           credits_per_unlock?: number
           custom_plan_min_amount?: number
+          db_rows_per_day?: number
+          db_searches_per_hour?: number
           free_plan_validity_days?: number | null
           free_post_enabled?: boolean
           free_response_cap?: number
@@ -1926,11 +2199,15 @@ export type Database = {
           free_whatsapp_rajasthan_only?: boolean
           id?: number
           spam_jobs_per_hour?: number
+          tier_prices?: Json
+          unlocks_per_job?: number
           updated_at?: string
         }
         Update: {
           credits_per_unlock?: number
           custom_plan_min_amount?: number
+          db_rows_per_day?: number
+          db_searches_per_hour?: number
           free_plan_validity_days?: number | null
           free_post_enabled?: boolean
           free_response_cap?: number
@@ -1940,6 +2217,8 @@ export type Database = {
           free_whatsapp_rajasthan_only?: boolean
           id?: number
           spam_jobs_per_hour?: number
+          tier_prices?: Json
+          unlocks_per_job?: number
           updated_at?: string
         }
         Relationships: []
@@ -2267,11 +2546,19 @@ export type Database = {
     }
     Functions: {
       accept_invite: { Args: { _token: string }; Returns: string }
+      activate_job_with_tier: {
+        Args: {
+          _job_id: string
+          _tier: Database["public"]["Enums"]["job_tier"]
+        }
+        Returns: Json
+      }
       admin_launch_state: { Args: { _state: string }; Returns: number }
       admin_set_verification: {
         Args: { _id: string; _notes: string; _status: string }
         Returns: undefined
       }
+      apply_boost: { Args: { _job_id: string }; Returns: Json }
       apply_credit_delta: {
         Args: {
           _actor?: string
@@ -2332,6 +2619,15 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      claim_due_purge_reminders: { Args: never; Returns: Json }
+      compute_candidate_match: {
+        Args: {
+          _candidate_user_id: string
+          _job_id: string
+          _with_bonuses?: boolean
+        }
+        Returns: Json
+      }
       create_company_with_owner: {
         Args: {
           _about: string
@@ -2350,6 +2646,53 @@ export type Database = {
         Returns: Json
       }
       current_financial_year: { Args: never; Returns: string }
+      feed_jobs: {
+        Args: {
+          _category?: string
+          _city?: string
+          _company?: string
+          _education?: string
+          _english_level?: string
+          _job_type?: string
+          _limit?: number
+          _max_exp?: number
+          _max_salary?: number
+          _min_exp?: number
+          _min_salary?: number
+          _offset?: number
+          _posted_after?: string
+          _q?: string
+          _shift?: string
+          _vehicle?: boolean
+          _verified_only?: boolean
+          _work_mode?: string
+        }
+        Returns: {
+          avg_incentive_monthly: number
+          boosted: boolean
+          city: string
+          company_id: string
+          company_is_verified: boolean
+          company_name: string
+          created_at: string
+          education: string
+          id: string
+          job_type: string
+          locality: string
+          max_experience_years: number
+          max_salary: number
+          min_experience_years: number
+          min_salary: number
+          pay_type: string
+          salary_period: string
+          score: number
+          skills: string[]
+          state: string
+          title: string
+          total_count: number
+          work_mode: string
+        }[]
+      }
       find_auth_user_by_phone_or_email: {
         Args: { _email: string; _phone: string }
         Returns: {
@@ -2368,6 +2711,7 @@ export type Database = {
         }
         Returns: Json
       }
+      get_company_entitlements: { Args: { _company_id: string }; Returns: Json }
       get_company_private: {
         Args: { _company_id: string }
         Returns: {
@@ -2427,6 +2771,24 @@ export type Database = {
           website: string
         }[]
       }
+      get_ranked_job_applicants: {
+        Args: { _job_id: string; _sort_by?: string; _status?: string }
+        Returns: {
+          application_id: string
+          candidate_id: string
+          city: string
+          created_at: string
+          full_name: string
+          headline: string
+          last_role: string
+          match_breakdown: Json
+          match_score: number
+          skills: string[]
+          status: string
+          tags: string[]
+          years_experience: number
+        }[]
+      }
       gst_state_name: { Args: { _code: string }; Returns: string }
       has_company_membership: {
         Args: { _company_id: string; _user_id: string }
@@ -2452,6 +2814,15 @@ export type Database = {
         Args: { _order_id: string; _razorpay_payment_id: string }
         Returns: string
       }
+      log_contact_viewed: {
+        Args: {
+          _actor: string
+          _candidate_user_id: string
+          _company_id: string
+          _job_id: string
+        }
+        Returns: undefined
+      }
       log_employer_activity: {
         Args: {
           _actor: string
@@ -2474,6 +2845,7 @@ export type Database = {
       }
       next_invoice_number: { Args: never; Returns: string }
       normalize_phone_e164: { Args: { _phone: string }; Returns: string }
+      purge_expired_responses: { Args: never; Returns: Json }
       register_download: {
         Args: { _company_id: string; _count: number; _kind: string }
         Returns: number
@@ -2570,10 +2942,12 @@ export type Database = {
         Args: {
           _cities?: string[]
           _company_id: string
+          _job_id: string
           _limit?: number
           _min_experience?: number
           _offset?: number
           _query?: string
+          _sort_by?: string
         }
         Returns: {
           avatar_url: string
@@ -2581,10 +2955,13 @@ export type Database = {
           full_name: string
           headline: string
           last_role: string
+          match_breakdown: Json
+          match_score: number
           preferred_cities: string[]
           preferred_work_mode: string
           profile_slug: string
           skills: string[]
+          tags: string[]
           total_count: number
           user_id: string
           years_experience: number
@@ -2603,10 +2980,13 @@ export type Database = {
           _actor?: string
           _candidate_user_id: string
           _company_id: string
+          _job_id: string
         }
         Returns: {
+          allowance_left: number
           already_unlocked: boolean
           balance_after: number
+          source: string
         }[]
       }
       update_member_role: {
@@ -2643,6 +3023,9 @@ export type Database = {
         | "bonus"
         | "adjustment"
         | "grant"
+        | "boost"
+        | "job_post"
+        | "repost"
       employer_role: "super_admin" | "hr_admin" | "recruiter"
       experience_status: "fresher" | "experienced" | "student"
       interview_mode: "video" | "phone" | "onsite"
@@ -2655,6 +3038,7 @@ export type Database = {
         | "completed"
       job_shift: "day" | "night" | "rotational" | "flexible"
       job_status: "draft" | "active" | "paused" | "closed" | "expired"
+      job_tier: "classic" | "classic_plus" | "trending"
       job_type:
         | "full_time"
         | "part_time"
@@ -2817,6 +3201,9 @@ export const Constants = {
         "bonus",
         "adjustment",
         "grant",
+        "boost",
+        "job_post",
+        "repost",
       ],
       employer_role: ["super_admin", "hr_admin", "recruiter"],
       experience_status: ["fresher", "experienced", "student"],
@@ -2831,6 +3218,7 @@ export const Constants = {
       ],
       job_shift: ["day", "night", "rotational", "flexible"],
       job_status: ["draft", "active", "paused", "closed", "expired"],
+      job_tier: ["classic", "classic_plus", "trending"],
       job_type: [
         "full_time",
         "part_time",

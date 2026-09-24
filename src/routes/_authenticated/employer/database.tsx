@@ -20,10 +20,11 @@ import {
   type ReviewApplicant,
 } from "@/components/employer/ApplicantReviewPanel";
 import { CityMultiSelect } from "@/components/employer/CityMultiSelect";
+import { ThemedSelect } from "@/components/ui/themed-form-controls";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchMyCompanies, getActiveCompanyId, type EmployerMembership } from "@/lib/employer";
 import {
-  getCompanyWallet,
+  getUnlockState,
   listUnlockedCandidateIds,
   unlockCandidateContact,
 } from "@/lib/credits.functions";
@@ -37,7 +38,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Pagination } from "@/components/site/Pagination";
 import { usePaginatedQuery } from "@/hooks/use-paginated-query";
-import { remainingBroadenDims, applyBroaden, fallbackNextDim, broadenLabel, type SearchFilters } from "@/lib/ai/jev-search-broaden";
+import {
+  remainingBroadenDims,
+  applyBroaden,
+  fallbackNextDim,
+  broadenLabel,
+  type SearchFilters,
+} from "@/lib/ai/jev-search-broaden";
 import { pickNextSearchBroadening } from "@/lib/search-broaden.functions";
 
 const DATABASE_PAGE_SIZE = 20;
@@ -59,6 +66,9 @@ type Candidate = {
   full_name: string | null;
   avatar_url: string | null;
   city: string | null;
+  match_score: number | null;
+  match_breakdown: Record<string, number> | null;
+  tags: string[] | null;
 };
 
 function maskName(name: string | null) {
@@ -78,7 +88,9 @@ function DatabasePage() {
   const [gated, setGated] = useState(false);
   const [balance, setBalance] = useState(0);
   const [unlocked, setUnlocked] = useState<Set<string>>(new Set());
-  const [contacts, setContacts] = useState<Record<string, { full_name: string; mobile: string; email: string }>>({});
+  const [contacts, setContacts] = useState<
+    Record<string, { full_name: string; mobile: string; email: string }>
+  >({});
 
   // Draft filters (live as the employer types/picks) vs. submitted filters
   // (what's actually searched) — city/query only take effect on Search;
@@ -93,6 +105,17 @@ function DatabasePage() {
   });
   const [effective, setEffective] = useState<SearchFilters>(submitted);
   const [widenLabels, setWidenLabels] = useState<string[]>([]);
+  const [activeJobs, setActiveJobs] = useState<
+    {
+      id: string;
+      title: string;
+      allowanceTotal: number | null;
+      allowanceUsed: number | null;
+      allowanceLeft: number | null;
+    }[]
+  >([]);
+  const [selectedJobId, setSelectedJobId] = useState<string>("");
+  const [sortBy, setSortBy] = useState<"relevance" | "match" | "experience">("relevance");
   const pickNext = useServerFn(pickNextSearchBroadening);
   const triedBroadenKeys = useRef(new Set<string>());
   const [unlockingId, setUnlockingId] = useState<string | null>(null);
@@ -108,24 +131,19 @@ function DatabasePage() {
       const chosen = ms.find((m) => m.company_id === storedId) ?? ms[0] ?? null;
       setActive(chosen);
       if (chosen) {
-        // Gate: require ≥1 active, non-expired job
-        const nowIso = new Date().toISOString();
-        const { count } = await supabase
-          .from("jobs")
-          .select("id", { count: "exact", head: true })
-          .eq("company_id", chosen.company_id)
-          .eq("status", "active" as never)
-          .or(`expires_at.is.null,expires_at.gt.${nowIso}`);
-        if (!count) {
+        const [state, ids] = await Promise.all([
+          getUnlockState({ data: { companyId: chosen.company_id } }),
+          listUnlockedCandidateIds({ data: { companyId: chosen.company_id } }),
+        ]);
+        // Gate: require ≥1 active, non-expired job — DB search is a job-scoped
+        // product, never a standalone unlock product (deck rule).
+        if (state.jobs.length === 0) {
           setGated(true);
           setLoading(false);
           return;
         }
-        const [w, ids] = await Promise.all([
-          getCompanyWallet({ data: { companyId: chosen.company_id } }),
-          listUnlockedCandidateIds({ data: { companyId: chosen.company_id } }),
-        ]);
-        setBalance(w.balance);
+        setActiveJobs(state.jobs);
+        setBalance(state.balance);
         setUnlocked(new Set(ids));
       }
       setLoading(false);
@@ -148,18 +166,22 @@ function DatabasePage() {
       effective.query,
       effective.cities,
       effective.minExp,
+      selectedJobId,
+      sortBy,
     ],
     pageSize: DATABASE_PAGE_SIZE,
-    enabled: !!active && !gated,
+    enabled: !!active && !gated && !!selectedJobId,
     fetchPage: async ({ from }) => {
-      if (!active) return { rows: [], total: 0 };
+      if (!active || !selectedJobId) return { rows: [], total: 0 };
       const { data, error } = await supabase.rpc("search_candidates_for_company", {
         _company_id: active.company_id,
+        _job_id: selectedJobId,
         _query: effective.query.trim() || undefined,
         _cities: effective.cities.length > 0 ? effective.cities : undefined,
         _min_experience: typeof effective.minExp === "number" ? effective.minExp : undefined,
         _limit: DATABASE_PAGE_SIZE,
         _offset: from,
+        _sort_by: sortBy,
       });
       if (error) throw error;
       const rows = (data || []) as unknown as Array<Candidate & { total_count: number }>;
@@ -170,10 +192,12 @@ function DatabasePage() {
   useEffect(() => {
     if (!searchError) return;
     const message = searchError instanceof Error ? searchError.message : "";
-    if (message.includes("no_active_job")) {
-      toast.error("Post an active job to search the database.");
+    if (message.includes("job_not_active")) {
+      toast.error("That job is no longer active. Pick another job to search against.");
     } else if (message.includes("insufficient_permissions")) {
       toast.error("You don't have access to this company's database.");
+    } else if (message.includes("rate_limited")) {
+      toast.error("Search limit reached for now. Try again shortly.");
     } else {
       toast.error(message || "Search failed.");
     }
@@ -217,35 +241,45 @@ function DatabasePage() {
     return () => {
       cancelled = true;
     };
-  }, [
-    active,
-    gated,
-    searching,
-    isFetching,
-    total,
-    effective,
-    pickNext,
-  ]);
+  }, [active, gated, searching, isFetching, total, effective, pickNext]);
 
   const runSearch = () => setSubmitted({ query: q, cities: selectedCities, minExp });
 
   const handleUnlock = async (c: Candidate) => {
-    if (!active) return;
-    if (balance < 1) {
-      toast.error("Out of credits. Buy a pack to unlock.");
-      return;
-    }
+    if (!active || !selectedJobId) return;
     setUnlockingId(c.user_id);
     try {
       const r = await unlockCandidateContact({
-        data: { companyId: active.company_id, candidateUserId: c.user_id },
+        data: { companyId: active.company_id, jobId: selectedJobId, candidateUserId: c.user_id },
       });
       setContacts((prev) => ({ ...prev, [c.user_id]: r.contact }));
       setUnlocked((prev) => new Set(prev).add(c.user_id));
       setBalance(r.balance);
-      toast.success(r.alreadyUnlocked ? "Already unlocked." : `Unlocked · ${r.balance} credits left`);
+      if (r.allowanceLeft != null) {
+        setActiveJobs((prev) =>
+          prev.map((j) =>
+            j.id === selectedJobId
+              ? {
+                  ...j,
+                  allowanceLeft: r.allowanceLeft,
+                  allowanceUsed: (j.allowanceTotal ?? 0) - r.allowanceLeft!,
+                }
+              : j,
+          ),
+        );
+      }
+      if (r.alreadyUnlocked) {
+        toast.success("Already unlocked.");
+      } else if (r.source === "allowance") {
+        toast.success(`Unlocked · ${r.allowanceLeft} of this job's unlocks left`);
+      } else {
+        toast.success(
+          `Job's allowance used up — unlocked with credits · ${r.balance} credits left`,
+        );
+      }
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Unlock failed.");
+      const msg = e instanceof Error ? e.message : "Unlock failed.";
+      toast.error(msg.includes("no_credits") ? "Out of credits. Buy a pack to unlock." : msg);
     } finally {
       setUnlockingId(null);
     }
@@ -284,7 +318,9 @@ function DatabasePage() {
     if (!active) return;
     supabase
       .from("applications")
-      .select("id, status, created_at, cover_note, expected_salary, available_from, jobs!inner (company_id)")
+      .select(
+        "id, status, created_at, cover_note, expected_salary, available_from, jobs!inner (company_id)",
+      )
       .eq("candidate_id", c.user_id)
       .eq("jobs.company_id", active.company_id)
       .order("created_at", { ascending: false })
@@ -333,12 +369,21 @@ function DatabasePage() {
 
   if (gated) {
     return (
-      <EmployerShell title="Candidate database" subtitle="Unlock the database by posting your first job.">
+      <EmployerShell
+        title="Candidate database"
+        subtitle="Unlock the database by posting your first job."
+      >
         <div className="rounded-2xl border border-dashed border-border bg-surface/40 p-10 text-center">
           <UserRound className="mx-auto h-12 w-12 text-muted-foreground/50" />
           <h3 className="mt-4 text-lg font-bold">Post a job to search the database</h3>
-          <p className="mt-1 text-sm text-muted-foreground">Access to our candidate database is available to employers with at least one live job post.</p>
-          <a href="/employer/jobs/new" className="mt-5 inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark">
+          <p className="mt-1 text-sm text-muted-foreground">
+            Access to our candidate database is available to employers with at least one live job
+            post.
+          </p>
+          <a
+            href="/employer/jobs/new"
+            className="mt-5 inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark"
+          >
             <Briefcase className="h-4 w-4" /> Post your first job
           </a>
         </div>
@@ -358,6 +403,67 @@ function DatabasePage() {
         </div>
       }
     >
+      {activeJobs.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <ThemedSelect
+            value={selectedJobId}
+            onChange={(e) => setSelectedJobId(e.target.value)}
+            className="h-10 rounded-lg border border-border bg-card px-3 text-sm"
+          >
+            <option value="">Select an active job to search against…</option>
+            {activeJobs.map((j) => (
+              <option key={j.id} value={j.id}>
+                {j.title}
+              </option>
+            ))}
+          </ThemedSelect>
+          {selectedJobId && (
+            <>
+              {(() => {
+                const j = activeJobs.find((x) => x.id === selectedJobId);
+                if (!j || j.allowanceTotal == null) return null;
+                return (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground">
+                    {j.allowanceLeft}/{j.allowanceTotal} unlocks left on this job
+                  </span>
+                );
+              })()}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-sm font-semibold hover:bg-surface"
+                  >
+                    Sort:{" "}
+                    {sortBy === "match"
+                      ? "Best Match"
+                      : sortBy === "experience"
+                        ? "Experience"
+                        : "Relevance"}
+                    <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuRadioGroup
+                    value={sortBy}
+                    onValueChange={(v) => setSortBy(v as typeof sortBy)}
+                  >
+                    <DropdownMenuRadioItem value="match">Best Match</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="relevance">Relevance</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="experience">Experience</DropdownMenuRadioItem>
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          )}
+        </div>
+      )}
+      {!selectedJobId && (
+        <div className="mb-3 rounded-xl border border-dashed border-border bg-surface/40 px-4 py-3 text-sm text-muted-foreground">
+          Select an active job above to search the candidate database against it.
+        </div>
+      )}
+
       {/* filters */}
       <form
         onSubmit={(e) => {
@@ -381,22 +487,20 @@ function DatabasePage() {
             options={INDIAN_CITIES}
             selected={selectedCities}
             onAdd={(city) => {
-              // TEMP DEBUG — remove after root cause found
-              console.log("[database.tsx] onAdd called with:", city, "prev selectedCities:", selectedCities);
-              setSelectedCities((prev) => {
-                const next = prev.includes(city) ? prev : [...prev, city];
-                // TEMP DEBUG — remove after root cause found
-                console.log("[database.tsx] selectedCities updated to:", next);
-                return next;
-              });
+              setSelectedCities((prev) => (prev.includes(city) ? prev : [...prev, city]));
             }}
           />
           <button
             type="submit"
-            disabled={searching}
+            disabled={searching || !selectedJobId}
+            title={!selectedJobId ? "Select an active job first" : undefined}
             className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-50"
           >
-            {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+            {searching ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Search className="h-4 w-4" />
+            )}
             Search
           </button>
         </div>
@@ -434,7 +538,10 @@ function DatabasePage() {
         {selectedCities.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-2">
             {selectedCities.map((c) => (
-              <span key={c} className="inline-flex items-center gap-1.5 rounded-full bg-primary-light px-3 py-1 text-xs font-semibold text-primary">
+              <span
+                key={c}
+                className="inline-flex items-center gap-1.5 rounded-full bg-primary-light px-3 py-1 text-xs font-semibold text-primary"
+              >
                 <MapPin className="h-3 w-3" /> {c}
                 <button
                   type="button"
@@ -485,30 +592,38 @@ function DatabasePage() {
           </div>
         )}
 
-        {results.map((c) => {
-          const isUnlocked = unlocked.has(c.user_id);
-          const contact = contacts[c.user_id];
-          return (
-            <article
-              key={c.user_id}
-              onClick={isUnlocked ? () => openProfile(c) : undefined}
-              role={isUnlocked ? "button" : undefined}
-              tabIndex={isUnlocked ? 0 : undefined}
-              onKeyDown={
-                isUnlocked
-                  ? (e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        openProfile(c);
+        {(() => {
+          const selectedJobMeta = activeJobs.find((j) => j.id === selectedJobId);
+          const unlockCopy =
+            selectedJobMeta &&
+            selectedJobMeta.allowanceTotal != null &&
+            (selectedJobMeta.allowanceLeft ?? 0) > 0
+              ? `Unlock · uses 1 of ${selectedJobMeta.allowanceLeft} left on this job`
+              : "Unlock · job allowance used up, costs credits";
+          return results.map((c) => {
+            const isUnlocked = unlocked.has(c.user_id);
+            const contact = contacts[c.user_id];
+            return (
+              <article
+                key={c.user_id}
+                onClick={isUnlocked ? () => openProfile(c) : undefined}
+                role={isUnlocked ? "button" : undefined}
+                tabIndex={isUnlocked ? 0 : undefined}
+                onKeyDown={
+                  isUnlocked
+                    ? (e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          openProfile(c);
+                        }
                       }
-                    }
-                  : undefined
-              }
-              className={`relative rounded-2xl border border-border bg-card p-4 shadow-sm sm:flex sm:flex-wrap sm:items-center sm:gap-4 ${
-                isUnlocked ? "cursor-pointer hover:border-primary/40" : ""
-              }`}
-            >
-              {/*
+                    : undefined
+                }
+                className={`relative rounded-2xl border border-border bg-card p-4 shadow-sm sm:flex sm:flex-wrap sm:items-center sm:gap-4 ${
+                  isUnlocked ? "cursor-pointer hover:border-primary/40" : ""
+                }`}
+              >
+                {/*
                 Mobile (below sm:): the masked-mobile/Unlock block is
                 absolutely positioned to the card's top-right, since the
                 original side-by-side grid vertically centered it next to
@@ -522,89 +637,122 @@ function DatabasePage() {
                 (sm: and up) is untouched — same sm:flex sm:flex-wrap as
                 before, `sm:static`/`sm:pr-0` cancel the mobile-only changes.
               */}
-              <div className="flex min-w-0 items-center gap-3 sm:flex-1">
-                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-primary-light text-primary font-bold">
-                  {(c.full_name?.[0] ?? "C").toUpperCase()}
-                </div>
-                <div className="min-w-0 flex-1 pr-32 sm:pr-0">
-                  <p className="truncate font-semibold text-foreground">
-                    {isUnlocked ? c.full_name ?? contact?.full_name : maskName(c.full_name)}
-                  </p>
-                  <p className="truncate text-sm text-muted-foreground">
-                    {c.headline || c.last_role || "Candidate"}
-                  </p>
-                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                    {c.city && (
-                      <span className="inline-flex items-center gap-1">
-                        <MapPin className="h-3 w-3" /> {c.city}
-                      </span>
-                    )}
-                    {typeof c.years_experience === "number" && (
-                      <span className="inline-flex items-center gap-1">
-                        <Briefcase className="h-3 w-3" /> {c.years_experience} yrs
-                      </span>
+                <div className="flex min-w-0 items-center gap-3 sm:flex-1">
+                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-primary-light text-primary font-bold">
+                    {(c.full_name?.[0] ?? "C").toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1 pr-32 sm:pr-0">
+                    <p className="truncate font-semibold text-foreground">
+                      {isUnlocked ? (c.full_name ?? contact?.full_name) : maskName(c.full_name)}
+                    </p>
+                    <p className="truncate text-sm text-muted-foreground">
+                      {c.headline || c.last_role || "Candidate"}
+                    </p>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                      {c.city && (
+                        <span className="inline-flex items-center gap-1">
+                          <MapPin className="h-3 w-3" /> {c.city}
+                        </span>
+                      )}
+                      {typeof c.years_experience === "number" && (
+                        <span className="inline-flex items-center gap-1">
+                          <Briefcase className="h-3 w-3" /> {c.years_experience} yrs
+                        </span>
+                      )}
+                    </div>
+                    {c.skills && c.skills.length > 0 && (
+                      <div className="mt-2 hidden flex-wrap gap-1.5 sm:flex">
+                        {c.skills.slice(0, 4).map((s) => (
+                          <span
+                            key={s}
+                            className="rounded-full bg-surface px-2 py-0.5 text-[11px] font-medium text-foreground"
+                          >
+                            {s}
+                          </span>
+                        ))}
+                      </div>
                     )}
                   </div>
-                  {c.skills && c.skills.length > 0 && (
-                    <div className="mt-2 hidden flex-wrap gap-1.5 sm:flex">
-                      {c.skills.slice(0, 4).map((s) => (
-                        <span key={s} className="rounded-full bg-surface px-2 py-0.5 text-[11px] font-medium text-foreground">
-                          {s}
-                        </span>
-                      ))}
-                    </div>
-                  )}
                 </div>
-              </div>
 
-              {/* Mobile-only: skills get their own full-width row below the
+                {/* Mobile-only: skills get their own full-width row below the
                   info block (not squeezed into the pr-32-constrained
                   column), so chips actually wrap side-by-side instead of
                   stacking one per line. Desktop keeps the original chips
                   block above, inside the info column. */}
-              {c.skills && c.skills.length > 0 && (
-                <div className="mt-2 flex w-full flex-wrap gap-1.5 sm:hidden">
-                  {c.skills.slice(0, 4).map((s) => (
-                    <span key={s} className="rounded-full bg-surface px-2 py-0.5 text-[11px] font-medium text-foreground">
-                      {s}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              <div className="absolute right-4 top-4 flex shrink-0 flex-col items-end gap-2 sm:static sm:items-end">
-                {isUnlocked ? (
-                  <div className="space-y-1 text-right text-sm">
-                    <p className="font-semibold text-foreground">{contact?.mobile}</p>
-                    {contact?.email && (
-                      <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Mail className="h-3 w-3" /> {contact.email}
-                      </p>
-                    )}
+                {c.skills && c.skills.length > 0 && (
+                  <div className="mt-2 flex w-full flex-wrap gap-1.5 sm:hidden">
+                    {c.skills.slice(0, 4).map((s) => (
+                      <span
+                        key={s}
+                        className="rounded-full bg-surface px-2 py-0.5 text-[11px] font-medium text-foreground"
+                      >
+                        {s}
+                      </span>
+                    ))}
                   </div>
-                ) : (
-                  <>
-                    <p className="text-right text-xs text-muted-foreground">{MASKED_MOBILE}</p>
-                    <button
-                      onClick={() => handleUnlock(c)}
-                      disabled={unlockingId === c.user_id}
-                      className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-foreground/90 px-3 text-xs font-semibold text-background hover:bg-foreground disabled:opacity-50"
-                    >
-                      {unlockingId === c.user_id ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Lock className="h-3.5 w-3.5" />
-                      )}
-                      Unlock · 1 credit
-                    </button>
-                  </>
                 )}
-              </div>
-            </article>
-          );
-        })}
+
+                <div className="absolute right-4 top-4 flex shrink-0 flex-col items-end gap-2 sm:static sm:items-end">
+                  {selectedJobId && c.match_score != null && (
+                    <div className="flex flex-wrap items-center justify-end gap-1">
+                      <span
+                        className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
+                          c.match_score >= 80
+                            ? "border-success/30 bg-success-light text-success"
+                            : c.match_score >= 60
+                              ? "border-warning/30 bg-warning-light text-warning"
+                              : "border-border bg-surface text-muted-foreground"
+                        }`}
+                        title={c.match_breakdown ? JSON.stringify(c.match_breakdown) : undefined}
+                      >
+                        {c.match_score}% Match
+                      </span>
+                      {(c.tags ?? []).slice(0, 3).map((t) => (
+                        <span
+                          key={t}
+                          className="rounded-full bg-primary-light px-2 py-0.5 text-[10px] font-medium text-primary"
+                        >
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {isUnlocked ? (
+                    <div className="space-y-1 text-right text-sm">
+                      <p className="font-semibold text-foreground">{contact?.mobile}</p>
+                      {contact?.email && (
+                        <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Mail className="h-3 w-3" /> {contact.email}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-right text-xs text-muted-foreground">{MASKED_MOBILE}</p>
+                      <button
+                        onClick={() => handleUnlock(c)}
+                        disabled={unlockingId === c.user_id}
+                        className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-foreground/90 px-3 text-xs font-semibold text-background hover:bg-foreground disabled:opacity-50"
+                      >
+                        {unlockingId === c.user_id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Lock className="h-3.5 w-3.5" />
+                        )}
+                        {unlockCopy}
+                      </button>
+                    </>
+                  )}
+                </div>
+              </article>
+            );
+          });
+        })()}
       </div>
-      {totalPages > 1 && <Pagination page={page} totalPages={totalPages} onChange={setPage} className="mt-6" />}
+      {totalPages > 1 && (
+        <Pagination page={page} totalPages={totalPages} onChange={setPage} className="mt-6" />
+      )}
 
       {reviewApplicant && (
         <ApplicantReviewPanel

@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Briefcase, GraduationCap, IndianRupee, MapPin, Share2 } from "lucide-react";
+import { Briefcase, GraduationCap, IndianRupee, MapPin, Rocket, Share2 } from "lucide-react";
 import { formatExperience, formatSalary, jobTypeLabel, timeAgo, workModeLabel } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 import { useSavedJob } from "@/hooks/use-saved-job";
 import { useShareJob } from "@/hooks/use-share-job";
 import { ApplyDialog } from "@/components/candidate/ApplyDialog";
+import { Badge } from "@/components/ui/badge";
 
 export type JobCardData = {
   id: string;
@@ -27,6 +28,9 @@ export type JobCardData = {
   avg_incentive_monthly?: number | null;
   company_id?: string;
   companies?: { name: string; is_verified: boolean | null } | null;
+  // Set only by the "Recommended" sort (feed_jobs RPC) — transparently shows
+  // candidates why a job is prominent, never a hidden ranking boost.
+  boosted?: boolean;
 };
 
 export function JobCard({
@@ -108,7 +112,12 @@ export function JobCard({
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="flex flex-wrap items-baseline gap-x-2">
-                <h3 className="truncate text-base font-semibold text-foreground group-hover:text-primary">{job.title}</h3>
+                <h3 className="truncate text-base font-bold text-foreground group-hover:text-primary">{job.title}</h3>
+                {job.boosted && (
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary-light px-2 py-0.5 text-[10px] font-semibold uppercase text-primary">
+                    <Rocket className="h-3 w-3" /> Boosted
+                  </span>
+                )}
                 <span className="shrink-0 text-xs text-muted-foreground">{timeAgo(job.created_at)}</span>
               </div>
               <p className="mt-0.5 truncate text-sm text-muted-foreground">
@@ -119,7 +128,7 @@ export function JobCard({
           </div>
 
           <div className="mt-4 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
-            <span className="flex items-center gap-1.5 text-foreground/80">
+            <span className="flex items-center gap-1.5 font-semibold tabular-nums text-foreground">
               <IndianRupee className="h-3.5 w-3.5 text-primary" />
               {formatSalary(job.min_salary, job.max_salary, job.salary_period || "monthly")}
               {job.pay_type === "fixed_incentive" && job.avg_incentive_monthly
@@ -133,14 +142,15 @@ export function JobCard({
               <Briefcase className="h-3.5 w-3.5 text-primary" />
               {formatExperience(job.min_experience_years, job.max_experience_years)}
             </span>
-            <span className="flex items-center gap-1.5 text-foreground/80">
+            {/* Hidden on mobile so a job card scans in a single pass — at most 3 meta items there. */}
+            <span className="hidden items-center gap-1.5 text-foreground/80 sm:flex">
               <GraduationCap className="h-3.5 w-3.5 text-primary" /> {job.education || "Any qualification"}
             </span>
           </div>
 
           <div className="mt-4 flex flex-wrap gap-1.5">
-            <span className="rounded-full bg-primary-light px-2.5 py-1 text-xs font-medium text-primary">{jobTypeLabel(job.job_type)}</span>
-            <span className="rounded-full bg-surface px-2.5 py-1 text-xs font-medium text-foreground/70">{workModeLabel(job.work_mode)}</span>
+            <Badge variant="info" className="rounded-full px-2.5 py-1 text-xs">{jobTypeLabel(job.job_type)}</Badge>
+            <Badge variant="muted" className="rounded-full px-2.5 py-1 text-xs">{workModeLabel(job.work_mode)}</Badge>
             {(job.skills || []).slice(0, 3).map((s) => (
               <span key={s} className="rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground">
                 {s}

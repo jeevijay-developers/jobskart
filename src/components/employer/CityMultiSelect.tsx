@@ -52,18 +52,12 @@ export function CityMultiSelect({ options, selected, onAdd, placeholder = "+ Add
     : available;
 
   const pick = (city: string) => {
-    // TEMP DEBUG — remove after root cause found
-    console.log("[CityMultiSelect] pick() called with:", city);
     onAdd(city);
     setOpen(false);
-    // TEMP DEBUG — remove after root cause found
-    console.log("[CityMultiSelect] onAdd fired, closing dropdown");
     // q is cleared by the `open` effect above.
   };
 
   const onSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    // TEMP DEBUG — remove after root cause found
-    console.log("[CityMultiSelect] onSearchKeyDown fired, key:", e.key, "q:", JSON.stringify(q));
     if (e.key !== "Enter") return;
     // This search field lives inside the page's search <form> — without
     // both of these, Enter here would submit the whole Candidate Database
@@ -73,18 +67,7 @@ export function CityMultiSelect({ options, selected, onAdd, placeholder = "+ Add
     const query = q.trim().toLowerCase();
     const exact = available.find((c) => c.toLowerCase() === query);
     const cityToSelect = exact ?? filtered[0];
-    // TEMP DEBUG — remove after root cause found
-    console.log("[CityMultiSelect] Enter pressed:", {
-      query,
-      availableCount: available.length,
-      filtered,
-      exact,
-      cityToSelect,
-    });
-    if (!cityToSelect) {
-      console.log("[CityMultiSelect] no city to select, aborting");
-      return;
-    }
+    if (!cityToSelect) return;
     pick(cityToSelect);
   };
 

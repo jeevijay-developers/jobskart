@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   FileText,
   ListChecks,
-  TrendingUp,
   X,
   BookOpen,
   PlayCircle,
@@ -15,8 +14,11 @@ import {
   Eye,
 } from "lucide-react";
 import { CandidateShell } from "@/components/candidate/CandidateShell";
+import { SectionCard } from "@/components/candidate/primitives";
 import { JobCard, type JobCardData } from "@/components/site/JobCard";
 import { Pagination } from "@/components/site/Pagination";
+import { StatCard } from "@/components/shared/StatCard";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { supabase } from "@/integrations/supabase/client";
 import { strengthLabel } from "@/lib/profileStrength";
 import { upsertNudgeShown } from "@/lib/candidate.functions";
@@ -93,6 +95,7 @@ function CandidateDashboard() {
             "id, company_id, title, city, state, locality, min_salary, max_salary, salary_period, job_type, work_mode, min_experience_years, max_experience_years, education, skills, created_at, companies (name, is_verified)",
           )
           .eq("status", "active")
+          .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
           .order("created_at", { ascending: false })
           .limit(REC_JOBS_POOL_SIZE),
         supabase.from("candidate_experiences").select("id", { head: true, count: "exact" }).eq("user_id", uid),
@@ -299,28 +302,31 @@ function CandidateDashboard() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCell
+        <StatCard
           label="Applications"
           value={counts.applied}
           delta={counts.appliedWeek}
           icon={FileText}
           to="/candidate/applications"
         />
-        <StatCell
+        <StatCard
           label="Shortlisted"
           value={counts.shortlisted}
+          tone="success"
           icon={CheckCircle2}
           to="/candidate/applications"
         />
-        <StatCell
+        <StatCard
           label="Interviews"
           value={counts.interview}
+          tone="warning"
           icon={Calendar}
           to="/candidate/applications"
         />
-        <StatCell
+        <StatCard
           label="Profile views"
           value={counts.views}
+          tone="muted"
           icon={Eye}
           to="/candidate/profile"
         />
@@ -386,52 +392,6 @@ function HeroBand({
   );
 }
 
-/* ---------- Stat cell ---------- */
-/* grid-cols-2 (mobile) / grid-cols-4 (sm+): 4 cards divide evenly at every
-   breakpoint, so every card stays visible with no horizontal scrolling
-   and no stranded card on its own row. */
-
-function StatCell({
-  label,
-  value,
-  icon: Icon,
-  to,
-  delta,
-}: {
-  label: string;
-  value: number;
-  icon: typeof Briefcase;
-  to: string;
-  delta?: number;
-}) {
-  return (
-    <Link
-      to={to}
-      className="group flex flex-col gap-2 rounded-2xl border border-border bg-card p-3 shadow-[var(--shadow-card)] transition-all hover:-translate-y-0.5 hover:border-primary/40 sm:gap-3 sm:p-4"
-    >
-      <div className="flex items-center justify-between">
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary-light text-primary sm:h-9 sm:w-9 sm:rounded-xl">
-          <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" strokeWidth={2.25} />
-        </span>
-        <ArrowRight className="hidden h-3.5 w-3.5 text-muted-foreground opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100 sm:block" />
-      </div>
-      <div>
-        <p className="text-xl font-extrabold leading-none tracking-tight text-foreground tabular-nums sm:text-[26px]">
-          {value}
-        </p>
-        <div className="mt-1.5 flex flex-wrap items-center gap-1 sm:mt-2 sm:gap-1.5">
-          <p className="truncate text-[11px] font-medium text-muted-foreground sm:text-xs">{label}</p>
-          {typeof delta === "number" && delta > 0 && (
-            <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-success/10 px-1.5 py-0.5 text-[10px] font-bold text-success">
-              <TrendingUp className="h-2.5 w-2.5" /> +{delta}
-            </span>
-          )}
-        </div>
-      </div>
-    </Link>
-  );
-}
-
 /* ---------- Checklist ---------- */
 
 function ChecklistCard({ items }: { items: string[] }) {
@@ -439,17 +399,17 @@ function ChecklistCard({ items }: { items: string[] }) {
   const done = Math.max(0, totalGoal - items.length);
   const pct = Math.round((done / totalGoal) * 100);
   return (
-    <div className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <ListChecks className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-bold text-foreground">Finish your profile</h3>
-        </div>
+    <SectionCard
+      size="compact"
+      icon={ListChecks}
+      title="Finish your profile"
+      action={
         <span className="text-xs font-bold text-muted-foreground tabular-nums">
           {done}/{totalGoal}
         </span>
-      </div>
-      <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-surface">
+      }
+    >
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface">
         <div
           className="h-full rounded-full bg-primary transition-all"
           style={{ width: `${pct}%` }}
@@ -474,39 +434,7 @@ function ChecklistCard({ items }: { items: string[] }) {
       >
         Continue <ArrowRight className="h-4 w-4" />
       </Link>
-    </div>
-  );
-}
-
-/* ---------- Empty state ---------- */
-
-function EmptyState({
-  icon: Icon,
-  title,
-  body,
-  ctaLabel,
-  ctaTo,
-}: {
-  icon: typeof Briefcase;
-  title: string;
-  body: string;
-  ctaLabel: string;
-  ctaTo: string;
-}) {
-  return (
-    <div className="grid place-items-center rounded-2xl border border-dashed border-border bg-card p-10 text-center">
-      <span className="grid h-12 w-12 place-items-center rounded-2xl bg-primary-light text-primary">
-        <Icon className="h-6 w-6" strokeWidth={2} />
-      </span>
-      <p className="mt-4 text-base font-bold text-foreground">{title}</p>
-      <p className="mt-1 max-w-xs text-sm text-muted-foreground">{body}</p>
-      <Link
-        to={ctaTo}
-        className="mt-5 inline-flex items-center gap-1 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground hover:bg-primary-dark"
-      >
-        {ctaLabel} <ArrowRight className="h-4 w-4" />
-      </Link>
-    </div>
+    </SectionCard>
   );
 }
 

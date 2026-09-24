@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { ConditionalField } from "@/components/forms/ConditionalField";
+import { OptionalSection } from "@/components/forms/OptionalSection";
 import { supabase } from "@/integrations/supabase/client";
 
 const REASONS = [
@@ -136,21 +138,24 @@ export function ReportJobDialog({
                 </RadioGroup>
               </div>
 
-              <div>
-                <Label htmlFor="details" className="text-sm font-medium">
-                  Additional details {reason === "other" ? "" : <span className="text-muted-foreground">(optional)</span>}
-                </Label>
-                <Textarea
-                  id="details"
-                  value={details}
-                  onChange={(e) => setDetails(e.target.value)}
-                  placeholder="Share any context that helps us investigate (links, screenshots descriptions, what happened…)"
-                  rows={4}
-                  maxLength={1000}
-                  className="mt-1.5"
-                />
-                <p className="mt-1 text-right text-xs text-muted-foreground">{details.length}/1000</p>
-              </div>
+              <ConditionalField visible={reason !== ""}>
+                <OptionalSection
+                  title={reason === "other" ? "Additional details (required)" : "Additional details"}
+                  summary="Optional — helps us investigate"
+                  badge={details.trim() ? 1 : 0}
+                  hasValues={reason === "other"}
+                >
+                  <Textarea
+                    id="details"
+                    value={details}
+                    onChange={(e) => setDetails(e.target.value)}
+                    placeholder="Share any context that helps us investigate (links, screenshots descriptions, what happened…)"
+                    rows={4}
+                    maxLength={1000}
+                  />
+                  <p className="text-right text-xs text-muted-foreground">{details.length}/1000</p>
+                </OptionalSection>
+              </ConditionalField>
             </div>
 
             <DialogFooter className="gap-2 sm:gap-2">

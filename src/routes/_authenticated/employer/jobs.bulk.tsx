@@ -7,6 +7,7 @@ import { EmployerShell } from "@/components/employer/EmployerShell";
 import { Button } from "@/components/ui/button";
 import { downloadBulkJobTemplate, parseBulkJobsFile, type BulkJobRow } from "@/lib/jd-bulk-template";
 import { bulkCreateJobs } from "@/lib/bulk-jobs.functions";
+import { computeJobQuality, jobQualityLabel } from "@/lib/jobQuality";
 import { getActiveCompanyId, fetchMyCompanies } from "@/lib/employer";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -20,6 +21,18 @@ function BulkPage() {
   const [busy, setBusy] = useState(false);
   const upload = useServerFn(bulkCreateJobs);
   const nav = useNavigate();
+
+  // Same rubric the wizard uses live and the DB persists on insert — shown
+  // per row here so consultancies can fix weak spreadsheets before upload.
+  const rowQuality = (r: BulkJobRow) =>
+    computeJobQuality({
+      title: r.title, city: r.city, job_type: r.job_type, work_mode: r.work_mode,
+      min_salary: r.min_salary, max_salary: r.max_salary, pay_type: "fixed",
+      education: r.education || null, openings: r.openings,
+      skills: r.skills ? r.skills.split(",").map((s) => s.trim()).filter(Boolean) : [],
+      description: r.description || null,
+    });
+  const lowQualityCount = rows.filter((r) => rowQuality(r) < 40).length;
 
   const onFile = async (f: File) => {
     try {
@@ -83,24 +96,38 @@ function BulkPage() {
 
       {rows.length > 0 && (
         <div className="mt-6 overflow-x-auto rounded-2xl border border-border bg-card">
+          {lowQualityCount > 0 && (
+            <p className="border-b border-border bg-warning-light px-4 py-2.5 text-xs font-medium text-warning">
+              {lowQualityCount} of {rows.length} rows score below 40/100 on job quality — consider adding pay
+              ranges, at least 3 skills, and fuller descriptions before publishing.
+            </p>
+          )}
           <table className="w-full text-sm">
             <thead className="bg-surface text-left text-xs font-bold uppercase text-muted-foreground">
               <tr>
                 <th className="p-3">Title</th><th className="p-3">City</th><th className="p-3">Salary</th>
                 <th className="p-3">Exp</th><th className="p-3">Skills</th><th className="p-3">Openings</th>
+                <th className="p-3">Quality</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((r, i) => (
-                <tr key={i} className="border-t border-border">
-                  <td className="p-3 font-medium">{r.title}</td>
-                  <td className="p-3">{r.city}</td>
-                  <td className="p-3 tabular-nums">₹{r.min_salary?.toLocaleString("en-IN") || "—"}–{r.max_salary?.toLocaleString("en-IN") || "—"}</td>
-                  <td className="p-3">{r.min_experience_years ?? 0}–{r.max_experience_years ?? "any"} y</td>
-                  <td className="p-3 text-muted-foreground">{r.skills}</td>
-                  <td className="p-3 tabular-nums">{r.openings}</td>
-                </tr>
-              ))}
+              {rows.map((r, i) => {
+                const q = rowQuality(r);
+                const { label, color } = jobQualityLabel(q);
+                return (
+                  <tr key={i} className="border-t border-border">
+                    <td className="p-3 font-medium">{r.title}</td>
+                    <td className="p-3">{r.city}</td>
+                    <td className="p-3 tabular-nums">₹{r.min_salary?.toLocaleString("en-IN") || "—"}–{r.max_salary?.toLocaleString("en-IN") || "—"}</td>
+                    <td className="p-3">{r.min_experience_years ?? 0}–{r.max_experience_years ?? "any"} y</td>
+                    <td className="p-3 text-muted-foreground">{r.skills}</td>
+                    <td className="p-3 tabular-nums">{r.openings}</td>
+                    <td className="p-3">
+                      <span className={`text-xs font-semibold ${color}`}>{label} · {q}</span>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
