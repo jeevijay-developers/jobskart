@@ -17,6 +17,7 @@ import {
   Download,
   AlertTriangle,
   MoreVertical,
+  Search,
 } from "lucide-react";
 import { EmployerShell } from "@/components/employer/EmployerShell";
 import {
@@ -208,6 +209,17 @@ function ResponsesPage() {
     },
   });
 
+  const inboxStatusCounts = useMemo(
+    () =>
+      Object.fromEntries(
+        APPLICANT_STATUSES.map((status) => [
+          status.id,
+          filtered.filter((row) => row.status === status.id).length,
+        ]),
+      ),
+    [filtered],
+  );
+
   // Candidate-profile snippets (headline/skills) for the review panel, scoped
   // to whichever page of the inbox is currently on screen.
   useEffect(() => {
@@ -249,7 +261,7 @@ function ResponsesPage() {
       for (const id of ids) {
         supabase.functions
           .invoke("application-status-notify", { body: { applicationId: id, status } })
-          .catch(() => {});
+          .catch(() => { });
       }
     }
   };
@@ -329,7 +341,7 @@ function ResponsesPage() {
           <button
             onClick={doDownload}
             disabled={downloading}
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold hover:bg-surface disabled:opacity-50"
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-xs font-semibold hover:bg-surface disabled:opacity-50"
           >
             <Download className="h-3.5 w-3.5" />
             <span className="sm:hidden">Excel</span>
@@ -337,54 +349,62 @@ function ResponsesPage() {
           </button>
           <button
             onClick={() => refetchInbox()}
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold hover:bg-surface"
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-xs font-semibold hover:bg-surface"
           >
             <RefreshCw className="h-3.5 w-3.5" /> Refresh
           </button>
         </div>
       }
     >
-      <div className="mb-4 flex items-start gap-2 rounded-xl border border-warning/30 bg-warning-light p-3 text-xs text-warning">
-        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-        <span>
+      <div className="mb-3 flex items-center gap-2 rounded-lg border border-warning/30 bg-warning-light px-3 py-2 text-[11px] leading-4 text-warning sm:text-xs">
+        <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+        <span className="min-w-0">
           Responses for expired jobs stay downloadable for 7 days after expiry, then get locked, and
           are permanently removed 60 days after expiry. Download important candidates in time.
           {expiringCount > 0 ? ` (${expiringCount} job(s) expiring soon)` : ""}
         </span>
       </div>
 
-      <div className="mb-4 flex gap-1 rounded-xl border border-border bg-card p-1">
+      <div className="mb-3 inline-flex max-w-full gap-1 rounded-lg border border-border bg-card p-1">
         <button
           onClick={() => setTab("inbox")}
-          className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
-            tab === "inbox"
-              ? "bg-primary text-primary-foreground"
-              : "text-foreground/70 hover:bg-surface"
-          }`}
+          className={`flex items-center justify-center gap-1.5 rounded-md px-4 py-1.5 text-xs font-semibold transition-colors ${tab === "inbox"
+            ? "bg-primary text-primary-foreground"
+            : "text-foreground/70 hover:bg-surface"
+            }`}
         >
-          <Inbox className="h-4 w-4" /> Inbox{" "}
+          <Inbox className="h-3.5 w-3.5" /> Inbox{" "}
           <span className="rounded-full bg-black/10 px-1.5 text-[10px] tabular-nums">
             {inboxTotal}
           </span>
         </button>
         <button
           onClick={() => setTab("ai")}
-          className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
-            tab === "ai"
-              ? "bg-primary text-primary-foreground"
-              : "text-foreground/70 hover:bg-surface"
-          }`}
+          className={`flex items-center justify-center gap-1.5 rounded-md px-4 py-1.5 text-xs font-semibold transition-colors ${tab === "ai"
+            ? "bg-primary text-primary-foreground"
+            : "text-foreground/70 hover:bg-surface"
+            }`}
         >
-          <Sparkle className="h-4 w-4" /> AI shortlist
+          <Sparkle className="h-3.5 w-3.5" /> AI shortlist
         </button>
       </div>
 
-      <section className="mb-4 flex flex-wrap items-center gap-2">
+      <section className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-2.5 shadow-[var(--shadow-card)]">
+        <div className="relative min-w-[12rem] flex-1 sm:max-w-sm">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={nameQuery}
+            onChange={(e) => setNameQuery(e.target.value)}
+            placeholder="Search candidates..."
+            className="form-input h-9 w-full pl-9 text-sm"
+            aria-label="Search candidates"
+          />
+        </div>
         <Sheet open={filterOpen} onOpenChange={(o) => (o ? openFilters() : setFilterOpen(false))}>
           <SheetTrigger asChild>
             <button
               type="button"
-              className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-sm font-semibold hover:bg-surface"
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold hover:bg-surface"
             >
               <Filter className="h-4 w-4 text-muted-foreground" /> Filter
               {(nameQuery || jobFilter) && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
@@ -451,9 +471,9 @@ function ResponsesPage() {
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-sm font-semibold hover:bg-surface"
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold hover:bg-surface"
               >
-                {statusFilter ? applicantStatusLabel(statusFilter) : "All statuses"}
+                {statusFilter ? applicantStatusLabel(statusFilter) : "All status"}
                 <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
               </button>
             </DropdownMenuTrigger>
@@ -462,7 +482,7 @@ function ResponsesPage() {
                 value={statusFilter || "all"}
                 onValueChange={(v) => setStatusFilter(v === "all" ? "" : v)}
               >
-                <DropdownMenuRadioItem value="all">All statuses</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="all">All status</DropdownMenuRadioItem>
                 {APPLICANT_STATUSES.map((s) => (
                   <DropdownMenuRadioItem key={s.id} value={s.id}>
                     {s.label}
@@ -476,7 +496,7 @@ function ResponsesPage() {
             <button
               onClick={() => loadAi(true)}
               disabled={!jobFilter || aiLoading}
-              className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-primary bg-primary-light px-3 text-sm font-semibold text-primary disabled:opacity-50"
+              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-primary bg-primary-light px-3 text-xs font-semibold text-primary disabled:opacity-50"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${aiLoading ? "animate-spin" : ""}`} /> Re-rank
             </button>
@@ -489,13 +509,13 @@ function ResponsesPage() {
                 onChange={(e) =>
                   setShortlistN(Math.max(1, Math.min(50, Number(e.target.value) || 1)))
                 }
-                className="form-input h-10 w-16 text-center text-sm"
+                className="form-input h-9 w-16 text-center text-sm"
                 aria-label="Number of candidates to shortlist"
               />
               <button
                 onClick={shortlistTopN}
                 disabled={!jobFilter || aiLoading || eligibleAiRows.length === 0}
-                className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-success px-3 text-sm font-semibold text-success-foreground disabled:opacity-50"
+                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-success px-3 text-xs font-semibold text-success-foreground disabled:opacity-50"
               >
                 <CheckCircle2 className="h-3.5 w-3.5" /> Shortlist top {shortlistN}
               </button>
@@ -504,6 +524,25 @@ function ResponsesPage() {
         )}
       </section>
 
+      {tab === "inbox" && !statusFilter && inboxTotalPages <= 1 && filtered.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-1.5 text-[11px]">
+          <span className="rounded-full border border-primary/20 bg-primary-light px-2.5 py-1 font-semibold text-primary">
+            All <span className="ml-1 tabular-nums">{inboxTotal}</span>
+          </span>
+          {APPLICANT_STATUSES.slice(0, 4).map((status) => (
+            <span
+              key={status.id}
+              className="rounded-full border border-border bg-card px-2.5 py-1 font-medium text-muted-foreground"
+            >
+              {status.label}{" "}
+              <span className="ml-1 font-semibold text-foreground tabular-nums">
+                {inboxStatusCounts[status.id] ?? 0}
+              </span>
+            </span>
+          ))}
+        </div>
+      )}
+
       {tab === "inbox" ? (
         <>
           {loading ? (
@@ -511,16 +550,24 @@ function ResponsesPage() {
           ) : filtered.length === 0 ? (
             <EmptyResponses />
           ) : (
-            <ul className="space-y-2">
+            <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-card)]">
               {filtered.map((r) => {
                 return (
                   <li
                     key={r.id}
                     onClick={() => setReviewing(r)}
-                    className="flex cursor-pointer items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-[var(--shadow-card)] hover:border-primary/40 sm:p-4"
+                    className="flex cursor-pointer flex-wrap items-center gap-2.5 px-3 py-2.5 transition-colors hover:bg-surface/70 sm:flex-nowrap sm:px-4"
                   >
-                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary-light text-sm font-bold text-primary">
-                      {(r.profiles?.full_name || "?").slice(0, 1).toUpperCase()}
+                    <div className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full bg-primary-light text-xs font-bold text-primary ring-1 ring-primary/10">
+                      {r.profiles?.avatar_url ? (
+                        <img
+                          src={r.profiles.avatar_url}
+                          alt=""
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        (r.profiles?.full_name || "?").slice(0, 1).toUpperCase()
+                      )}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-1.5">
@@ -533,48 +580,74 @@ function ResponsesPage() {
                           {applicantStatusLabel(r.status)}
                         </span>
                       </div>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {r.jobs?.title} {r.profiles?.city ? `· ${r.profiles.city}` : ""}
-                      </p>
-                      <p className="mt-0.5 text-[10px] text-muted-foreground">
-                        {formatDistanceToNow(new Date(r.created_at), { addSuffix: true })}
+                      <p className="mt-0.5 truncate text-[11px] text-muted-foreground sm:text-xs">
+                        {r.jobs?.title}
+                        {r.profiles?.city ? ` · ${r.profiles.city}` : ""}
+                        {` · ${formatDistanceToNow(new Date(r.created_at), { addSuffix: true })}`}
                       </p>
                     </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          type="button"
-                          onClick={(e) => e.stopPropagation()}
-                          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-border bg-card text-foreground hover:bg-surface"
-                          aria-label="Actions"
-                          title="Actions"
-                        >
-                          <MoreVertical className="h-4 w-4" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => askConfirm([r.id], [r.profiles?.full_name], "shortlisted")}
-                        >
-                          <CheckCircle2 className="mr-2 h-4 w-4 text-success" /> Shortlist
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() =>
-                            setScheduling({
-                              applicationId: r.id,
-                              candidateName: r.profiles?.full_name ?? null,
-                            })
-                          }
-                        >
-                          <Calendar className="mr-2 h-4 w-4 text-warning" /> Interview
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => askConfirm([r.id], [r.profiles?.full_name], "rejected")}
-                        >
-                          <XCircle className="mr-2 h-4 w-4 text-muted-foreground" /> Reject
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <div className="ml-11 flex w-full shrink-0 items-center justify-end gap-1.5 sm:ml-0 sm:w-auto">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          askConfirm([r.id], [r.profiles?.full_name], "shortlisted");
+                        }}
+                        className="hidden h-8 items-center gap-1 rounded-lg border border-success/30 bg-success-light px-2.5 text-[11px] font-semibold text-success hover:border-success/50 min-[1180px]:inline-flex"
+                      >
+                        <CheckCircle2 className="h-3 w-3" /> Shortlist
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setScheduling({
+                            applicationId: r.id,
+                            candidateName: r.profiles?.full_name ?? null,
+                          });
+                        }}
+                        className="hidden h-8 items-center gap-1 rounded-lg border border-warning/40 bg-warning-light px-2.5 text-[11px] font-semibold text-warning hover:border-warning/60 min-[1180px]:inline-flex"
+                      >
+                        <Calendar className="h-3 w-3" /> Interview
+                      </button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={(e) => e.stopPropagation()}
+                            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-border bg-card text-foreground hover:bg-surface"
+                            aria-label="Actions"
+                            title="Actions"
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() =>
+                              askConfirm([r.id], [r.profiles?.full_name], "shortlisted")
+                            }
+                          >
+                            <CheckCircle2 className="mr-2 h-4 w-4 text-success" /> Shortlist
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              setScheduling({
+                                applicationId: r.id,
+                                candidateName: r.profiles?.full_name ?? null,
+                              })
+                            }
+                          >
+                            <Calendar className="mr-2 h-4 w-4 text-warning" /> Interview
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => askConfirm([r.id], [r.profiles?.full_name], "rejected")}
+                          >
+                            <XCircle className="mr-2 h-4 w-4 text-muted-foreground" /> Reject
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </li>
                 );
               })}
@@ -609,14 +682,14 @@ function ResponsesPage() {
               }
             />
           ) : (
-            <ul className="space-y-2">
+            <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-card)]">
               {filteredAiRows.map((r, i) => (
                 <li
                   key={r.application_id}
-                  className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)]"
+                  className="px-3 py-3 transition-colors hover:bg-surface/50 sm:px-4"
                 >
-                  <div className="flex items-start gap-3">
-                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary-light text-sm font-bold text-primary">
+                  <div className="flex items-start gap-2.5">
+                    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary-light text-xs font-bold text-primary ring-1 ring-primary/10">
                       {(r.full_name || "?").slice(0, 1).toUpperCase()}
                     </div>
                     <div className="min-w-0 flex-1">
@@ -628,24 +701,25 @@ function ResponsesPage() {
                           {r.full_name || "Candidate"}
                         </p>
                         <span
-                          className={`ml-auto rounded-full px-2.5 py-1 text-xs font-black tabular-nums ${
-                            r.score >= 75
-                              ? "bg-success text-success-foreground"
-                              : r.score >= 50
-                                ? "bg-primary text-primary-foreground"
-                                : "bg-surface text-muted-foreground"
-                          }`}
+                          className={`ml-auto rounded-full px-2 py-0.5 text-[11px] font-black tabular-nums ${r.score >= 75
+                            ? "bg-success text-success-foreground"
+                            : r.score >= 50
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-surface text-muted-foreground"
+                            }`}
                         >
                           {r.score}/100
                         </span>
                       </div>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {r.city} ·{" "}
+                      <p className="mt-0.5 text-[11px] text-muted-foreground sm:text-xs">
+                        {r.city ? `${r.city} · ` : ""}
                         {formatDistanceToNow(new Date(r.created_at), { addSuffix: true })}
                       </p>
-                      {r.summary && <p className="mt-2 text-sm text-foreground/80">{r.summary}</p>}
+                      {r.summary && (
+                        <p className="mt-1.5 text-xs leading-5 text-foreground/80">{r.summary}</p>
+                      )}
                       {r.reasons.length > 0 && (
-                        <ul className="mt-2 space-y-0.5 text-xs text-muted-foreground">
+                        <ul className="mt-1.5 grid gap-x-4 gap-y-0.5 text-[11px] text-muted-foreground sm:grid-cols-2">
                           {r.reasons.slice(0, 4).map((reason, idx) => (
                             <li key={idx} className="flex gap-1.5">
                               <span className="text-primary">•</span>
@@ -654,7 +728,7 @@ function ResponsesPage() {
                           ))}
                         </ul>
                       )}
-                      <div className="mt-3 flex flex-wrap gap-1.5">
+                      <div className="mt-2 flex flex-wrap gap-1.5">
                         <button
                           onClick={() =>
                             askConfirm([r.application_id], [r.full_name], "shortlisted")
@@ -705,9 +779,8 @@ function ResponsesPage() {
             </AlertDialogTitle>
             <AlertDialogDescription>
               {pending && pending.ids.length > 1
-                ? `${pending.names.slice(0, 5).join(", ")}${
-                    pending.names.length > 5 ? ` and ${pending.names.length - 5} more` : ""
-                  } — this updates their application status right away. You can change it again later if needed.`
+                ? `${pending.names.slice(0, 5).join(", ")}${pending.names.length > 5 ? ` and ${pending.names.length - 5} more` : ""
+                } — this updates their application status right away. You can change it again later if needed.`
                 : "This updates the candidate's application status right away. You can change it again later if needed."}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -737,9 +810,9 @@ function ResponsesPage() {
           onStatusChange={(status) =>
             status === "interview"
               ? setScheduling({
-                  applicationId: reviewing.id,
-                  candidateName: reviewing.profiles?.full_name ?? null,
-                })
+                applicationId: reviewing.id,
+                candidateName: reviewing.profiles?.full_name ?? null,
+              })
               : setStatus([reviewing.id], status)
           }
         />

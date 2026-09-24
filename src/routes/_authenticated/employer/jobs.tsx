@@ -5,7 +5,7 @@ import {
   Briefcase, CalendarClock, ChevronDown, ChevronRight, Copy, Eye, Filter, MoreVertical, Pause, Pencil, Play, Plus, RefreshCw, Rocket, Search, Trash2, Users,
 } from "lucide-react";
 import { toast } from "sonner";
-import { EmployerShell, CreditChip } from "@/components/employer/EmployerShell";
+import { EmployerShell } from "@/components/employer/EmployerShell";
 import { BoostJobModal } from "@/components/employer/BoostJobModal";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -361,24 +361,12 @@ function EmployerJobsList() {
   const statusLabel = statusFilter === "all"
     ? "All status"
     : `${statusFilter[0].toUpperCase()}${statusFilter.slice(1)} (${counts[statusFilter] ?? 0})`;
+  const listingTotal = search.trim() ? null : (counts[statusFilter] ?? 0);
 
   return (
     <EmployerShell
       title="Jobs"
       subtitle="Post, pause, or close your job listings."
-      hideBell
-      hideCreditChip
-      headerLeft={
-        <>
-          {/* Mobile: credits chip sits beside the "Jobs" title; the Post button moves to the far right of the row (see the sm:hidden block right after the header). Desktop: the Post button now lives in the search/filter controls row below, not here. */}
-          <div className="sm:hidden">
-            <CreditChip />
-          </div>
-          <div className="hidden sm:block">
-            <CreditChip />
-          </div>
-        </>
-      }
       actions={
         selected.size > 0 ? (
           <div className="flex flex-wrap items-center gap-2">
@@ -411,7 +399,7 @@ function EmployerJobsList() {
       }
     >
       {qualityStats && (
-        <div className="mb-5 flex flex-wrap items-center gap-4 rounded-xl border border-border bg-card px-4 py-3">
+        <div className="mb-5 flex flex-wrap items-center gap-4 rounded-xl border border-border bg-card px-4 py-3 shadow-[var(--shadow-card)]">
           <div>
             <p className="text-[11px] font-medium uppercase text-muted-foreground">Poster level</p>
             <p className="text-sm font-bold text-primary">{posterLevel(qualityStats)}</p>
@@ -427,14 +415,14 @@ function EmployerJobsList() {
         </div>
       )}
 
-      <div className="mb-5 flex flex-nowrap items-center gap-2 sm:flex-wrap sm:gap-3">
+      <div className="mb-4 flex flex-nowrap items-center gap-2 rounded-xl border border-border bg-card p-2.5 shadow-[var(--shadow-card)] sm:flex-wrap">
         <div className="relative min-w-0 flex-1 sm:w-full sm:max-w-xs sm:flex-initial">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by title…"
-            className="form-input h-10 w-full pl-9"
+            className="form-input h-9 w-full pl-9 text-sm"
           />
         </div>
 
@@ -442,7 +430,7 @@ function EmployerJobsList() {
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-sm font-semibold text-foreground hover:bg-surface sm:gap-2 sm:px-3"
+              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-xs font-semibold text-foreground hover:bg-surface sm:gap-2 sm:px-3"
             >
               <Filter className="h-4 w-4 shrink-0 text-muted-foreground" />
               <span className="sm:hidden">{statusFilter === "all" ? "All status" : statusLabel}</span>
@@ -469,14 +457,14 @@ function EmployerJobsList() {
         {/* Desktop only: Post a job now lives in this controls row, aligned with Search and All status, instead of beside the "Jobs" heading. */}
         <Link
           to="/employer/jobs/new"
-          className="ml-auto hidden h-10 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground hover:bg-primary-dark sm:inline-flex"
+          className="ml-auto hidden h-9 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary-dark sm:inline-flex"
         >
           <Plus className="h-4 w-4" /> Post a job
         </Link>
       </div>
 
       {loading ? (
-        <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="h-28 animate-pulse rounded-xl bg-card" />)}</div>
+        <div className="space-y-2.5">{[1, 2, 3].map((i) => <div key={i} className="h-24 animate-pulse rounded-xl bg-card" />)}</div>
       ) : visibleJobs.length === 0 ? (
         <div className="rounded-2xl border-2 border-dashed border-border bg-card p-10 text-center">
           <Briefcase className="mx-auto h-10 w-10 text-muted-foreground" />
@@ -487,15 +475,15 @@ function EmployerJobsList() {
           </Link>
         </div>
       ) : (
-        <div className="space-y-3 pb-4 lg:pb-0">
+        <div className="space-y-2.5 pb-4 lg:pb-0">
           {visibleJobs.map((j) => (
-            <div key={j.id} className="rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
-              <div className="flex items-start gap-3">
+            <div key={j.id} className="rounded-xl border border-border bg-card p-3 shadow-[var(--shadow-card)] transition-colors hover:border-primary/30 sm:p-4">
+              <div className="flex flex-wrap items-start gap-x-3 gap-y-2 sm:flex-nowrap sm:items-center">
                 <input
                   type="checkbox"
                   checked={selected.has(j.id)}
                   onChange={() => toggleSelect(j.id)}
-                  className="mt-1.5 h-4 w-4 shrink-0 accent-primary"
+                  className="mt-1 h-4 w-4 shrink-0 accent-primary sm:mt-0"
                   aria-label={`Select ${j.title}`}
                 />
                 <div className="min-w-0 flex-1">
@@ -626,7 +614,7 @@ function EmployerJobsList() {
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
-                  <p className="mt-1 text-sm text-muted-foreground">
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
                     {jobTypeLabel(j.job_type)} · {j.city || "Multiple cities"} · {formatSalary(j.min_salary, j.max_salary, j.salary_period || "monthly")}
                   </p>
                   {j.status === "draft" && (
@@ -639,7 +627,7 @@ function EmployerJobsList() {
                       </div>
                     </div>
                   )}
-                  <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground sm:text-xs">
                     <Link
                       to="/employer/jobs/$jobId/applicants"
                       params={{ jobId: j.id }}
@@ -654,21 +642,34 @@ function EmployerJobsList() {
                     <span>Posted {formatDistanceToNow(new Date(j.created_at), { addSuffix: true })}</span>
                   </p>
                 </div>
+                <div className="ml-7 flex w-full shrink-0 items-center justify-end sm:ml-0 sm:w-auto">
+                  <Link
+                    to="/employer/jobs/$jobId/applicants"
+                    params={{ jobId: j.id }}
+                    className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-[11px] font-semibold text-primary transition-colors hover:border-primary/40 hover:bg-primary-light"
+                  >
+                    <Users className="h-3.5 w-3.5" /> Review candidates
+                  </Link>
+                </div>
               </div>
             </div>
           ))}
-          {hasMore && (
-            <div className="flex justify-center pt-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
+            <p className="text-xs text-muted-foreground tabular-nums">
+              Showing {visibleJobs.length}
+              {listingTotal !== null ? ` of ${listingTotal}` : ""} listings
+            </p>
+            {hasMore && (
               <button
                 type="button"
                 onClick={loadMore}
                 disabled={loadingMore}
-                className="inline-flex h-10 max-w-full items-center justify-center gap-2 rounded-lg border border-primary px-5 text-sm font-semibold text-primary hover:bg-primary-light disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex h-9 max-w-full items-center justify-center rounded-lg border border-primary px-4 text-xs font-semibold text-primary hover:bg-primary-light disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Load More Jobs
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       )}
 

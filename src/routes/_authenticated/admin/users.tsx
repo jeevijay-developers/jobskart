@@ -16,6 +16,7 @@ export const Route = createFileRoute("/_authenticated/admin/users")({
 function UsersPage() {
   const [search, setSearch] = useState("");
   const [userType, setUserType] = useState<"all" | "candidate" | "employer">("all");
+  const [visibleCount, setVisibleCount] = useState(5);
   const list = useServerFn(adminListUsers);
   const setStatus = useServerFn(adminSetUserStatus);
   const del = useServerFn(adminDeleteUser);
@@ -39,18 +40,33 @@ function UsersPage() {
     },
     onError: (e: any) => toast.error(e.message),
   });
+  const rows = data?.rows ?? [];
+  const visibleRows = rows.slice(0, visibleCount);
 
   return (
     <AdminShell title="Users" subtitle="Manage candidates and employers">
       <div className="mb-4 flex flex-wrap gap-2">
-        <Input placeholder="Search name, mobile, email" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
+        <Input
+          placeholder="Search name, mobile, email"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setVisibleCount(5);
+          }}
+          className="max-w-xs"
+        />
         <div className="flex gap-1 rounded-lg border border-border bg-card p-1">
           {(["all", "candidate", "employer"] as const).map((t) => (
             <button
               key={t}
-              onClick={() => setUserType(t)}
+              onClick={() => {
+                setUserType(t);
+                setVisibleCount(5);
+              }}
               className={`rounded-md px-3 py-1.5 text-xs font-medium ${
-                userType === t ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-surface"
+                userType === t
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-surface"
               }`}
             >
               {t}
@@ -68,29 +84,45 @@ function UsersPage() {
         </div>
         {isLoading ? (
           <p className="p-6 text-sm text-muted-foreground">Loading…</p>
-        ) : !data?.rows?.length ? (
+        ) : !rows.length ? (
           <p className="p-6 text-sm text-muted-foreground">No users.</p>
         ) : (
-          data.rows.map((u: any) => (
-            <div key={u.id} className="grid grid-cols-1 gap-2 border-b border-border px-4 py-3 text-sm sm:grid-cols-6 sm:gap-3">
+          visibleRows.map((u: any) => (
+            <div
+              key={u.id}
+              className="grid grid-cols-1 gap-2 border-b border-border px-4 py-3 text-sm sm:grid-cols-6 sm:gap-3"
+            >
               <div className="col-span-2">
                 <p className="font-medium text-foreground">{u.full_name || "—"}</p>
                 <p className="text-xs text-muted-foreground">{u.email}</p>
               </div>
               <div className="text-muted-foreground">{u.mobile || "—"}</div>
-              <div><Badge variant="outline">{u.user_type}</Badge></div>
               <div>
-                <Badge variant={u.status === "suspended" ? "destructive" : "secondary"}>{u.status}</Badge>
+                <Badge variant="outline">{u.user_type}</Badge>
+              </div>
+              <div>
+                <Badge variant={u.status === "suspended" ? "destructive" : "secondary"}>
+                  {u.status}
+                </Badge>
               </div>
               <div className="flex flex-wrap justify-end gap-2">
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => mStatus.mutate({ userId: u.id, status: u.status === "suspended" ? "active" : "suspended" })}
+                  onClick={() =>
+                    mStatus.mutate({
+                      userId: u.id,
+                      status: u.status === "suspended" ? "active" : "suspended",
+                    })
+                  }
                 >
                   {u.status === "suspended" ? "Activate" : "Suspend"}
                 </Button>
-                <Button size="sm" variant="destructive" onClick={() => confirm("Delete user?") && mDel.mutate(u.id)}>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => confirm("Delete user?") && mDel.mutate(u.id)}
+                >
                   Delete
                 </Button>
               </div>
@@ -98,6 +130,17 @@ function UsersPage() {
           ))
         )}
       </div>
+      {visibleCount < rows.length ? (
+        <div className="flex justify-center px-4 pt-4">
+          <Button
+            className="max-w-full"
+            variant="outline"
+            onClick={() => setVisibleCount((count) => count + 5)}
+          >
+            Load More Users
+          </Button>
+        </div>
+      ) : null}
     </AdminShell>
   );
 }

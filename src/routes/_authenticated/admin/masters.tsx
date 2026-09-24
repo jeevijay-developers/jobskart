@@ -51,6 +51,13 @@ const SPECS: ColSpec[] = [
   { table: "languages_master", label: "Languages", primary: "name" },
 ];
 
+const LOAD_MORE_TABLES = new Set([
+  "skills_master",
+  "job_titles_master",
+  "languages_master",
+  "candidate_assets_master",
+]);
+
 function slugify(s: string) {
   return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
@@ -59,6 +66,8 @@ function TableSection({ spec }: { spec: ColSpec }) {
   const qc = useQueryClient();
   const [value, setValue] = useState("");
   const [extraVal, setExtraVal] = useState(spec.extra?.default ?? "");
+  const [visibleCount, setVisibleCount] = useState(5);
+  const hasLoadMore = LOAD_MORE_TABLES.has(spec.table);
 
   const queryKey = ["master", spec.table];
   const { data, isLoading } = useQuery({
@@ -87,6 +96,7 @@ function TableSection({ spec }: { spec: ColSpec }) {
       toast.success("Added");
       setValue("");
       setExtraVal(spec.extra?.default ?? "");
+      if (hasLoadMore) setVisibleCount(5);
       qc.invalidateQueries({ queryKey });
     },
     onError: (e: any) => toast.error(e.message),
@@ -111,10 +121,14 @@ function TableSection({ spec }: { spec: ColSpec }) {
     },
     onSuccess: () => {
       toast.success("Deleted");
+      if (hasLoadMore) setVisibleCount(5);
       qc.invalidateQueries({ queryKey });
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  const rows = data ?? [];
+  const visibleRows = hasLoadMore ? rows.slice(0, visibleCount) : rows;
 
   return (
     <div className="space-y-4">
@@ -141,10 +155,10 @@ function TableSection({ spec }: { spec: ColSpec }) {
       <div className="rounded-2xl border border-border bg-card">
         {isLoading ? (
           <p className="p-4 text-sm text-muted-foreground">Loading…</p>
-        ) : !data?.length ? (
+        ) : !rows.length ? (
           <p className="p-4 text-sm text-muted-foreground">Nothing yet.</p>
         ) : (
-          data.map((row: any) => (
+          visibleRows.map((row: any) => (
             <div key={row.id} className="flex items-center justify-between border-b border-border px-4 py-3 last:border-0">
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-foreground">{row[spec.primary]}</p>
@@ -164,6 +178,13 @@ function TableSection({ spec }: { spec: ColSpec }) {
           ))
         )}
       </div>
+      {hasLoadMore && visibleCount < rows.length ? (
+        <div className="flex justify-center px-4">
+          <Button className="max-w-full" variant="outline" onClick={() => setVisibleCount((count) => count + 5)}>
+            {`Load More ${spec.label}`}
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -33,7 +33,13 @@ export type JobCardData = {
   boosted?: boolean;
 };
 
-export function JobCard({ job }: { job: JobCardData }) {
+export function JobCard({
+  job,
+  onApplied,
+}: {
+  job: JobCardData;
+  onApplied?: () => void | Promise<void>;
+}) {
   const navigate = useNavigate();
   const location = [job.locality, job.city].filter(Boolean).join(", ") || job.city || "India";
 
@@ -196,6 +202,7 @@ export function JobCard({ job }: { job: JobCardData }) {
           onApplied={() => {
             setApplied(true);
             setApplyOpen(false);
+            void onApplied?.();
           }}
         />
       )}
