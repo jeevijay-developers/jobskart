@@ -1,5 +1,5 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Plus, Coins } from "lucide-react";
+import { Plus } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { Navbar } from "@/components/site/Navbar";
@@ -28,26 +28,45 @@ export function CreditChip() {
           .eq("company_id", cid)
           .maybeSingle();
         if (!cancelled) setBalance(data?.balance ?? 0);
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
   if (balance === null) return null;
-  const low = balance < 5;
+  const creditCapacity = 50;
+  const creditProgress = Math.min(Math.max((balance / creditCapacity) * 100, 0), 100);
   return (
-    <Link
-      to="/employer/credits"
-      className={`inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-colors ${
-        low
-          ? "border-warning/40 bg-warning-light text-warning hover:bg-warning/15"
-          : "border-border bg-card text-foreground hover:bg-surface"
-      }`}
-    >
-      <Coins className="h-3.5 w-3.5 text-primary" />
-      <span className="tabular-nums">{balance}</span>
-      <span className="hidden text-[10px] font-medium text-muted-foreground sm:inline">credits</span>
-      {low && <span className="hidden text-[10px] font-bold uppercase sm:inline">· buy</span>}
-    </Link>
+    <div className="w-full">
+      <div className="flex items-center justify-between gap-3 text-xs">
+        <span className="font-medium text-muted-foreground">Credits Remaining</span>
+        <span className="shrink-0 font-semibold text-foreground tabular-nums">
+          {balance} / {creditCapacity}
+        </span>
+      </div>
+      <div
+        className="mt-2 h-1.5 overflow-hidden rounded-full bg-primary-light"
+        role="progressbar"
+        aria-label="Credits remaining"
+        aria-valuemin={0}
+        aria-valuemax={creditCapacity}
+        aria-valuenow={Math.min(Math.max(balance, 0), creditCapacity)}
+      >
+        <div
+          className="h-full rounded-full bg-primary transition-[width]"
+          style={{ width: `${creditProgress}%` }}
+        />
+      </div>
+      <Link
+        to="/employer/credits"
+        className="mt-3 flex h-9 w-full items-center justify-center rounded-lg border border-primary/30 bg-card px-3 text-xs font-semibold text-primary transition-colors hover:border-primary hover:bg-primary-light"
+      >
+        Buy Credits →
+      </Link>
+    </div>
   );
 }
 
@@ -57,8 +76,6 @@ export function EmployerShell({
   children,
   actions,
   headerLeft,
-  hideBell,
-  hideCreditChip,
 }: {
   title: string;
   subtitle?: string;
@@ -66,61 +83,61 @@ export function EmployerShell({
   actions?: ReactNode;
   /** Extra content rendered inline next to the title, on the left side of the header row. */
   headerLeft?: ReactNode;
-  hideBell?: boolean;
-  hideCreditChip?: boolean;
 }) {
   const { pathname } = useLocation();
   const primary = nav.slice(0, 4);
   return (
     <div className="min-h-screen bg-surface pb-24 lg:pb-0">
       <Navbar />
-      <div className="mx-auto flex w-full max-w-7xl gap-6 overflow-x-hidden px-3 py-6 sm:px-6 lg:px-8">
-        <aside className="hidden w-60 shrink-0 lg:block">
-          <nav className="sticky top-20 space-y-1 rounded-2xl border border-border bg-card p-3 shadow-[var(--shadow-card)]">
-            <Link
-              to="/employer/jobs/new"
-              className="mb-2 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark"
-            >
-              <Plus className="h-4 w-4" /> Post a job
-            </Link>
-            {nav.map((item) => {
-              const active = pathname === item.to || pathname.startsWith(item.to + "/");
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                    active ? "bg-primary-light text-primary" : "text-foreground/80 hover:bg-surface"
-                  }`}
-                >
-                  <Icon className="h-4 w-4" />
-                  {item.label}
-                </Link>
-              );
-            })}
+      <div className="flex min-h-[calc(100vh-4rem)] w-full min-w-0 overflow-x-hidden">
+        <aside className="fixed bottom-0 left-0 top-16 z-40 hidden w-64 border-r border-border bg-card lg:block">
+          <nav className="flex h-full min-h-0 flex-col">
+            <div className="min-h-0 flex-1 space-y-1 overflow-y-auto px-4 py-6">
+              <Link
+                to="/employer/jobs/new"
+                className="mb-3 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark"
+              >
+                <Plus className="h-4 w-4" /> Post a job
+              </Link>
+              {nav.map((item) => {
+                const active = pathname === item.to || pathname.startsWith(item.to + "/");
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                      active
+                        ? "bg-primary-light text-primary"
+                        : "text-foreground/80 hover:bg-surface"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+            <div className="shrink-0 border-t border-border p-4">
+              <CreditChip />
+            </div>
           </nav>
         </aside>
-        <main className="min-w-0 flex-1">
+        <main className="min-w-0 flex-1 px-3 py-6 sm:px-6 lg:ml-64 lg:px-8 xl:px-10 2xl:px-12">
           <header className="mb-6 flex flex-row flex-wrap items-start justify-between gap-3 sm:items-end">
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-3">
-                <h1 className="whitespace-normal break-words text-xl font-bold leading-tight text-foreground sm:truncate sm:text-2xl lg:text-3xl">{title}</h1>
+                <h1 className="whitespace-normal break-words text-xl font-bold leading-tight text-foreground sm:truncate sm:text-2xl lg:text-3xl">
+                  {title}
+                </h1>
                 {headerLeft}
               </div>
               {subtitle ? <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p> : null}
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-2 sm:self-auto">
-              {!hideCreditChip && (
-                <div className="hidden sm:block">
-                  <CreditChip />
-                </div>
-              )}
-              {!hideBell && (
-                <div className="hidden sm:block">
-                  <NotificationBell />
-                </div>
-              )}
+              <div className="hidden sm:block">
+                <NotificationBell />
+              </div>
               {actions}
             </div>
           </header>
@@ -174,14 +191,22 @@ export function StatCard({
   };
   return (
     <div className="flex min-w-0 flex-col rounded-2xl border border-border bg-card p-3.5 shadow-[var(--shadow-card)] sm:p-5">
-      <p className="truncate text-[11px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-xs">{label}</p>
+      <p className="truncate text-[11px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-xs">
+        {label}
+      </p>
       <p className="mt-2 text-2xl font-bold text-foreground tabular-nums sm:text-3xl">{value}</p>
       <div className="mt-2 flex min-h-[22px] flex-wrap items-center gap-1.5 sm:gap-2">
         {hint ? (
-          <span className={`inline-block truncate rounded-full px-2 py-0.5 text-[11px] font-medium sm:text-xs ${tones[tone]}`}>{hint}</span>
+          <span
+            className={`inline-block truncate rounded-full px-2 py-0.5 text-[11px] font-medium sm:text-xs ${tones[tone]}`}
+          >
+            {hint}
+          </span>
         ) : null}
         {typeof delta === "number" && delta !== 0 ? (
-          <span className={`text-xs font-semibold tabular-nums ${delta > 0 ? "text-success" : "text-destructive"}`}>
+          <span
+            className={`text-xs font-semibold tabular-nums ${delta > 0 ? "text-success" : "text-destructive"}`}
+          >
             {delta > 0 ? "▲" : "▼"} {Math.abs(delta)}
           </span>
         ) : null}
@@ -189,5 +214,3 @@ export function StatCard({
     </div>
   );
 }
-
-
