@@ -288,25 +288,24 @@ function EmployerDashboard() {
     <EmployerShell
       title="Employer dashboard"
       actions={
-        companies.length > 1 && (
-          <ThemedSelect
-            className="form-input h-9 w-full max-w-[220px] text-sm sm:w-auto"
-            value={active.company_id}
-            onChange={(e) => {
-              const next = companies.find((c) => c.company_id === e.target.value);
-              if (next) {
-                setActive(next);
-                setActiveCompanyId(next.company_id);
-              }
-            }}
-          >
-            {companies.map((c) => (
-              <option key={c.company_id} value={c.company_id}>
-                {c.companies.name}
-              </option>
-            ))}
-          </ThemedSelect>
-        )
+        <ThemedSelect
+          aria-label="Active company"
+          className="form-input h-9 w-full max-w-[220px] text-sm sm:w-auto"
+          value={active.company_id}
+          onChange={(e) => {
+            const next = companies.find((c) => c.company_id === e.target.value);
+            if (next) {
+              setActive(next);
+              setActiveCompanyId(next.company_id);
+            }
+          }}
+        >
+          {companies.map((c) => (
+            <option key={c.company_id} value={c.company_id}>
+              {c.companies.name}
+            </option>
+          ))}
+        </ThemedSelect>
       }
     >
       <div className="space-y-5 sm:space-y-6">

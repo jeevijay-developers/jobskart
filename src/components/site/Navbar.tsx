@@ -70,12 +70,12 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-      <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <Link to="/" className="flex items-center gap-2">
-          <img src={logoAsset} alt="JobsKart" className="h-8 w-auto" />
+      <div className="mx-auto flex h-14 w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:px-8">
+        <Link to="/" className="flex items-center gap-2 lg:justify-self-start">
+          <img src={logoAsset} alt="JobsKart" className="h-7 w-auto" />
         </Link>
 
-        <nav className="hidden items-center gap-6 lg:flex">
+        <nav className="hidden items-center gap-6 lg:flex lg:justify-self-center">
           {homeNavLinks.map((l) => (
             <Link
               key={l.hash}
@@ -88,18 +88,18 @@ export function Navbar() {
           ))}
         </nav>
 
-        <div className="hidden items-center gap-3 lg:flex">
+        <div className="hidden items-center gap-2.5 lg:flex lg:justify-self-end">
           {session ? (
             <>
               <Link
                 to={dashboardPath}
-                className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-semibold text-foreground hover:bg-surface"
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-sm font-semibold text-foreground hover:bg-surface"
               >
                 <User className="h-4 w-4" /> My Account
               </Link>
               <button
                 onClick={handleSignOut}
-                className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary-dark"
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3.5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark"
               >
                 <LogOut className="h-4 w-4" /> Sign out
               </button>
