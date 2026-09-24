@@ -783,6 +783,7 @@ export type Database = {
           onboarding_completed: boolean
           pan_number: string | null
           pincode: string | null
+          plan_id: string | null
           primary_city: string | null
           size: Database["public"]["Enums"]["company_size"] | null
           slug: string | null
@@ -813,6 +814,7 @@ export type Database = {
           onboarding_completed?: boolean
           pan_number?: string | null
           pincode?: string | null
+          plan_id?: string | null
           primary_city?: string | null
           size?: Database["public"]["Enums"]["company_size"] | null
           slug?: string | null
@@ -843,6 +845,7 @@ export type Database = {
           onboarding_completed?: boolean
           pan_number?: string | null
           pincode?: string | null
+          plan_id?: string | null
           primary_city?: string | null
           size?: Database["public"]["Enums"]["company_size"] | null
           slug?: string | null
@@ -853,7 +856,15 @@ export type Database = {
           verification_status?: string
           website?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "companies_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       company_documents: {
         Row: {
@@ -1641,6 +1652,32 @@ export type Database = {
         }
         Relationships: []
       }
+      job_expiry_reminders: {
+        Row: {
+          job_id: string
+          sent_at: string
+          threshold_days: number
+        }
+        Insert: {
+          job_id: string
+          sent_at?: string
+          threshold_days: number
+        }
+        Update: {
+          job_id?: string
+          sent_at?: string
+          threshold_days?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_expiry_reminders_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_purge_reminders: {
         Row: {
           job_id: string
@@ -1808,6 +1845,7 @@ export type Database = {
           age_max: number | null
           age_min: number | null
           applications_count: number | null
+          auto_renew: boolean
           auto_shortlist_threshold: number | null
           avg_incentive_monthly: number | null
           boosted_until: string | null
@@ -1839,6 +1877,7 @@ export type Database = {
           is_featured: boolean
           job_type: Database["public"]["Enums"]["job_type"]
           joining_fee_required: boolean | null
+          last_renewed_at: string | null
           locality: string | null
           max_experience_years: number | null
           max_salary: number | null
@@ -1853,6 +1892,7 @@ export type Database = {
           preferred_industries: string[] | null
           preferred_languages: string[] | null
           quality_score: number | null
+          renewed_count: number
           reopened_at: string | null
           repost_count: number
           reposted_from: string | null
@@ -1882,6 +1922,7 @@ export type Database = {
           age_max?: number | null
           age_min?: number | null
           applications_count?: number | null
+          auto_renew?: boolean
           auto_shortlist_threshold?: number | null
           avg_incentive_monthly?: number | null
           boosted_until?: string | null
@@ -1913,6 +1954,7 @@ export type Database = {
           is_featured?: boolean
           job_type?: Database["public"]["Enums"]["job_type"]
           joining_fee_required?: boolean | null
+          last_renewed_at?: string | null
           locality?: string | null
           max_experience_years?: number | null
           max_salary?: number | null
@@ -1927,6 +1969,7 @@ export type Database = {
           preferred_industries?: string[] | null
           preferred_languages?: string[] | null
           quality_score?: number | null
+          renewed_count?: number
           reopened_at?: string | null
           repost_count?: number
           reposted_from?: string | null
@@ -1956,6 +1999,7 @@ export type Database = {
           age_max?: number | null
           age_min?: number | null
           applications_count?: number | null
+          auto_renew?: boolean
           auto_shortlist_threshold?: number | null
           avg_incentive_monthly?: number | null
           boosted_until?: string | null
@@ -1987,6 +2031,7 @@ export type Database = {
           is_featured?: boolean
           job_type?: Database["public"]["Enums"]["job_type"]
           joining_fee_required?: boolean | null
+          last_renewed_at?: string | null
           locality?: string | null
           max_experience_years?: number | null
           max_salary?: number | null
@@ -2001,6 +2046,7 @@ export type Database = {
           preferred_industries?: string[] | null
           preferred_languages?: string[] | null
           quality_score?: number | null
+          renewed_count?: number
           reopened_at?: string | null
           repost_count?: number
           reposted_from?: string | null
@@ -2168,10 +2214,13 @@ export type Database = {
       }
       plan_settings: {
         Row: {
+          auto_renew_enabled: boolean
+          auto_renew_max_times: number
           credits_per_unlock: number
           custom_plan_min_amount: number
           db_rows_per_day: number
           db_searches_per_hour: number
+          expiry_reminder_days: number[]
           free_plan_validity_days: number | null
           free_post_enabled: boolean
           free_response_cap: number
@@ -2186,10 +2235,13 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          auto_renew_enabled?: boolean
+          auto_renew_max_times?: number
           credits_per_unlock?: number
           custom_plan_min_amount?: number
           db_rows_per_day?: number
           db_searches_per_hour?: number
+          expiry_reminder_days?: number[]
           free_plan_validity_days?: number | null
           free_post_enabled?: boolean
           free_response_cap?: number
@@ -2204,10 +2256,13 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          auto_renew_enabled?: boolean
+          auto_renew_max_times?: number
           credits_per_unlock?: number
           custom_plan_min_amount?: number
           db_rows_per_day?: number
           db_searches_per_hour?: number
+          expiry_reminder_days?: number[]
           free_plan_validity_days?: number | null
           free_post_enabled?: boolean
           free_response_cap?: number
@@ -2442,6 +2497,69 @@ export type Database = {
           },
         ]
       }
+      salary_bands: {
+        Row: {
+          category: string | null
+          city: string | null
+          created_at: string
+          experience_bucket: string
+          id: string
+          is_active: boolean
+          max_salary: number
+          median_salary: number
+          min_salary: number
+          p25: number
+          p75: number
+          pay_type: string
+          sample_count: number
+          source: string
+          state: string | null
+          title_key: string
+          updated_at: string
+          valid_until: string | null
+        }
+        Insert: {
+          category?: string | null
+          city?: string | null
+          created_at?: string
+          experience_bucket?: string
+          id?: string
+          is_active?: boolean
+          max_salary: number
+          median_salary: number
+          min_salary: number
+          p25: number
+          p75: number
+          pay_type?: string
+          sample_count?: number
+          source?: string
+          state?: string | null
+          title_key: string
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Update: {
+          category?: string | null
+          city?: string | null
+          created_at?: string
+          experience_bucket?: string
+          id?: string
+          is_active?: boolean
+          max_salary?: number
+          median_salary?: number
+          min_salary?: number
+          p25?: number
+          p75?: number
+          pay_type?: string
+          sample_count?: number
+          source?: string
+          state?: string | null
+          title_key?: string
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Relationships: []
+      }
       saved_jobs: {
         Row: {
           created_at: string
@@ -2619,7 +2737,15 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      claim_due_expiry_reminders: { Args: never; Returns: Json }
       claim_due_purge_reminders: { Args: never; Returns: Json }
+      company_auto_renew: {
+        Args: { _company_id: string }
+        Returns: {
+          enabled: boolean
+          max_times: number
+        }[]
+      }
       compute_candidate_match: {
         Args: {
           _candidate_user_id: string
@@ -2627,6 +2753,10 @@ export type Database = {
           _with_bonuses?: boolean
         }
         Returns: Json
+      }
+      compute_job_quality: {
+        Args: { j: Database["public"]["Tables"]["jobs"]["Row"] }
+        Returns: number
       }
       create_company_with_owner: {
         Args: {
@@ -2789,6 +2919,16 @@ export type Database = {
           years_experience: number
         }[]
       }
+      get_salary_suggestion: {
+        Args: {
+          _category?: string
+          _city?: string
+          _experience_bucket?: string
+          _pay_type?: string
+          _title: string
+        }
+        Returns: Json
+      }
       gst_state_name: { Args: { _code: string }; Returns: string }
       has_company_membership: {
         Args: { _company_id: string; _user_id: string }
@@ -2835,6 +2975,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      log_salary_event: {
+        Args: { _company_id: string; _kind: string; _meta?: Json }
+        Returns: undefined
+      }
       mark_razorpay_order_failed: {
         Args: {
           _razorpay_order_id: string
@@ -2845,7 +2989,9 @@ export type Database = {
       }
       next_invoice_number: { Args: never; Returns: string }
       normalize_phone_e164: { Args: { _phone: string }; Returns: string }
+      process_job_expiry_batch: { Args: never; Returns: Json }
       purge_expired_responses: { Args: never; Returns: Json }
+      refresh_computed_salary_bands: { Args: never; Returns: number }
       register_download: {
         Args: { _company_id: string; _count: number; _kind: string }
         Returns: number
@@ -2855,6 +3001,7 @@ export type Database = {
         Args: { _company_id: string; _user_id: string }
         Returns: undefined
       }
+      renew_job: { Args: { _job_id: string }; Returns: Json }
       reschedule_video_interview: {
         Args: {
           _actor?: string
@@ -2966,6 +3113,10 @@ export type Database = {
           user_id: string
           years_experience: number
         }[]
+      }
+      set_job_auto_renew: {
+        Args: { _enabled: boolean; _job_id: string }
+        Returns: undefined
       }
       slugify: { Args: { _text: string }; Returns: string }
       suggest_skills_for_roles: {
