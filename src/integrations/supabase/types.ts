@@ -1808,6 +1808,7 @@ export type Database = {
           age_max: number | null
           age_min: number | null
           applications_count: number | null
+          auto_renew: boolean
           auto_shortlist_threshold: number | null
           avg_incentive_monthly: number | null
           boosted_until: string | null
@@ -1839,6 +1840,7 @@ export type Database = {
           is_featured: boolean
           job_type: Database["public"]["Enums"]["job_type"]
           joining_fee_required: boolean | null
+          last_renewed_at: string | null
           locality: string | null
           max_experience_years: number | null
           max_salary: number | null
@@ -1854,6 +1856,7 @@ export type Database = {
           preferred_languages: string[] | null
           quality_score: number | null
           reopened_at: string | null
+          renewed_count: number
           repost_count: number
           reposted_from: string | null
           required_assets: string[] | null
@@ -1882,6 +1885,7 @@ export type Database = {
           age_max?: number | null
           age_min?: number | null
           applications_count?: number | null
+          auto_renew?: boolean
           auto_shortlist_threshold?: number | null
           avg_incentive_monthly?: number | null
           boosted_until?: string | null
@@ -1913,6 +1917,7 @@ export type Database = {
           is_featured?: boolean
           job_type?: Database["public"]["Enums"]["job_type"]
           joining_fee_required?: boolean | null
+          last_renewed_at?: string | null
           locality?: string | null
           max_experience_years?: number | null
           max_salary?: number | null
@@ -1928,6 +1933,7 @@ export type Database = {
           preferred_languages?: string[] | null
           quality_score?: number | null
           reopened_at?: string | null
+          renewed_count?: number
           repost_count?: number
           reposted_from?: string | null
           required_assets?: string[] | null
@@ -1956,6 +1962,7 @@ export type Database = {
           age_max?: number | null
           age_min?: number | null
           applications_count?: number | null
+          auto_renew?: boolean
           auto_shortlist_threshold?: number | null
           avg_incentive_monthly?: number | null
           boosted_until?: string | null
@@ -1987,6 +1994,7 @@ export type Database = {
           is_featured?: boolean
           job_type?: Database["public"]["Enums"]["job_type"]
           joining_fee_required?: boolean | null
+          last_renewed_at?: string | null
           locality?: string | null
           max_experience_years?: number | null
           max_salary?: number | null
@@ -2002,6 +2010,7 @@ export type Database = {
           preferred_languages?: string[] | null
           quality_score?: number | null
           reopened_at?: string | null
+          renewed_count?: number
           repost_count?: number
           reposted_from?: string | null
           required_assets?: string[] | null
