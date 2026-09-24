@@ -124,6 +124,8 @@ function JobDetailPage() {
           "id, company_id, title, description, description_html, city, state, locality, min_salary, max_salary, salary_period, fixed_pay, incentives_text, pay_type, avg_incentive_monthly, interview_type, interview_same_as_company, interview_city, interview_locality, interview_address, joining_fee_required, industry, job_type, work_mode, shift, min_experience_years, max_experience_years, education, english_level, skills, perks, openings, walkin, walkin_details, created_at, expires_at, category, companies (name, is_verified, industry, primary_city, description, about, logo_url)",
         )
         .eq("id", jobId)
+        // Hide jobs past their expiry even if the sweep hasn't flipped status.
+        .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
         .maybeSingle();
       if (cancelled) return;
       if (error || !data) {
@@ -149,6 +151,7 @@ function JobDetailPage() {
             "id, company_id, title, city, state, locality, min_salary, max_salary, salary_period, job_type, work_mode, min_experience_years, max_experience_years, education, skills, category, applications_count, created_at, companies (name, is_verified)",
           )
           .eq("status", "active")
+          .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
           .neq("id", jobId)
           .order("created_at", { ascending: false })
           .limit(60),

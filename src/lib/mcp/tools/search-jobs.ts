@@ -25,6 +25,7 @@ export default defineTool({
       .from("jobs")
       .select(JOB_FIELDS)
       .eq("status", "active")
+      .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
       .order("created_at", { ascending: false })
       .limit(take);
 

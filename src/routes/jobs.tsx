@@ -14,6 +14,8 @@ import { Navbar } from "@/components/site/Navbar";
 import { JobCard, type JobCardData } from "@/components/site/JobCard";
 import { AutocompleteInput } from "@/components/site/AutocompleteInput";
 import { CandidateMobileTabBar } from "@/components/candidate/CandidateShell";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { OptionalSection } from "@/components/forms/OptionalSection";
 import { supabase } from "@/integrations/supabase/client";
 import {
   JOB_CATEGORIES,
@@ -31,7 +33,7 @@ import { useJobTitleSuggestions } from "@/lib/useJobTitleSuggestions";
 // so most clicks don't need a fresh network round-trip.
 const BATCH_SIZE = 5;
 const FETCH_CHUNK = 50;
-const SORT_OPTIONS = ["newest", "oldest", "salary_high", "salary_low"] as const;
+const SORT_OPTIONS = ["recommended", "newest", "oldest", "salary_high", "salary_low"] as const;
 type SortKey = (typeof SORT_OPTIONS)[number];
 
 const DATE_POSTED_OPTIONS = [
@@ -168,7 +170,7 @@ function buildSearch(f: Filters, extras: { sort?: SortKey; page?: number } = {})
     ...(f.company ? { company: f.company } : {}),
     ...(f.vehicle ? { vehicle: f.vehicle } : {}),
     ...(f.verifiedOnly ? { verifiedOnly: f.verifiedOnly } : {}),
-    ...(extras.sort && extras.sort !== "newest" ? { sort: extras.sort } : {}),
+    ...(extras.sort && extras.sort !== "recommended" ? { sort: extras.sort } : {}),
     ...(extras.page && extras.page > 1 ? { page: extras.page } : {}),
   };
 }
@@ -189,7 +191,7 @@ function JobsList() {
   const navigate = useNavigate({ from: "/jobs" });
   const [filters, setFilters] = useState<Filters>(() => filtersFromSearch(urlSearch));
   const [draft, setDraft] = useState<Filters>(() => filtersFromSearch(urlSearch));
-  const sort: SortKey = urlSearch.sort ?? "newest";
+  const sort: SortKey = urlSearch.sort ?? "recommended";
   const [mobileFilters, setMobileFilters] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [isEmployer, setIsEmployer] = useState(false);
@@ -258,14 +260,72 @@ function JobsList() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMoreOnServer, setHasMoreOnServer] = useState(false);
 
+  // "Recommended" (the default) is the only sort that calls the server-side
+  // feed_jobs() ranking RPC (boost/freshness/quality score). Every explicit
+  // sort stays a plain client query exactly as before — a paid boost must
+  // never override an explicit candidate sort.
+  const runRecommendedQuery = async (from: number, to: number) => {
+    const { data, error } = await supabase.rpc("feed_jobs", {
+      _q: filters.q || undefined,
+      _city: filters.city || undefined,
+      _category: filters.category || undefined,
+      _job_type: filters.jobType || undefined,
+      _work_mode: filters.workMode || undefined,
+      _min_salary: filters.minSalary ? Number(filters.minSalary) : undefined,
+      _max_salary: filters.maxSalary ? Number(filters.maxSalary) : undefined,
+      _min_exp: filters.minExp ? Number(filters.minExp) : undefined,
+      _max_exp: filters.maxExp ? Number(filters.maxExp) : undefined,
+      _posted_after: filters.datePosted ? (datePostedCutoffIso(filters.datePosted) ?? undefined) : undefined,
+      _education: filters.education || undefined,
+      _shift: filters.shift || undefined,
+      _english_level: filters.englishLevel || undefined,
+      _company: filters.company || undefined,
+      _vehicle: !!filters.vehicle,
+      _verified_only: !!filters.verifiedOnly,
+      _limit: to - from + 1,
+      _offset: from,
+    });
+    if (error) return { data: null, count: null, error };
+    const rows = data ?? [];
+    const mapped: JobCardData[] = rows.map((r) => ({
+      id: r.id,
+      company_id: r.company_id,
+      title: r.title,
+      city: r.city,
+      state: r.state,
+      locality: r.locality,
+      min_salary: r.min_salary,
+      max_salary: r.max_salary,
+      salary_period: r.salary_period,
+      job_type: r.job_type as string,
+      work_mode: r.work_mode as string,
+      min_experience_years: r.min_experience_years,
+      max_experience_years: r.max_experience_years,
+      education: r.education,
+      skills: r.skills,
+      created_at: r.created_at,
+      pay_type: r.pay_type,
+      avg_incentive_monthly: r.avg_incentive_monthly,
+      companies: { name: r.company_name ?? "", is_verified: r.company_is_verified },
+      boosted: r.boosted ?? false,
+    }));
+    const count = rows.length > 0 ? Number(rows[0].total_count) : 0;
+    return { data: mapped, count, error: null };
+  };
+
   const runQuery = (from: number, to: number) => {
+    if (sort === "recommended") return runRecommendedQuery(from, to);
+
     let q = supabase
       .from("jobs")
       .select(
         "id, company_id, title, city, state, locality, min_salary, max_salary, salary_period, job_type, work_mode, min_experience_years, max_experience_years, education, skills, created_at, companies!inner (name, is_verified)",
         { count: "exact" },
       )
-      .eq("status", "active");
+      .eq("status", "active")
+      // Defense-in-depth: hide jobs past their expiry even if the hourly
+      // expiry sweep hasn't flipped status to 'expired' yet.
+      .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`);
 
     if (sort === "newest") q = q.order("created_at", { ascending: false });
     else if (sort === "oldest") q = q.order("created_at", { ascending: true });
@@ -373,6 +433,69 @@ function JobsList() {
 
   const activeCount = useMemo(() => Object.values(filters).filter(Boolean).length, [filters]);
 
+  // Active-filter chips with per-chip ✕ (salary/experience ranges share one chip each).
+  const chips = useMemo(() => {
+    const c: { key: string; keys: (keyof Filters)[]; label: string }[] = [];
+    if (filters.q) c.push({ key: "q", keys: ["q"], label: filters.q });
+    if (filters.city) c.push({ key: "city", keys: ["city"], label: filters.city });
+    if (filters.category) c.push({ key: "category", keys: ["category"], label: filters.category });
+    if (filters.jobType)
+      c.push({
+        key: "jobType",
+        keys: ["jobType"],
+        label: JOB_TYPE_OPTIONS.find((t) => t.id === filters.jobType)?.label ?? filters.jobType,
+      });
+    if (filters.workMode)
+      c.push({
+        key: "workMode",
+        keys: ["workMode"],
+        label: WORK_MODES.find((w) => w.id === filters.workMode)?.label ?? filters.workMode,
+      });
+    if (filters.minSalary || filters.maxSalary)
+      c.push({
+        key: "salary",
+        keys: ["minSalary", "maxSalary"],
+        label: `₹${filters.minSalary || "0"} – ${filters.maxSalary || "any"}/mo`,
+      });
+    if (filters.minExp || filters.maxExp)
+      c.push({
+        key: "exp",
+        keys: ["minExp", "maxExp"],
+        label: `${filters.minExp || "0"} – ${filters.maxExp || "any"} yrs exp`,
+      });
+    if (filters.datePosted)
+      c.push({
+        key: "datePosted",
+        keys: ["datePosted"],
+        label: DATE_POSTED_OPTIONS.find((d) => d.id === filters.datePosted)?.label ?? filters.datePosted,
+      });
+    if (filters.education) c.push({ key: "education", keys: ["education"], label: filters.education });
+    if (filters.shift)
+      c.push({
+        key: "shift",
+        keys: ["shift"],
+        label: SHIFTS.find((s) => s.id === filters.shift)?.label ?? filters.shift,
+      });
+    if (filters.englishLevel)
+      c.push({
+        key: "englishLevel",
+        keys: ["englishLevel"],
+        label: ENGLISH_LEVELS.find((l) => l.id === filters.englishLevel)?.label ?? filters.englishLevel,
+      });
+    if (filters.company) c.push({ key: "company", keys: ["company"], label: filters.company });
+    if (filters.vehicle) c.push({ key: "vehicle", keys: ["vehicle"], label: "Two-wheeler required" });
+    if (filters.verifiedOnly) c.push({ key: "verifiedOnly", keys: ["verifiedOnly"], label: "Verified employers" });
+    return c;
+  }, [filters]);
+
+  const removeFilterKeys = (keys: (keyof Filters)[]) => {
+    const next = { ...filters };
+    for (const k of keys) next[k] = "";
+    setFilters(next);
+    setDraft(next);
+    navigate({ search: buildSearch(next, { sort }), replace: true });
+  };
+
   return (
     <div
       className={`flex min-h-screen flex-col bg-surface ${showCandidateTabBar ? "pb-20 lg:pb-0" : ""}`}
@@ -462,6 +585,7 @@ function JobsList() {
                 value={sort}
                 onChange={(e) => setSort(e.target.value as SortKey)}
               >
+                <option value="recommended">Recommended</option>
                 <option value="newest">Newest first</option>
                 <option value="oldest">Oldest first</option>
                 <option value="salary_high">Salary: high to low</option>
@@ -469,6 +593,34 @@ function JobsList() {
               </select>
             </label>
           </div>
+
+          {chips.length > 0 && (
+            <div className="mb-4 -mt-2 flex flex-wrap items-center gap-2">
+              {chips.map((chip) => (
+                <span
+                  key={chip.key}
+                  className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-primary/30 bg-primary-light px-3 py-1 text-xs font-medium text-primary"
+                >
+                  <span className="truncate">{chip.label}</span>
+                  <button
+                    type="button"
+                    aria-label={`Remove filter: ${chip.label}`}
+                    onClick={() => removeFilterKeys(chip.keys)}
+                    className="shrink-0 rounded-full p-0.5 hover:bg-primary/15"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+              <button
+                type="button"
+                onClick={reset}
+                className="text-xs font-semibold text-muted-foreground hover:text-foreground hover:underline"
+              >
+                Clear all
+              </button>
+            </div>
+          )}
 
           {loading ? (
             <div className="grid place-items-center rounded-xl border border-border bg-card p-12">
@@ -513,23 +665,15 @@ function JobsList() {
         </main>
       </div>
 
-      {mobileFilters && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <div
-            className="absolute inset-0 bg-foreground/40"
-            onClick={() => setMobileFilters(false)}
-          />
-          <div className="absolute bottom-0 left-0 right-0 max-h-[85vh] overflow-y-auto rounded-t-2xl bg-background p-6">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-foreground">Filters</h2>
-              <button onClick={() => setMobileFilters(false)} className="rounded-lg p-2">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <FilterPanel draft={draft} setDraft={setDraft} apply={apply} reset={reset} />
-          </div>
-        </div>
-      )}
+      <Sheet open={mobileFilters} onOpenChange={setMobileFilters}>
+        <SheetContent
+          side="bottom"
+          className="max-h-[85vh] overflow-y-auto rounded-t-2xl p-6"
+        >
+          <SheetTitle className="mb-4 text-left">Filters</SheetTitle>
+          <FilterPanel draft={draft} setDraft={setDraft} apply={apply} reset={reset} grouped />
+        </SheetContent>
+      </Sheet>
 
       {showCandidateTabBar && <CandidateMobileTabBar />}
     </div>
@@ -541,162 +685,244 @@ function FilterPanel({
   setDraft,
   apply,
   reset,
+  grouped = false,
 }: {
   draft: Filters;
   setDraft: (f: Filters) => void;
   apply: () => void;
   reset: () => void;
+  /** Mobile sheet variant: secondary filters collapse into OptionalSections. */
+  grouped?: boolean;
 }) {
+  const categorySection = (
+    <Section label="Category">
+      <select
+        className="form-input"
+        value={draft.category}
+        onChange={(e) => setDraft({ ...draft, category: e.target.value })}
+      >
+        <option value="">All categories</option>
+        {JOB_CATEGORIES.map((c) => (
+          <option key={c} value={c}>
+            {c}
+          </option>
+        ))}
+      </select>
+    </Section>
+  );
+
+  const jobTypeSection = (
+    <Section label="Job type">
+      <select
+        className="form-input"
+        value={draft.jobType}
+        onChange={(e) => setDraft({ ...draft, jobType: e.target.value })}
+      >
+        <option value="">Any</option>
+        {JOB_TYPE_OPTIONS.map((t) => (
+          <option key={t.id} value={t.id}>
+            {t.label}
+          </option>
+        ))}
+      </select>
+    </Section>
+  );
+
+  const workModeSection = (
+    <Section label="Work mode">
+      <select
+        className="form-input"
+        value={draft.workMode}
+        onChange={(e) => setDraft({ ...draft, workMode: e.target.value })}
+      >
+        <option value="">Any</option>
+        {WORK_MODES.map((w) => (
+          <option key={w.id} value={w.id}>
+            {w.label}
+          </option>
+        ))}
+      </select>
+    </Section>
+  );
+
+  const salarySection = (
+    <Section label="Salary (₹/month)">
+      <div className="grid grid-cols-2 gap-2">
+        <input
+          type="number"
+          min={0}
+          step={1000}
+          placeholder="Min"
+          className="form-input"
+          value={draft.minSalary}
+          onChange={(e) => setDraft({ ...draft, minSalary: e.target.value })}
+        />
+        <input
+          type="number"
+          min={0}
+          step={1000}
+          placeholder="Max"
+          className="form-input"
+          value={draft.maxSalary}
+          onChange={(e) => setDraft({ ...draft, maxSalary: e.target.value })}
+        />
+      </div>
+    </Section>
+  );
+
+  const experienceSection = (
+    <Section label="Experience (years)">
+      <div className="grid grid-cols-2 gap-2">
+        <input
+          type="number"
+          min={0}
+          placeholder="Min"
+          className="form-input"
+          value={draft.minExp}
+          onChange={(e) => setDraft({ ...draft, minExp: e.target.value })}
+        />
+        <input
+          type="number"
+          min={0}
+          placeholder="Max"
+          className="form-input"
+          value={draft.maxExp}
+          onChange={(e) => setDraft({ ...draft, maxExp: e.target.value })}
+        />
+      </div>
+    </Section>
+  );
+
+  const datePostedSection = (
+    <Section label="Date posted">
+      <select
+        className="form-input"
+        value={draft.datePosted}
+        onChange={(e) => setDraft({ ...draft, datePosted: e.target.value })}
+      >
+        <option value="">Any time</option>
+        {DATE_POSTED_OPTIONS.map((d) => (
+          <option key={d.id} value={d.id}>
+            {d.label}
+          </option>
+        ))}
+      </select>
+    </Section>
+  );
+
+  const educationSection = (
+    <Section label="Education required">
+      <select
+        className="form-input"
+        value={draft.education}
+        onChange={(e) => setDraft({ ...draft, education: e.target.value })}
+      >
+        <option value="">Any</option>
+        {EDUCATION_LEVELS.map((ed) => (
+          <option key={ed} value={ed}>
+            {ed}
+          </option>
+        ))}
+      </select>
+    </Section>
+  );
+
+  const shiftSection = (
+    <Section label="Shift">
+      <select
+        className="form-input"
+        value={draft.shift}
+        onChange={(e) => setDraft({ ...draft, shift: e.target.value })}
+      >
+        <option value="">Any</option>
+        {SHIFTS.map((s) => (
+          <option key={s.id} value={s.id}>
+            {s.label}
+          </option>
+        ))}
+      </select>
+    </Section>
+  );
+
+  const englishSection = (
+    <Section label="English level">
+      <select
+        className="form-input"
+        value={draft.englishLevel}
+        onChange={(e) => setDraft({ ...draft, englishLevel: e.target.value })}
+      >
+        <option value="">Any</option>
+        {ENGLISH_LEVELS.map((l) => (
+          <option key={l.id} value={l.id}>
+            {l.label}
+          </option>
+        ))}
+      </select>
+    </Section>
+  );
+
+  const companySection = (
+    <Section label="Company">
+      <input
+        placeholder="Search by company name"
+        className="form-input"
+        value={draft.company}
+        onChange={(e) => setDraft({ ...draft, company: e.target.value })}
+      />
+    </Section>
+  );
+
+  const salaryExpFilled = [draft.minSalary, draft.maxSalary, draft.minExp, draft.maxExp].filter(
+    Boolean,
+  ).length;
+  const moreFilled = [
+    draft.datePosted,
+    draft.education,
+    draft.shift,
+    draft.englishLevel,
+    draft.company,
+  ].filter(Boolean).length;
+
   return (
     <div className="space-y-5 rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
-      <Section label="Category">
-        <select
-          className="form-input"
-          value={draft.category}
-          onChange={(e) => setDraft({ ...draft, category: e.target.value })}
-        >
-          <option value="">All categories</option>
-          {JOB_CATEGORIES.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-      </Section>
-      <Section label="Job type">
-        <select
-          className="form-input"
-          value={draft.jobType}
-          onChange={(e) => setDraft({ ...draft, jobType: e.target.value })}
-        >
-          <option value="">Any</option>
-          {JOB_TYPE_OPTIONS.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.label}
-            </option>
-          ))}
-        </select>
-      </Section>
-      <Section label="Work mode">
-        <select
-          className="form-input"
-          value={draft.workMode}
-          onChange={(e) => setDraft({ ...draft, workMode: e.target.value })}
-        >
-          <option value="">Any</option>
-          {WORK_MODES.map((w) => (
-            <option key={w.id} value={w.id}>
-              {w.label}
-            </option>
-          ))}
-        </select>
-      </Section>
-      <Section label="Salary (₹/month)">
-        <div className="grid grid-cols-2 gap-2">
-          <input
-            type="number"
-            min={0}
-            step={1000}
-            placeholder="Min"
-            className="form-input"
-            value={draft.minSalary}
-            onChange={(e) => setDraft({ ...draft, minSalary: e.target.value })}
-          />
-          <input
-            type="number"
-            min={0}
-            step={1000}
-            placeholder="Max"
-            className="form-input"
-            value={draft.maxSalary}
-            onChange={(e) => setDraft({ ...draft, maxSalary: e.target.value })}
-          />
-        </div>
-      </Section>
-      <Section label="Experience (years)">
-        <div className="grid grid-cols-2 gap-2">
-          <input
-            type="number"
-            min={0}
-            placeholder="Min"
-            className="form-input"
-            value={draft.minExp}
-            onChange={(e) => setDraft({ ...draft, minExp: e.target.value })}
-          />
-          <input
-            type="number"
-            min={0}
-            placeholder="Max"
-            className="form-input"
-            value={draft.maxExp}
-            onChange={(e) => setDraft({ ...draft, maxExp: e.target.value })}
-          />
-        </div>
-      </Section>
-      <Section label="Date posted">
-        <select
-          className="form-input"
-          value={draft.datePosted}
-          onChange={(e) => setDraft({ ...draft, datePosted: e.target.value })}
-        >
-          <option value="">Any time</option>
-          {DATE_POSTED_OPTIONS.map((d) => (
-            <option key={d.id} value={d.id}>
-              {d.label}
-            </option>
-          ))}
-        </select>
-      </Section>
-      <Section label="Education required">
-        <select
-          className="form-input"
-          value={draft.education}
-          onChange={(e) => setDraft({ ...draft, education: e.target.value })}
-        >
-          <option value="">Any</option>
-          {EDUCATION_LEVELS.map((ed) => (
-            <option key={ed} value={ed}>
-              {ed}
-            </option>
-          ))}
-        </select>
-      </Section>
-      <Section label="Shift">
-        <select
-          className="form-input"
-          value={draft.shift}
-          onChange={(e) => setDraft({ ...draft, shift: e.target.value })}
-        >
-          <option value="">Any</option>
-          {SHIFTS.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.label}
-            </option>
-          ))}
-        </select>
-      </Section>
-      <Section label="English level">
-        <select
-          className="form-input"
-          value={draft.englishLevel}
-          onChange={(e) => setDraft({ ...draft, englishLevel: e.target.value })}
-        >
-          <option value="">Any</option>
-          {ENGLISH_LEVELS.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.label}
-            </option>
-          ))}
-        </select>
-      </Section>
-      <Section label="Company">
-        <input
-          placeholder="Search by company name"
-          className="form-input"
-          value={draft.company}
-          onChange={(e) => setDraft({ ...draft, company: e.target.value })}
-        />
-      </Section>
+      {categorySection}
+      {jobTypeSection}
+      {workModeSection}
+      {grouped ? (
+        <>
+          <OptionalSection
+            title="Salary & experience"
+            summary="Optional"
+            badge={salaryExpFilled}
+            hasValues={salaryExpFilled > 0}
+          >
+            {salarySection}
+            {experienceSection}
+          </OptionalSection>
+          <OptionalSection
+            title="More filters"
+            summary="Date posted, education, shift, English, company"
+            badge={moreFilled}
+            hasValues={moreFilled > 0}
+          >
+            {datePostedSection}
+            {educationSection}
+            {shiftSection}
+            {englishSection}
+            {companySection}
+          </OptionalSection>
+        </>
+      ) : (
+        <>
+          {salarySection}
+          {experienceSection}
+          {datePostedSection}
+          {educationSection}
+          {shiftSection}
+          {englishSection}
+          {companySection}
+        </>
+      )}
       <div className="space-y-3 border-t border-border pt-4">
         <label className="flex items-center gap-2 text-sm text-foreground">
           <input

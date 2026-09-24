@@ -35,6 +35,9 @@
   --color-success-foreground: var(--success-foreground);
   --color-success-light: var(--success-light);
   --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-light: var(--warning-light);
+  --color-destructive-light: var(--destructive-light);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -91,8 +94,11 @@
   --success-foreground: oklch(1 0 0);
   --success-light: oklch(0.98 0.025 148);       /* #F0FDF4 */
   --warning: oklch(0.66 0.16 55);               /* #D97706 */
+  --warning-foreground: oklch(1 0 0);
+  --warning-light: oklch(0.98 0.03 65);         /* #FEF3E2 */
   --destructive: oklch(0.58 0.22 27);           /* #DC2626 */
   --destructive-foreground: oklch(1 0 0);
+  --destructive-light: oklch(0.98 0.03 20);     /* #FEF2F2 */
 
   /* Lines & inputs */
   --border: oklch(0.925 0.008 255);             /* #E5E7EB */
@@ -137,8 +143,11 @@
   --success-foreground: oklch(0.18 0.04 268);
   --success-light: oklch(0.28 0.06 148);
   --warning: oklch(0.7 0.16 55);
+  --warning-foreground: oklch(0.18 0.04 268);
+  --warning-light: oklch(0.3 0.06 65);
   --destructive: oklch(0.7 0.19 22);
   --destructive-foreground: oklch(0.98 0.003 247);
+  --destructive-light: oklch(0.3 0.08 20);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.62 0.17 261);
@@ -194,5 +203,37 @@
   .form-input:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+  }
+
+  .collapsible-content {
+    overflow: hidden;
+  }
+  .collapsible-content[data-state="open"] {
+    animation: collapsible-down 0.15s ease-out;
+  }
+  .collapsible-content[data-state="closed"] {
+    animation: collapsible-up 0.15s ease-in;
+  }
+}
+
+@keyframes collapsible-down {
+  from {
+    height: 0;
+    opacity: 0;
+  }
+  to {
+    height: var(--radix-collapsible-content-height);
+    opacity: 1;
+  }
+}
+
+@keyframes collapsible-up {
+  from {
+    height: var(--radix-collapsible-content-height);
+    opacity: 1;
+  }
+  to {
+    height: 0;
+    opacity: 0;
   }
 }

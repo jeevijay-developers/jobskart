@@ -347,8 +347,8 @@ function ResponsesPage() {
       <div className="mb-4 flex items-start gap-2 rounded-xl border border-warning/30 bg-warning-light p-3 text-xs text-warning">
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
         <span>
-          Responses for expired jobs stay accessible for 7 days after expiry, then get locked.
-          Download important candidates in time.
+          Responses for expired jobs stay downloadable for 7 days after expiry, then get locked, and
+          are permanently removed 60 days after expiry. Download important candidates in time.
           {expiringCount > 0 ? ` (${expiringCount} job(s) expiring soon)` : ""}
         </span>
       </div>

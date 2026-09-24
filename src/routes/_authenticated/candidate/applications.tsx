@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { timeAgo, formatSalary } from "@/lib/format";
 import { InterviewInfo, type Interview } from "@/components/candidate/InterviewInfo";
 import { ViewApplicationDialog } from "@/components/candidate/ViewApplicationDialog";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/_authenticated/candidate/applications")({
   head: () => ({ meta: [{ title: "My Applications · JobsKart" }] }),
@@ -36,13 +37,13 @@ const INTERVIEW_SUB_TAB_STATUS: Record<InterviewSubTab, string> = {
   rejected: "rejected",
 };
 
-const statusStyle: Record<string, string> = {
-  applied: "bg-primary-light text-primary",
-  shortlisted: "bg-amber/10 text-amber",
-  interview: "bg-amber/10 text-amber",
-  hired: "bg-success-light text-success",
-  rejected: "bg-destructive/10 text-destructive",
-  withdrawn: "bg-surface text-muted-foreground",
+const statusVariant: Record<string, NonNullable<BadgeProps["variant"]>> = {
+  applied: "info",
+  shortlisted: "warning",
+  interview: "warning",
+  hired: "success",
+  rejected: "danger",
+  withdrawn: "muted",
 };
 
 type Row = {
@@ -202,15 +203,13 @@ function ApplicationsPage() {
                     <Link
                       to="/jobs/$jobId"
                       params={{ jobId: a.jobs?.id || "" }}
-                      className="text-base font-semibold text-foreground hover:text-primary"
+                      className="text-base font-bold text-foreground hover:text-primary"
                     >
                       {a.jobs?.title || "Job removed"}
                     </Link>
-                    <span
-                      className={`rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${statusStyle[a.status] || "bg-surface text-muted-foreground"}`}
-                    >
+                    <Badge variant={statusVariant[a.status] || "muted"} className="rounded-full px-2.5 py-0.5 text-xs capitalize">
                       {a.status}
-                    </span>
+                    </Badge>
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {a.jobs?.companies?.name || "Confidential"}
@@ -219,7 +218,7 @@ function ApplicationsPage() {
                     <span className="flex items-center gap-1">
                       <MapPin className="h-3.5 w-3.5" /> {a.jobs?.city || "—"}
                     </span>
-                    <span>
+                    <span className="font-semibold tabular-nums text-foreground">
                       {formatSalary(
                         a.jobs?.min_salary,
                         a.jobs?.max_salary,

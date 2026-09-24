@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { BadgeCheck, Building2, FileText, Loader2, Mail, ShieldCheck, Upload } from "lucide-react";
 import { EmployerShell } from "@/components/employer/EmployerShell";
+import { ConditionalField } from "@/components/forms/ConditionalField";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchMyCompanies, getActiveCompanyId } from "@/lib/employer";
 
@@ -47,7 +48,8 @@ function VerificationPage() {
       const { data: u } = await supabase.auth.getUser();
       const uid = u.user?.id;
       const docs: { path: string; name: string }[] = [];
-      if (file) {
+      // Strip values belonging to non-active methods from the payload.
+      if (file && method === "manual") {
         const path = `${cid}/kyc/${Date.now()}-${file.name}`;
         const up = await supabase.storage.from("company-docs").upload(path, file, { upsert: false });
         if (up.error) throw up.error;
@@ -55,7 +57,7 @@ function VerificationPage() {
       }
       const { data, error } = await supabase.from("company_verifications").insert({
         company_id: cid, method: method as never, status: "pending" as never,
-        reference: reference.trim() || null, notes: notes.trim() || null,
+        reference: method === "manual" ? null : reference.trim() || null, notes: notes.trim() || null,
         docs: docs as never, submitted_by: uid,
       }).select("*").single();
       if (error) throw error;
@@ -90,7 +92,7 @@ function VerificationPage() {
             })}
           </div>
 
-          {method === "gst" && (
+          <ConditionalField visible={method === "gst"}>
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">Instant verification via your GSTIN, PAN, or CIN. We'll fetch official records and issue a Verified badge.</p>
               <label className="block">
@@ -98,8 +100,8 @@ function VerificationPage() {
                 <input value={reference} onChange={(e) => setReference(e.target.value.toUpperCase())} className="form-input" placeholder="08AARFT8882G1ZA" maxLength={21} />
               </label>
             </div>
-          )}
-          {method === "email" && (
+          </ConditionalField>
+          <ConditionalField visible={method === "email"}>
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">Verify with your official work email (no free providers).</p>
               <label className="block">
@@ -107,8 +109,8 @@ function VerificationPage() {
                 <input value={reference} onChange={(e) => setReference(e.target.value)} className="form-input" placeholder="you@yourcompany.com" type="email" />
               </label>
             </div>
-          )}
-          {method === "manual" && (
+          </ConditionalField>
+          <ConditionalField visible={method === "manual"}>
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">Upload LLP deed, business license, address proof, or Aadhaar of an authorised representative. Reviewed within 24 hours.</p>
               <label className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-dashed border-border bg-surface p-4 hover:border-primary/40">
@@ -120,7 +122,7 @@ function VerificationPage() {
                 <input ref={fileInput} type="file" hidden accept="application/pdf,image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
               </label>
             </div>
-          )}
+          </ConditionalField>
           <label className="mt-3 block">
             <span className="mb-1 block text-xs font-semibold">Notes (optional)</span>
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} className="form-input" placeholder="Any context for our team." />

@@ -56,9 +56,8 @@ export const createRazorpayOrder = createServerFn({ method: "POST" })
     z.object({ companyId: z.string().uuid(), packId: z.string().uuid() }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { getRazorpayKeys, paymentErrorMessage, RAZORPAY_API } = await import(
-      "@/lib/razorpay.server"
-    );
+    const { getRazorpayKeys, paymentErrorMessage, RAZORPAY_API } =
+      await import("@/lib/razorpay.server");
     const { keyId, secret } = getRazorpayKeys();
 
     // Membership check + GST quote + pending order row, all in Postgres.
@@ -250,6 +249,7 @@ export const unlockCandidateContact = createServerFn({ method: "POST" })
     z
       .object({
         companyId: z.string().uuid(),
+        jobId: z.string().uuid(),
         candidateUserId: z.string().uuid(),
       })
       .parse(input),
@@ -261,17 +261,34 @@ export const unlockCandidateContact = createServerFn({ method: "POST" })
 
     const { data: rows, error: unlockErr } = await supabaseAdmin.rpc("unlock_candidate", {
       _company_id: data.companyId,
+      _job_id: data.jobId,
       _candidate_user_id: data.candidateUserId,
       _actor: context.userId,
     });
     if (unlockErr) throw new Error(unlockErr.message);
-    const result = (rows as Array<{ already_unlocked: boolean; balance_after: number }> | null)?.[0];
+    const result = (
+      rows as Array<{
+        already_unlocked: boolean;
+        balance_after: number;
+        source: "already" | "allowance" | "credits";
+        allowance_left: number | null;
+      }> | null
+    )?.[0];
 
     const { data: profile } = await supabaseAdmin
       .from("profiles")
       .select("full_name, mobile, email, city")
       .eq("id", data.candidateUserId)
       .maybeSingle();
+
+    // Audit trail for the leakage-protection rule (rule 3 / rule 6): every
+    // contact reveal is logged, not just the credit/allowance spend.
+    await supabaseAdmin.rpc("log_contact_viewed", {
+      _company_id: data.companyId,
+      _candidate_user_id: data.candidateUserId,
+      _job_id: data.jobId,
+      _actor: context.userId,
+    });
 
     return {
       contact: {
@@ -282,6 +299,8 @@ export const unlockCandidateContact = createServerFn({ method: "POST" })
       },
       alreadyUnlocked: !!result?.already_unlocked,
       balance: result?.balance_after ?? 0,
+      source: result?.source ?? "credits",
+      allowanceLeft: result?.allowance_left ?? null,
     };
   });
 
@@ -296,4 +315,53 @@ export const listUnlockedCandidateIds = createServerFn({ method: "POST" })
       .select("candidate_user_id")
       .eq("company_id", data.companyId);
     return (rows ?? []).map((r) => r.candidate_user_id);
+  });
+
+// ---------------- getUnlockState ----------------
+// Active jobs + their per-job unlock allowance + the wallet balance, in one
+// call, for the Candidate Database job selector's allowance meter.
+export const getUnlockState = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) => z.object({ companyId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    await assertCompanyMember(context.supabase, context.userId, data.companyId);
+
+    const nowIso = new Date().toISOString();
+    const [{ data: jobs }, { data: wallet }] = await Promise.all([
+      context.supabase
+        .from("jobs")
+        .select("id, title")
+        .eq("company_id", data.companyId)
+        .eq("status", "active")
+        .or(`expires_at.is.null,expires_at.gt.${nowIso}`)
+        .order("created_at", { ascending: false }),
+      context.supabase
+        .from("employer_credit_wallets")
+        .select("balance")
+        .eq("company_id", data.companyId)
+        .maybeSingle(),
+    ]);
+
+    const jobIds = (jobs ?? []).map((j) => j.id);
+    const { data: allowances } = jobIds.length
+      ? await context.supabase
+          .from("job_unlock_allowance")
+          .select("job_id, total, used")
+          .in("job_id", jobIds)
+      : { data: [] as Array<{ job_id: string; total: number; used: number }> };
+    const allowanceByJob = new Map((allowances ?? []).map((a) => [a.job_id, a]));
+
+    return {
+      balance: wallet?.balance ?? 0,
+      jobs: (jobs ?? []).map((j) => {
+        const a = allowanceByJob.get(j.id);
+        return {
+          id: j.id,
+          title: j.title,
+          allowanceTotal: a?.total ?? null,
+          allowanceUsed: a?.used ?? null,
+          allowanceLeft: a ? a.total - a.used : null,
+        };
+      }),
+    };
   });

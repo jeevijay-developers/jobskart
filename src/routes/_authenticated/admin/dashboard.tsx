@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUpRight, Briefcase, Building2, FileCheck2, IndianRupee, ShieldAlert, TrendingUp, Users } from "lucide-react";
+import { ArrowUpRight, Briefcase, Building2, FileCheck2, Gauge, IndianRupee, ShieldAlert, TrendingUp, Users } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminOverview } from "@/lib/admin-overview.functions";
 
@@ -46,6 +46,7 @@ function Dash() {
         <Kpi icon={FileCheck2} label="Applications" value={nfmt(data?.applications)} hint={`${nfmt(data?.applications7)} in last 7 days`} tone="success" />
         <Kpi icon={TrendingUp} label="Signups (7d)" value={nfmt(data?.users7)} tone="amber" />
         <Kpi icon={IndianRupee} label="Revenue (30d)" value={`₹${nfmt(data?.revenue30)}`} tone="success" to="/admin/credits" />
+        <Kpi icon={Gauge} label="Job quality (avg)" value={nfmt(data?.qualityAvg)} hint={`${nfmt(data?.qualityPct60)}% of live jobs score 60+`} tone={data && data.qualityAvg >= 60 ? "success" : "amber"} to="/admin/jobs" />
       </div>
 
       <section className="mt-8 grid gap-4 md:grid-cols-2">

@@ -18,7 +18,10 @@ import {
   Activity as ActivityIcon,
 } from "lucide-react";
 import { ActivityFeed, type ActivityItem } from "@/components/employer/ActivityFeed";
-import { EmployerShell, StatCard } from "@/components/employer/EmployerShell";
+import { EmployerShell } from "@/components/employer/EmployerShell";
+import { SectionCard } from "@/components/candidate/primitives";
+import { StatCard } from "@/components/shared/StatCard";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { supabase } from "@/integrations/supabase/client";
 import {
   fetchMyCompanies,
@@ -348,27 +351,30 @@ function EmployerDashboard() {
       <div className="mt-6 grid min-w-0 gap-6 lg:grid-cols-3">
         <div className="min-w-0 space-y-6 lg:col-span-2">
           {/* Activity feed */}
-          <section className="min-w-0 rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <h2 className="flex min-w-0 items-center gap-2 text-base font-bold">
-                <ActivityIcon className="h-4 w-4 shrink-0 text-primary" /> <span className="truncate">Activity</span>
-              </h2>
+          <SectionCard
+            size="compact"
+            icon={ActivityIcon}
+            title="Activity"
+            action={
               <Link to="/employer/activity" className="shrink-0 text-xs font-semibold text-primary">
                 View all →
               </Link>
-            </div>
+            }
+          >
             <ActivityFeed items={activity} loading={activityLoading} />
-          </section>
+          </SectionCard>
 
           {/* Recent applicants */}
-          <section className="min-w-0 rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="min-w-0 truncate text-base font-bold">Recent applicants</h2>
+          <SectionCard
+            size="compact"
+            title="Recent applicants"
+            action={
               <Link to="/employer/responses" className="shrink-0 text-xs font-semibold text-primary">
                 Open inbox →
               </Link>
-            </div>
-            <div className="mt-4 min-w-0 divide-y divide-border">
+            }
+          >
+            <div className="min-w-0 divide-y divide-border">
               {recent.length === 0 ? (
                 <p className="rounded-lg bg-surface px-4 py-8 text-center text-sm leading-relaxed text-muted-foreground break-words">
                   No applicants yet — post a job to start receiving applications.
@@ -404,19 +410,21 @@ function EmployerDashboard() {
                 ))
               )}
             </div>
-          </section>
+          </SectionCard>
         </div>
 
         {/* RIGHT COLUMN */}
         <div className="space-y-6">
           {/* Top jobs */}
-          <section className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-bold">Top performing jobs</h2>
+          <SectionCard
+            size="compact"
+            title="Top performing jobs"
+            action={
               <Link to="/employer/jobs" className="text-xs font-semibold text-primary">
                 All →
               </Link>
-            </div>
+            }
+          >
             {topJobs.length === 0 ? (
               <p className="rounded-lg bg-surface px-3 py-6 text-center text-xs text-muted-foreground">
                 No jobs posted yet
@@ -444,17 +452,19 @@ function EmployerDashboard() {
                 ))}
               </ul>
             )}
-          </section>
+          </SectionCard>
 
           {/* KYC checklist — hidden once all steps are actually complete */}
           {kycDone < kyc.length && (
-            <section className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
-              <div className="mb-3 flex items-center justify-between">
-                <h2 className="text-sm font-bold">Set up checklist</h2>
+            <SectionCard
+              size="compact"
+              title="Set up checklist"
+              action={
                 <span className="text-xs font-semibold text-muted-foreground tabular-nums">
                   {kycDone}/{kyc.length}
                 </span>
-              </div>
+              }
+            >
               <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-surface">
                 <div
                   className="h-full rounded-full bg-primary"
@@ -494,16 +504,12 @@ function EmployerDashboard() {
                   );
                 })}
               </ul>
-            </section>
+            </SectionCard>
           )}
 
           {/* Learning */}
           {learn.length > 0 && (
-            <section className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
-              <div className="mb-3 flex items-center gap-2">
-                <GraduationCap className="h-4 w-4 text-primary" />
-                <h2 className="text-sm font-bold">Hire smarter</h2>
-              </div>
+            <SectionCard size="compact" icon={GraduationCap} title="Hire smarter">
               <ul className="space-y-2">
                 {learn.map((l) => (
                   <li key={l.id}>
@@ -528,25 +534,21 @@ function EmployerDashboard() {
                   </li>
                 ))}
               </ul>
-            </section>
+            </SectionCard>
           )}
         </div>
       </div>
 
       {/* Empty state */}
       {stats.activeJobs === 0 && (
-        <div className="mt-6 rounded-2xl border-2 border-dashed border-border bg-card p-8 text-center">
-          <Briefcase className="mx-auto h-10 w-10 text-muted-foreground" />
-          <h3 className="mt-3 text-lg font-bold">Post your first job to get discovered</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Free to post · Reach 50 lakh+ candidates across India
-          </p>
-          <Link
-            to="/employer/jobs/new"
-            className="mt-4 inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark"
-          >
-            <Plus className="h-4 w-4" /> Post a job
-          </Link>
+        <div className="mt-6">
+          <EmptyState
+            icon={Briefcase}
+            title="Post your first job to get discovered"
+            body="Free to post · Reach 50 lakh+ candidates across India"
+            ctaLabel="Post a job"
+            ctaTo="/employer/jobs/new"
+          />
         </div>
       )}
 

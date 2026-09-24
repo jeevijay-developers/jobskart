@@ -1,10 +1,13 @@
 import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import {
-  Briefcase, ChevronDown, ChevronRight, Copy, Eye, Filter, MoreVertical, Pause, Pencil, Play, Plus, Search, Trash2, Users,
+  Briefcase, CalendarClock, ChevronDown, ChevronRight, Copy, Eye, Filter, MoreVertical, Pause, Pencil, Play, Plus, RefreshCw, Rocket, Search, Trash2, Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { EmployerShell, CreditChip } from "@/components/employer/EmployerShell";
+import { BoostJobModal } from "@/components/employer/BoostJobModal";
+import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -15,6 +18,9 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { fetchMyCompanies, getActiveCompanyId } from "@/lib/employer";
 import { formatSalary, jobTypeLabel } from "@/lib/format";
+import { getBoostOverview } from "@/lib/boost.functions";
+import { getExpiryState, mapExpiryError, renewJob, setJobAutoRenew } from "@/lib/expiry.functions";
+import { jobQualityLabel } from "@/lib/jobQuality";
 import { formatDistanceToNow } from "date-fns";
 
 // "Load More Jobs": reveal BATCH_SIZE more jobs per click, buffered from a
@@ -39,10 +45,23 @@ type Job = {
   salary_period: string | null;
   applications_count: number | null;
   views_count: number | null;
+  quality_score: number | null;
   created_at: string;
+  expires_at: string | null;
+  auto_renew: boolean;
+  renewed_count: number;
 };
 
 const STATUSES = ["all", "active", "paused", "closed", "draft"] as const;
+
+// Presentation-only "gamification" — derived entirely from existing
+// quality_score data, no points economy or new tables (see
+// job-quality-score-implementation.md, decision (d)).
+function posterLevel(stats: { avg: number; total: number }): string {
+  if (stats.avg >= 75 && stats.total >= 5) return "Elite Poster";
+  if (stats.avg >= 55 && stats.total >= 2) return "Pro Poster";
+  return "Starter Poster";
+}
 
 function EmployerJobs() {
   const { pathname } = useLocation();
@@ -51,11 +70,18 @@ function EmployerJobs() {
   return <EmployerJobsList />;
 }
 
+const DEFAULT_BOOST_OVERVIEW = {
+  balance: 0,
+  settings: { costCredits: 1, windowHours: 24, enabled: true },
+  activeBoostEndsAtByJobId: {} as Record<string, string>,
+};
+
 function EmployerJobsList() {
   const [cid, setCid] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [counts, setCounts] = useState<Record<string, number>>({ all: 0, active: 0, paused: 0, closed: 0, draft: 0 });
+  const [qualityStats, setQualityStats] = useState<{ avg: number; excellentCount: number; total: number } | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -86,16 +112,95 @@ function EmployerJobsList() {
   }, []);
 
   const loadCounts = async (companyId: string) => {
-    const { data, error } = await supabase.from("jobs").select("status").eq("company_id", companyId);
+    const { data, error } = await supabase.from("jobs").select("status, quality_score").eq("company_id", companyId);
     if (error) return toast.error(error.message);
-    const rows = (data || []) as { status: string }[];
+    const rows = (data || []) as { status: string; quality_score: number | null }[];
     const c: Record<string, number> = { all: rows.length };
     for (const s of ["active", "paused", "closed", "draft"]) {
       c[s] = rows.filter((r) => r.status === s).length;
     }
     setCounts(c);
+
+    const liveRows = rows.filter((r) => r.status === "active" || r.status === "paused");
+    if (liveRows.length > 0) {
+      const scores = liveRows.map((r) => r.quality_score ?? 0);
+      setQualityStats({
+        avg: Math.round(scores.reduce((a, b) => a + b, 0) / scores.length),
+        excellentCount: scores.filter((s) => s >= 80).length,
+        total: scores.length,
+      });
+    } else {
+      setQualityStats(null);
+    }
   };
   useEffect(() => { if (cid) loadCounts(cid); /* eslint-disable-next-line */ }, [cid]);
+
+  const runGetBoostOverview = useServerFn(getBoostOverview);
+  const [boostOverview, setBoostOverview] = useState(DEFAULT_BOOST_OVERVIEW);
+  const [boostTarget, setBoostTarget] = useState<Job | null>(null);
+  const loadBoostOverview = async (companyId: string) => {
+    try {
+      const overview = await runGetBoostOverview({ data: { companyId } });
+      setBoostOverview(overview);
+    } catch {
+      /* non-critical — boost button just falls back to defaults */
+    }
+  };
+  useEffect(() => { if (cid) loadBoostOverview(cid); /* eslint-disable-next-line */ }, [cid]);
+
+  const runGetExpiryState = useServerFn(getExpiryState);
+  const runRenewJob = useServerFn(renewJob);
+  const runSetAutoRenew = useServerFn(setJobAutoRenew);
+  const [expiry, setExpiry] = useState<{
+    jobs: Record<string, { expires_at: string | null; auto_renew: boolean; renewed_count: number }>;
+    entitlement: { enabled: boolean; maxTimes: number };
+  }>({ jobs: {}, entitlement: { enabled: false, maxTimes: 3 } });
+  const [renewTarget, setRenewTarget] = useState<Job | null>(null);
+  const [renewBusy, setRenewBusy] = useState(false);
+
+  const loadExpiryState = async (companyId: string) => {
+    try {
+      const s = await runGetExpiryState({ data: { companyId } });
+      const byId: Record<string, { expires_at: string | null; auto_renew: boolean; renewed_count: number }> = {};
+      for (const j of s.jobs) byId[j.id] = { expires_at: j.expires_at, auto_renew: j.auto_renew, renewed_count: j.renewed_count };
+      setExpiry({ jobs: byId, entitlement: s.entitlement });
+    } catch {
+      /* non-critical — chips/toggle just stay hidden */
+    }
+  };
+  useEffect(() => { if (cid) loadExpiryState(cid); /* eslint-disable-next-line */ }, [cid]);
+
+  const patchJob = (id: string, patch: Partial<Job>) =>
+    setJobs((js) => js.map((j) => (j.id === id ? { ...j, ...patch } : j)));
+
+  const confirmRenew = async () => {
+    if (!renewTarget || !cid) return;
+    setRenewBusy(true);
+    try {
+      const r = await runRenewJob({ data: { jobId: renewTarget.id } });
+      toast.success(`Renewed until ${new Date(r.expires_at).toLocaleDateString("en-IN", { dateStyle: "medium" })}.`);
+      patchJob(renewTarget.id, { status: "active", expires_at: r.expires_at, renewed_count: 0 });
+      setRenewTarget(null);
+      loadExpiryState(cid);
+      loadCounts(cid);
+    } catch (e) {
+      toast.error(mapExpiryError(e instanceof Error ? e.message : "Could not renew this job."));
+    } finally {
+      setRenewBusy(false);
+    }
+  };
+
+  const toggleAutoRenew = async (job: Job, enabled: boolean) => {
+    if (!cid) return;
+    try {
+      await runSetAutoRenew({ data: { jobId: job.id, enabled } });
+      toast.success(enabled ? "Auto-renew enabled." : "Auto-renew disabled.");
+      patchJob(job.id, { auto_renew: enabled });
+      loadExpiryState(cid);
+    } catch (e) {
+      toast.error(mapExpiryError(e instanceof Error ? e.message : "Could not update auto-renew."));
+    }
+  };
 
   // "Load More Jobs": `jobs` is the full buffer fetched so far for the
   // current filters, `visibleCount` is how many of those are actually shown.
@@ -111,7 +216,7 @@ function EmployerJobsList() {
     let q = supabase
       .from("jobs")
       .select(
-        "id, title, city, status, job_type, min_salary, max_salary, salary_period, applications_count, views_count, created_at",
+        "id, title, city, status, job_type, min_salary, max_salary, salary_period, applications_count, views_count, quality_score, created_at, expires_at, auto_renew, renewed_count",
       )
       .eq("company_id", cid as string)
       .order("created_at", { ascending: false });
@@ -305,6 +410,23 @@ function EmployerJobsList() {
         )
       }
     >
+      {qualityStats && (
+        <div className="mb-5 flex flex-wrap items-center gap-4 rounded-xl border border-border bg-card px-4 py-3">
+          <div>
+            <p className="text-[11px] font-medium uppercase text-muted-foreground">Poster level</p>
+            <p className="text-sm font-bold text-primary">{posterLevel(qualityStats)}</p>
+          </div>
+          <div>
+            <p className="text-[11px] font-medium uppercase text-muted-foreground">Avg. quality</p>
+            <p className="text-sm font-bold">{qualityStats.avg}/100</p>
+          </div>
+          <div>
+            <p className="text-[11px] font-medium uppercase text-muted-foreground">Excellent posts</p>
+            <p className="text-sm font-bold">{qualityStats.excellentCount} of {qualityStats.total}</p>
+          </div>
+        </div>
+      )}
+
       <div className="mb-5 flex flex-nowrap items-center gap-2 sm:flex-wrap sm:gap-3">
         <div className="relative min-w-0 flex-1 sm:w-full sm:max-w-xs sm:flex-initial">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -385,13 +507,59 @@ function EmployerJobsList() {
                     >
                       {j.title}
                     </Link>
-                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
-                      j.status === "active" ? "bg-success-light text-success" :
-                      j.status === "paused" ? "bg-warning-light text-warning" :
-                      "bg-surface text-muted-foreground"
-                    }`}>{j.status}</span>
+                    <Badge
+                      variant={j.status === "active" ? "success" : j.status === "paused" ? "warning" : "muted"}
+                      className="shrink-0 rounded-full px-2 py-0.5 text-[10px] uppercase"
+                    >
+                      {j.status}
+                    </Badge>
+                    {boostOverview.activeBoostEndsAtByJobId[j.id] && new Date(boostOverview.activeBoostEndsAtByJobId[j.id]) > new Date() && (
+                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary-light px-2 py-0.5 text-[10px] font-semibold uppercase text-primary">
+                        <Rocket className="h-3 w-3" /> Boosted · {formatDistanceToNow(new Date(boostOverview.activeBoostEndsAtByJobId[j.id]))} left
+                      </span>
+                    )}
+                    {j.status === "active" && j.expires_at && (() => {
+                      const days = Math.ceil((new Date(j.expires_at).getTime() - Date.now()) / 86_400_000);
+                      const cls = days <= 2 ? "bg-destructive-light text-destructive" : days <= 7 ? "bg-warning-light text-warning" : "bg-surface text-muted-foreground";
+                      return (
+                        <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${cls}`}>
+                          <CalendarClock className="h-3 w-3" /> {days <= 0 ? "Expiring" : `Expires in ${days}d`}
+                        </span>
+                      );
+                    })()}
+                    {j.status === "active" && expiry.jobs[j.id]?.auto_renew && (
+                      <span className="shrink-0 rounded-full bg-surface px-2 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground">
+                        Auto-renew on
+                      </span>
+                    )}
+                    {j.status !== "draft" && (() => {
+                      const { label, color } = jobQualityLabel(j.quality_score ?? 0);
+                      return (
+                        <span className={`shrink-0 rounded-full bg-surface px-2 py-0.5 text-[10px] font-semibold uppercase ${color}`}>
+                          {label} · {j.quality_score ?? 0}
+                        </span>
+                      );
+                    })()}
+                    {j.status !== "draft" && (j.quality_score ?? 0) < 60 && (
+                      <Link
+                        to="/employer/jobs/$jobId/edit"
+                        params={{ jobId: j.id }}
+                        className="shrink-0 text-[10px] font-semibold text-primary hover:underline"
+                      >
+                        Improve
+                      </Link>
+                    )}
 
-                    {/* Desktop: Copy/Edit stay as always-visible icon buttons. */}
+                    {/* Desktop: Copy/Edit/Boost stay as always-visible icon buttons. */}
+                    {j.status === "active" && (
+                      <button
+                        onClick={() => setBoostTarget(j)}
+                        title="Boost this job"
+                        className="hidden h-7 w-7 shrink-0 place-items-center rounded-lg border border-border bg-card text-foreground hover:bg-surface sm:grid"
+                      >
+                        <Rocket className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                     <button onClick={() => duplicate(j.id)} title="Duplicate" className="hidden h-7 w-7 shrink-0 place-items-center rounded-lg border border-border bg-card text-foreground hover:bg-surface sm:grid">
                       <Copy className="h-3.5 w-3.5" />
                     </button>
@@ -409,6 +577,11 @@ function EmployerJobsList() {
                         <Play className="h-3.5 w-3.5" /> Resume
                       </button>
                     )}
+                    {j.status === "expired" && (
+                      <button onClick={() => setRenewTarget(j)} className="inline-flex h-7 shrink-0 items-center gap-1 rounded-lg border border-border bg-card px-2 text-xs font-semibold hover:bg-surface">
+                        <RefreshCw className="h-3.5 w-3.5" /> Renew &amp; relist
+                      </button>
+                    )}
 
                     {/* Mobile: Copy/Edit collapse into a single ⋮ menu, pinned to the far right of this row. */}
                     <DropdownMenu>
@@ -423,6 +596,25 @@ function EmployerJobsList() {
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-40">
+                        {j.status === "active" && (
+                          <DropdownMenuItem onClick={() => setBoostTarget(j)}>
+                            <Rocket className="mr-2 h-3.5 w-3.5" /> Boost
+                          </DropdownMenuItem>
+                        )}
+                        {j.status === "active" && (
+                          <DropdownMenuItem onClick={() => setRenewTarget(j)}>
+                            <RefreshCw className="mr-2 h-3.5 w-3.5" /> Renew
+                          </DropdownMenuItem>
+                        )}
+                        {j.status === "active" && (
+                          <DropdownMenuItem
+                            onClick={() => toggleAutoRenew(j, !expiry.jobs[j.id]?.auto_renew)}
+                            disabled={!expiry.jobs[j.id]?.auto_renew && !expiry.entitlement.enabled}
+                            title={!expiry.entitlement.enabled ? "Auto-renew is a paid-plan feature" : undefined}
+                          >
+                            <CalendarClock className="mr-2 h-3.5 w-3.5" /> Auto-renew: {expiry.jobs[j.id]?.auto_renew ? "On" : "Off"}
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem onClick={() => duplicate(j.id)}>
                           <Copy className="mr-2 h-3.5 w-3.5" /> Copy
                         </DropdownMenuItem>
@@ -437,6 +629,16 @@ function EmployerJobsList() {
                   <p className="mt-1 text-sm text-muted-foreground">
                     {jobTypeLabel(j.job_type)} · {j.city || "Multiple cities"} · {formatSalary(j.min_salary, j.max_salary, j.salary_period || "monthly")}
                   </p>
+                  {j.status === "draft" && (
+                    <div className="mt-2">
+                      <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+                        <span>{j.quality_score ?? 0}% complete — finish now</span>
+                      </div>
+                      <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-border">
+                        <div className="h-full rounded-full bg-primary" style={{ width: `${j.quality_score ?? 0}%` }} />
+                      </div>
+                    </div>
+                  )}
                   <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                     <Link
                       to="/employer/jobs/$jobId/applicants"
@@ -486,6 +688,39 @@ function EmployerJobsList() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {boostTarget && (
+        <BoostJobModal
+          open={!!boostTarget}
+          onOpenChange={(v) => { if (!v) setBoostTarget(null); }}
+          job={{ id: boostTarget.id, title: boostTarget.title, createdAt: boostTarget.created_at }}
+          balance={boostOverview.balance}
+          settings={boostOverview.settings}
+          onBoosted={() => {
+            setBoostTarget(null);
+            if (cid) loadBoostOverview(cid);
+          }}
+        />
+      )}
+
+      <AlertDialog open={!!renewTarget} onOpenChange={(v) => { if (!v && !renewBusy) setRenewTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Renew "{renewTarget?.title}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {renewTarget?.status === "expired"
+                ? "This job expired and is hidden from candidates. Renewing relists it immediately for a fresh validity period."
+                : "Renewing extends this job's validity from its current expiry date — you won't lose any remaining days."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={renewBusy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction disabled={renewBusy} onClick={(e) => { e.preventDefault(); confirmRenew(); }}>
+              {renewBusy ? "Renewing…" : "Renew job"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

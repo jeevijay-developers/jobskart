@@ -74,7 +74,7 @@ export function EmployerShell({
   return (
     <div className="min-h-screen bg-surface pb-24 lg:pb-0">
       <Navbar />
-      <div className="mx-auto flex w-full max-w-7xl gap-6 overflow-x-hidden px-3 py-6 sm:px-6 lg:px-8">
+      <div className="mx-auto flex w-full max-w-7xl gap-6 overflow-x-hidden px-4 py-6 sm:px-6 lg:px-8">
         <aside className="hidden w-60 shrink-0 lg:block">
           <nav className="sticky top-20 space-y-1 rounded-2xl border border-border bg-card p-3 shadow-[var(--shadow-card)]">
             <Link
@@ -105,7 +105,7 @@ export function EmployerShell({
           <header className="mb-6 flex flex-row flex-wrap items-start justify-between gap-3 sm:items-end">
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-3">
-                <h1 className="whitespace-normal break-words text-xl font-bold leading-tight text-foreground sm:truncate sm:text-2xl lg:text-3xl">{title}</h1>
+                <h1 className="whitespace-normal break-words text-2xl font-bold leading-tight tracking-tight text-foreground sm:truncate sm:text-3xl">{title}</h1>
                 {headerLeft}
               </div>
               {subtitle ? <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p> : null}
@@ -149,43 +149,6 @@ export function EmployerShell({
           );
         })}
       </nav>
-    </div>
-  );
-}
-
-export function StatCard({
-  label,
-  value,
-  hint,
-  delta,
-  tone = "primary",
-}: {
-  label: string;
-  value: string | number;
-  hint?: string;
-  delta?: number;
-  tone?: "primary" | "success" | "warning" | "muted";
-}) {
-  const tones: Record<string, string> = {
-    primary: "bg-primary-light text-primary",
-    success: "bg-success-light text-success",
-    warning: "bg-warning-light text-warning",
-    muted: "bg-surface text-muted-foreground",
-  };
-  return (
-    <div className="flex min-w-0 flex-col rounded-2xl border border-border bg-card p-3.5 shadow-[var(--shadow-card)] sm:p-5">
-      <p className="truncate text-[11px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-xs">{label}</p>
-      <p className="mt-2 text-2xl font-bold text-foreground tabular-nums sm:text-3xl">{value}</p>
-      <div className="mt-2 flex min-h-[22px] flex-wrap items-center gap-1.5 sm:gap-2">
-        {hint ? (
-          <span className={`inline-block truncate rounded-full px-2 py-0.5 text-[11px] font-medium sm:text-xs ${tones[tone]}`}>{hint}</span>
-        ) : null}
-        {typeof delta === "number" && delta !== 0 ? (
-          <span className={`text-xs font-semibold tabular-nums ${delta > 0 ? "text-success" : "text-destructive"}`}>
-            {delta > 0 ? "▲" : "▼"} {Math.abs(delta)}
-          </span>
-        ) : null}
-      </div>
     </div>
   );
 }

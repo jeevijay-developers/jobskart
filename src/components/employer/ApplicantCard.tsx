@@ -24,9 +24,11 @@ type Props = {
   onToggleSelect: () => void;
   onStatusChange: (status: string) => void;
   onView: () => void;
+  matchScore?: number | null;
+  tags?: string[];
 };
 
-export function ApplicantCard({ applicant: a, selected, onToggleSelect, onStatusChange, onView }: Props) {
+export function ApplicantCard({ applicant: a, selected, onToggleSelect, onStatusChange, onView, matchScore, tags }: Props) {
   const cp = a.candidate_profiles;
   const experienceLabel = cp
     ? cp.experience_status === "fresher"
@@ -57,6 +59,16 @@ export function ApplicantCard({ applicant: a, selected, onToggleSelect, onStatus
             <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${applicantStatusTone(a.status)}`}>
               {applicantStatusLabel(a.status)}
             </span>
+            {typeof matchScore === "number" && (
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                matchScore >= 80 ? "bg-success-light text-success" : matchScore >= 60 ? "bg-warning-light text-warning" : "bg-surface text-muted-foreground"
+              }`}>
+                {matchScore}% Match
+              </span>
+            )}
+            {(tags ?? []).slice(0, 3).map((t) => (
+              <span key={t} className="rounded-full bg-primary-light px-2 py-0.5 text-[10px] font-medium text-primary">{t}</span>
+            ))}
           </div>
           {(cp?.headline || cp?.last_role) && (
             <p className="truncate text-xs text-muted-foreground">{cp?.headline || cp?.last_role}</p>

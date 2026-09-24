@@ -14,7 +14,7 @@ export const adminOverview = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const since7 = new Date(Date.now() - 7 * 86400e3).toISOString();
     const since30 = new Date(Date.now() - 30 * 86400e3).toISOString();
-    const [users, users7, candidates, employers, companies, jobs, jobsOpen, apps, apps7, kycPending, revPaid] = await Promise.all([
+    const [users, users7, candidates, employers, companies, jobs, jobsOpen, apps, apps7, kycPending, revPaid, qualityRows] = await Promise.all([
       supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }),
       supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }).gte("created_at", since7),
       supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }).eq("user_type", "candidate"),
@@ -26,8 +26,15 @@ export const adminOverview = createServerFn({ method: "GET" })
       supabaseAdmin.from("applications").select("id", { count: "exact", head: true }).gte("created_at", since7),
       supabaseAdmin.from("companies").select("id", { count: "exact", head: true }).eq("verification_status", "pending"),
       supabaseAdmin.from("razorpay_orders").select("amount_inr, created_at").eq("status", "paid").gte("created_at", since30),
+      // Quality distribution across live jobs (quality-score plan Phase 5):
+      // avg score + share of posts at Good (60+) — "increase posting quality"
+      // as a trackable platform metric.
+      supabaseAdmin.from("jobs").select("quality_score").eq("status", "active").limit(5000),
     ]);
     const revenue30 = ((revPaid.data ?? []) as Array<{ amount_inr: number | null }>).reduce((s, r) => s + (r.amount_inr ?? 0), 0);
+    const scores = ((qualityRows.data ?? []) as Array<{ quality_score: number | null }>).map((r) => r.quality_score ?? 0);
+    const qualityAvg = scores.length ? Math.round(scores.reduce((s, n) => s + n, 0) / scores.length) : 0;
+    const qualityPct60 = scores.length ? Math.round((scores.filter((n) => n >= 60).length / scores.length) * 100) : 0;
     return {
       users: users.count ?? 0,
       users7: users7.count ?? 0,
@@ -40,5 +47,7 @@ export const adminOverview = createServerFn({ method: "GET" })
       applications7: apps7.count ?? 0,
       kycPending: kycPending.count ?? 0,
       revenue30,
+      qualityAvg,
+      qualityPct60,
     };
   });

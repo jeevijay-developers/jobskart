@@ -13,6 +13,7 @@ import {
   type WizardStep,
 } from "@/components/wizard/Questionnaire";
 import { Field } from "@/components/candidate/primitives";
+import { OptionalSection } from "@/components/forms/OptionalSection";
 import { Building2, Upload, Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/onboarding/employer")({
@@ -205,15 +206,20 @@ function EmployerOnboarding() {
               ))}
             </div>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Team size">
-              <ChipChoice
-                value={size}
-                onChange={(v) => setSize(v as string)}
-                options={SIZES.map((s) => ({ value: s.value, label: s.label, hint: s.hint }))}
-              />
-            </Field>
-            <Field label="Founded year (optional)">
+          <Field label="Team size">
+            <ChipChoice
+              value={size}
+              onChange={(v) => setSize(v as string)}
+              options={SIZES.map((s) => ({ value: s.value, label: s.label, hint: s.hint }))}
+            />
+          </Field>
+          <OptionalSection
+            title="Optional details"
+            summary="Founded year — you can add this later"
+            badge={foundedYear ? 1 : 0}
+            hasValues={!!foundedYear}
+          >
+            <Field label="Founded year">
               <input
                 type="number"
                 value={foundedYear}
@@ -224,7 +230,7 @@ function EmployerOnboarding() {
                 max={new Date().getFullYear()}
               />
             </Field>
-          </div>
+          </OptionalSection>
         </div>
       ),
     },
@@ -300,15 +306,6 @@ function EmployerOnboarding() {
               />
             </label>
           </Field>
-          <Field label="Website (optional)">
-            <input
-              type="url"
-              value={website}
-              onChange={(e) => setWebsite(e.target.value)}
-              className="form-input"
-              placeholder="https://"
-            />
-          </Field>
           <Field label="Short about" hint={`${about.length}/500 — one paragraph elevator pitch.`}>
             <BigTextarea
               rows={4}
@@ -319,15 +316,31 @@ function EmployerOnboarding() {
               className="text-base"
             />
           </Field>
-          <Field label="GST number (optional)" hint="Required for the verified employer badge — you can add this later from Company → KYC.">
-            <input
-              value={gst}
-              onChange={(e) => setGst(e.target.value.toUpperCase())}
-              className="form-input"
-              placeholder="22AAAAA0000A1Z5"
-              maxLength={15}
-            />
-          </Field>
+          <OptionalSection
+            title="Optional details"
+            summary="Website & GST — can be added later"
+            badge={(website ? 1 : 0) + (gst ? 1 : 0)}
+            hasValues={!!website || !!gst}
+          >
+            <Field label="Website">
+              <input
+                type="url"
+                value={website}
+                onChange={(e) => setWebsite(e.target.value)}
+                className="form-input"
+                placeholder="https://"
+              />
+            </Field>
+            <Field label="GST number" hint="Required for the verified employer badge — you can add this later from Company → KYC.">
+              <input
+                value={gst}
+                onChange={(e) => setGst(e.target.value.toUpperCase())}
+                className="form-input"
+                placeholder="22AAAAA0000A1Z5"
+                maxLength={15}
+              />
+            </Field>
+          </OptionalSection>
         </div>
       ),
     },

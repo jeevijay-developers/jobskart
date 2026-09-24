@@ -4,6 +4,7 @@ import { Building2, Camera, ChevronDown, ChevronUp, Loader2, ShieldCheck, Upload
 import { toast } from "sonner";
 import { EmployerShell } from "@/components/employer/EmployerShell";
 import { Field } from "@/components/candidate/primitives";
+import { Badge } from "@/components/ui/badge";
 import { StateDropdown } from "@/components/candidate/StateDropdown";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchMyCompanies, getActiveCompanyId } from "@/lib/employer";
@@ -140,13 +141,13 @@ function CompanyPage() {
             <p className="text-xs text-muted-foreground">{c.industry || "Set industry"}</p>
             <div className="mt-3">
               {verified ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-success-light px-3 py-1 text-xs font-semibold text-success">
+                <Badge variant="success" className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs">
                   <ShieldCheck className="h-3 w-3" /> Verified employer
-                </span>
+                </Badge>
               ) : (
-                <span className="inline-flex items-center gap-1 rounded-full bg-warning-light px-3 py-1 text-xs font-semibold text-warning">
+                <Badge variant="warning" className="rounded-full px-3 py-1 text-xs">
                   Verification pending
-                </span>
+                </Badge>
               )}
             </div>
             {c.slug && (
@@ -165,7 +166,7 @@ function CompanyPage() {
               {docs.map((d) => (
                 <div key={d.id} className="flex items-center justify-between rounded-lg bg-surface px-3 py-2 text-xs">
                   <span className="truncate font-medium">{d.file_name || d.doc_type}</span>
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${d.status === "verified" ? "bg-success-light text-success" : "bg-warning-light text-warning"}`}>{d.status}</span>
+                  <Badge variant={d.status === "verified" ? "success" : "warning"} className="rounded-full px-2 py-0.5 text-[10px]">{d.status}</Badge>
                 </div>
               ))}
             </div>

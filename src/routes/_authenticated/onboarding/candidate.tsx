@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { Navbar } from "@/components/site/Navbar";
 import { ChipInput, Field, SectionCard } from "@/components/candidate/primitives";
+import { ConditionalField } from "@/components/forms/ConditionalField";
+import { OptionalSection } from "@/components/forms/OptionalSection";
 import { JobTitleAutocomplete } from "@/components/candidate/JobTitleAutocomplete";
 import { supabase } from "@/integrations/supabase/client";
 import { INDIAN_CITIES, SUGGESTED_LANGUAGES, JOB_TYPE_OPTIONS, WORK_MODES, suggestRelatedRoles, suggestSkillsForRoles, DEFAULT_SKILL_SUGGESTIONS } from "@/lib/options";
@@ -99,6 +101,9 @@ function OnboardingPage() {
   const [fullName, setFullName] = useState("");
   const [mobile, setMobile] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
+  // When false, WhatsApp silently mirrors the (OTP-verified) mobile number and
+  // the input stays hidden — only revealed via "Use a different number".
+  const [whatsappCustom, setWhatsappCustom] = useState(false);
   const [whatsappOptIn, setWhatsappOptIn] = useState(true);
   const [city, setCity] = useState("");
   const [dob, setDob] = useState("");
@@ -163,7 +168,9 @@ function OnboardingPage() {
         setNoticeDays(c.notice_period_days ?? 0);
         if (c.resume_url) setResume({ name: c.resume_name || "Resume", path: c.resume_url });
         const cExt = c as unknown as { whatsapp_number?: string | null; whatsapp_opt_in?: boolean | null; highest_qualification?: string | null; interested_roles?: string[] | null };
-        setWhatsapp(to10(cExt.whatsapp_number || p?.mobile));
+        const savedWa = to10(cExt.whatsapp_number || "");
+        setWhatsapp(savedWa || to10(p?.mobile));
+        setWhatsappCustom(!!savedWa && savedWa !== to10(p?.mobile));
         setWhatsappOptIn(cExt.whatsapp_opt_in ?? true);
         setHighestQualification(cExt.highest_qualification || "");
         setInterestedRoles(cExt.interested_roles || []);
@@ -314,7 +321,7 @@ function OnboardingPage() {
           resume_url: resume?.path || null,
           resume_name: resume?.name || null,
           profile_strength: strength,
-          whatsapp_number: toE164(whatsapp),
+          whatsapp_number: toE164(whatsappCustom ? whatsapp : mobile),
           whatsapp_opt_in: whatsappOptIn,
           highest_qualification: highestQualification || null,
           interested_roles: interestedRoles,
@@ -386,9 +393,11 @@ function OnboardingPage() {
       if (!name.success) return name.error.issues[0].message;
       const mob = mobileSchema.safeParse(mobile);
       if (!mob.success) return mob.error.issues[0].message;
-      if (!whatsapp) return "Please enter your WhatsApp number.";
-      const w = mobileSchema.safeParse(whatsapp);
-      if (!w.success) return "WhatsApp: " + w.error.issues[0].message;
+      if (whatsappCustom) {
+        if (!whatsapp) return "Please enter your WhatsApp number.";
+        const w = mobileSchema.safeParse(whatsapp);
+        if (!w.success) return "WhatsApp: " + w.error.issues[0].message;
+      }
       if (headline) {
         const h = headlineSchema.safeParse(headline);
         if (!h.success) return h.error.issues[0].message;
@@ -661,15 +670,37 @@ function OnboardingPage() {
                         <Field
                           label="WhatsApp number"
                           required
-                          hint="Defaults to your mobile — change if different"
-                          error={whatsapp.length === 10 && !mobileSchema.safeParse(whatsapp).success ? "Enter a valid 10-digit mobile number" : undefined}
+                          error={whatsappCustom && whatsapp.length === 10 && !mobileSchema.safeParse(whatsapp).success ? "Enter a valid 10-digit mobile number" : undefined}
                         >
-                          <input
-                            className="form-input"
-                            value={whatsapp}
-                            onChange={(e) => setWhatsapp(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                            placeholder="WhatsApp 10-digit number"
-                          />
+                          <ConditionalField visible={!whatsappCustom}>
+                            <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface px-3 py-2.5">
+                              <p className="min-w-0 truncate text-sm text-foreground/80">
+                                Same as mobile{mobile ? <span className="ml-1 font-medium tabular-nums">+91 {mobile}</span> : null}
+                              </p>
+                              <button
+                                type="button"
+                                onClick={() => setWhatsappCustom(true)}
+                                className="shrink-0 text-xs font-semibold text-primary hover:underline"
+                              >
+                                Use a different number
+                              </button>
+                            </div>
+                          </ConditionalField>
+                          <ConditionalField visible={whatsappCustom}>
+                            <input
+                              className="form-input"
+                              value={whatsapp}
+                              onChange={(e) => setWhatsapp(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                              placeholder="WhatsApp 10-digit number"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => { setWhatsappCustom(false); setWhatsapp(""); }}
+                              className="mt-1.5 text-xs font-semibold text-primary hover:underline"
+                            >
+                              Use my mobile number instead
+                            </button>
+                          </ConditionalField>
                           <label className="mt-2 flex items-start gap-2 text-xs text-foreground/80">
                             <input type="checkbox" checked={whatsappOptIn} onChange={(e) => setWhatsappOptIn(e.target.checked)} />
                             <span>Receive updates, alerts, and notifications on WhatsApp</span>
@@ -835,12 +866,21 @@ function OnboardingPage() {
                         <p className="text-sm text-muted-foreground">No skills added yet — use Edit to add some.</p>
                       )}
                     </SectionCard>
-                    <SectionCard title="Languages you know" action={
-                      <button type="button" onClick={() => setLanguages([...languages, { language: "", proficiency: "conversational", can_read: true, can_write: true }])}
-                        className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark">
-                        <Plus className="h-4 w-4" /> Add
-                      </button>
-                    }>
+                    <OptionalSection
+                      title="Languages you know"
+                      summary="Optional — you can skip and add languages later"
+                      badge={languages.filter((l) => l.language.trim()).length}
+                      hasValues={languages.some((l) => l.language.trim())}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-xs text-muted-foreground">
+                          Optional — knowing more languages helps employers match you.
+                        </p>
+                        <button type="button" onClick={() => setLanguages([...languages, { language: "", proficiency: "conversational", can_read: true, can_write: true }])}
+                          className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark">
+                          <Plus className="h-4 w-4" /> Add
+                        </button>
+                      </div>
                       <div className="space-y-3">
                         {languages.map((l, i) => (
                           <div key={i} className="grid items-end gap-3 rounded-xl border border-border bg-surface p-3 sm:grid-cols-[1.2fr_1fr_auto_auto_auto]">
@@ -859,7 +899,7 @@ function OnboardingPage() {
                         ))}
                       </div>
                       <datalist id="lang-suggestions">{langMaster.map((l) => <option key={l} value={l} />)}</datalist>
-                    </SectionCard>
+                    </OptionalSection>
                     <SectionCard title="What do you have?">
                       <div className="flex flex-wrap gap-2">
                         {(visibleAssets.length ? visibleAssets : assetsMaster).map((a) => {

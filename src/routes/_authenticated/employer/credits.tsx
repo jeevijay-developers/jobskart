@@ -82,6 +82,16 @@ function CreditsPage() {
   const [packs, setPacks] = useState<Pack[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [buyingId, setBuyingId] = useState<string | null>(null);
+  const [boostCost, setBoostCost] = useState<number | null>(null);
+
+  useEffect(() => {
+    supabase
+      .from("boost_settings")
+      .select("cost_credits")
+      .eq("id", 1)
+      .maybeSingle()
+      .then(({ data }) => setBoostCost(data?.cost_credits ?? null));
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -254,6 +264,9 @@ function CreditsPage() {
             <h2 className="text-lg font-bold text-foreground">Buy credits</h2>
             <p className="text-sm text-muted-foreground">
               Prices in INR, exclusive of GST. 18% GST is added at checkout.
+              {boostCost != null && (
+                <> · Boosting a job costs {boostCost} credit{boostCost === 1 ? "" : "s"}.</>
+              )}
             </p>
           </div>
         </header>
