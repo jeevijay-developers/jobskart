@@ -22,12 +22,10 @@ import { getBoostOverview } from "@/lib/boost.functions";
 import { getExpiryState, mapExpiryError, renewJob, setJobAutoRenew } from "@/lib/expiry.functions";
 import { jobQualityLabel } from "@/lib/jobQuality";
 import { formatDistanceToNow } from "date-fns";
+import { Pagination } from "@/components/site/Pagination";
+import { usePaginatedQuery } from "@/hooks/use-paginated-query";
 
-// "Load More Jobs": reveal BATCH_SIZE more jobs per click, buffered from a
-// larger server chunk — same pattern as the employer Activity page and the
-// candidate Browse Jobs page.
-const BATCH_SIZE = 5;
-const FETCH_CHUNK = 50;
+const JOBS_PAGE_SIZE = 10;
 
 export const Route = createFileRoute("/_authenticated/employer/jobs")({
   head: () => ({ meta: [{ title: "Manage Jobs · JobsKart" }] }),
@@ -170,8 +168,52 @@ function EmployerJobsList() {
   };
   useEffect(() => { if (cid) loadExpiryState(cid); /* eslint-disable-next-line */ }, [cid]);
 
-  const patchJob = (id: string, patch: Partial<Job>) =>
-    setJobs((js) => js.map((j) => (j.id === id ? { ...j, ...patch } : j)));
+  // Existing project-wide pagination: page state, limit/offset math, and
+  // total-count tracking are owned by usePaginatedQuery; only how a page is
+  // fetched (this exact filtered/sorted Supabase query) is provided here.
+  // Same hook + <Pagination> pairing already used by the Candidate Database
+  // and Responses inbox pages.
+  const {
+    rows: jobs,
+    total: jobsTotal,
+    totalPages,
+    page,
+    setPage,
+    isLoading: loading,
+    refetch: refetchJobs,
+  } = usePaginatedQuery<Job>({
+    queryKey: ["employer-jobs", cid, statusFilter, search],
+    pageSize: JOBS_PAGE_SIZE,
+    enabled: !!cid,
+    fetchPage: async ({ from, to }) => {
+      if (!cid) return { rows: [], total: 0 };
+      let q = supabase
+        .from("jobs")
+        .select(
+          "id, title, city, status, job_type, min_salary, max_salary, salary_period, applications_count, views_count, quality_score, created_at, expires_at, auto_renew, renewed_count",
+          { count: "exact" },
+        )
+        .eq("company_id", cid)
+        .order("created_at", { ascending: false });
+      if (statusFilter !== "all") q = q.eq("status", statusFilter as never);
+      if (search.trim()) q = q.ilike("title", `%${search.trim()}%`);
+      q = q.range(from, to);
+      const { data, count, error } = await q;
+      if (error) throw error;
+      return { rows: (data || []) as Job[], total: count ?? 0 };
+    },
+  });
+
+  // A full reload after a mutation (status change, duplicate, delete) needs
+  // both the current page's rows and the status-badge counts refreshed.
+  const reload = () => {
+    refetchJobs();
+    if (cid) loadCounts(cid);
+  };
+
+  // A stale selection could otherwise silently act on jobs no longer visible
+  // once the filters or page change what's on screen.
+  useEffect(() => { setSelected(new Set()); }, [statusFilter, search, page]);
 
   const confirmRenew = async () => {
     if (!renewTarget || !cid) return;
@@ -179,10 +221,9 @@ function EmployerJobsList() {
     try {
       const r = await runRenewJob({ data: { jobId: renewTarget.id } });
       toast.success(`Renewed until ${new Date(r.expires_at).toLocaleDateString("en-IN", { dateStyle: "medium" })}.`);
-      patchJob(renewTarget.id, { status: "active", expires_at: r.expires_at, renewed_count: 0 });
       setRenewTarget(null);
+      reload();
       loadExpiryState(cid);
-      loadCounts(cid);
     } catch (e) {
       toast.error(mapExpiryError(e instanceof Error ? e.message : "Could not renew this job."));
     } finally {
@@ -195,113 +236,12 @@ function EmployerJobsList() {
     try {
       await runSetAutoRenew({ data: { jobId: job.id, enabled } });
       toast.success(enabled ? "Auto-renew enabled." : "Auto-renew disabled.");
-      patchJob(job.id, { auto_renew: enabled });
+      reload();
       loadExpiryState(cid);
     } catch (e) {
       toast.error(mapExpiryError(e instanceof Error ? e.message : "Could not update auto-renew."));
     }
   };
-
-  // "Load More Jobs": `jobs` is the full buffer fetched so far for the
-  // current filters, `visibleCount` is how many of those are actually shown.
-  // Load More only ever increases `visibleCount` (by BATCH_SIZE) — it
-  // re-fetches more rows from the server only once the buffer runs out.
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [visibleCount, setVisibleCount] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMoreOnServer, setHasMoreOnServer] = useState(false);
-
-  const runQuery = (from: number, to: number) => {
-    let q = supabase
-      .from("jobs")
-      .select(
-        "id, title, city, status, job_type, min_salary, max_salary, salary_period, applications_count, views_count, quality_score, created_at, expires_at, auto_renew, renewed_count",
-      )
-      .eq("company_id", cid as string)
-      .order("created_at", { ascending: false });
-    if (statusFilter !== "all") q = q.eq("status", statusFilter as never);
-    if (search.trim()) q = q.ilike("title", `%${search.trim()}%`);
-    return q.range(from, to);
-  };
-
-  // Filters/search change: reset the buffer and visible count back to the
-  // first BATCH_SIZE, then fetch a fresh chunk for the new query.
-  useEffect(() => {
-    if (!cid) return;
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      const { data, error } = await runQuery(0, FETCH_CHUNK);
-      if (cancelled) return;
-      if (error) {
-        toast.error(error.message);
-        setLoading(false);
-        return;
-      }
-      const rows = (data || []) as Job[];
-      const page = rows.slice(0, FETCH_CHUNK);
-      setJobs(page);
-      setVisibleCount(Math.min(BATCH_SIZE, page.length));
-      setHasMoreOnServer(rows.length > FETCH_CHUNK);
-      setLoading(false);
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cid, statusFilter, search]);
-
-  const loadMore = async () => {
-    if (loadingMore) return;
-    const nextVisible = visibleCount + BATCH_SIZE;
-
-    // Enough already buffered to reveal the next batch — no network call needed.
-    if (nextVisible <= jobs.length) {
-      setVisibleCount(Math.min(nextVisible, jobs.length));
-      return;
-    }
-    if (!hasMoreOnServer) {
-      setVisibleCount(jobs.length);
-      return;
-    }
-    setLoadingMore(true);
-    const { data, error } = await runQuery(jobs.length, jobs.length + FETCH_CHUNK);
-    if (!error) {
-      const rows = (data || []) as Job[];
-      const page = rows.slice(0, FETCH_CHUNK);
-      const merged = [...jobs, ...page];
-      setJobs(merged);
-      setHasMoreOnServer(rows.length > FETCH_CHUNK);
-      setVisibleCount(Math.min(nextVisible, merged.length));
-    }
-    setLoadingMore(false);
-  };
-
-  const visibleJobs = jobs.slice(0, visibleCount);
-  const hasMore = visibleCount < jobs.length || hasMoreOnServer;
-
-  // A full reload after a mutation (status change, duplicate, delete)
-  // re-fetches a buffer covering at least what's currently visible (not
-  // reset to 5), plus the status-badge counts.
-  const reload = async () => {
-    if (!cid) return;
-    const keep = Math.max(visibleCount, BATCH_SIZE);
-    const chunk = Math.max(keep, FETCH_CHUNK);
-    const { data, error } = await runQuery(0, chunk - 1);
-    if (!error) {
-      const rows = (data || []) as Job[];
-      const page = rows.slice(0, chunk);
-      setJobs(page);
-      setVisibleCount(Math.min(keep, page.length));
-      setHasMoreOnServer(rows.length > chunk);
-    }
-    loadCounts(cid);
-  };
-
-  // A stale selection could otherwise silently act on jobs no longer visible
-  // once the filters or search change what's on screen.
-  useEffect(() => { setSelected(new Set()); }, [statusFilter, search]);
 
   const toggleSelect = (id: string) => setSelected((s) => {
     const n = new Set(s);
@@ -361,7 +301,6 @@ function EmployerJobsList() {
   const statusLabel = statusFilter === "all"
     ? "All status"
     : `${statusFilter[0].toUpperCase()}${statusFilter.slice(1)} (${counts[statusFilter] ?? 0})`;
-  const listingTotal = search.trim() ? null : (counts[statusFilter] ?? 0);
 
   return (
     <EmployerShell
@@ -465,7 +404,7 @@ function EmployerJobsList() {
 
       {loading ? (
         <div className="space-y-2.5">{[1, 2, 3].map((i) => <div key={i} className="h-24 animate-pulse rounded-xl bg-card" />)}</div>
-      ) : visibleJobs.length === 0 ? (
+      ) : jobs.length === 0 ? (
         <div className="rounded-2xl border-2 border-dashed border-border bg-card p-10 text-center">
           <Briefcase className="mx-auto h-10 w-10 text-muted-foreground" />
           <h3 className="mt-3 text-lg font-bold">No jobs yet</h3>
@@ -476,7 +415,7 @@ function EmployerJobsList() {
         </div>
       ) : (
         <div className="space-y-2.5 pb-4 lg:pb-0">
-          {visibleJobs.map((j) => (
+          {jobs.map((j) => (
             <div key={j.id} className="rounded-xl border border-border bg-card p-3 shadow-[var(--shadow-card)] transition-colors hover:border-primary/30 sm:p-4">
               <div className="flex flex-wrap items-start gap-x-3 gap-y-2 sm:flex-nowrap sm:items-center">
                 <input
@@ -656,20 +595,12 @@ function EmployerJobsList() {
           ))}
           <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
             <p className="text-xs text-muted-foreground tabular-nums">
-              Showing {visibleJobs.length}
-              {listingTotal !== null ? ` of ${listingTotal}` : ""} listings
+              Showing {jobs.length} of {jobsTotal} listings
             </p>
-            {hasMore && (
-              <button
-                type="button"
-                onClick={loadMore}
-                disabled={loadingMore}
-                className="inline-flex h-9 max-w-full items-center justify-center rounded-lg border border-primary px-4 text-xs font-semibold text-primary hover:bg-primary-light disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Load More Jobs
-              </button>
-            )}
           </div>
+          {totalPages > 1 && (
+            <Pagination page={page} totalPages={totalPages} onChange={setPage} className="mt-2" />
+          )}
         </div>
       )}
 

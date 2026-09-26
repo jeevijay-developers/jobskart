@@ -178,6 +178,19 @@
     font-family: var(--font-sans);
     overflow-x: hidden;
   }
+
+  /* Radix popups that lock body scroll while open (Select, Dialog,
+     AlertDialog, ...) add `data-scroll-locked` to <body> and inject an
+     inline `margin-right` equal to the scrollbar's width, to compensate for
+     the scrollbar disappearing so page content doesn't visually reflow.
+     Combined with `overflow-x: hidden` above, that margin instead produced a
+     visible white gap and page-width shift every time one of these opened
+     (e.g. the employer dashboard's company switcher). Body is already fixed
+     at 100% width in this layout, so nothing needs that compensation —
+     neutralize it globally. */
+  body[data-scroll-locked] {
+    margin-right: 0 !important;
+  }
 }
 
 @layer components {

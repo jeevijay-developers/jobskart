@@ -209,16 +209,30 @@ function ResponsesPage() {
     },
   });
 
-  const inboxStatusCounts = useMemo(
-    () =>
-      Object.fromEntries(
-        APPLICANT_STATUSES.map((status) => [
-          status.id,
-          filtered.filter((row) => row.status === status.id).length,
-        ]),
-      ),
-    [filtered],
-  );
+  const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (!cid) return;
+    let cancelled = false;
+    (async () => {
+      let qy = supabase
+        .from("applications")
+        .select("status, jobs!inner (company_id)", { count: "exact", head: false })
+        .eq("jobs.company_id", cid);
+      if (jobFilter) qy = qy.eq("job_id", jobFilter);
+      if (nameQuery.trim()) qy = qy.ilike("profiles.full_name", `%${nameQuery.trim()}%`);
+      const { data } = await qy;
+      if (cancelled) return;
+      const counts: Record<string, number> = {};
+      for (const row of (data || []) as { status: string }[]) {
+        counts[row.status] = (counts[row.status] ?? 0) + 1;
+      }
+      setStatusCounts(counts);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [cid, jobFilter, nameQuery, inboxTotal]);
 
   // Candidate-profile snippets (headline/skills) for the review panel, scoped
   // to whichever page of the inbox is currently on screen.
@@ -524,21 +538,38 @@ function ResponsesPage() {
         )}
       </section>
 
-      {tab === "inbox" && !statusFilter && inboxTotalPages <= 1 && filtered.length > 0 && (
+      {tab === "inbox" && (
         <div className="mb-3 flex flex-wrap items-center gap-1.5 text-[11px]">
-          <span className="rounded-full border border-primary/20 bg-primary-light px-2.5 py-1 font-semibold text-primary">
-            All <span className="ml-1 tabular-nums">{inboxTotal}</span>
-          </span>
+          <button
+            type="button"
+            onClick={() => setStatusFilter("")}
+            className={`rounded-full border px-2.5 py-1 font-semibold transition-colors ${!statusFilter
+              ? "border-primary/20 bg-primary-light text-primary"
+              : "border-border bg-card text-muted-foreground hover:bg-surface"
+              }`}
+          >
+            All{" "}
+            <span className="ml-1 tabular-nums">
+              {Object.values(statusCounts).reduce((sum, n) => sum + n, 0)}
+            </span>
+          </button>
           {APPLICANT_STATUSES.slice(0, 4).map((status) => (
-            <span
+            <button
+              type="button"
               key={status.id}
-              className="rounded-full border border-border bg-card px-2.5 py-1 font-medium text-muted-foreground"
+              onClick={() => setStatusFilter(status.id)}
+              className={`rounded-full border px-2.5 py-1 font-medium transition-colors ${statusFilter === status.id
+                ? "border-primary/20 bg-primary-light text-primary"
+                : "border-border bg-card text-muted-foreground hover:bg-surface"
+                }`}
             >
               {status.label}{" "}
-              <span className="ml-1 font-semibold text-foreground tabular-nums">
-                {inboxStatusCounts[status.id] ?? 0}
+              <span
+                className={`ml-1 font-semibold tabular-nums ${statusFilter === status.id ? "text-primary" : "text-foreground"}`}
+              >
+                {statusCounts[status.id] ?? 0}
               </span>
-            </span>
+            </button>
           ))}
         </div>
       )}
@@ -550,108 +581,132 @@ function ResponsesPage() {
           ) : filtered.length === 0 ? (
             <EmptyResponses />
           ) : (
-            <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-card)]">
-              {filtered.map((r) => {
-                return (
-                  <li
-                    key={r.id}
-                    onClick={() => setReviewing(r)}
-                    className="flex cursor-pointer flex-wrap items-center gap-2.5 px-3 py-2.5 transition-colors hover:bg-surface/70 sm:flex-nowrap sm:px-4"
-                  >
-                    <div className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full bg-primary-light text-xs font-bold text-primary ring-1 ring-primary/10">
-                      {r.profiles?.avatar_url ? (
-                        <img
-                          src={r.profiles.avatar_url}
-                          alt=""
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        (r.profiles?.full_name || "?").slice(0, 1).toUpperCase()
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <p className="truncate text-sm font-semibold">
-                          {r.profiles?.full_name || "Candidate"}
+            <div
+              role="table"
+              aria-label="Responses"
+              className="overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-card)]"
+            >
+              <div
+                role="row"
+                className="hidden grid-cols-[minmax(12rem,1.5fr)_minmax(9rem,1fr)_minmax(8rem,.85fr)_minmax(7rem,.7fr)_minmax(9rem,.9fr)] gap-4 border-b border-border bg-surface/60 px-4 py-2.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground min-[1180px]:grid"
+              >
+                <span role="columnheader">Candidate</span>
+                <span role="columnheader">Job role</span>
+                <span role="columnheader">Applied timeline</span>
+                <span role="columnheader" className="text-center">
+                  Status
+                </span>
+                <span role="columnheader" className="pr-2 text-right">
+                  Actions
+                </span>
+              </div>
+              <ul className="divide-y divide-border">
+                {filtered.map((r) => {
+                  return (
+                    <li
+                      key={r.id}
+                      role="row"
+                      onClick={() => setReviewing(r)}
+                      className="grid min-w-0 cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-1.5 px-3 py-2.5 transition-colors hover:bg-surface/70 sm:px-4 min-[1180px]:grid-cols-[minmax(12rem,1.5fr)_minmax(9rem,1fr)_minmax(8rem,.85fr)_minmax(7rem,.7fr)_minmax(9rem,.9fr)] min-[1180px]:gap-4"
+                    >
+                      <div role="cell" className="flex min-w-0 items-center gap-2.5">
+                        <div className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full bg-primary-light text-xs font-bold text-primary ring-1 ring-primary/10">
+                          {r.profiles?.avatar_url ? (
+                            <img
+                              src={r.profiles.avatar_url}
+                              alt=""
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            (r.profiles?.full_name || "?").slice(0, 1).toUpperCase()
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold">
+                            {r.profiles?.full_name || "Candidate"}
+                          </p>
+                          {r.profiles?.city && (
+                            <p className="truncate text-[11px] text-muted-foreground">
+                              {r.profiles.city}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div
+                        role="cell"
+                        className="col-start-1 row-start-2 min-w-0 pl-[2.875rem] min-[1180px]:col-auto min-[1180px]:row-auto min-[1180px]:pl-0"
+                      >
+                        <p className="truncate text-[11px] text-muted-foreground min-[1180px]:text-sm min-[1180px]:text-foreground">
+                          {r.jobs?.title || "—"}
                         </p>
+                      </div>
+
+                      <div
+                        role="cell"
+                        className="col-start-1 row-start-3 pl-[2.875rem] text-[11px] text-muted-foreground min-[1180px]:col-auto min-[1180px]:row-auto min-[1180px]:pl-0 min-[1180px]:text-xs"
+                      >
+                        {formatDistanceToNow(new Date(r.created_at), { addSuffix: true })}
+                      </div>
+
+                      <div
+                        role="cell"
+                        className="col-start-2 row-start-1 flex justify-end self-start min-[1180px]:col-auto min-[1180px]:row-auto min-[1180px]:justify-center min-[1180px]:self-center"
+                      >
                         <span
                           className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${applicantStatusTone(r.status)}`}
                         >
                           {applicantStatusLabel(r.status)}
                         </span>
                       </div>
-                      <p className="mt-0.5 truncate text-[11px] text-muted-foreground sm:text-xs">
-                        {r.jobs?.title}
-                        {r.profiles?.city ? ` · ${r.profiles.city}` : ""}
-                        {` · ${formatDistanceToNow(new Date(r.created_at), { addSuffix: true })}`}
-                      </p>
-                    </div>
-                    <div className="ml-11 flex w-full shrink-0 items-center justify-end gap-1.5 sm:ml-0 sm:w-auto">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          askConfirm([r.id], [r.profiles?.full_name], "shortlisted");
-                        }}
-                        className="hidden h-8 items-center gap-1 rounded-lg border border-success/30 bg-success-light px-2.5 text-[11px] font-semibold text-success hover:border-success/50 min-[1180px]:inline-flex"
+
+                      <div
+                        role="cell"
+                        className="col-start-2 row-span-2 row-start-2 flex items-center justify-end gap-1.5 self-center min-[1180px]:col-auto min-[1180px]:row-auto min-[1180px]:row-span-1 min-[1180px]:pr-2"
                       >
-                        <CheckCircle2 className="h-3 w-3" /> Shortlist
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setScheduling({
-                            applicationId: r.id,
-                            candidateName: r.profiles?.full_name ?? null,
-                          });
-                        }}
-                        className="hidden h-8 items-center gap-1 rounded-lg border border-warning/40 bg-warning-light px-2.5 text-[11px] font-semibold text-warning hover:border-warning/60 min-[1180px]:inline-flex"
-                      >
-                        <Calendar className="h-3 w-3" /> Interview
-                      </button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <button
-                            type="button"
-                            onClick={(e) => e.stopPropagation()}
-                            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-border bg-card text-foreground hover:bg-surface"
-                            aria-label="Actions"
-                            title="Actions"
-                          >
-                            <MoreVertical className="h-4 w-4" />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() =>
-                              askConfirm([r.id], [r.profiles?.full_name], "shortlisted")
-                            }
-                          >
-                            <CheckCircle2 className="mr-2 h-4 w-4 text-success" /> Shortlist
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() =>
-                              setScheduling({
-                                applicationId: r.id,
-                                candidateName: r.profiles?.full_name ?? null,
-                              })
-                            }
-                          >
-                            <Calendar className="mr-2 h-4 w-4 text-warning" /> Interview
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => askConfirm([r.id], [r.profiles?.full_name], "rejected")}
-                          >
-                            <XCircle className="mr-2 h-4 w-4 text-muted-foreground" /> Reject
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              type="button"
+                              onClick={(e) => e.stopPropagation()}
+                              className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-border bg-card text-foreground hover:bg-surface"
+                              aria-label="Actions"
+                              title="Actions"
+                            >
+                              <MoreVertical className="h-4 w-4" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() =>
+                                askConfirm([r.id], [r.profiles?.full_name], "shortlisted")
+                              }
+                            >
+                              <CheckCircle2 className="mr-2 h-4 w-4 text-success" /> Shortlist
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                setScheduling({
+                                  applicationId: r.id,
+                                  candidateName: r.profiles?.full_name ?? null,
+                                })
+                              }
+                            >
+                              <Calendar className="mr-2 h-4 w-4 text-warning" /> Interview
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => askConfirm([r.id], [r.profiles?.full_name], "rejected")}
+                            >
+                              <XCircle className="mr-2 h-4 w-4 text-muted-foreground" /> Reject
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
           )}
           {inboxTotalPages > 1 && (
             <Pagination

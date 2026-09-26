@@ -1,12 +1,14 @@
-import { Link, useLocation } from "@tanstack/react-router";
-import { Plus } from "lucide-react";
+import { Link, useLocation, useNavigate } from "@tanstack/react-router";
+import { LogOut, Menu, Plus } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { Navbar } from "@/components/site/Navbar";
+import { toast } from "sonner";
 import { NotificationBell } from "@/components/site/NotificationBell";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { supabase } from "@/integrations/supabase/client";
+import { signOut } from "@/lib/auth";
 import { fetchMyCompanies, getActiveCompanyId } from "@/lib/employer";
-import { EMPLOYER_NAV_LINKS as nav } from "@/lib/employer-nav";
+import { EMPLOYER_NAV_LINKS as nav, EMPLOYER_OVERFLOW_LINKS } from "@/lib/employer-nav";
 
 export function CreditChip() {
   const [balance, setBalance] = useState<number | null>(null);
@@ -85,12 +87,24 @@ export function EmployerShell({
   headerLeft?: ReactNode;
 }) {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const primary = nav.slice(0, 4);
+  const [moreOpen, setMoreOpen] = useState(false);
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      toast.success("Signed out.");
+      navigate({ to: "/" });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Sign out failed.");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-surface pb-24 lg:pb-0">
-      <Navbar />
-      <div className="flex min-h-[calc(100vh-3.5rem)] w-full min-w-0 overflow-x-hidden">
-        <aside className="fixed bottom-0 left-0 top-14 z-40 hidden w-64 border-r border-border bg-card lg:block">
+      <div className="flex min-h-screen w-full min-w-0 overflow-x-hidden">
+        <aside className="fixed bottom-0 left-0 top-0 z-40 hidden w-64 border-r border-border bg-card lg:block">
           <nav className="flex h-full min-h-0 flex-col">
             <div className="min-h-0 flex-1 space-y-1 overflow-y-auto px-4 py-6">
               <Link
@@ -118,8 +132,16 @@ export function EmployerShell({
                 );
               })}
             </div>
-            <div className="shrink-0 border-t border-border p-4">
+            <div className="shrink-0 space-y-3 border-t border-border p-4">
               <CreditChip />
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-border px-3 text-xs font-semibold text-foreground/80 transition-colors hover:border-destructive/40 hover:bg-destructive-light hover:text-destructive"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                Sign out
+              </button>
             </div>
           </nav>
         </aside>
@@ -146,7 +168,7 @@ export function EmployerShell({
       </div>
 
       <nav
-        className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-4 items-stretch border-t border-border bg-card/95 backdrop-blur lg:hidden"
+        className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-5 items-stretch border-t border-border bg-card/95 backdrop-blur lg:hidden"
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       >
         {primary.map((item) => {
@@ -165,7 +187,48 @@ export function EmployerShell({
             </Link>
           );
         })}
+        <button
+          type="button"
+          onClick={() => setMoreOpen(true)}
+          className="flex min-w-0 flex-col items-center justify-center gap-1 px-0.5 py-2.5 text-center text-[10px] font-medium leading-none text-muted-foreground"
+        >
+          <Menu className="h-5 w-5 shrink-0" />
+          <span className="w-full truncate">More</span>
+        </button>
       </nav>
+
+      <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
+        <SheetContent side="right" className="flex w-80 max-w-[85vw] flex-col">
+          <SheetTitle>More</SheetTitle>
+          <nav className="mt-4 flex flex-col gap-1 overflow-y-auto">
+            {EMPLOYER_OVERFLOW_LINKS.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  onClick={() => setMoreOpen(false)}
+                  className="flex items-center gap-2 rounded-lg px-3 py-3 text-base font-medium text-foreground hover:bg-surface"
+                >
+                  <Icon className="h-4 w-4" /> {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+          <div className="mt-auto pt-6">
+            <button
+              type="button"
+              onClick={() => {
+                setMoreOpen(false);
+                handleSignOut();
+              }}
+              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground"
+            >
+              <LogOut className="h-4 w-4" /> Sign out
+            </button>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

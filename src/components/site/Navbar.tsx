@@ -70,12 +70,12 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-      <div className="mx-auto flex h-14 w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:px-8">
+      <div className="flex h-14 w-full items-center justify-between px-4 sm:px-6 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:px-10 xl:px-16">
         <Link to="/" className="flex items-center gap-2 lg:justify-self-start">
           <img src={logoAsset} alt="JobsKart" className="h-7 w-auto" />
         </Link>
 
-        <nav className="hidden items-center gap-6 lg:flex lg:justify-self-center">
+        <nav className="hidden items-center gap-7 lg:flex lg:justify-self-center xl:gap-10">
           {homeNavLinks.map((l) => (
             <Link
               key={l.hash}
