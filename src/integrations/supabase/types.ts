@@ -1771,6 +1771,38 @@ export type Database = {
           },
         ]
       }
+      job_shares: {
+        Row: {
+          channel: string | null
+          created_at: string
+          id: string
+          job_id: string
+          user_id: string | null
+        }
+        Insert: {
+          channel?: string | null
+          created_at?: string
+          id?: string
+          job_id: string
+          user_id?: string | null
+        }
+        Update: {
+          channel?: string | null
+          created_at?: string
+          id?: string
+          job_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_shares_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_titles_master: {
         Row: {
           created_at: string
@@ -2343,6 +2375,7 @@ export type Database = {
           mobile: string | null
           mobile_verified: boolean
           signup_intent: string | null
+          state: string | null
           status: string
           updated_at: string
           user_type: Database["public"]["Enums"]["user_type"]
@@ -2357,6 +2390,7 @@ export type Database = {
           mobile?: string | null
           mobile_verified?: boolean
           signup_intent?: string | null
+          state?: string | null
           status?: string
           updated_at?: string
           user_type?: Database["public"]["Enums"]["user_type"]
@@ -2371,6 +2405,7 @@ export type Database = {
           mobile?: string | null
           mobile_verified?: boolean
           signup_intent?: string | null
+          state?: string | null
           status?: string
           updated_at?: string
           user_type?: Database["public"]["Enums"]["user_type"]
