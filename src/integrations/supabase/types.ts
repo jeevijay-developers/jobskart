@@ -1926,6 +1926,7 @@ export type Database = {
           quality_score: number | null
           renewed_count: number
           reopened_at: string | null
+          renewed_count: number
           repost_count: number
           reposted_from: string | null
           required_assets: string[] | null
@@ -2003,6 +2004,7 @@ export type Database = {
           quality_score?: number | null
           renewed_count?: number
           reopened_at?: string | null
+          renewed_count?: number
           repost_count?: number
           reposted_from?: string | null
           required_assets?: string[] | null
@@ -2080,6 +2082,7 @@ export type Database = {
           quality_score?: number | null
           renewed_count?: number
           reopened_at?: string | null
+          renewed_count?: number
           repost_count?: number
           reposted_from?: string | null
           required_assets?: string[] | null

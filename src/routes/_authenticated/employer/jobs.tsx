@@ -58,9 +58,9 @@ const STATUSES = ["all", "active", "paused", "closed", "draft"] as const;
 // quality_score data, no points economy or new tables (see
 // job-quality-score-implementation.md, decision (d)).
 function posterLevel(stats: { avg: number; total: number }): string {
-  if (stats.avg >= 75 && stats.total >= 5) return "Elite Poster";
-  if (stats.avg >= 55 && stats.total >= 2) return "Pro Poster";
-  return "Starter Poster";
+  if (stats.avg >= 75 && stats.total >= 5) return "Elite Posting";
+  if (stats.avg >= 55 && stats.total >= 2) return "Pro Posting";
+  return "Starting Posting";
 }
 
 function EmployerJobs() {
@@ -401,7 +401,7 @@ function EmployerJobsList() {
       {qualityStats && (
         <div className="mb-5 flex flex-wrap items-center gap-4 rounded-xl border border-border bg-card px-4 py-3 shadow-[var(--shadow-card)]">
           <div>
-            <p className="text-[11px] font-medium uppercase text-muted-foreground">Poster level</p>
+            <p className="text-[11px] font-medium uppercase text-muted-foreground">Posting level</p>
             <p className="text-sm font-bold text-primary">{posterLevel(qualityStats)}</p>
           </div>
           <div>
