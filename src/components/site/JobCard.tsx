@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Briefcase, GraduationCap, IndianRupee, MapPin, Rocket, Share2 } from "lucide-react";
+import { Bookmark, BookmarkCheck, Briefcase, GraduationCap, IndianRupee, MapPin, Rocket, Share2 } from "lucide-react";
 import { formatExperience, formatSalary, jobTypeLabel, timeAgo, workModeLabel } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 import { useSavedJob } from "@/hooks/use-saved-job";
@@ -170,30 +170,34 @@ export function JobCard({
           </div>
         </Link>
 
-        <div className="flex shrink-0 flex-col gap-2 sm:w-36">
+        <div className="flex shrink-0 gap-2 sm:w-36 sm:flex-col">
           <button
             type="button"
             onClick={handleApplyClick}
             disabled={applied}
-            className="h-10 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
+            className="h-10 min-w-0 flex-1 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none"
           >
-            {applied ? "Applied" : "Apply Now"}
+            <span className="truncate">{applied ? "Applied" : "Apply Now"}</span>
           </button>
           <button
             type="button"
             onClick={handleSaveClick}
-            className={`h-10 rounded-lg border px-4 text-sm font-semibold ${
+            aria-label={saved ? "Unsave job" : "Save job"}
+            className={`inline-flex h-10 w-10 shrink-0 items-center justify-center gap-1.5 rounded-lg border text-sm font-semibold sm:w-auto sm:px-4 ${
               saved ? "border-primary text-primary" : "border-border text-foreground hover:bg-surface"
             }`}
           >
-            {saved ? "Saved" : "Save Job"}
+            {saved ? <BookmarkCheck className="h-4 w-4 shrink-0" /> : <Bookmark className="h-4 w-4 shrink-0" />}
+            <span className="hidden sm:inline">{saved ? "Saved" : "Save Job"}</span>
           </button>
           <button
             type="button"
             onClick={handleShareClick}
-            className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-border px-4 text-sm font-semibold text-foreground hover:bg-surface"
+            aria-label="Share job"
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-border text-sm font-semibold text-foreground hover:bg-surface sm:w-auto sm:px-4"
           >
-            <Share2 className="h-3.5 w-3.5" /> Share
+            <Share2 className="h-3.5 w-3.5 shrink-0" />
+            <span className="hidden sm:inline">Share</span>
           </button>
         </div>
       </div>
