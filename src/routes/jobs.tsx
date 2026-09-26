@@ -27,6 +27,7 @@ import {
   INDIAN_CITIES,
 } from "@/lib/options";
 import { useJobTitleSuggestions } from "@/lib/useJobTitleSuggestions";
+import { fetchCandidateJobFeed, fetchPublicJobFeed, type JobFeedFilters } from "@/lib/job-feed";
 
 // "Load More Jobs" batch size (mirrors the employer Activity page's pattern):
 // reveal BATCH_SIZE more jobs per click, buffered from a larger server chunk
@@ -195,34 +196,58 @@ function JobsList() {
   const [mobileFilters, setMobileFilters] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [isEmployer, setIsEmployer] = useState(false);
+  // sessionReady flips true only once the initial getSession() call actually
+  // resolves — plain `!!session` is indistinguishable between "still
+  // loading" and "confirmed guest" while both read as null.
+  const [sessionReady, setSessionReady] = useState(false);
+  // Session (and, for a signed-in user, their employer-membership check) must
+  // resolve before the first jobs query fires — otherwise a signed-in
+  // candidate would briefly see the public (non-excluding) feed flash before
+  // the candidate-aware one replaces it.
+  const [roleReady, setRoleReady] = useState(false);
   const jobTitles = useJobTitleSuggestions();
 
   // Same session + role check Navbar/CandidateShell use, so the candidate
   // bottom tab bar only shows for logged-in candidates (not employers/guests).
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setSessionReady(true);
+    });
     const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
     return () => data.subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
+    if (!sessionReady) return;
     const uid = session?.user.id;
-    if (!uid) return setIsEmployer(false);
+    if (!uid) {
+      setIsEmployer(false);
+      setRoleReady(true);
+      return;
+    }
     let cancelled = false;
+    setRoleReady(false);
     supabase
       .from("employer_members")
       .select("company_id")
       .eq("user_id", uid)
       .limit(1)
       .then(({ data: rows }) => {
-        if (!cancelled) setIsEmployer(!!rows?.length);
+        if (cancelled) return;
+        setIsEmployer(!!rows?.length);
+        setRoleReady(true);
       });
     return () => {
       cancelled = true;
     };
-  }, [session]);
+  }, [session, sessionReady]);
 
   const showCandidateTabBar = !!session && !isEmployer;
+  // The candidate-aware feed (feed_jobs_for_candidate) requires auth.uid(),
+  // so only a signed-in non-employer session ever uses it — guests and
+  // employers keep the existing public feed_jobs()/direct-query behavior.
+  const isCandidateFeed = !!session && !isEmployer;
 
   // Keep state in sync when the URL changes (e.g. navigating from Home).
   useEffect(() => {
@@ -260,61 +285,47 @@ function JobsList() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMoreOnServer, setHasMoreOnServer] = useState(false);
 
-  // "Recommended" (the default) is the only sort that calls the server-side
-  // feed_jobs() ranking RPC (boost/freshness/quality score). Every explicit
-  // sort stays a plain client query exactly as before — a paid boost must
-  // never override an explicit candidate sort.
-  const runRecommendedQuery = async (from: number, to: number) => {
-    const { data, error } = await supabase.rpc("feed_jobs", {
-      _q: filters.q || undefined,
-      _city: filters.city || undefined,
-      _category: filters.category || undefined,
-      _job_type: filters.jobType || undefined,
-      _work_mode: filters.workMode || undefined,
-      _min_salary: filters.minSalary ? Number(filters.minSalary) : undefined,
-      _max_salary: filters.maxSalary ? Number(filters.maxSalary) : undefined,
-      _min_exp: filters.minExp ? Number(filters.minExp) : undefined,
-      _max_exp: filters.maxExp ? Number(filters.maxExp) : undefined,
-      _posted_after: filters.datePosted ? (datePostedCutoffIso(filters.datePosted) ?? undefined) : undefined,
-      _education: filters.education || undefined,
-      _shift: filters.shift || undefined,
-      _english_level: filters.englishLevel || undefined,
-      _company: filters.company || undefined,
-      _vehicle: !!filters.vehicle,
-      _verified_only: !!filters.verifiedOnly,
-      _limit: to - from + 1,
-      _offset: from,
-    });
-    if (error) return { data: null, count: null, error };
-    const rows = data ?? [];
-    const mapped: JobCardData[] = rows.map((r) => ({
-      id: r.id,
-      company_id: r.company_id,
-      title: r.title,
-      city: r.city,
-      state: r.state,
-      locality: r.locality,
-      min_salary: r.min_salary,
-      max_salary: r.max_salary,
-      salary_period: r.salary_period,
-      job_type: r.job_type as string,
-      work_mode: r.work_mode as string,
-      min_experience_years: r.min_experience_years,
-      max_experience_years: r.max_experience_years,
-      education: r.education,
-      skills: r.skills,
-      created_at: r.created_at,
-      pay_type: r.pay_type,
-      avg_incentive_monthly: r.avg_incentive_monthly,
-      companies: { name: r.company_name ?? "", is_verified: r.company_is_verified },
-      boosted: r.boosted ?? false,
-    }));
-    const count = rows.length > 0 ? Number(rows[0].total_count) : 0;
-    return { data: mapped, count, error: null };
+  // Shared feed-adapter filter shape (src/lib/job-feed.ts) built once per
+  // filters change — `datePosted` (a UI key like "7d") resolves to an ISO
+  // cutoff here so job-feed.ts stays decoupled from that encoding.
+  const feedFilters: JobFeedFilters = {
+    q: filters.q || undefined,
+    city: filters.city || undefined,
+    category: filters.category || undefined,
+    jobType: filters.jobType || undefined,
+    workMode: filters.workMode || undefined,
+    minSalary: filters.minSalary || undefined,
+    maxSalary: filters.maxSalary || undefined,
+    minExp: filters.minExp || undefined,
+    maxExp: filters.maxExp || undefined,
+    postedAfter: filters.datePosted ? (datePostedCutoffIso(filters.datePosted) ?? undefined) : undefined,
+    education: filters.education || undefined,
+    shift: filters.shift || undefined,
+    englishLevel: filters.englishLevel || undefined,
+    company: filters.company || undefined,
+    vehicle: !!filters.vehicle,
+    verifiedOnly: !!filters.verifiedOnly,
   };
 
-  const runQuery = (from: number, to: number) => {
-    if (sort === "recommended") return runRecommendedQuery(from, to);
+  // A signed-in candidate's discovery invariant (never show an already-
+  // applied job) applies to every sort, not just Recommended — so every sort
+  // routes through the candidate-aware RPC for that session. Guests/employers
+  // keep the exact previous behavior: feed_jobs() (public, boost/freshness/
+  // quality ranked) for Recommended, and a plain client query for every
+  // explicit sort — a paid boost must never override an explicit sort.
+  const runQuery = async (
+    from: number,
+    to: number,
+  ): Promise<{ data: JobCardData[] | null; count: number | null; error: { message: string } | null }> => {
+    if (isCandidateFeed) {
+      const { rows, total: count, error } = await fetchCandidateJobFeed(feedFilters, sort, from, to);
+      return error ? { data: null, count: null, error: { message: error } } : { data: rows, count, error: null };
+    }
+
+    if (sort === "recommended") {
+      const { rows, total: count, error } = await fetchPublicJobFeed(feedFilters, from, to);
+      return error ? { data: null, count: null, error: { message: error } } : { data: rows, count, error: null };
+    }
 
     let q = supabase
       .from("jobs")
@@ -356,12 +367,16 @@ function JobsList() {
     if (filters.vehicle) q = q.contains("required_assets", ["Two-wheeler"]);
     if (filters.verifiedOnly) q = q.eq("companies.is_verified", true);
 
-    return q.range(from, to);
+    const { data, count, error } = await q.range(from, to);
+    return { data: (data as unknown as JobCardData[]) ?? null, count, error };
   };
 
   // Filters/sort change: reset the buffer and visible count back to the
-  // first BATCH_SIZE, then fetch a fresh chunk for the new query.
+  // first BATCH_SIZE, then fetch a fresh chunk for the new query. Waits on
+  // roleReady so a signed-in candidate never briefly sees the public
+  // (non-excluding) feed before the candidate-aware one replaces it.
   useEffect(() => {
+    if (!roleReady) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -371,7 +386,7 @@ function JobsList() {
         setLoading(false);
         return;
       }
-      const rows = (data as unknown as JobCardData[]) || [];
+      const rows = data || [];
       const page = rows.slice(0, FETCH_CHUNK);
       setJobs(page);
       setTotal(count ?? 0);
@@ -383,7 +398,7 @@ function JobsList() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters, sort]);
+  }, [filters, sort, roleReady, isCandidateFeed]);
 
   const loadMore = async () => {
     if (loadingMore) return;
@@ -402,7 +417,7 @@ function JobsList() {
     setLoadingMore(true);
     const { data, count, error } = await runQuery(jobs.length, jobs.length + FETCH_CHUNK);
     if (!error) {
-      const rows = (data as unknown as JobCardData[]) || [];
+      const rows = data || [];
       const page = rows.slice(0, FETCH_CHUNK);
       const merged = [...jobs, ...page];
       setJobs(merged);
@@ -415,6 +430,27 @@ function JobsList() {
 
   const visibleJobs = jobs.slice(0, visibleCount);
   const hasMore = visibleCount < jobs.length || hasMoreOnServer;
+
+  // Distinguish "nothing matches" from "you've applied to everything that
+  // matches" (copy rule: never imply the applications failed). Only probes
+  // the public feed_jobs() total (ignoring exclusion) in the one case it's
+  // needed — an empty candidate result — so this never adds a request to the
+  // normal path.
+  const [allAppliedEmpty, setAllAppliedEmpty] = useState(false);
+  useEffect(() => {
+    if (!isCandidateFeed || loading || total !== 0) {
+      setAllAppliedEmpty(false);
+      return;
+    }
+    let cancelled = false;
+    fetchPublicJobFeed(feedFilters, 0, 0).then(({ total: publicTotal }) => {
+      if (!cancelled) setAllAppliedEmpty(publicTotal > 0);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCandidateFeed, loading, total, filters]);
 
   const apply = () => {
     setFilters(draft);
@@ -629,22 +665,43 @@ function JobsList() {
           ) : visibleJobs.length === 0 ? (
             <div className="grid place-items-center rounded-xl border border-dashed border-border bg-card p-12 text-center">
               <Briefcase className="mb-3 h-8 w-8 text-muted-foreground" />
-              <h2 className="text-lg font-semibold text-foreground">No jobs match your filters</h2>
+              <h2 className="text-lg font-semibold text-foreground">
+                {allAppliedEmpty ? "You've already applied to all matching jobs" : "No jobs match your filters"}
+              </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Try clearing filters or searching a different city.
+                {allAppliedEmpty
+                  ? "Check your applications, or broaden your filters to see more roles."
+                  : "Try clearing filters or searching a different city."}
               </p>
-              <button
-                onClick={reset}
-                className="mt-4 inline-flex h-10 items-center rounded-lg border border-primary px-4 text-sm font-semibold text-primary hover:bg-primary-light"
-              >
-                Reset filters
-              </button>
+              {allAppliedEmpty ? (
+                <div className="mt-4 flex gap-2">
+                  <Link
+                    to="/candidate/applications"
+                    className="inline-flex h-10 items-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary-dark"
+                  >
+                    View applications
+                  </Link>
+                  <button
+                    onClick={reset}
+                    className="inline-flex h-10 items-center rounded-lg border border-primary px-4 text-sm font-semibold text-primary hover:bg-primary-light"
+                  >
+                    Broaden filters
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={reset}
+                  className="mt-4 inline-flex h-10 items-center rounded-lg border border-primary px-4 text-sm font-semibold text-primary hover:bg-primary-light"
+                >
+                  Reset filters
+                </button>
+              )}
             </div>
           ) : (
             <>
               <div className="grid gap-4">
                 {visibleJobs.map((j) => (
-                  <JobCard key={j.id} job={j} />
+                  <JobCard key={j.id} job={j} variant={isCandidateFeed ? "discovery" : "full"} />
                 ))}
               </div>
               {hasMore && (

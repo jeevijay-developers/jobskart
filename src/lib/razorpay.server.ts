@@ -26,12 +26,15 @@ export type FulfilResult = {
   status: "paid" | "amount_mismatch";
   already_applied: boolean;
   balance: number | null;
+  order_kind?: "credit_pack" | "plan";
 };
 
 // Stable error codes raised by the payment RPCs → user-facing messages.
 const PAYMENT_ERRORS: Record<string, string> = {
   insufficient_permissions: "You don't have access to this company.",
   pack_unavailable: "Pack not available.",
+  plan_unavailable: "Plan not available.",
+  plan_not_purchasable: "This plan can't be purchased directly.",
   order_not_found: "Order not found.",
 };
 

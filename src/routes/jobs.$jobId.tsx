@@ -104,6 +104,9 @@ function JobDetailPage() {
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [applied, setApplied] = useState(false);
+  // Set alongside `applied` so a direct link to an already-applied job shows
+  // "View application" + when/what status, never a bare disabled button.
+  const [appliedInfo, setAppliedInfo] = useState<{ status: string; created_at: string } | null>(null);
   const [saved, setSaved] = useState(false);
   const [savingBookmark, setSavingBookmark] = useState(false);
   const [tab, setTab] = useState<"overview" | "company">("overview");
@@ -165,12 +168,18 @@ function JobDetailPage() {
       const excludeIds = getSeenJobIds();
       if (uid) {
         const [{ data: app }, { data: sav }, { data: appliedJobs }] = await Promise.all([
-          supabase.from("applications").select("id").eq("job_id", jobId).eq("candidate_id", uid).maybeSingle(),
+          supabase
+            .from("applications")
+            .select("id, status, created_at")
+            .eq("job_id", jobId)
+            .eq("candidate_id", uid)
+            .maybeSingle(),
           supabase.from("saved_jobs").select("id").eq("job_id", jobId).eq("user_id", uid).maybeSingle(),
           supabase.from("applications").select("job_id").eq("candidate_id", uid),
         ]);
         if (cancelled) return;
         setApplied(!!app);
+        setAppliedInfo(app ? { status: app.status, created_at: app.created_at } : null);
         setSaved(!!sav);
         (appliedJobs || []).forEach((a) => excludeIds.add(a.job_id));
       }
@@ -204,6 +213,7 @@ function JobDetailPage() {
 
   const handleApplied = () => {
     setApplied(true);
+    setAppliedInfo({ status: "applied", created_at: new Date().toISOString() });
     setApplicantCount((c) => c + 1);
   };
 
@@ -375,23 +385,28 @@ function JobDetailPage() {
                       )}
                       {saved ? "Saved" : "Save"}
                     </button>
-                    <button
-                      onClick={handleApply}
-                      disabled={applied}
-                      className="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-6 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary-dark disabled:cursor-not-allowed disabled:bg-success disabled:text-white"
-                    >
-                      {false ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : applied ? (
-                        <>
-                          <CheckCircle2 className="h-4 w-4" /> Applied
-                        </>
-                      ) : (
-                        "Apply now"
-                      )}
-                    </button>
+                    {applied ? (
+                      <Link
+                        to="/candidate/applications"
+                        className="inline-flex h-11 items-center gap-2 rounded-lg bg-success px-6 text-sm font-semibold text-white shadow-sm transition-colors hover:opacity-90"
+                      >
+                        <CheckCircle2 className="h-4 w-4" /> View application
+                      </Link>
+                    ) : (
+                      <button
+                        onClick={handleApply}
+                        className="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-6 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary-dark"
+                      >
+                        Apply now
+                      </button>
+                    )}
                   </div>
                 </div>
+                {appliedInfo && (
+                  <p className="mt-3 hidden text-right text-xs text-muted-foreground sm:block">
+                    Applied {formatAppliedDate(appliedInfo.created_at)} · {appliedStatusLabel(appliedInfo.status)}
+                  </p>
+                )}
 
                 <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
                   <Stat icon={IndianRupee} label="Salary" value={formatSalary(job.min_salary, job.max_salary, job.salary_period || "monthly")} />
@@ -608,21 +623,28 @@ function JobDetailPage() {
                   <Side icon={GraduationCap} label="Education" value={job.education || "Any"} />
                   <Side icon={Users} label="Openings" value={`${job.openings ?? 1}`} />
                 </div>
-                <button
-                  onClick={handleApply}
-                  disabled={applied}
-                  className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary-dark disabled:cursor-not-allowed disabled:bg-success disabled:text-white"
-                >
-                  {false ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : applied ? (
-                    <>
-                      <CheckCircle2 className="h-4 w-4" /> Applied
-                    </>
-                  ) : (
-                    "Apply now"
-                  )}
-                </button>
+                {applied ? (
+                  <Link
+                    to="/candidate/applications"
+                    className="mt-5 flex h-11 w-full flex-col items-center justify-center rounded-lg bg-success text-sm font-semibold text-white shadow-sm transition-colors hover:opacity-90"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4" /> View application
+                    </span>
+                    {appliedInfo && (
+                      <span className="text-[10px] font-normal opacity-90">
+                        Applied {formatAppliedDate(appliedInfo.created_at)} · {appliedStatusLabel(appliedInfo.status)}
+                      </span>
+                    )}
+                  </Link>
+                ) : (
+                  <button
+                    onClick={handleApply}
+                    className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary-dark"
+                  >
+                    Apply now
+                  </button>
+                )}
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   <button
                     onClick={toggleSave}
@@ -701,21 +723,21 @@ function JobDetailPage() {
           >
             <Share2 className="h-4 w-4" />
           </button>
-          <button
-            onClick={handleApply}
-            disabled={applied}
-            className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm disabled:bg-success disabled:text-white"
-          >
-            {false ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : applied ? (
-              <>
-                <CheckCircle2 className="h-4 w-4" /> Applied
-              </>
-            ) : (
-              "Apply now"
-            )}
-          </button>
+          {applied ? (
+            <Link
+              to="/candidate/applications"
+              className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-success px-4 text-sm font-semibold text-white shadow-sm"
+            >
+              <CheckCircle2 className="h-4 w-4" /> View application
+            </Link>
+          ) : (
+            <button
+              onClick={handleApply}
+              className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm"
+            >
+              Apply now
+            </button>
+          )}
         </div>
       </div>
 
@@ -810,6 +832,20 @@ function shiftIcon(shift: string | null) {
   if (s.includes("morning") || s.includes("early")) return Sunrise;
   if (s.includes("day")) return Sun;
   return Clock;
+}
+function formatAppliedDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+}
+const APPLIED_STATUS_LABELS: Record<string, string> = {
+  applied: "Applied",
+  shortlisted: "Shortlisted",
+  interview: "Interview scheduled",
+  hired: "Hired",
+  rejected: "Not selected",
+  withdrawn: "Withdrawn",
+};
+function appliedStatusLabel(status: string) {
+  return APPLIED_STATUS_LABELS[status] || status;
 }
 function Side({ icon: Icon, label, value }: { icon: typeof IndianRupee; label: string; value: string }) {
   return (

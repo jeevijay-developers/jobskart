@@ -134,7 +134,9 @@ async function callGateway(
   images?: { mime: string; b64: string }[],
   files?: { mime: string; b64: string; name?: string }[],
 ) {
-  return chat({ system: SYSTEM_PROMPT, user: userText, images, files, json: true });
+  // Up to 20 experiences + 10 education entries + 40 skills can legitimately
+  // fill more than the provider's shared default output cap.
+  return chat({ system: SYSTEM_PROMPT, user: userText, images, files, json: true, maxTokens: 6000 });
 }
 
 const fromText = (text: string) =>

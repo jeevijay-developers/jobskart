@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       admin_seed: {
@@ -1926,7 +1951,6 @@ export type Database = {
           quality_score: number | null
           renewed_count: number
           reopened_at: string | null
-          renewed_count: number
           repost_count: number
           reposted_from: string | null
           required_assets: string[] | null
@@ -2004,7 +2028,6 @@ export type Database = {
           quality_score?: number | null
           renewed_count?: number
           reopened_at?: string | null
-          renewed_count?: number
           repost_count?: number
           reposted_from?: string | null
           required_assets?: string[] | null
@@ -2082,7 +2105,6 @@ export type Database = {
           quality_score?: number | null
           renewed_count?: number
           reopened_at?: string | null
-          renewed_count?: number
           repost_count?: number
           reposted_from?: string | null
           required_assets?: string[] | null
@@ -2475,7 +2497,8 @@ export type Database = {
           fulfilled_via: string | null
           gst_inr: number | null
           id: string
-          pack_id: string
+          pack_id: string | null
+          plan_id: string | null
           razorpay_order_id: string | null
           razorpay_payment_id: string | null
           status: string
@@ -2493,7 +2516,8 @@ export type Database = {
           fulfilled_via?: string | null
           gst_inr?: number | null
           id?: string
-          pack_id: string
+          pack_id?: string | null
+          plan_id?: string | null
           razorpay_order_id?: string | null
           razorpay_payment_id?: string | null
           status?: string
@@ -2511,7 +2535,8 @@ export type Database = {
           fulfilled_via?: string | null
           gst_inr?: number | null
           id?: string
-          pack_id?: string
+          pack_id?: string | null
+          plan_id?: string | null
           razorpay_order_id?: string | null
           razorpay_payment_id?: string | null
           status?: string
@@ -2531,6 +2556,13 @@ export type Database = {
             columns: ["pack_id"]
             isOneToOne: false
             referencedRelation: "credit_packs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "razorpay_orders_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
             referencedColumns: ["id"]
           },
         ]
@@ -2702,6 +2734,10 @@ export type Database = {
     }
     Functions: {
       accept_invite: { Args: { _token: string }; Returns: string }
+      activate_company_plan: {
+        Args: { _actor: string; _company_id: string; _plan_id: string }
+        Returns: undefined
+      }
       activate_job_with_tier: {
         Args: {
           _job_id: string
@@ -2811,6 +2847,10 @@ export type Database = {
       }
       create_credit_pack_order: {
         Args: { _actor: string; _company_id: string; _pack_id: string }
+        Returns: Json
+      }
+      create_plan_order: {
+        Args: { _actor: string; _company_id: string; _plan_id: string }
         Returns: Json
       }
       current_financial_year: { Args: never; Returns: string }
@@ -2992,6 +3032,10 @@ export type Database = {
         Args: { _order_id: string; _razorpay_payment_id: string }
         Returns: string
       }
+      issue_plan_invoice: {
+        Args: { _order_id: string; _razorpay_payment_id: string }
+        Returns: string
+      }
       log_contact_viewed: {
         Args: {
           _actor: string
@@ -3163,6 +3207,10 @@ export type Database = {
           name: string
           uses: number
         }[]
+      }
+      switch_company_plan_to_basic: {
+        Args: { _actor: string; _company_id: string }
+        Returns: undefined
       }
       unlock_candidate: {
         Args: {
@@ -3363,6 +3411,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       app_platform_role: ["super_admin"],

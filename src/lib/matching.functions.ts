@@ -72,7 +72,9 @@ Candidates:
 ${rows.map((r, i) => `${i + 1}. app_id=${r.application_id} name="${r.full_name}" skills="${(r.skills || []).join(", ")}" yrs=${r.years_experience ?? 0} city="${r.city}" headline="${r.headline}"`).join("\n")}`;
 
       try {
-        const raw = await chat({ user: prompt, json: true });
+        // One line of JSON per applicant, and rows isn't capped upstream, so
+        // give this more headroom than the provider's shared default.
+        const raw = await chat({ user: prompt, json: true, maxTokens: 8000 });
         const parsed = JSON.parse((raw || "{}").replace(/```json|```/g, "").trim() || "{}");
         scores = Array.isArray(parsed.scores) ? parsed.scores : [];
       } catch { /* fall through to heuristic */ }

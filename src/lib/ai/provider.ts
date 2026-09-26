@@ -13,7 +13,14 @@ export type ChatArgs = {
   files?: ChatFile[];
   temperature?: number;
   json?: boolean;
+  maxTokens?: number;
 };
+
+/** Default output cap when a caller doesn't specify one. Some providers
+ *  (e.g. OpenRouter) pre-reserve credit against a model's full max-output
+ *  window when max_tokens is omitted, which can 402 an account that has
+ *  plenty of credit for a normal reply but not for a 60k+-token worst case. */
+const DEFAULT_MAX_TOKENS = 4096;
 
 const LOVABLE_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
@@ -83,6 +90,7 @@ async function chatOpenAICompatible(
   const payload: Record<string, unknown> = {
     model: effectiveModel,
     messages,
+    max_tokens: args.maxTokens ?? DEFAULT_MAX_TOKENS,
     ...(args.temperature != null ? { temperature: args.temperature } : {}),
     ...(args.json ? { response_format: { type: "json_object" as const } } : {}),
   };
@@ -124,6 +132,7 @@ async function chatGemini(model: string, args: ChatArgs): Promise<string> {
       contents: [{ role: "user", parts }],
       ...(args.system ? { systemInstruction: { parts: [{ text: args.system }] } } : {}),
       generationConfig: {
+        maxOutputTokens: args.maxTokens ?? DEFAULT_MAX_TOKENS,
         ...(args.temperature != null ? { temperature: args.temperature } : {}),
         ...(args.json ? { responseMimeType: "application/json" } : {}),
       },
