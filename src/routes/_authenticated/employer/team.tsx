@@ -1,7 +1,7 @@
 import { ThemedSelect } from "@/components/ui/themed-form-controls";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Copy, Mail, Trash2, UserPlus } from "lucide-react";
+import { Copy, Mail, Trash2, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { EmployerShell } from "@/components/employer/EmployerShell";
 import { Field } from "@/components/candidate/primitives";
@@ -187,166 +187,204 @@ function TeamPage() {
 
   return (
     <EmployerShell title="Team" subtitle="Invite recruiters, HR admins, and super admins.">
-      <div className="grid min-w-0 gap-6 lg:grid-cols-3">
-        <div className="min-w-0 space-y-4 lg:col-span-2">
-          <section className="min-w-0 rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
-            <h2 className="text-sm font-bold">
-              Members{" "}
-              <span className="ml-1 text-xs font-medium text-muted-foreground">
-                ({members.length})
+      <div className="min-w-0 space-y-5">
+        <div className="grid min-w-0 gap-4 md:grid-cols-2">
+          <section className="flex min-h-28 min-w-0 flex-col justify-between rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
+            <div className="flex items-start justify-between gap-3">
+              <p className="min-w-0 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                Active Members
+              </p>
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary-light text-primary">
+                <Users className="h-4 w-4" />
               </span>
-            </h2>
-            {loading ? (
-              <div className="mt-4 space-y-3">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="h-14 animate-pulse rounded-lg bg-surface" />
-                ))}
-              </div>
-            ) : (
-              <div className="mt-4 divide-y divide-border">
-                {members.map((m) => {
-                  const isMe = m.user_id === meId;
-                  return (
-                    <div
-                      key={m.user_id}
-                      className="flex flex-wrap items-center justify-between gap-2 py-3"
-                    >
-                      <div className="flex min-w-0 items-center gap-3">
-                        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary-light text-sm font-semibold text-primary">
-                          T
-                        </div>
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium">
-                            Team member{" "}
-                            {isMe && (
-                              <span className="ml-1 text-[10px] font-bold uppercase text-primary">
-                                You
-                              </span>
-                            )}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-2">
-                        {canManage && !isMe ? (
-                          <ThemedSelect
-                            value={m.role}
-                            onChange={(e) => changeRole(m.user_id, e.target.value)}
-                            className="h-8 rounded-lg border border-border bg-card px-2 text-xs font-semibold"
-                          >
-                            <option value="recruiter">Recruiter</option>
-                            <option value="hr_admin">HR Admin</option>
-                            <option value="super_admin">Super Admin</option>
-                          </ThemedSelect>
-                        ) : (
-                          <span className="rounded-full bg-surface px-2.5 py-1 text-[10px] font-semibold uppercase">
-                            {m.role.replace("_", " ")}
-                          </span>
-                        )}
-                        {canManage && !isMe && (
-                          <button
-                            onClick={() => removeMember(m.user_id)}
-                            className="grid h-8 w-8 place-items-center rounded-lg border border-border bg-card text-destructive hover:bg-destructive-light"
-                            title="Remove"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+            </div>
+            <p className="mt-3 text-3xl font-black leading-none tracking-tight text-foreground tabular-nums sm:text-4xl">
+              {loading ? "—" : members.length}
+            </p>
           </section>
 
-          {invites.length > 0 && (
-            <section className="min-w-0 rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
-              <h2 className="text-sm font-bold">Pending invites</h2>
-              <div className="mt-4 space-y-2">
-                {invites.map((i) => (
-                  <div
-                    key={i.id}
-                    className="flex items-center justify-between gap-2 rounded-lg bg-surface p-3"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{i.email}</p>
-                      <p className="text-[10px] text-muted-foreground">
-                        {i.role} · invited{" "}
-                        {formatDistanceToNow(new Date(i.created_at), { addSuffix: true })}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={() => copy(i.token)}
-                        className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-card px-2 text-xs hover:bg-surface"
-                      >
-                        <Copy className="h-3 w-3" /> Copy link
-                      </button>
-                      <button
-                        onClick={() => revoke(i.id)}
-                        className="grid h-8 w-8 place-items-center rounded-lg border border-border bg-card text-destructive hover:bg-destructive-light"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
+          <section className="flex min-h-28 min-w-0 flex-col justify-between rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
+            <div className="flex items-start justify-between gap-3">
+              <p className="min-w-0 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                Pending Invitations
+              </p>
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary-light text-primary">
+                <Mail className="h-4 w-4" />
+              </span>
+            </div>
+            <p className="mt-3 text-3xl font-black leading-none tracking-tight text-foreground tabular-nums sm:text-4xl">
+              {loading ? "—" : invites.length}
+            </p>
+          </section>
         </div>
 
-        <section className="min-w-0 rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
-          <h2 className="flex items-center gap-2 text-sm font-bold">
-            <UserPlus className="h-4 w-4" /> Invite teammate
-          </h2>
-          {accessMessage && (
-            <p className="mt-3 rounded-lg bg-destructive-light px-3 py-2 text-xs text-destructive">
-              {accessMessage}
-            </p>
-          )}
-          {!accessMessage && !canInvite && !loading && (
-            <p className="mt-3 rounded-lg bg-warning-light px-3 py-2 text-xs text-warning">
-              Only HR Admins and Super Admins can create invitations.
-            </p>
-          )}
-          <div className="mt-4 space-y-3">
-            <Field label="Email" required>
-              <div className="flex">
-                <span className="inline-flex items-center rounded-l-lg border border-r-0 border-border bg-surface px-3">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
+        <div className="grid min-w-0 items-start gap-6 min-[1100px]:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
+          <div className="min-w-0 space-y-4">
+            <section className="min-w-0 rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
+              <h2 className="text-sm font-bold">
+                Members{" "}
+                <span className="ml-1 text-xs font-medium text-muted-foreground">
+                  ({members.length})
                 </span>
-                <input
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="form-input rounded-l-none"
-                  placeholder="teammate@company.com"
-                />
-              </div>
-            </Field>
-            <Field label="Role" required>
-              <ThemedSelect
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-                className="form-input"
-              >
-                <option value="recruiter">Recruiter — post jobs, manage applicants</option>
-                <option value="hr_admin">HR Admin — recruiter + edit company</option>
-                <option value="super_admin">Super Admin — full access</option>
-              </ThemedSelect>
-            </Field>
-            <button
-              onClick={sendInvite}
-              disabled={sending || !canInvite || !!accessMessage}
-              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-60"
-            >
-              <UserPlus className="h-4 w-4" /> Create invite
-            </button>
-            <p className="text-xs text-muted-foreground">
-              You'll get a unique link to share with your teammate. They'll join after signing in.
-            </p>
+              </h2>
+              {loading ? (
+                <div className="mt-4 space-y-3">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="h-14 animate-pulse rounded-lg bg-surface" />
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-4 divide-y divide-border">
+                  {members.map((m) => {
+                    const isMe = m.user_id === meId;
+                    return (
+                      <div
+                        key={m.user_id}
+                        className="flex flex-wrap items-center justify-between gap-2 py-3"
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary-light text-sm font-semibold text-primary">
+                            T
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium">
+                              Team member{" "}
+                              {isMe && (
+                                <span className="ml-1 text-[10px] font-bold uppercase text-primary">
+                                  You
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                          {canManage && !isMe ? (
+                            <ThemedSelect
+                              value={m.role}
+                              onChange={(e) => changeRole(m.user_id, e.target.value)}
+                              className="h-8 rounded-lg border border-border bg-card px-2 text-xs font-semibold"
+                            >
+                              <option value="recruiter">Recruiter</option>
+                              <option value="hr_admin">HR Admin</option>
+                              <option value="super_admin">Super Admin</option>
+                            </ThemedSelect>
+                          ) : (
+                            <span className="rounded-full bg-surface px-2.5 py-1 text-[10px] font-semibold uppercase">
+                              {m.role.replace("_", " ")}
+                            </span>
+                          )}
+                          {canManage && !isMe && (
+                            <button
+                              onClick={() => removeMember(m.user_id)}
+                              className="grid h-8 w-8 place-items-center rounded-lg border border-border bg-card text-destructive hover:bg-destructive-light"
+                              title="Remove"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+
+            <section className="min-w-0 rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
+              <h2 className="text-sm font-bold">
+                Pending invites{" "}
+                <span className="ml-1 text-xs font-medium text-muted-foreground">
+                  ({invites.length})
+                </span>
+              </h2>
+              {invites.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  {invites.map((i) => (
+                    <div
+                      key={i.id}
+                      className="flex items-center justify-between gap-2 rounded-lg bg-surface p-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{i.email}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {i.role} · invited{" "}
+                          {formatDistanceToNow(new Date(i.created_at), { addSuffix: true })}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => copy(i.token)}
+                          className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-card px-2 text-xs hover:bg-surface"
+                        >
+                          <Copy className="h-3 w-3" /> Copy link
+                        </button>
+                        <button
+                          onClick={() => revoke(i.id)}
+                          className="grid h-8 w-8 place-items-center rounded-lg border border-border bg-card text-destructive hover:bg-destructive-light"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
           </div>
-        </section>
+
+          <section className="min-w-0 rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
+            <h2 className="flex items-center gap-2 text-sm font-bold">
+              <UserPlus className="h-4 w-4" /> Invite teammate
+            </h2>
+            {accessMessage && (
+              <p className="mt-3 rounded-lg bg-destructive-light px-3 py-2 text-xs text-destructive">
+                {accessMessage}
+              </p>
+            )}
+            {!accessMessage && !canInvite && !loading && (
+              <p className="mt-3 rounded-lg bg-warning-light px-3 py-2 text-xs text-warning">
+                Only HR Admins and Super Admins can create invitations.
+              </p>
+            )}
+            <div className="mt-4 space-y-3">
+              <Field label="Email" required>
+                <div className="flex">
+                  <span className="inline-flex items-center rounded-l-lg border border-r-0 border-border bg-surface px-3">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                  </span>
+                  <input
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="form-input rounded-l-none"
+                    placeholder="teammate@company.com"
+                  />
+                </div>
+              </Field>
+              <Field label="Role" required>
+                <ThemedSelect
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  className="form-input"
+                  contentClassName="max-h-[min(15rem,var(--radix-select-content-available-height))] overflow-y-auto overflow-x-hidden"
+                >
+                  <option value="recruiter">Recruiter — post jobs, manage applicants</option>
+                  <option value="hr_admin">HR Admin — recruiter + edit company</option>
+                  <option value="super_admin">Super Admin — full access</option>
+                </ThemedSelect>
+              </Field>
+              <button
+                onClick={sendInvite}
+                disabled={sending || !canInvite || !!accessMessage}
+                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-60"
+              >
+                <UserPlus className="h-4 w-4" /> Create invite
+              </button>
+              <p className="text-xs text-muted-foreground">
+                You'll get a unique link to share with your teammate. They'll join after signing in.
+              </p>
+            </div>
+          </section>
+        </div>
       </div>
     </EmployerShell>
   );

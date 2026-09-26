@@ -21,6 +21,33 @@ const KINDS = [
   { value: "team", label: "Team" },
 ] as const;
 
+const TIME_RANGES = [
+  { value: "", label: "All time" },
+  { value: "today", label: "Today" },
+  { value: "24h", label: "Last 24 Hours" },
+  { value: "3d", label: "Last 3 Days" },
+  { value: "7d", label: "Last 7 Days" },
+  { value: "30d", label: "Last 30 Days" },
+] as const;
+
+function timeRangeStart(range: string): Date | null {
+  const now = new Date();
+  switch (range) {
+    case "today":
+      return startOfDay(now);
+    case "24h":
+      return new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    case "3d":
+      return new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+    case "7d":
+      return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    case "30d":
+      return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    default:
+      return null;
+  }
+}
+
 // Batch size for "Load More" and for the per-day-group cap on the very first
 // render (Today gets up to BATCH_SIZE, then Yesterday also gets up to
 // BATCH_SIZE — see initialVisibleCount below). This is a record count, not a
@@ -91,6 +118,7 @@ function ActivityPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMoreOnServer, setHasMoreOnServer] = useState(false);
   const [filter, setFilter] = useState<string>("");
+  const [timeFilter, setTimeFilter] = useState<string>("");
 
   useEffect(() => {
     (async () => {
@@ -123,6 +151,8 @@ function ActivityPage() {
         .order("created_at", { ascending: false })
         .range(0, FETCH_CHUNK);
       if (filter) q = q.like("kind", `${filter}.%`);
+      const since = timeRangeStart(timeFilter);
+      if (since) q = q.gte("created_at", since.toISOString());
       const { data } = await q;
       if (cancelled) return;
       const rows = (data || []) as ActivityItem[];
@@ -136,7 +166,7 @@ function ActivityPage() {
     return () => {
       cancelled = true;
     };
-  }, [companyId, filter]);
+  }, [companyId, filter, timeFilter]);
 
   async function loadMore() {
     if (loadingMore) return;
@@ -161,6 +191,8 @@ function ActivityPage() {
       .order("created_at", { ascending: false })
       .range(items.length, items.length + FETCH_CHUNK);
     if (filter) q = q.like("kind", `${filter}.%`);
+    const since = timeRangeStart(timeFilter);
+    if (since) q = q.gte("created_at", since.toISOString());
     const { data } = await q;
     const rows = (data || []) as ActivityItem[];
     const page = rows.slice(0, FETCH_CHUNK);
@@ -177,21 +209,38 @@ function ActivityPage() {
 
   return (
     <EmployerShell title="Activity" subtitle="Every event across your hiring workspace.">
-      <div className="mb-4 flex flex-wrap gap-2">
-        {KINDS.map((k) => (
-          <button
-            key={k.value}
-            onClick={() => setFilter(k.value)}
-            className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
-              filter === k.value
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border bg-card text-foreground/80 hover:bg-surface"
-            }`}
-          >
-            {k.label}
-          </button>
-        ))}
-      </div>
+      <section className="mb-4 rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
+        <div className="flex flex-wrap gap-2">
+          {KINDS.map((k) => (
+            <button
+              key={k.value}
+              onClick={() => setFilter(k.value)}
+              className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                filter === k.value
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-card text-foreground/80 hover:bg-surface"
+              }`}
+            >
+              {k.label}
+            </button>
+          ))}
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {TIME_RANGES.map((t) => (
+            <button
+              key={t.value}
+              onClick={() => setTimeFilter(t.value)}
+              className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                timeFilter === t.value
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-card text-foreground/80 hover:bg-surface"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </section>
       <section className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
         {loading || dayGroups.length === 0 ? (
           <ActivityFeed items={visibleItems} loading={loading} />

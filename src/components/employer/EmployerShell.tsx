@@ -78,6 +78,7 @@ export function EmployerShell({
   children,
   actions,
   headerLeft,
+  headerRightInset,
 }: {
   title: string;
   subtitle?: string;
@@ -85,6 +86,8 @@ export function EmployerShell({
   actions?: ReactNode;
   /** Extra content rendered inline next to the title, on the left side of the header row. */
   headerLeft?: ReactNode;
+  /** Extra right-side inset for the bell/actions cluster — opt-in per page so it doesn't shift every employer route. */
+  headerRightInset?: boolean;
 }) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
@@ -156,7 +159,9 @@ export function EmployerShell({
               </div>
               {subtitle ? <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p> : null}
             </div>
-            <div className="flex shrink-0 items-center gap-2">
+            <div
+              className={`flex shrink-0 items-center gap-2 ${headerRightInset ? "lg:pr-14 xl:pr-16" : ""}`}
+            >
               <div className="hidden sm:block">
                 <NotificationBell />
               </div>

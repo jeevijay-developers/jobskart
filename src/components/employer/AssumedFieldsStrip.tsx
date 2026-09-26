@@ -1,13 +1,17 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Check } from "lucide-react";
-import { StateDropdown } from "@/components/candidate/StateDropdown";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { JOB_TYPE_OPTIONS, WORK_MODES, GENDERS, JOB_CATEGORIES, INDUSTRIES } from "@/lib/options";
 import type { FieldSource } from "@/lib/job-draft-infer";
 
 export type AssumedChipKey =
-  | "job_type" | "work_mode" | "category" | "industry"
-  | "gender_pref" | "interview_type" | "joining_fee_required";
+  | "job_type"
+  | "work_mode"
+  | "category"
+  | "industry"
+  | "gender_pref"
+  | "interview_type"
+  | "joining_fee_required";
 
 type StripValues = {
   job_type: string;
@@ -31,10 +35,16 @@ function chipLabel(key: AssumedChipKey, values: StripValues): string {
     case "industry":
       return values.industry || "Industry";
     case "gender_pref":
-      return values.gender_pref === "male" ? "Male" : values.gender_pref === "female" ? "Female" : "Any gender";
+      return values.gender_pref === "male"
+        ? "Male"
+        : values.gender_pref === "female"
+          ? "Female"
+          : "Any gender";
     case "interview_type":
       if (values.interview_type === "telephonic") return "Telephonic";
-      return values.interview_same_as_company ? "Interview at office" : "Interview at custom address";
+      return values.interview_same_as_company
+        ? "Interview at office"
+        : "Interview at custom address";
     case "joining_fee_required":
       return values.joining_fee_required ? "Joining fee" : "No joining fee";
   }
@@ -50,7 +60,38 @@ const chipClass =
   "rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-medium text-foreground/80 hover:border-primary hover:text-primary";
 
 const optionButtonClass = (on: boolean) =>
-  `rounded-full border px-3 py-1.5 text-sm ${on ? "border-primary bg-primary-light text-primary" : "border-border bg-surface text-foreground/70"}`;
+  `flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+    on ? "bg-primary-light font-medium text-primary" : "text-foreground/80 hover:bg-surface"
+  }`;
+
+function ChipOptionList({
+  options,
+  value,
+  onSelect,
+}: {
+  options: readonly { id: string; label: string }[];
+  value: string;
+  onSelect: (value: string) => void;
+}) {
+  return (
+    <div className="max-h-60 min-w-48 overflow-y-auto overflow-x-hidden p-1 [scrollbar-width:thin]">
+      {options.map((option) => {
+        const selected = option.id === value;
+        return (
+          <button
+            key={option.id}
+            type="button"
+            onClick={() => onSelect(option.id)}
+            className={optionButtonClass(selected)}
+          >
+            <span className="min-w-0 truncate">{option.label}</span>
+            {selected && <Check className="h-4 w-4 shrink-0" />}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 export function AssumedFieldsStrip(props: {
   inferring: boolean;
@@ -60,15 +101,36 @@ export function AssumedFieldsStrip(props: {
   onChange: (key: AssumedChipKey, value: string | boolean) => void;
 }) {
   const { inferring, values, sources, matchedHistoryTitle, onChange } = props;
+  const [openChip, setOpenChip] = useState<AssumedChipKey | null>(null);
+
+  const select = (key: AssumedChipKey, value: string | boolean) => {
+    onChange(key, value);
+    setOpenChip(null);
+  };
 
   const chip = (key: AssumedChipKey, content: ReactNode) => (
-    <Popover key={key}>
+    <Popover
+      key={key}
+      open={openChip === key}
+      onOpenChange={(open) => setOpenChip(open ? key : null)}
+    >
       <PopoverTrigger asChild>
-        <button type="button" title={chipTooltip(sources[key], matchedHistoryTitle)} className={chipClass}>
+        <button
+          type="button"
+          title={chipTooltip(sources[key], matchedHistoryTitle)}
+          className={chipClass}
+        >
           {chipLabel(key, values)}
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-64">{content}</PopoverContent>
+      <PopoverContent
+        align="start"
+        sideOffset={6}
+        collisionPadding={12}
+        className="w-auto max-w-[min(20rem,var(--radix-popover-content-available-width))] overflow-hidden rounded-xl border-primary/15 bg-popover p-1 shadow-xl shadow-primary/10"
+      >
+        {content}
+      </PopoverContent>
     </Popover>
   );
 
@@ -79,63 +141,65 @@ export function AssumedFieldsStrip(props: {
       <div className="flex flex-wrap gap-1.5">
         {chip(
           "job_type",
-          <div className="flex flex-wrap gap-1.5">
-            {JOB_TYPE_OPTIONS.map((o) => (
-              <button key={o.id} type="button" onClick={() => onChange("job_type", o.id)} className={optionButtonClass(values.job_type === o.id)}>
-                {o.label}
-              </button>
-            ))}
-          </div>,
+          <ChipOptionList
+            options={JOB_TYPE_OPTIONS}
+            value={values.job_type}
+            onSelect={(value) => select("job_type", value)}
+          />,
         )}
         {chip(
           "work_mode",
-          <div className="flex flex-wrap gap-1.5">
-            {WORK_MODES.map((o) => (
-              <button key={o.id} type="button" onClick={() => onChange("work_mode", o.id)} className={optionButtonClass(values.work_mode === o.id)}>
-                {o.label}
-              </button>
-            ))}
-          </div>,
+          <ChipOptionList
+            options={WORK_MODES}
+            value={values.work_mode}
+            onSelect={(value) => select("work_mode", value)}
+          />,
         )}
         {chip(
           "category",
-          <StateDropdown value={values.category} options={JOB_CATEGORIES} placeholder="Select…" onChange={(v) => onChange("category", v)} />,
+          <ChipOptionList
+            options={JOB_CATEGORIES.map((label) => ({ id: label, label }))}
+            value={values.category}
+            onSelect={(value) => select("category", value)}
+          />,
         )}
         {chip(
           "industry",
-          <StateDropdown value={values.industry} options={INDUSTRIES} placeholder="Select…" onChange={(v) => onChange("industry", v)} />,
+          <ChipOptionList
+            options={INDUSTRIES.map((label) => ({ id: label, label }))}
+            value={values.industry}
+            onSelect={(value) => select("industry", value)}
+          />,
         )}
         {chip(
           "gender_pref",
-          <div className="flex flex-wrap gap-1.5">
-            {GENDERS.map((g) => (
-              <button key={g.id} type="button" onClick={() => onChange("gender_pref", g.id)} className={optionButtonClass(values.gender_pref === g.id)}>
-                {g.label}
-              </button>
-            ))}
-          </div>,
+          <ChipOptionList
+            options={GENDERS}
+            value={values.gender_pref}
+            onSelect={(value) => select("gender_pref", value)}
+          />,
         )}
         {chip(
           "interview_type",
-          <div className="flex flex-wrap gap-1.5">
-            <button type="button" onClick={() => onChange("interview_type", "in_person")} className={optionButtonClass(values.interview_type === "in_person")}>
-              In-person
-            </button>
-            <button type="button" onClick={() => onChange("interview_type", "telephonic")} className={optionButtonClass(values.interview_type === "telephonic")}>
-              Telephonic
-            </button>
-          </div>,
+          <ChipOptionList
+            options={[
+              { id: "in_person", label: "In-person" },
+              { id: "telephonic", label: "Telephonic" },
+            ]}
+            value={values.interview_type}
+            onSelect={(value) => select("interview_type", value)}
+          />,
         )}
         {chip(
           "joining_fee_required",
-          <div className="flex flex-wrap gap-1.5">
-            <button type="button" onClick={() => onChange("joining_fee_required", false)} className={optionButtonClass(!values.joining_fee_required)}>
-              {!values.joining_fee_required && <Check className="mr-1 inline h-3 w-3" />} No joining fee
-            </button>
-            <button type="button" onClick={() => onChange("joining_fee_required", true)} className={optionButtonClass(values.joining_fee_required)}>
-              {values.joining_fee_required && <Check className="mr-1 inline h-3 w-3" />} Joining fee
-            </button>
-          </div>,
+          <ChipOptionList
+            options={[
+              { id: "false", label: "No joining fee" },
+              { id: "true", label: "Joining fee" },
+            ]}
+            value={String(values.joining_fee_required)}
+            onSelect={(value) => select("joining_fee_required", value === "true")}
+          />,
         )}
       </div>
     </div>

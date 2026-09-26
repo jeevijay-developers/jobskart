@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown } from "lucide-react";
 
 type Props = {
@@ -31,11 +32,19 @@ export function StateDropdown({
     { left: number; width: number } & ({ top: number; bottom?: undefined } | { top?: undefined; bottom: number })
   >();
   const containerRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const MENU_MAX_HEIGHT = maxMenuHeight ?? 272; // matches CityTownAutocomplete / ThemedSelect dropdowns by default
 
   useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
-      if (!containerRef.current?.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (containerRef.current?.contains(target)) return;
+      // The menu is portaled to document.body (see below), so it's not a DOM
+      // descendant of containerRef — check it separately or every click
+      // inside the open menu would be treated as "outside" and close it
+      // before the option's own onClick can fire.
+      if (menuRef.current?.contains(target)) return;
+      setOpen(false);
     };
     document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);
@@ -95,8 +104,9 @@ export function StateDropdown({
         <span className={value ? "" : "text-muted-foreground"}>{value || placeholder}</span>
         <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
       </button>
-      {open && menuPos && (
+      {open && menuPos && createPortal(
         <div
+          ref={menuRef}
           className="fixed z-[100] overflow-y-auto overflow-x-hidden rounded-xl border border-primary/15 bg-popover shadow-xl shadow-primary/10 [scrollbar-width:thin] box-border"
           style={{
             top: menuPos.top,
@@ -118,7 +128,8 @@ export function StateDropdown({
               {s}
             </button>
           ))}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

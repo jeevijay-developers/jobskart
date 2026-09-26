@@ -80,6 +80,9 @@ const metricTones = {
   muted: "bg-surface text-muted-foreground",
 };
 
+const recentApplicantsDesktopGrid =
+  "min-[1180px]:grid-cols-[minmax(12rem,1.5fr)_minmax(10rem,1.25fr)_minmax(9rem,1fr)_minmax(7rem,.75fr)_minmax(7rem,.75fr)]";
+
 function DashboardMetricCard({
   icon: Icon,
   label,
@@ -94,7 +97,7 @@ function DashboardMetricCard({
   tone: keyof typeof metricTones;
 }) {
   return (
-    <div className="group flex min-h-32 min-w-0 flex-col justify-between rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-card-hover)] sm:p-5">
+    <div className="group flex min-h-32 min-w-0 flex-col justify-between rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-card-hover)] sm:p-5 min-[1180px]:!min-h-28 min-[1180px]:!p-4">
       <div className="flex items-start justify-between gap-3">
         <p className="min-w-0 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
           {label}
@@ -105,7 +108,7 @@ function DashboardMetricCard({
           <Icon className="h-4 w-4" />
         </span>
       </div>
-      <div className="mt-5 flex min-w-0 items-end justify-between gap-2">
+      <div className="mt-5 flex min-w-0 items-end justify-between gap-2 min-[1180px]:!mt-3">
         <p className="text-3xl font-black leading-none tracking-tight text-foreground tabular-nums sm:text-4xl">
           {value}
         </p>
@@ -287,6 +290,7 @@ function EmployerDashboard() {
   return (
     <EmployerShell
       title="Employer dashboard"
+      headerRightInset
       actions={
         <ThemedSelect
           aria-label="Active company"
@@ -365,7 +369,7 @@ function EmployerDashboard() {
                 </div>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-2.5 sm:flex sm:shrink-0 sm:flex-wrap min-[1180px]:justify-end">
+            <div className="grid grid-cols-2 gap-2.5 sm:flex sm:shrink-0 sm:flex-wrap min-[1180px]:justify-end min-[1180px]:pr-8 xl:pr-10">
               <Link
                 to="/employer/jobs/new"
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-3.5 text-sm font-bold text-primary-foreground shadow-sm transition-colors hover:bg-primary-dark sm:px-4"
@@ -384,7 +388,7 @@ function EmployerDashboard() {
         </section>
 
         {/* Summary metrics */}
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 min-[1180px]:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 min-[1180px]:!gap-3 min-[1180px]:grid-cols-4">
           <DashboardMetricCard
             icon={Briefcase}
             label="Active jobs"
@@ -463,10 +467,20 @@ function EmployerDashboard() {
                         >
                           <div className="min-w-0">
                             <p className="truncate text-sm font-semibold">{j.title}</p>
-                            <p className="mt-1 text-[11px] text-muted-foreground">
+                            <p className="mt-1 text-[11px] text-muted-foreground min-[1180px]:hidden">
                               <Eye className="mr-0.5 inline h-3 w-3" />
                               {j.views_count || 0} · <Users className="mx-0.5 inline h-3 w-3" />
                               {j.applications_count || 0} applied
+                            </p>
+                            <p className="mt-1 hidden items-center gap-2 text-[11px] text-muted-foreground min-[1180px]:flex">
+                              <span className="inline-flex items-center gap-1">
+                                <Eye className="h-3 w-3" />
+                                {j.views_count || 0}
+                              </span>
+                              <span className="inline-flex items-center gap-1">
+                                <Users className="h-3 w-3" />
+                                {j.applications_count || 0} applied
+                              </span>
                             </p>
                           </div>
                           <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -589,7 +603,7 @@ function EmployerDashboard() {
               <div role="table" aria-label="Recent applicants">
                 <div
                   role="row"
-                  className="hidden grid-cols-[minmax(12rem,1.5fr)_minmax(10rem,1.25fr)_minmax(9rem,1fr)_minmax(7rem,.75fr)_minmax(7rem,.75fr)] gap-4 border-b border-border bg-surface/60 px-6 py-2.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground min-[1180px]:grid"
+                  className={`${recentApplicantsDesktopGrid} hidden gap-4 border-b border-border bg-surface/60 py-2.5 pl-6 pr-10 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground min-[1180px]:grid`}
                 >
                   <span role="columnheader">Candidate</span>
                   <span role="columnheader">Job role</span>
@@ -597,7 +611,7 @@ function EmployerDashboard() {
                   <span role="columnheader" className="text-center">
                     Status
                   </span>
-                  <span role="columnheader" className="text-right">
+                  <span role="columnheader" className="text-center">
                     Action
                   </span>
                 </div>
@@ -606,7 +620,7 @@ function EmployerDashboard() {
                     <div
                       key={a.id}
                       role="row"
-                      className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-1.5 px-4 py-3 transition-colors hover:bg-surface/70 sm:px-6 min-[1180px]:grid-cols-[minmax(12rem,1.5fr)_minmax(10rem,1.25fr)_minmax(9rem,1fr)_minmax(7rem,.75fr)_minmax(7rem,.75fr)] min-[1180px]:items-center min-[1180px]:gap-4"
+                      className={`${recentApplicantsDesktopGrid} grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-1.5 px-4 py-3 transition-colors hover:bg-surface/70 sm:px-6 min-[1180px]:items-center min-[1180px]:gap-4 min-[1180px]:!pr-10`}
                     >
                       <div role="cell" className="flex min-w-0 items-center gap-3">
                         <div className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full bg-primary-light text-xs font-bold text-primary ring-1 ring-primary/10">
@@ -650,7 +664,7 @@ function EmployerDashboard() {
                       </div>
                       <div
                         role="cell"
-                        className="col-start-2 row-span-2 row-start-2 flex items-center justify-end self-center min-[1180px]:col-auto min-[1180px]:row-auto min-[1180px]:row-span-1"
+                        className="col-start-2 row-span-2 row-start-2 flex items-center justify-end self-center min-[1180px]:col-auto min-[1180px]:row-auto min-[1180px]:row-span-1 min-[1180px]:justify-center"
                       >
                         {a.jobs?.id ? (
                           <Link

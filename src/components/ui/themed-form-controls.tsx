@@ -22,6 +22,7 @@ type ThemedSelectProps = Omit<
   "multiple" | "size"
 > & {
   children: React.ReactNode;
+  contentClassName?: string;
 };
 
 type ParsedOption = {
@@ -62,6 +63,7 @@ function ThemedSelect({
   defaultValue,
   onChange,
   className,
+  contentClassName,
   disabled,
   name,
   id,
@@ -107,7 +109,10 @@ function ThemedSelect({
         position="popper"
         sideOffset={6}
         collisionPadding={12}
-        className="max-h-[min(17rem,var(--radix-select-content-available-height))] rounded-xl border-primary/15 bg-popover p-1 shadow-xl shadow-primary/10"
+        className={cn(
+          "max-h-[min(17rem,var(--radix-select-content-available-height))] rounded-xl border-primary/15 bg-popover p-1 shadow-xl shadow-primary/10",
+          contentClassName,
+        )}
       >
         {selectableOptions.map((option, index) => (
           <SelectItem

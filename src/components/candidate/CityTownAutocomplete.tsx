@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { ChevronDown } from "lucide-react";
 
 type Props = {
   value: string;
@@ -6,10 +7,18 @@ type Props = {
   suggestions: string[];
   disabled?: boolean;
   placeholder?: string;
+  showDropdownIndicator?: boolean;
 };
 
 /** Editable combobox: local suggestions filtered as-you-type, but any typed value is accepted as-is. */
-export function CityTownAutocomplete({ value, onChange, suggestions, disabled, placeholder }: Props) {
+export function CityTownAutocomplete({
+  value,
+  onChange,
+  suggestions,
+  disabled,
+  placeholder,
+  showDropdownIndicator = false,
+}: Props) {
   const [q, setQ] = useState(value);
   const [open, setOpen] = useState(false);
   const [openUpward, setOpenUpward] = useState(false);
@@ -47,7 +56,7 @@ export function CityTownAutocomplete({ value, onChange, suggestions, disabled, p
   return (
     <div ref={containerRef} className="relative">
       <input
-        className="form-input disabled:cursor-not-allowed disabled:opacity-60"
+        className={`form-input disabled:cursor-not-allowed disabled:opacity-60 ${showDropdownIndicator ? "pr-10" : ""}`}
         value={q}
         disabled={disabled}
         onChange={(e) => {
@@ -56,9 +65,14 @@ export function CityTownAutocomplete({ value, onChange, suggestions, disabled, p
           setOpen(true);
         }}
         onFocus={() => !disabled && setOpen(true)}
-        placeholder={disabled ? "Select a state first" : (placeholder ?? "Select or type city/town")}
+        placeholder={
+          disabled ? "Select a state first" : (placeholder ?? "Select or type city/town")
+        }
         autoComplete="off"
       />
+      {showDropdownIndicator && (
+        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      )}
       {open && !disabled && filtered.length > 0 && (
         <div
           className={`absolute z-[100] w-full overflow-y-auto overflow-x-hidden rounded-xl border border-primary/15 bg-popover shadow-xl shadow-primary/10 [scrollbar-width:thin] ${

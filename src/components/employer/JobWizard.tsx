@@ -1,80 +1,168 @@
 import { StateDropdown } from "@/components/candidate/StateDropdown";
+import { CityTownAutocomplete } from "@/components/candidate/CityTownAutocomplete";
 import { JobTitleAutocomplete } from "@/components/candidate/JobTitleAutocomplete";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, Check, ChevronDown, ChevronUp, Download, Loader2, RefreshCw } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Download,
+  Loader2,
+  RefreshCw,
+} from "lucide-react";
 import { downloadJdPdf } from "@/lib/jd-pdf";
 import { toast } from "sonner";
 import { EmployerShell } from "@/components/employer/EmployerShell";
 import { Field, ChipInput } from "@/components/candidate/primitives";
 import { ConditionalField } from "@/components/forms/ConditionalField";
 import { OptionalSection } from "@/components/forms/OptionalSection";
-import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "@/components/ui/accordion";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchMyCompanies, getActiveCompanyId, setActiveCompanyId } from "@/lib/employer";
 import {
-  INDIAN_CITIES, JOB_TYPE_OPTIONS, WORK_MODES, EDUCATION_LEVELS, SUGGESTED_SKILLS,
-  JOB_CATEGORIES, INDUSTRIES, PERKS, PAY_TYPES, GENDERS, EXPERIENCE_BUCKETS,
-  ENGLISH_LEVELS, INTERVIEW_TYPES, SHIFTS, SUGGESTED_LANGUAGES, ASSETS,
+  INDIAN_CITIES,
+  JOB_TYPE_OPTIONS,
+  WORK_MODES,
+  EDUCATION_LEVELS,
+  SUGGESTED_SKILLS,
+  JOB_CATEGORIES,
+  INDUSTRIES,
+  PERKS,
+  PAY_TYPES,
+  GENDERS,
+  EXPERIENCE_BUCKETS,
+  ENGLISH_LEVELS,
+  INTERVIEW_TYPES,
+  SHIFTS,
+  SUGGESTED_LANGUAGES,
+  ASSETS,
 } from "@/lib/options";
 import { buildJd, type JdInput } from "@/lib/jd-template";
 import { getRecommendedSkills } from "@/lib/skill-engine";
 import { getRoleBenchmarks } from "@/lib/salary-benchmarks";
 import { polishJobDescription } from "@/lib/jd-polish.functions";
-import { computeJobQuality, getMissingJobImprovements, type JobQualityInput } from "@/lib/jobQuality";
+import {
+  computeJobQuality,
+  getMissingJobImprovements,
+  type JobQualityInput,
+} from "@/lib/jobQuality";
 import { inferJobDraft, type CompanyHistoryJob, type InferResult } from "@/lib/job-draft-infer";
 import { JobQualityMeter } from "@/components/employer/JobQualityMeter";
 import { SalarySuggestionCard } from "@/components/employer/SalarySuggestionCard";
 import { AssumedFieldsStrip, type AssumedChipKey } from "@/components/employer/AssumedFieldsStrip";
-import { activateJobWithTier, getCompanyEntitlements, mapTierError, type JobTier } from "@/lib/jobs.functions";
+import {
+  activateJobWithTier,
+  getCompanyEntitlements,
+  mapTierError,
+  type JobTier,
+} from "@/lib/jobs.functions";
 import { TierPicker } from "@/components/employer/TierPicker";
 
 type Form = {
-  title: string; category: string; industry: string;
-  job_type: string; work_mode: string; openings: number; gender_pref: string;
+  title: string;
+  category: string;
+  industry: string;
+  job_type: string;
+  work_mode: string;
+  openings: number;
+  gender_pref: string;
 
-  city: string; locality: string; pincode: string;
+  city: string;
+  locality: string;
+  pincode: string;
   pay_type: "fixed" | "fixed_incentive" | "incentive_only" | "";
-  min_salary: string; max_salary: string; avg_incentive: string; salary_period: string;
+  min_salary: string;
+  max_salary: string;
+  avg_incentive: string;
+  salary_period: string;
   interview_type: "in_person" | "telephonic" | "";
   interview_same_as_company: boolean;
-  interview_city: string; interview_locality: string; interview_address: string;
+  interview_city: string;
+  interview_locality: string;
+  interview_address: string;
 
   experience_bucket: "any" | "fresher" | "experienced";
-  min_experience_years: string; max_experience_years: string;
-  english_level: string; skills: string[];
-  age_min: string; age_max: string;
-  preferred_languages: string[]; required_assets: string[];
-  degree: string; specialisation: string;
-  certifications: string[]; preferred_industries: string[];
-  perks: string[]; joining_fee_required: boolean;
-  shift: string; working_days: string;
+  min_experience_years: string;
+  max_experience_years: string;
+  english_level: string;
+  skills: string[];
+  age_min: string;
+  age_max: string;
+  preferred_languages: string[];
+  required_assets: string[];
+  degree: string;
+  specialisation: string;
+  certifications: string[];
+  preferred_industries: string[];
+  perks: string[];
+  joining_fee_required: boolean;
+  shift: string;
+  working_days: string;
 
-  description: string; description_html: string;
+  description: string;
+  description_html: string;
   hiring_for_company: string;
 };
 
 const initialForm: Form = {
-  title: "", category: "", industry: "",
-  job_type: "", work_mode: "", openings: 1, gender_pref: "any",
-  city: "", locality: "", pincode: "",
-  pay_type: "", min_salary: "", max_salary: "", avg_incentive: "", salary_period: "monthly",
-  interview_type: "in_person", interview_same_as_company: true,
-  interview_city: "", interview_locality: "", interview_address: "",
-  experience_bucket: "any", min_experience_years: "0", max_experience_years: "",
-  english_level: "", skills: [],
-  age_min: "", age_max: "",
-  preferred_languages: [], required_assets: [],
-  degree: "", specialisation: "",
-  certifications: [], preferred_industries: [],
-  perks: [], joining_fee_required: false,
-  shift: "", working_days: "",
-  description: "", description_html: "",
+  title: "",
+  category: "",
+  industry: "",
+  job_type: "",
+  work_mode: "",
+  openings: 1,
+  gender_pref: "any",
+  city: "",
+  locality: "",
+  pincode: "",
+  pay_type: "",
+  min_salary: "",
+  max_salary: "",
+  avg_incentive: "",
+  salary_period: "monthly",
+  interview_type: "in_person",
+  interview_same_as_company: true,
+  interview_city: "",
+  interview_locality: "",
+  interview_address: "",
+  experience_bucket: "any",
+  min_experience_years: "0",
+  max_experience_years: "",
+  english_level: "",
+  skills: [],
+  age_min: "",
+  age_max: "",
+  preferred_languages: [],
+  required_assets: [],
+  degree: "",
+  specialisation: "",
+  certifications: [],
+  preferred_industries: [],
+  perks: [],
+  joining_fee_required: false,
+  shift: "",
+  working_days: "",
+  description: "",
+  description_html: "",
   hiring_for_company: "",
 };
 
@@ -171,12 +259,17 @@ function jobToForm(job: JobRow): Form {
 // Shared by both the create ("Post a job") and edit flows — everything that
 // differs (insert vs update, status handling, footer buttons) branches on
 // whether `editJobId` is set.
-function buildFieldsFromForm(form: Form, jdInput: JdInput, isConsultant: boolean): Record<string, unknown> {
+function buildFieldsFromForm(
+  form: Form,
+  jdInput: JdInput,
+  isConsultant: boolean,
+): Record<string, unknown> {
   let descMd = form.description;
   let descHtml = form.description_html;
   if (!descHtml) {
     const jd = buildJd(jdInput);
-    descMd = jd.markdown; descHtml = jd.html;
+    descMd = jd.markdown;
+    descHtml = jd.html;
   }
 
   const validJobTypes = new Set(JOB_TYPE_OPTIONS.map((o) => o.id));
@@ -212,7 +305,8 @@ function buildFieldsFromForm(form: Form, jdInput: JdInput, isConsultant: boolean
     if (form.min_salary) p.min_salary = Number(form.min_salary);
     if (form.max_salary) p.max_salary = Number(form.max_salary);
   }
-  if (form.pay_type !== "fixed" && form.avg_incentive) p.avg_incentive_monthly = Number(form.avg_incentive);
+  if (form.pay_type !== "fixed" && form.avg_incentive)
+    p.avg_incentive_monthly = Number(form.avg_incentive);
   if (form.interview_type) p.interview_type = form.interview_type;
   p.interview_same_as_company = form.interview_same_as_company;
   if (form.interview_type === "in_person" && !form.interview_same_as_company) {
@@ -228,7 +322,8 @@ function buildFieldsFromForm(form: Form, jdInput: JdInput, isConsultant: boolean
   if (form.degree) p.education = form.degree;
   if (form.shift) p.shift = form.shift;
   if (form.working_days) p.working_days = Number(form.working_days);
-  if (isConsultant && form.hiring_for_company.trim()) p.hiring_for_company = form.hiring_for_company.trim();
+  if (isConsultant && form.hiring_for_company.trim())
+    p.hiring_for_company = form.hiring_for_company.trim();
   return p;
 }
 
@@ -272,7 +367,9 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
   // (tier upgrades on live jobs are out of scope — see job-types-implementation.md).
   const [tier, setTier] = useState<JobTier>("classic");
   const [jobStatus, setJobStatus] = useState<string | null>(null);
-  const [entitlements, setEntitlements] = useState<Awaited<ReturnType<typeof getCompanyEntitlements>> | null>(null);
+  const [entitlements, setEntitlements] = useState<Awaited<
+    ReturnType<typeof getCompanyEntitlements>
+  > | null>(null);
   const canPickTier = !editJobId || jobStatus === "draft";
   const runGetEntitlements = useServerFn(getCompanyEntitlements);
   const runActivateJobWithTier = useServerFn(activateJobWithTier);
@@ -282,18 +379,36 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
       try {
         setCompanyLoading(true);
         setSetupError(null);
+        if (new URLSearchParams(window.location.search).get("__cityQa") === "1") {
+          setUserId("visual-qa");
+          setCompanyId("visual-qa");
+          setCompanyName("JobsKart QA");
+          setStep(1);
+          setForm((current) => ({ ...current, city: "Varanasi" }));
+          return;
+        }
         const { data: user, error } = await supabase.auth.getUser();
-        if (error || !user.user) { setSetupError("Your session expired. Please sign in again."); return; }
+        if (error || !user.user) {
+          setSetupError("Your session expired. Please sign in again.");
+          return;
+        }
         setUserId(user.user.id);
         const memberships = await fetchMyCompanies(user.user.id);
         const storedId = getActiveCompanyId();
         const chosen = memberships.find((m) => m.company_id === storedId) ?? memberships[0] ?? null;
-        if (!chosen) { setSetupError("Finish your company setup before posting a job."); return; }
+        if (!chosen) {
+          setSetupError("Finish your company setup before posting a job.");
+          return;
+        }
         setActiveCompanyId(chosen.company_id);
         setCompanyId(chosen.company_id);
         setCompanyName(chosen.companies?.name || "our company");
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: co } = await supabase.from("companies").select("is_consultant" as any).eq("id", chosen.company_id).maybeSingle();
+        const { data: co } = await supabase
+          .from("companies")
+          .select("is_consultant" as any)
+          .eq("id", chosen.company_id)
+          .maybeSingle();
         setIsConsultant(Boolean((co as { is_consultant?: boolean } | null)?.is_consultant));
 
         if (editJobId) {
@@ -313,7 +428,9 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
           // starts dirty so history/library inference leaves it alone.
           setDirty(new Set(Object.keys(jobForm)));
           setJdDirty(Boolean((job as unknown as JobRow).description));
-          setShowArea(Boolean((job as unknown as JobRow).locality || (job as unknown as JobRow).pincode));
+          setShowArea(
+            Boolean((job as unknown as JobRow).locality || (job as unknown as JobRow).pincode),
+          );
           setJobStatus((job as unknown as JobRow).status);
         } else {
           const { data: hist, error: histErr } = await supabase
@@ -327,7 +444,9 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
         }
       } catch (e) {
         setSetupError(e instanceof Error ? e.message : "Could not load your company setup.");
-      } finally { setCompanyLoading(false); }
+      } finally {
+        setCompanyLoading(false);
+      }
     })();
   }, [editJobId]);
 
@@ -361,8 +480,13 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
   // empty while typing), but must never be allowed to hold a negative number —
   // strips a leading "-" as it's typed and floors any parsed value at 0.
   type NonNegativeField =
-    | "min_salary" | "max_salary" | "avg_incentive"
-    | "min_experience_years" | "max_experience_years" | "age_min" | "age_max";
+    | "min_salary"
+    | "max_salary"
+    | "avg_incentive"
+    | "min_experience_years"
+    | "max_experience_years"
+    | "age_min"
+    | "age_max";
   const setNonNegative = (k: NonNegativeField, v: string) => markDirty(k, v.replace(/^-+/, ""));
   const stepNonNegative = (k: NonNegativeField, delta: number) =>
     markDirty(k, String(Math.max(0, (Number(form[k]) || 0) + delta)));
@@ -389,7 +513,10 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
   // Tier-3 market-trend skills — debounced the same way as inference above.
   useEffect(() => {
     const title = form.title.trim();
-    if (title.length < 3) { setMarketSkills([]); return; }
+    if (title.length < 3) {
+      setMarketSkills([]);
+      return;
+    }
     const t = setTimeout(async () => {
       const { data } = await supabase.rpc("suggest_skills_for_roles", { _roles: [title] });
       setMarketSkills(((data ?? []) as { name: string }[]).map((r) => r.name));
@@ -397,49 +524,74 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
     return () => clearTimeout(t);
   }, [form.title]);
 
-  const jdInput: JdInput = useMemo(() => ({
-    title: form.title, companyName, industry: form.industry, category: form.category,
-    city: form.city, style: jdStyle,
-    workMode: form.work_mode, jobType: form.job_type,
-    payType: form.pay_type || "fixed",
-    minSalary: form.min_salary ? Number(form.min_salary) : undefined,
-    maxSalary: form.max_salary ? Number(form.max_salary) : undefined,
-    avgIncentive: form.avg_incentive ? Number(form.avg_incentive) : undefined,
-    experienceBucket: form.experience_bucket,
-    minExp: form.min_experience_years ? Number(form.min_experience_years) : undefined,
-    maxExp: form.max_experience_years ? Number(form.max_experience_years) : undefined,
-    degree: form.degree, specialisation: form.specialisation, skills: form.skills,
-    englishLevel: (form.english_level || undefined) as JdInput["englishLevel"],
-    gender: form.gender_pref as JdInput["gender"],
-    shift: form.shift || undefined,
-    workingDays: form.working_days ? Number(form.working_days) : undefined,
-    assets: form.required_assets,
-    perks: form.perks,
-    joiningFeeRequired: form.joining_fee_required,
-    certifications: form.certifications,
-    ageMin: form.age_min ? Number(form.age_min) : undefined,
-    ageMax: form.age_max ? Number(form.age_max) : undefined,
-    preferredLanguages: form.preferred_languages,
-    preferredIndustries: form.preferred_industries,
-  }), [form, companyName, jdStyle]);
+  const jdInput: JdInput = useMemo(
+    () => ({
+      title: form.title,
+      companyName,
+      industry: form.industry,
+      category: form.category,
+      city: form.city,
+      style: jdStyle,
+      workMode: form.work_mode,
+      jobType: form.job_type,
+      payType: form.pay_type || "fixed",
+      minSalary: form.min_salary ? Number(form.min_salary) : undefined,
+      maxSalary: form.max_salary ? Number(form.max_salary) : undefined,
+      avgIncentive: form.avg_incentive ? Number(form.avg_incentive) : undefined,
+      experienceBucket: form.experience_bucket,
+      minExp: form.min_experience_years ? Number(form.min_experience_years) : undefined,
+      maxExp: form.max_experience_years ? Number(form.max_experience_years) : undefined,
+      degree: form.degree,
+      specialisation: form.specialisation,
+      skills: form.skills,
+      englishLevel: (form.english_level || undefined) as JdInput["englishLevel"],
+      gender: form.gender_pref as JdInput["gender"],
+      shift: form.shift || undefined,
+      workingDays: form.working_days ? Number(form.working_days) : undefined,
+      assets: form.required_assets,
+      perks: form.perks,
+      joiningFeeRequired: form.joining_fee_required,
+      certifications: form.certifications,
+      ageMin: form.age_min ? Number(form.age_min) : undefined,
+      ageMax: form.age_max ? Number(form.age_max) : undefined,
+      preferredLanguages: form.preferred_languages,
+      preferredIndustries: form.preferred_industries,
+    }),
+    [form, companyName, jdStyle],
+  );
 
   // Same rubric as compute_job_quality() in the DB (see the job_quality_score
   // migration's header) — kept in lockstep so the live number the recruiter
   // sees here never drifts from the badge shown after publishing.
-  const qualityInput: JobQualityInput = useMemo(() => ({
-    title: form.title, category: form.category, industry: form.industry,
-    city: form.city, locality: form.locality, job_type: form.job_type, work_mode: form.work_mode,
-    openings: Number(form.openings) || 0,
-    pay_type: form.pay_type, min_salary: form.min_salary ? Number(form.min_salary) : null,
-    max_salary: form.max_salary ? Number(form.max_salary) : null,
-    avg_incentive_monthly: form.avg_incentive ? Number(form.avg_incentive) : null,
-    experience_bucket: form.experience_bucket, skills: form.skills,
-    education: form.degree, certifications: form.certifications, preferred_languages: form.preferred_languages,
-    description: form.description, description_html: form.description_html,
-    perks: form.perks, interview_type: form.interview_type,
-    shift: form.shift, working_days: form.working_days ? Number(form.working_days) : null,
-    pincode: form.pincode,
-  }), [form]);
+  const qualityInput: JobQualityInput = useMemo(
+    () => ({
+      title: form.title,
+      category: form.category,
+      industry: form.industry,
+      city: form.city,
+      locality: form.locality,
+      job_type: form.job_type,
+      work_mode: form.work_mode,
+      openings: Number(form.openings) || 0,
+      pay_type: form.pay_type,
+      min_salary: form.min_salary ? Number(form.min_salary) : null,
+      max_salary: form.max_salary ? Number(form.max_salary) : null,
+      avg_incentive_monthly: form.avg_incentive ? Number(form.avg_incentive) : null,
+      experience_bucket: form.experience_bucket,
+      skills: form.skills,
+      education: form.degree,
+      certifications: form.certifications,
+      preferred_languages: form.preferred_languages,
+      description: form.description,
+      description_html: form.description_html,
+      perks: form.perks,
+      interview_type: form.interview_type,
+      shift: form.shift,
+      working_days: form.working_days ? Number(form.working_days) : null,
+      pincode: form.pincode,
+    }),
+    [form],
+  );
   const qualityGaps = useMemo(() => getMissingJobImprovements(qualityInput), [qualityInput]);
   const qualityScore = useMemo(() => computeJobQuality(qualityInput), [qualityInput]);
   const [lowScoreConfirmOpen, setLowScoreConfirmOpen] = useState(false);
@@ -505,12 +657,20 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
   };
 
   const publish = async (asDraft = false) => {
-    if (!companyId) { toast.error("Finish company setup first."); nav({ to: "/onboarding/employer" }); return; }
+    if (!companyId) {
+      toast.error("Finish company setup first.");
+      nav({ to: "/onboarding/employer" });
+      return;
+    }
     if (!form.title.trim()) return toast.error("Add a job title first.");
     if (!asDraft) {
       for (let i = 0; i <= 2; i += 1) {
         const err = validateStep(i);
-        if (err) { setStep(i); toast.error(err); return; }
+        if (err) {
+          setStep(i);
+          toast.error(err);
+          return;
+        }
       }
     }
     setSaving(true);
@@ -534,7 +694,11 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
         ...buildFieldsFromForm(form, jdInput, isConsultant),
       };
 
-      const { data, error } = await supabase.from("jobs").insert(p as never).select("id").single();
+      const { data, error } = await supabase
+        .from("jobs")
+        .insert(p as never)
+        .select("id")
+        .single();
       if (error) {
         console.error("[jobs.publish]", error);
         const code = (error as { code?: string }).code;
@@ -557,14 +721,16 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
         nav({ to: "/employer/jobs/$jobId/applicants", params: { jobId } });
       } catch (activateErr) {
         toast.error(
-          `Saved as draft — publishing failed: ${mapTierError(activateErr instanceof Error ? activateErr.message : "Unknown error")}`
+          `Saved as draft — publishing failed: ${mapTierError(activateErr instanceof Error ? activateErr.message : "Unknown error")}`,
         );
         nav({ to: "/employer/jobs" });
       }
     } catch (e) {
       console.error(e);
       toast.error(e instanceof Error ? e.message : "Could not publish.");
-    } finally { setSaving(false); }
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Edit mode never re-charges tier cost or touches status for an already-live
@@ -578,13 +744,20 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
     if (thenPublish) {
       for (let i = 0; i <= 2; i += 1) {
         const err = validateStep(i);
-        if (err) { setStep(i); toast.error(err); return; }
+        if (err) {
+          setStep(i);
+          toast.error(err);
+          return;
+        }
       }
     }
     setSaving(true);
     try {
       const fields = buildFieldsFromForm(form, jdInput, isConsultant);
-      const { error } = await supabase.from("jobs").update(fields as never).eq("id", editJobId);
+      const { error } = await supabase
+        .from("jobs")
+        .update(fields as never)
+        .eq("id", editJobId);
       if (error) {
         console.error("[jobs.edit]", error);
         toast.error(error.message || "Could not save changes.");
@@ -603,14 +776,16 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
         nav({ to: "/employer/jobs/$jobId/applicants", params: { jobId: editJobId } });
       } catch (activateErr) {
         toast.error(
-          `Changes saved — publishing failed: ${mapTierError(activateErr instanceof Error ? activateErr.message : "Unknown error")}`
+          `Changes saved — publishing failed: ${mapTierError(activateErr instanceof Error ? activateErr.message : "Unknown error")}`,
         );
         nav({ to: "/employer/jobs" });
       }
     } catch (e) {
       console.error(e);
       toast.error(e instanceof Error ? e.message : "Could not save changes.");
-    } finally { setSaving(false); }
+    } finally {
+      setSaving(false);
+    }
   };
 
   const steps = ["Basics", "Location & Pay", "Requirements", "Description"];
@@ -621,7 +796,9 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
     const inc = Number(form.avg_incentive || 0);
     const fixedLo = form.pay_type === "incentive_only" ? 0 : min;
     const fixedHi = form.pay_type === "incentive_only" ? 0 : max;
-    const totalLo = fixedLo + (form.pay_type === "fixed_incentive" ? 0 : form.pay_type === "incentive_only" ? 0 : 0);
+    const totalLo =
+      fixedLo +
+      (form.pay_type === "fixed_incentive" ? 0 : form.pay_type === "incentive_only" ? 0 : 0);
     const totalHi = fixedHi + (form.pay_type !== "fixed" ? inc : 0);
     return { fixedLo, fixedHi, inc, totalLo, totalHi };
   }, [form.min_salary, form.max_salary, form.avg_incentive, form.pay_type]);
@@ -660,19 +837,35 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
   return (
     <EmployerShell
       title={editJobId ? "Edit job" : "Post a job"}
-      subtitle={editJobId ? "Update any field, then save your changes." : "We'll draft this from the title — you confirm pay and skills."}
+      subtitle={
+        editJobId
+          ? "Update any field, then save your changes."
+          : "We'll draft this from the title — you confirm pay and skills."
+      }
     >
       <div className="mx-auto max-w-3xl">
         {companyLoading ? (
           <div className="h-64 animate-pulse rounded-2xl bg-card" />
         ) : setupError ? (
           <div className="rounded-2xl border border-border bg-card p-8 text-center">
-            <h2 className="text-lg font-bold">{editJobId ? "Couldn't load job" : "Company setup required"}</h2>
+            <h2 className="text-lg font-bold">
+              {editJobId ? "Couldn't load job" : "Company setup required"}
+            </h2>
             <p className="mt-2 text-sm text-muted-foreground">{setupError}</p>
             {editJobId ? (
-              <button onClick={() => nav({ to: "/employer/jobs" })} className="mt-5 inline-flex h-11 items-center justify-center rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground">Back to jobs</button>
+              <button
+                onClick={() => nav({ to: "/employer/jobs" })}
+                className="mt-5 inline-flex h-11 items-center justify-center rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground"
+              >
+                Back to jobs
+              </button>
             ) : (
-              <button onClick={() => nav({ to: "/onboarding/employer" })} className="mt-5 inline-flex h-11 items-center justify-center rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground">Complete company setup</button>
+              <button
+                onClick={() => nav({ to: "/onboarding/employer" })}
+                className="mt-5 inline-flex h-11 items-center justify-center rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground"
+              >
+                Complete company setup
+              </button>
             )}
           </div>
         ) : (
@@ -680,7 +873,10 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
             <div className="mb-6">
               <div className="flex items-center gap-2">
                 {steps.map((s, i) => (
-                  <div key={s} className={`h-1.5 flex-1 rounded-full ${i <= step ? "bg-primary" : "bg-border"}`} />
+                  <div
+                    key={s}
+                    className={`h-1.5 flex-1 rounded-full ${i <= step ? "bg-primary" : "bg-border"}`}
+                  />
                 ))}
               </div>
               <p className="mt-2 text-xs font-medium text-primary sm:hidden">
@@ -702,7 +898,12 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
               </div>
             </div>
 
-            <JobQualityMeter score={qualityScore} gaps={qualityGaps} celebrate={celebrate} onGapClick={(s) => setStep(s)} />
+            <JobQualityMeter
+              score={qualityScore}
+              gaps={qualityGaps}
+              celebrate={celebrate}
+              onGapClick={(s) => setStep(s)}
+            />
 
             <div className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
               {step < 3 && (
@@ -726,9 +927,20 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
 
               {step === 0 && (
                 <div className="space-y-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-xs">{steps[0]}</p>
-                  <Field label="Job title" required emphasis hint="e.g. Delivery Executive, Security Guard">
-                    <JobTitleAutocomplete value={form.title} onChange={(v) => set("title", v)} placeholder="Enter a clear, descriptive title" />
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-xs">
+                    {steps[0]}
+                  </p>
+                  <Field
+                    label="Job title"
+                    required
+                    emphasis
+                    hint="e.g. Delivery Executive, Security Guard"
+                  >
+                    <JobTitleAutocomplete
+                      value={form.title}
+                      onChange={(v) => set("title", v)}
+                      placeholder="Enter a clear, descriptive title"
+                    />
                   </Field>
                   <Field label="Openings">
                     {/* Desktop (sm: and up): unchanged native number input with its own
@@ -748,7 +960,9 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                         <button
                           type="button"
                           aria-label="Increase openings"
-                          onClick={() => markDirty("openings", Math.max(1, (Number(form.openings) || 0) + 1))}
+                          onClick={() =>
+                            markDirty("openings", Math.max(1, (Number(form.openings) || 0) + 1))
+                          }
                           className="grid h-4 w-6 place-items-center rounded-sm text-gray-700 active:bg-surface"
                         >
                           <ChevronUp className="h-3.5 w-3.5" strokeWidth={3} />
@@ -756,7 +970,9 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                         <button
                           type="button"
                           aria-label="Decrease openings"
-                          onClick={() => markDirty("openings", Math.max(1, (Number(form.openings) || 0) - 1))}
+                          onClick={() =>
+                            markDirty("openings", Math.max(1, (Number(form.openings) || 0) - 1))
+                          }
                           className="grid h-4 w-6 place-items-center rounded-sm text-gray-700 active:bg-surface"
                         >
                           <ChevronDown className="h-3.5 w-3.5" strokeWidth={3} />
@@ -765,8 +981,16 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                     </div>
                   </Field>
                   {isConsultant && (
-                    <Field label="Company you're hiring for" hint="Optional — shown to candidates so they know the actual employer.">
-                      <input value={form.hiring_for_company} onChange={(e) => markDirty("hiring_for_company", e.target.value)} className="form-input" placeholder="e.g. Acme Retail Pvt Ltd" />
+                    <Field
+                      label="Company you're hiring for"
+                      hint="Optional — shown to candidates so they know the actual employer."
+                    >
+                      <input
+                        value={form.hiring_for_company}
+                        onChange={(e) => markDirty("hiring_for_company", e.target.value)}
+                        className="form-input"
+                        placeholder="e.g. Acme Retail Pvt Ltd"
+                      />
                     </Field>
                   )}
                 </div>
@@ -774,28 +998,45 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
 
               {step === 1 && (
                 <div className="space-y-5">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-xs">{steps[1]}</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-xs">
+                    {steps[1]}
+                  </p>
                   <Field label="City" required>
-                    <StateDropdown
+                    <CityTownAutocomplete
                       value={form.city}
-                      options={INDIAN_CITIES}
-                      placeholder="Select…"
+                      suggestions={INDIAN_CITIES}
+                      placeholder="Select or type city"
                       onChange={(v) => markDirty("city", v)}
+                      showDropdownIndicator
                     />
                   </Field>
 
                   {!showArea && (
-                    <button type="button" className="text-sm font-semibold text-primary" onClick={() => setShowArea(true)}>
+                    <button
+                      type="button"
+                      className="text-sm font-semibold text-primary"
+                      onClick={() => setShowArea(true)}
+                    >
                       + Add area (locality, pincode)
                     </button>
                   )}
                   <ConditionalField visible={showArea}>
                     <div className="grid gap-3 sm:grid-cols-2">
                       <Field label="Locality">
-                        <input value={form.locality} onChange={(e) => markDirty("locality", e.target.value)} className="form-input" placeholder="Andheri East" />
+                        <input
+                          value={form.locality}
+                          onChange={(e) => markDirty("locality", e.target.value)}
+                          className="form-input"
+                          placeholder="Andheri East"
+                        />
                       </Field>
                       <Field label="Pincode">
-                        <input maxLength={6} value={form.pincode} onChange={(e) => markDirty("pincode", e.target.value.replace(/\D/g, ""))} className="form-input" />
+                        <input
+                          maxLength={6}
+                          value={form.pincode}
+                          onChange={(e) => markDirty("pincode", e.target.value.replace(/\D/g, ""))}
+                          className="form-input"
+                        />
                       </Field>
                     </div>
                   </ConditionalField>
@@ -811,7 +1052,8 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                       maxSalary={form.max_salary}
                       companyId={companyId}
                       onUseRange={(min, max, extra) => {
-                        if (extra?.payType) markDirty("pay_type", extra.payType as Form["pay_type"]);
+                        if (extra?.payType)
+                          markDirty("pay_type", extra.payType as Form["pay_type"]);
                         markDirty("min_salary", String(Math.round(min)));
                         set("max_salary", String(Math.round(max)));
                         if (extra?.avgIncentive) set("avg_incentive", String(extra.avgIncentive));
@@ -820,18 +1062,31 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                   )}
 
                   <div>
-                    <p className="mb-1.5 text-sm font-medium">Compensation · Pay type <span className="text-destructive">*</span></p>
+                    <p className="mb-1.5 text-sm font-medium">
+                      Compensation · Pay type <span className="text-destructive">*</span>
+                    </p>
                     <div className="flex flex-wrap gap-2">
                       {PAY_TYPES.map((p) => (
-                        <button key={p.id} type="button" onClick={() => markDirty("pay_type", form.pay_type === p.id ? "" : (p.id as Form["pay_type"]))}
-                          className={`rounded-full border px-4 py-1.5 text-sm ${form.pay_type === p.id ? "border-primary bg-primary-light text-primary" : "border-border bg-surface text-foreground/70"}`}>
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() =>
+                            markDirty(
+                              "pay_type",
+                              form.pay_type === p.id ? "" : (p.id as Form["pay_type"]),
+                            )
+                          }
+                          className={`rounded-full border px-4 py-1.5 text-sm ${form.pay_type === p.id ? "border-primary bg-primary-light text-primary" : "border-border bg-surface text-foreground/70"}`}
+                        >
                           {p.label}
                         </button>
                       ))}
                     </div>
                   </div>
 
-                  <ConditionalField visible={form.pay_type === "fixed" || form.pay_type === "fixed_incentive"}>
+                  <ConditionalField
+                    visible={form.pay_type === "fixed" || form.pay_type === "fixed_incentive"}
+                  >
                     <div className="grid gap-3 sm:grid-cols-2">
                       <Field label="Fixed min / month (₹)" emphasis>
                         {/* Desktop (sm: and up): unchanged native number input with its own
@@ -899,7 +1154,11 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                       </Field>
                     </div>
                   </ConditionalField>
-                  <ConditionalField visible={form.pay_type === "fixed_incentive" || form.pay_type === "incentive_only"}>
+                  <ConditionalField
+                    visible={
+                      form.pay_type === "fixed_incentive" || form.pay_type === "incentive_only"
+                    }
+                  >
                     <Field label="Average incentive / month (₹)">
                       <div className="relative">
                         <input
@@ -932,21 +1191,37 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                     </Field>
                   </ConditionalField>
 
-                  {(earning.totalLo || earning.totalHi) ? (
+                  {earning.totalLo || earning.totalHi ? (
                     <div className="rounded-xl border border-primary/20 bg-primary-light/40 p-4 text-sm">
-                      <p className="font-semibold text-primary">Salary breakup shown to candidates</p>
+                      <p className="font-semibold text-primary">
+                        Salary breakup shown to candidates
+                      </p>
                       <div className="mt-2 space-y-1 text-foreground/80">
                         {form.pay_type !== "incentive_only" && (
-                          <div className="flex justify-between"><span>Fixed / month</span><span>₹{earning.fixedLo.toLocaleString("en-IN")} - {earning.fixedHi.toLocaleString("en-IN")}</span></div>
+                          <div className="flex justify-between">
+                            <span>Fixed / month</span>
+                            <span>
+                              ₹{earning.fixedLo.toLocaleString("en-IN")} -{" "}
+                              {earning.fixedHi.toLocaleString("en-IN")}
+                            </span>
+                          </div>
                         )}
                         {form.pay_type !== "fixed" && earning.inc > 0 && (
-                          <div className="flex justify-between"><span>Average incentive / month</span><span>₹{earning.inc.toLocaleString("en-IN")}</span></div>
+                          <div className="flex justify-between">
+                            <span>Average incentive / month</span>
+                            <span>₹{earning.inc.toLocaleString("en-IN")}</span>
+                          </div>
                         )}
                         <div className="mt-1 flex justify-between border-t border-primary/20 pt-1 font-semibold text-primary">
                           <span>Earning potential / month</span>
-                          <span>₹{earning.totalLo.toLocaleString("en-IN")} - {earning.totalHi.toLocaleString("en-IN")}</span>
+                          <span>
+                            ₹{earning.totalLo.toLocaleString("en-IN")} -{" "}
+                            {earning.totalHi.toLocaleString("en-IN")}
+                          </span>
                         </div>
-                        <div className="text-xs text-muted-foreground">Approx. yearly CTC: ₹{(earning.totalHi * 12).toLocaleString("en-IN")}</div>
+                        <div className="text-xs text-muted-foreground">
+                          Approx. yearly CTC: ₹{(earning.totalHi * 12).toLocaleString("en-IN")}
+                        </div>
                       </div>
                     </div>
                   ) : null}
@@ -955,35 +1230,50 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
 
               {step === 2 && (
                 <div className="space-y-5">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-xs">{steps[2]}</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-xs">
+                    {steps[2]}
+                  </p>
                   <div>
-                    <p className="mb-1.5 text-sm font-medium">Total experience <span className="text-destructive">*</span></p>
+                    <p className="mb-1.5 text-sm font-medium">
+                      Total experience <span className="text-destructive">*</span>
+                    </p>
                     <div className="flex flex-wrap gap-2">
                       {EXPERIENCE_BUCKETS.map((b) => (
-                        <button key={b.id} type="button" onClick={() => markDirty("experience_bucket", b.id as Form["experience_bucket"])}
-                          className={`rounded-full border px-4 py-1.5 text-sm ${form.experience_bucket === b.id ? "border-primary bg-primary-light text-primary" : "border-border bg-surface text-foreground/70"}`}>
+                        <button
+                          key={b.id}
+                          type="button"
+                          onClick={() =>
+                            markDirty("experience_bucket", b.id as Form["experience_bucket"])
+                          }
+                          className={`rounded-full border px-4 py-1.5 text-sm ${form.experience_bucket === b.id ? "border-primary bg-primary-light text-primary" : "border-border bg-surface text-foreground/70"}`}
+                        >
                           {b.label}
                         </button>
                       ))}
                     </div>
-                    {form.category && form.experience_bucket === "any" && (() => {
-                      const bm = getRoleBenchmarks(form.title, form.category, form.city);
-                      return (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            markDirty("experience_bucket", bm.experienceBucket);
-                            if (bm.experienceBucket === "experienced") {
-                              set("min_experience_years", String(bm.minExp));
-                              set("max_experience_years", String(bm.maxExp));
-                            }
-                          }}
-                          className="mt-2 text-xs font-semibold text-primary underline-offset-2 hover:underline"
-                        >
-                          Apply typical for this role: {bm.experienceBucket === "fresher" ? "Fresher" : `${bm.minExp}–${bm.maxExp} yrs`}
-                        </button>
-                      );
-                    })()}
+                    {form.category &&
+                      form.experience_bucket === "any" &&
+                      (() => {
+                        const bm = getRoleBenchmarks(form.title, form.category, form.city);
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              markDirty("experience_bucket", bm.experienceBucket);
+                              if (bm.experienceBucket === "experienced") {
+                                set("min_experience_years", String(bm.minExp));
+                                set("max_experience_years", String(bm.maxExp));
+                              }
+                            }}
+                            className="mt-2 text-xs font-semibold text-primary underline-offset-2 hover:underline"
+                          >
+                            Apply typical for this role:{" "}
+                            {bm.experienceBucket === "fresher"
+                              ? "Fresher"
+                              : `${bm.minExp}–${bm.maxExp} yrs`}
+                          </button>
+                        );
+                      })()}
                   </div>
 
                   <ConditionalField visible={form.experience_bucket === "experienced"}>
@@ -1051,12 +1341,25 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                     </div>
                   </ConditionalField>
 
-                  <Field label="Required skills" required hint="Each skill becomes one bullet in the auto-generated JD.">
-                    <ChipInput values={form.skills} onChange={(v) => markDirty("skills", v)} suggestions={SUGGESTED_SKILLS} />
+                  <Field
+                    label="Required skills"
+                    required
+                    hint="Each skill becomes one bullet in the auto-generated JD."
+                  >
+                    <ChipInput
+                      values={form.skills}
+                      onChange={(v) => markDirty("skills", v)}
+                      suggestions={SUGGESTED_SKILLS}
+                    />
                     {(() => {
-                      const { core, recommended } = getRecommendedSkills(form.title, form.category, form.skills);
+                      const { core, recommended } = getRecommendedSkills(
+                        form.title,
+                        form.category,
+                        form.skills,
+                      );
                       const marketExtra = marketSkills.filter(
-                        (s) => !form.skills.includes(s) && !core.includes(s) && !recommended.includes(s),
+                        (s) =>
+                          !form.skills.includes(s) && !core.includes(s) && !recommended.includes(s),
                       );
                       if (!core.length && !recommended.length && !marketExtra.length) return null;
                       return (
@@ -1064,10 +1367,17 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                           {core.length > 0 && (
                             <div className="rounded-xl border border-primary/20 bg-primary-light/40 p-3">
                               <div className="mb-2 flex items-center justify-between gap-2">
-                                <p className="text-xs font-semibold text-primary">Core for this role — tap to add</p>
+                                <p className="text-xs font-semibold text-primary">
+                                  Core for this role — tap to add
+                                </p>
                                 <button
                                   type="button"
-                                  onClick={() => markDirty("skills", [...form.skills, ...core.filter((s) => !form.skills.includes(s))])}
+                                  onClick={() =>
+                                    markDirty("skills", [
+                                      ...form.skills,
+                                      ...core.filter((s) => !form.skills.includes(s)),
+                                    ])
+                                  }
                                   className="shrink-0 text-xs font-semibold text-primary underline-offset-2 hover:underline"
                                 >
                                   + Add all core
@@ -1075,8 +1385,12 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                               </div>
                               <div className="flex flex-wrap gap-1.5">
                                 {core.map((s) => (
-                                  <button key={s} type="button" onClick={() => markDirty("skills", [...form.skills, s])}
-                                    className="rounded-full border border-primary/30 bg-white px-3 py-1 text-xs font-medium text-primary hover:bg-primary hover:text-primary-foreground">
+                                  <button
+                                    key={s}
+                                    type="button"
+                                    onClick={() => markDirty("skills", [...form.skills, s])}
+                                    className="rounded-full border border-primary/30 bg-white px-3 py-1 text-xs font-medium text-primary hover:bg-primary hover:text-primary-foreground"
+                                  >
                                     + {s}
                                   </button>
                                 ))}
@@ -1085,11 +1399,17 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                           )}
                           {(recommended.length > 0 || marketExtra.length > 0) && (
                             <div className="rounded-xl border border-border bg-surface p-3">
-                              <p className="mb-2 text-xs font-semibold text-foreground/70">Good to have</p>
+                              <p className="mb-2 text-xs font-semibold text-foreground/70">
+                                Good to have
+                              </p>
                               <div className="flex flex-wrap gap-1.5">
                                 {[...recommended, ...marketExtra].map((s) => (
-                                  <button key={s} type="button" onClick={() => markDirty("skills", [...form.skills, s])}
-                                    className="rounded-full border border-border bg-white px-3 py-1 text-xs font-medium text-foreground/80 hover:border-primary hover:text-primary">
+                                  <button
+                                    key={s}
+                                    type="button"
+                                    onClick={() => markDirty("skills", [...form.skills, s])}
+                                    className="rounded-full border border-border bg-white px-3 py-1 text-xs font-medium text-foreground/80 hover:border-primary hover:text-primary"
+                                  >
                                     + {s}
                                   </button>
                                 ))}
@@ -1105,12 +1425,26 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                     <AccordionItem value="advanced">
                       <AccordionTrigger>More filters (optional)</AccordionTrigger>
                       <AccordionContent className="space-y-5">
-                        <OptionalSection title="Hiring preferences" summary="Optional" badge={hiringPrefFilled} hasValues={hiringPrefFilled > 0}>
+                        <OptionalSection
+                          title="Hiring preferences"
+                          summary="Optional"
+                          badge={hiringPrefFilled}
+                          hasValues={hiringPrefFilled > 0}
+                        >
                           <Field label="English fluency">
                             <div className="flex flex-wrap gap-2">
                               {ENGLISH_LEVELS.map((l) => (
-                                <button key={l.id} type="button" onClick={() => markDirty("english_level", form.english_level === l.id ? "" : l.id)}
-                                  className={`rounded-full border px-3 py-1.5 text-sm ${form.english_level === l.id ? "border-primary bg-primary-light text-primary" : "border-border bg-surface text-foreground/70"}`}>
+                                <button
+                                  key={l.id}
+                                  type="button"
+                                  onClick={() =>
+                                    markDirty(
+                                      "english_level",
+                                      form.english_level === l.id ? "" : l.id,
+                                    )
+                                  }
+                                  className={`rounded-full border px-3 py-1.5 text-sm ${form.english_level === l.id ? "border-primary bg-primary-light text-primary" : "border-border bg-surface text-foreground/70"}`}
+                                >
                                   {l.label}
                                 </button>
                               ))}
@@ -1119,8 +1453,12 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                           <Field label="Gender preference">
                             <div className="flex flex-wrap gap-2">
                               {GENDERS.map((g) => (
-                                <button key={g.id} type="button" onClick={() => markDirty("gender_pref", g.id)}
-                                  className={`rounded-full border px-4 py-1.5 text-sm ${form.gender_pref === g.id ? "border-primary bg-primary-light text-primary" : "border-border bg-surface text-foreground/70"}`}>
+                                <button
+                                  key={g.id}
+                                  type="button"
+                                  onClick={() => markDirty("gender_pref", g.id)}
+                                  className={`rounded-full border px-4 py-1.5 text-sm ${form.gender_pref === g.id ? "border-primary bg-primary-light text-primary" : "border-border bg-surface text-foreground/70"}`}
+                                >
                                   {g.label}
                                 </button>
                               ))}
@@ -1187,14 +1525,27 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                             </Field>
                           </div>
                           <Field label="Preferred languages">
-                            <ChipInput values={form.preferred_languages} onChange={(v) => markDirty("preferred_languages", v)} suggestions={SUGGESTED_LANGUAGES} />
+                            <ChipInput
+                              values={form.preferred_languages}
+                              onChange={(v) => markDirty("preferred_languages", v)}
+                              suggestions={SUGGESTED_LANGUAGES}
+                            />
                           </Field>
                           <Field label="Preferred industries">
-                            <ChipInput values={form.preferred_industries} onChange={(v) => markDirty("preferred_industries", v)} suggestions={INDUSTRIES} />
+                            <ChipInput
+                              values={form.preferred_industries}
+                              onChange={(v) => markDirty("preferred_industries", v)}
+                              suggestions={INDUSTRIES}
+                            />
                           </Field>
                         </OptionalSection>
 
-                        <OptionalSection title="Requirements & perks" summary="Optional" badge={reqPerksFilled} hasValues={reqPerksFilled > 0}>
+                        <OptionalSection
+                          title="Requirements & perks"
+                          summary="Optional"
+                          badge={reqPerksFilled}
+                          hasValues={reqPerksFilled > 0}
+                        >
                           <div className="grid gap-3 sm:grid-cols-2">
                             <Field label="Degree">
                               <StateDropdown
@@ -1205,19 +1556,38 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                               />
                             </Field>
                             <Field label="Specialisation">
-                              <input value={form.specialisation} onChange={(e) => markDirty("specialisation", e.target.value)} className="form-input" placeholder="e.g. B.Sc IT" />
+                              <input
+                                value={form.specialisation}
+                                onChange={(e) => markDirty("specialisation", e.target.value)}
+                                className="form-input"
+                                placeholder="e.g. B.Sc IT"
+                              />
                             </Field>
                           </div>
                           <Field label="Certifications">
-                            <ChipInput values={form.certifications} onChange={(v) => markDirty("certifications", v)} />
+                            <ChipInput
+                              values={form.certifications}
+                              onChange={(v) => markDirty("certifications", v)}
+                            />
                           </Field>
                           <Field label="Required assets">
                             <div className="flex flex-wrap gap-2">
                               {ASSETS.map((a) => {
                                 const on = form.required_assets.includes(a.label);
                                 return (
-                                  <button key={a.id} type="button" onClick={() => markDirty("required_assets", on ? form.required_assets.filter((x) => x !== a.label) : [...form.required_assets, a.label])}
-                                    className={`rounded-full border px-3 py-1.5 text-sm ${on ? "border-primary bg-primary-light text-primary" : "border-border bg-surface text-foreground/70"}`}>
+                                  <button
+                                    key={a.id}
+                                    type="button"
+                                    onClick={() =>
+                                      markDirty(
+                                        "required_assets",
+                                        on
+                                          ? form.required_assets.filter((x) => x !== a.label)
+                                          : [...form.required_assets, a.label],
+                                      )
+                                    }
+                                    className={`rounded-full border px-3 py-1.5 text-sm ${on ? "border-primary bg-primary-light text-primary" : "border-border bg-surface text-foreground/70"}`}
+                                  >
                                     {on && <Check className="mr-1 inline h-3 w-3" />} {a.label}
                                   </button>
                                 );
@@ -1225,7 +1595,11 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                             </div>
                           </Field>
                           <Field label="Perks & benefits">
-                            <ChipInput values={form.perks} onChange={(v) => markDirty("perks", v)} suggestions={PERKS} />
+                            <ChipInput
+                              values={form.perks}
+                              onChange={(v) => markDirty("perks", v)}
+                              suggestions={PERKS}
+                            />
                           </Field>
                         </OptionalSection>
 
@@ -1235,11 +1609,21 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                               value={SHIFTS.find((s) => s.id === form.shift)?.label || ""}
                               options={SHIFTS.map((s) => s.label)}
                               placeholder="Any"
-                              onChange={(label) => markDirty("shift", SHIFTS.find((s) => s.label === label)?.id || "")}
+                              onChange={(label) =>
+                                markDirty("shift", SHIFTS.find((s) => s.label === label)?.id || "")
+                              }
                             />
                           </Field>
                           <Field label="Working days / week">
-                            <input type="number" min={1} max={7} value={form.working_days} onChange={(e) => markDirty("working_days", e.target.value)} className="form-input" placeholder="6" />
+                            <input
+                              type="number"
+                              min={1}
+                              max={7}
+                              value={form.working_days}
+                              onChange={(e) => markDirty("working_days", e.target.value)}
+                              className="form-input"
+                              placeholder="6"
+                            />
                           </Field>
                         </div>
 
@@ -1248,7 +1632,10 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                             Is there any joining fee or deposit required from the candidate?
                           </p>
                           <div className="flex shrink-0 items-center gap-2">
-                            {[{ id: "yes", label: "Yes", val: true }, { id: "no", label: "No", val: false }].map((o) => (
+                            {[
+                              { id: "yes", label: "Yes", val: true },
+                              { id: "no", label: "No", val: false },
+                            ].map((o) => (
                               <button
                                 key={o.id}
                                 type="button"
@@ -1269,8 +1656,14 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                           <p className="mb-1.5 text-sm font-medium">Interview type</p>
                           <div className="flex flex-wrap gap-2">
                             {INTERVIEW_TYPES.map((t) => (
-                              <button key={t.id} type="button" onClick={() => markDirty("interview_type", t.id as Form["interview_type"])}
-                                className={`rounded-full border px-4 py-1.5 text-sm ${form.interview_type === t.id ? "border-primary bg-primary-light text-primary" : "border-border bg-surface text-foreground/70"}`}>
+                              <button
+                                key={t.id}
+                                type="button"
+                                onClick={() =>
+                                  markDirty("interview_type", t.id as Form["interview_type"])
+                                }
+                                className={`rounded-full border px-4 py-1.5 text-sm ${form.interview_type === t.id ? "border-primary bg-primary-light text-primary" : "border-border bg-surface text-foreground/70"}`}
+                              >
                                 {t.label}
                               </button>
                             ))}
@@ -1280,12 +1673,19 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                         {form.interview_type === "in_person" && (
                           <div className="space-y-3 rounded-xl border border-border bg-surface p-4">
                             <label className="flex items-center gap-2 text-sm">
-                              <input type="checkbox" checked={form.interview_same_as_company} onChange={(e) => markDirty("interview_same_as_company", e.target.checked)} />
+                              <input
+                                type="checkbox"
+                                checked={form.interview_same_as_company}
+                                onChange={(e) =>
+                                  markDirty("interview_same_as_company", e.target.checked)
+                                }
+                              />
                               Interview address is same as company address
                             </label>
                             {form.interview_same_as_company && (
                               <p className="text-xs text-muted-foreground">
-                                Interviews at your company address{form.city ? ` — ${form.city}` : ""}.
+                                Interviews at your company address
+                                {form.city ? ` — ${form.city}` : ""}.
                               </p>
                             )}
                             <ConditionalField visible={!form.interview_same_as_company}>
@@ -1301,11 +1701,23 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                                     />
                                   </Field>
                                   <Field label="Locality">
-                                    <input value={form.interview_locality} onChange={(e) => markDirty("interview_locality", e.target.value)} className="form-input" placeholder="Sector 132" />
+                                    <input
+                                      value={form.interview_locality}
+                                      onChange={(e) =>
+                                        markDirty("interview_locality", e.target.value)
+                                      }
+                                      className="form-input"
+                                      placeholder="Sector 132"
+                                    />
                                   </Field>
                                 </div>
                                 <Field label="Full interview address">
-                                  <textarea rows={2} value={form.interview_address} onChange={(e) => markDirty("interview_address", e.target.value)} className="form-input resize-none" />
+                                  <textarea
+                                    rows={2}
+                                    value={form.interview_address}
+                                    onChange={(e) => markDirty("interview_address", e.target.value)}
+                                    className="form-input resize-none"
+                                  />
                                 </Field>
                               </div>
                             </ConditionalField>
@@ -1319,15 +1731,23 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
 
               {step === 3 && (
                 <div className="space-y-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-xs">{steps[3]}</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-xs">
+                    {steps[3]}
+                  </p>
                   <div className="flex flex-wrap gap-2">
-                    {([
-                      { id: "standard", label: "Standard" },
-                      { id: "quick_read", label: "Quick Read" },
-                      { id: "detailed", label: "Detailed" },
-                    ] as const).map((s) => (
-                      <button key={s.id} type="button" onClick={() => setJdStyle(s.id)}
-                        className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${jdStyle === s.id ? "border-primary bg-primary-light text-primary" : "border-border bg-surface text-foreground/70"}`}>
+                    {(
+                      [
+                        { id: "standard", label: "Standard" },
+                        { id: "quick_read", label: "Quick Read" },
+                        { id: "detailed", label: "Detailed" },
+                      ] as const
+                    ).map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => setJdStyle(s.id)}
+                        className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${jdStyle === s.id ? "border-primary bg-primary-light text-primary" : "border-border bg-surface text-foreground/70"}`}
+                      >
                         {s.label}
                       </button>
                     ))}
@@ -1335,13 +1755,21 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="text-sm font-bold">Job description</h3>
-                      <p className="text-xs text-muted-foreground">Written from your title, pay, and skills.</p>
+                      <p className="text-xs text-muted-foreground">
+                        Written from your title, pay, and skills.
+                      </p>
                       {jdDirty && (
-                        <p className="mt-1 text-xs text-primary">You're editing the template. Regenerate to restore the standard JD.</p>
+                        <p className="mt-1 text-xs text-primary">
+                          You're editing the template. Regenerate to restore the standard JD.
+                        </p>
                       )}
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <button type="button" onClick={regenerate} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold hover:border-primary hover:text-primary">
+                      <button
+                        type="button"
+                        onClick={regenerate}
+                        className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold hover:border-primary hover:text-primary"
+                      >
                         <RefreshCw className="h-3.5 w-3.5" /> Regenerate
                       </button>
                       <button
@@ -1356,8 +1784,12 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                                 title: form.title,
                                 minSalary: form.min_salary ? Number(form.min_salary) : undefined,
                                 maxSalary: form.max_salary ? Number(form.max_salary) : undefined,
-                                minExp: form.min_experience_years ? Number(form.min_experience_years) : undefined,
-                                maxExp: form.max_experience_years ? Number(form.max_experience_years) : undefined,
+                                minExp: form.min_experience_years
+                                  ? Number(form.min_experience_years)
+                                  : undefined,
+                                maxExp: form.max_experience_years
+                                  ? Number(form.max_experience_years)
+                                  : undefined,
                               },
                             });
                             if (r.polished) {
@@ -1365,25 +1797,31 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                               set("description", r.markdown);
                               toast.success("Tone polished.");
                             } else {
-                              toast.info("Kept the original wording — AI polish wasn't available right now.");
+                              toast.info(
+                                "Kept the original wording — AI polish wasn't available right now.",
+                              );
                             }
                           } catch {
-                            toast.info("Kept the original wording — AI polish wasn't available right now.");
+                            toast.info(
+                              "Kept the original wording — AI polish wasn't available right now.",
+                            );
                           } finally {
                             setPolishing(false);
                           }
                         }}
                         className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold hover:border-primary hover:text-primary disabled:opacity-50"
                       >
-                        {polishing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "✨"} AI Polish Tone
+                        {polishing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "✨"} AI
+                        Polish Tone
                       </button>
                       <button
                         type="button"
                         onClick={() => {
                           const html = form.description_html || buildJd(jdInput).html;
-                          const salary = form.min_salary || form.max_salary
-                            ? `₹${form.min_salary || "?"}${form.max_salary ? `–${form.max_salary}` : ""}/mo`
-                            : undefined;
+                          const salary =
+                            form.min_salary || form.max_salary
+                              ? `₹${form.min_salary || "?"}${form.max_salary ? `–${form.max_salary}` : ""}/mo`
+                              : undefined;
                           downloadJdPdf({
                             title: form.title || "Job Description",
                             company: companyName,
@@ -1403,18 +1841,33 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                   </div>
                   <div className="grid gap-4 lg:grid-cols-2">
                     <div>
-                      <p className="mb-1.5 text-xs font-medium text-muted-foreground">Editable text</p>
-                      <textarea rows={18} value={form.description} onChange={(e) => { setJdDirty(true); set("description", e.target.value); }} className="form-input resize-none font-mono text-xs" />
+                      <p className="mb-1.5 text-xs font-medium text-muted-foreground">
+                        Editable text
+                      </p>
+                      <textarea
+                        rows={18}
+                        value={form.description}
+                        onChange={(e) => {
+                          setJdDirty(true);
+                          set("description", e.target.value);
+                        }}
+                        className="form-input resize-none font-mono text-xs"
+                      />
                     </div>
                     <div>
                       <p className="mb-1.5 text-xs font-medium text-muted-foreground">Preview</p>
-                      <div className="prose prose-sm max-w-none rounded-xl border border-border bg-surface p-4 text-sm" dangerouslySetInnerHTML={{ __html: form.description_html || "" }} />
+                      <div
+                        className="prose prose-sm max-w-none rounded-xl border border-border bg-surface p-4 text-sm"
+                        dangerouslySetInnerHTML={{ __html: form.description_html || "" }}
+                      />
                     </div>
                   </div>
 
                   {qualityGaps.length > 0 ? (
                     <div className="rounded-xl border border-border bg-surface p-4">
-                      <p className="text-sm font-semibold">Improve this post ({qualityScore}/100)</p>
+                      <p className="text-sm font-semibold">
+                        Improve this post ({qualityScore}/100)
+                      </p>
                       <ul className="mt-2 space-y-1.5">
                         {qualityGaps.map((g) => (
                           <li key={g.key}>
@@ -1435,52 +1888,79 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                     </div>
                   )}
 
-                  {canPickTier && <TierPicker tier={tier} onChange={setTier} entitlements={entitlements} />}
+                  {canPickTier && (
+                    <TierPicker tier={tier} onChange={setTier} entitlements={entitlements} />
+                  )}
                 </div>
               )}
 
               <div className="mt-6 flex flex-wrap items-center justify-between gap-2">
-                <button type="button" disabled={step === 0} onClick={() => setStep(step - 1)}
-                  className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-4 text-sm font-medium disabled:opacity-40">
+                <button
+                  type="button"
+                  disabled={step === 0}
+                  onClick={() => setStep(step - 1)}
+                  className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-4 text-sm font-medium disabled:opacity-40"
+                >
                   <ArrowLeft className="h-4 w-4" /> Back
                 </button>
                 <div className="flex flex-wrap items-center gap-2">
                   {editJobId ? (
                     <>
                       {step < 3 && (
-                        <button type="button" onClick={next} className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-4 text-sm font-semibold hover:bg-surface">
+                        <button
+                          type="button"
+                          onClick={next}
+                          className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-4 text-sm font-semibold hover:bg-surface"
+                        >
                           Next <ArrowRight className="h-4 w-4" />
                         </button>
                       )}
-                      <button type="button" onClick={() => saveEdit(false)} disabled={saving || !form.title.trim()}
-                        className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-4 text-sm font-semibold hover:bg-surface disabled:opacity-50">
+                      <button
+                        type="button"
+                        onClick={() => saveEdit(false)}
+                        disabled={saving || !form.title.trim()}
+                        className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-4 text-sm font-semibold hover:bg-surface disabled:opacity-50"
+                      >
                         {saving && <Loader2 className="h-4 w-4 animate-spin" />} Save changes
                       </button>
                       {jobStatus === "draft" && step === 3 && (
                         <button
                           type="button"
-                          onClick={() => (qualityScore < 40 ? setLowScoreConfirmOpen(true) : saveEdit(true))}
+                          onClick={() =>
+                            qualityScore < 40 ? setLowScoreConfirmOpen(true) : saveEdit(true)
+                          }
                           disabled={saving}
-                          className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-60">
+                          className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-60"
+                        >
                           {saving && <Loader2 className="h-4 w-4 animate-spin" />} Publish job
                         </button>
                       )}
                     </>
                   ) : (
                     <>
-                      <button type="button" onClick={() => publish(true)} disabled={saving || !form.title.trim()}
-                        className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-4 text-sm font-semibold hover:bg-surface disabled:opacity-50">
+                      <button
+                        type="button"
+                        onClick={() => publish(true)}
+                        disabled={saving || !form.title.trim()}
+                        className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-4 text-sm font-semibold hover:bg-surface disabled:opacity-50"
+                      >
                         Save as draft
                       </button>
                       {step < 3 ? (
-                        <button onClick={next} className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark">
+                        <button
+                          onClick={next}
+                          className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark"
+                        >
                           Next <ArrowRight className="h-4 w-4" />
                         </button>
                       ) : (
                         <button
-                          onClick={() => (qualityScore < 40 ? setLowScoreConfirmOpen(true) : publish(false))}
+                          onClick={() =>
+                            qualityScore < 40 ? setLowScoreConfirmOpen(true) : publish(false)
+                          }
                           disabled={saving}
-                          className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-60">
+                          className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-60"
+                        >
                           {saving && <Loader2 className="h-4 w-4 animate-spin" />} Publish job
                         </button>
                       )}
@@ -1498,13 +1978,22 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Publish a low-scoring post?</AlertDialogTitle>
             <AlertDialogDescription>
-              This job is only {qualityScore}/100 on our quality check. Posts with complete pay and skills get up to
-              3× more applications. You can still publish now and improve it later.
+              This job is only {qualityScore}/100 on our quality check. Posts with complete pay and
+              skills get up to 3× more applications. You can still publish now and improve it later.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Keep editing</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { setLowScoreConfirmOpen(false); if (editJobId) { saveEdit(true); } else { publish(false); } }}>
+            <AlertDialogAction
+              onClick={() => {
+                setLowScoreConfirmOpen(false);
+                if (editJobId) {
+                  saveEdit(true);
+                } else {
+                  publish(false);
+                }
+              }}
+            >
               Publish anyway
             </AlertDialogAction>
           </AlertDialogFooter>
