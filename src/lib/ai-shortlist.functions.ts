@@ -252,6 +252,10 @@ part of the numeric formula.`;
           {
             system: systemPrompt,
             user: userPrompt,
+            // Up to 50 candidates/call (see .limit(50) above); each needs a
+            // score + up to 5 reasons + summary, so the shared provider
+            // default isn't enough headroom here.
+            maxTokens: 8000,
           },
           AiScoreResponse,
         );

@@ -36,9 +36,20 @@ export type JobCardData = {
 export function JobCard({
   job,
   onApplied,
+  variant = "full",
 }: {
   job: JobCardData;
   onApplied?: () => void | Promise<void>;
+  /**
+   * "discovery": for result sets already guaranteed apply-eligible (the
+   * candidate feed RPC excludes applied jobs before they ever reach the
+   * client) — skips the per-card `applications` lookup entirely, so a page
+   * of N cards doesn't fire N requests just to learn what the feed already
+   * knows. "full" (default) is for contexts where a card can legitimately
+   * already be applied to (Saved Jobs, a company's public job list, similar
+   * jobs) and still needs to show that state.
+   */
+  variant?: "discovery" | "full";
 }) {
   const navigate = useNavigate();
   const location = [job.locality, job.city].filter(Boolean).join(", ") || job.city || "India";
@@ -62,7 +73,7 @@ export function JobCard({
 
   useEffect(() => {
     let cancelled = false;
-    if (!userId) {
+    if (variant === "discovery" || !userId) {
       setApplied(false);
       return;
     }
@@ -78,7 +89,7 @@ export function JobCard({
     return () => {
       cancelled = true;
     };
-  }, [job.id, userId]);
+  }, [job.id, userId, variant]);
 
   const requireAuth = () => {
     navigate({ to: "/auth", search: { tab: "candidate" } as never });

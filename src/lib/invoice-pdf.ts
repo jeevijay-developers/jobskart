@@ -389,6 +389,8 @@ export type StoredInvoiceRow = {
   payment_method: string;
   payment_reference: string | null;
   payment_status: string;
+  /** 'credit_pack' | 'plan' | future sources — selects the notes copy below. */
+  source?: string;
 };
 
 export function buildStoredInvoiceData(row: StoredInvoiceRow): InvoiceData {
@@ -424,7 +426,10 @@ export function buildStoredInvoiceData(row: StoredInvoiceRow): InvoiceData {
       status: (row.payment_status as InvoicePayment["status"]) ?? "Paid",
     },
     notes:
-      "Credits are non-refundable once a candidate is unlocked. For billing queries, contact " +
-      SELLER.email + ".",
+      row.source === "plan"
+        ? "This is a 30-day plan subscription invoice. For billing queries, contact " +
+          SELLER.email + "."
+        : "Credits are non-refundable once a candidate is unlocked. For billing queries, contact " +
+          SELLER.email + ".",
   };
 }

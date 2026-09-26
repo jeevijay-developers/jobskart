@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
+  Check,
   Coins,
   CreditCard,
   Download,
@@ -12,9 +13,20 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { EmployerShell } from "@/components/employer/EmployerShell";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchMyCompanies, getActiveCompanyId, type EmployerMembership } from "@/lib/employer";
 import { buildStoredInvoiceData, downloadInvoicePdf, GST_RATE } from "@/lib/invoice-pdf";
+import { getCompanyEntitlements } from "@/lib/jobs.functions";
 import {
   createRazorpayOrder,
   getCompanyWallet,
@@ -23,11 +35,18 @@ import {
   reportRazorpayPaymentFailure,
   verifyRazorpayPayment,
 } from "@/lib/credits.functions";
+import {
+  createPlanOrder,
+  listPlans,
+  switchToBasicPlan,
+  verifyPlanPayment,
+} from "@/lib/plans.functions";
 
 // Display only — the charged amount is quoted server-side by create_credit_pack_order().
 const withGst = (priceInr: number) => Math.round(priceInr * (1 + GST_RATE) * 100) / 100;
 const formatInr = (n: number) =>
   n.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+const fmtLimit = (n: number) => (n === -1 ? "Unlimited" : n.toLocaleString("en-IN"));
 
 export const Route = createFileRoute("/_authenticated/employer/credits")({
   head: () => ({ meta: [{ title: "Credits & usage · JobsKart Employer" }] }),
@@ -35,6 +54,21 @@ export const Route = createFileRoute("/_authenticated/employer/credits")({
 });
 
 type Pack = { id: string; name: string; credits: number; price_inr: number; badge: string | null };
+type PlanLimits = {
+  live_jobs_max: number;
+  classic_posts_per_month: number;
+  classic_plus_enabled: boolean;
+  trending_posts_per_month: number;
+  repost_allowed: boolean;
+  unlocks_per_job: number;
+  response_retention_days: number;
+};
+type Plan = { id: string; name: string; price_inr: number; limits: PlanLimits };
+type Entitlements = {
+  plan_name: string;
+  subscribed: boolean;
+  plan_ends_at: string | null;
+};
 type Txn = {
   id: string;
   kind: string;
@@ -58,6 +92,7 @@ type Invoice = {
   payment_reference: string | null;
   payment_status: string;
   status: string;
+  source: string;
 };
 
 declare global {
@@ -83,6 +118,11 @@ function CreditsPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [buyingId, setBuyingId] = useState<string | null>(null);
   const [boostCost, setBoostCost] = useState<number | null>(null);
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [entitlements, setEntitlements] = useState<Entitlements | null>(null);
+  const [planBusyId, setPlanBusyId] = useState<string | null>(null);
+  const [downgrading, setDowngrading] = useState(false);
+  const [downgradeConfirmOpen, setDowngradeConfirmOpen] = useState(false);
 
   useEffect(() => {
     supabase
@@ -103,6 +143,8 @@ function CreditsPage() {
       setActive(chosen);
       const p = await listCreditPacks();
       setPacks(p as Pack[]);
+      const pl = await listPlans();
+      setPlans(pl as Plan[]);
       if (chosen) {
         const w = await getCompanyWallet({ data: { companyId: chosen.company_id } });
         setBalance(w.balance);
@@ -113,10 +155,25 @@ function CreditsPage() {
         } catch {
           setInvoices([]);
         }
+        try {
+          const ent = await getCompanyEntitlements({ data: { companyId: chosen.company_id } });
+          setEntitlements(ent as unknown as Entitlements);
+        } catch {
+          setEntitlements(null);
+        }
       }
       setLoading(false);
     })();
   }, []);
+
+  const refreshEntitlements = async (cid: string) => {
+    try {
+      const ent = await getCompanyEntitlements({ data: { companyId: cid } });
+      setEntitlements(ent as unknown as Entitlements);
+    } catch {
+      /* non-critical */
+    }
+  };
 
   const refreshWallet = async (cid: string) => {
     const w = await getCompanyWallet({ data: { companyId: cid } });
@@ -204,6 +261,83 @@ function CreditsPage() {
     }
   };
 
+  const handleSubscribe = async (plan: Plan) => {
+    if (!active) return;
+    if (typeof window === "undefined" || !window.Razorpay) {
+      toast.error("Checkout not loaded yet. Refresh and try again.");
+      return;
+    }
+    setPlanBusyId(plan.id);
+    try {
+      const order = await createPlanOrder({
+        data: { companyId: active.company_id, planId: plan.id },
+      });
+      const rzp = new window.Razorpay({
+        key: order.keyId,
+        order_id: order.orderId,
+        amount: order.amount,
+        currency: order.currency,
+        name: "JobsKart",
+        description: `${order.planName} Plan — 30 days (₹${formatInr(order.subtotalInr)} + ₹${formatInr(order.gstInr)} GST)`,
+        prefill: order.prefill,
+        theme: { color: "#1A55BD" },
+        handler: async (resp: {
+          razorpay_order_id: string;
+          razorpay_payment_id: string;
+          razorpay_signature: string;
+        }) => {
+          try {
+            await verifyPlanPayment({
+              data: {
+                razorpayOrderId: resp.razorpay_order_id,
+                razorpayPaymentId: resp.razorpay_payment_id,
+                razorpaySignature: resp.razorpay_signature,
+              },
+            });
+            toast.success(`Switched to the ${order.planName} plan.`);
+            await Promise.all([refreshWallet(active.company_id), refreshEntitlements(active.company_id)]);
+          } catch (e) {
+            toast.error(e instanceof Error ? e.message : "Verification failed.");
+          } finally {
+            setPlanBusyId(null);
+          }
+        },
+        modal: { ondismiss: () => setPlanBusyId(null) },
+      });
+      rzp.on("payment.failed", (resp) => {
+        toast.error(resp.error?.description || "Payment failed. Try another method.");
+        void reportRazorpayPaymentFailure({
+          data: {
+            razorpayOrderId: resp.error?.metadata?.order_id ?? order.orderId,
+            razorpayPaymentId: resp.error?.metadata?.payment_id,
+            reason: [resp.error?.reason, resp.error?.description].filter(Boolean).join(": ") || undefined,
+          },
+        }).catch(() => {
+          /* best-effort; the webhook records failures too */
+        });
+      });
+      rzp.open();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not start checkout.");
+      setPlanBusyId(null);
+    }
+  };
+
+  const handleSwitchToBasic = async () => {
+    if (!active) return;
+    setDowngrading(true);
+    try {
+      await switchToBasicPlan({ data: { companyId: active.company_id } });
+      toast.success("Switched to the Basic plan.");
+      await refreshEntitlements(active.company_id);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not switch plans.");
+    } finally {
+      setDowngrading(false);
+      setDowngradeConfirmOpen(false);
+    }
+  };
+
   if (loading) {
     return (
       <EmployerShell title="Credits & usage">
@@ -256,6 +390,110 @@ function CreditsPage() {
           </div>
         </div>
       </div>
+
+      {/* Plans */}
+      <section className="mt-8">
+        <header className="mb-4">
+          <h2 className="text-lg font-bold text-foreground">Your plan</h2>
+          <p className="text-sm text-muted-foreground">
+            Sets how many jobs you can keep live at once, monthly post quotas, and reposting.
+            Prices in INR, exclusive of GST.
+          </p>
+        </header>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {plans.map((plan) => {
+            const isCurrent = entitlements?.plan_name === plan.name;
+            const isFree = plan.price_inr <= 0;
+            return (
+              <div
+                key={plan.id}
+                className={`relative flex flex-col rounded-2xl border bg-card p-5 shadow-sm transition hover:shadow-md ${
+                  isCurrent ? "border-primary/40 ring-1 ring-primary/10" : "border-border"
+                }`}
+              >
+                {isCurrent && (
+                  <span className="absolute -top-2 right-4 inline-flex items-center gap-1 rounded-full bg-primary px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary-foreground shadow">
+                    <Check className="h-3 w-3" /> Current plan
+                  </span>
+                )}
+                <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                  {plan.name}
+                </p>
+                <p className="mt-2 text-2xl font-black text-foreground">
+                  {isFree ? "Free" : `₹${plan.price_inr.toLocaleString("en-IN")}`}
+                  {!isFree && <span className="ml-1 text-sm font-semibold text-muted-foreground">/ 30 days + GST</span>}
+                </p>
+                {!isFree && (
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    ₹{formatInr(withGst(plan.price_inr))} incl. 18% GST
+                  </p>
+                )}
+                <ul className="mt-4 space-y-1.5 text-xs text-muted-foreground">
+                  <li>Live jobs at once: <span className="font-semibold text-foreground">{fmtLimit(plan.limits.live_jobs_max)}</span></li>
+                  <li>Job posts / month: <span className="font-semibold text-foreground">{fmtLimit(plan.limits.classic_posts_per_month)}</span></li>
+                  <li>Trending boosts / month: <span className="font-semibold text-foreground">{fmtLimit(plan.limits.trending_posts_per_month)}</span></li>
+                  <li>Reposting (Classic+): <span className="font-semibold text-foreground">{plan.limits.classic_plus_enabled ? "Yes" : "No"}</span></li>
+                  <li>Candidate unlocks / job: <span className="font-semibold text-foreground">{fmtLimit(plan.limits.unlocks_per_job)}</span></li>
+                  <li>Response history: <span className="font-semibold text-foreground">{fmtLimit(plan.limits.response_retention_days)} days</span></li>
+                </ul>
+                {isCurrent && entitlements?.subscribed && entitlements.plan_ends_at && (
+                  <p className="mt-3 text-[11px] text-muted-foreground">
+                    Renews/expires on{" "}
+                    {new Date(entitlements.plan_ends_at).toLocaleDateString("en-IN", { dateStyle: "medium" })}.
+                  </p>
+                )}
+                {isCurrent ? (
+                  <button
+                    disabled
+                    className="mt-4 inline-flex h-10 w-full items-center justify-center rounded-lg border border-border bg-surface text-sm font-semibold text-muted-foreground"
+                  >
+                    Current plan
+                  </button>
+                ) : isFree ? (
+                  <button
+                    onClick={() => setDowngradeConfirmOpen(true)}
+                    disabled={downgrading}
+                    className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-border bg-surface text-sm font-semibold text-foreground hover:bg-background disabled:opacity-50"
+                  >
+                    {downgrading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Switch to Basic"}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleSubscribe(plan)}
+                    disabled={planBusyId !== null}
+                    className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-50"
+                  >
+                    {planBusyId === plan.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <>
+                        <CreditCard className="h-4 w-4" /> Subscribe
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <AlertDialog open={downgradeConfirmOpen} onOpenChange={setDowngradeConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Switch to the Basic plan?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You'll immediately lose {entitlements?.plan_name ?? "your current plan"}'s limits for
+              new job posts, boosts and candidate unlocks. Jobs that are already live stay live —
+              this only affects what you can do going forward.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep current plan</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSwitchToBasic}>Switch to Basic</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Packs */}
       <section className="mt-8">

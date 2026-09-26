@@ -12,6 +12,7 @@ import {
   PlayCircle,
   BadgeCheck,
   Eye,
+  Loader2,
 } from "lucide-react";
 import { CandidateShell } from "@/components/candidate/CandidateShell";
 import { SectionCard } from "@/components/candidate/primitives";
@@ -24,6 +25,7 @@ import { strengthLabel } from "@/lib/profileStrength";
 import { upsertNudgeShown } from "@/lib/candidate.functions";
 import { useBackToHome } from "@/hooks/use-back-to-home";
 import { usePaginatedQuery } from "@/hooks/use-paginated-query";
+import { fetchCandidateJobFeed } from "@/lib/job-feed";
 
 export const Route = createFileRoute("/_authenticated/candidate/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard · JobsKart" }] }),
@@ -44,7 +46,6 @@ const isRecent = (iso: string) =>
   Date.now() - new Date(iso).getTime() < RECENT_DAYS * 24 * 60 * 60 * 1000;
 
 const REC_JOBS_PAGE_SIZE = 15;
-const REC_JOBS_POOL_SIZE = 60;
 
 function CandidateDashboard() {
   const navigate = useNavigate();
@@ -58,7 +59,6 @@ function CandidateDashboard() {
     views: 0,
     appliedWeek: 0,
   });
-  const [recommended, setRecommended] = useState<JobCardData[]>([]);
   const [candidateId, setCandidateId] = useState<string | null>(null);
   const [missing, setMissing] = useState<string[]>([]);
   const [learning, setLearning] = useState<LearningRow[]>([]);
@@ -81,7 +81,7 @@ function CandidateDashboard() {
         return;
       }
 
-      const [{ data: profile }, apps, jobs, expRes, eduRes, learn] = await Promise.all([
+      const [{ data: profile }, apps, expRes, eduRes, learn] = await Promise.all([
         supabase.from("profiles").select("full_name, city, mobile_verified").eq("id", uid).maybeSingle(),
         supabase
           .from("applications")
@@ -89,15 +89,6 @@ function CandidateDashboard() {
           .eq("candidate_id", uid)
           .order("created_at", { ascending: false })
           .limit(20),
-        supabase
-          .from("jobs")
-          .select(
-            "id, company_id, title, city, state, locality, min_salary, max_salary, salary_period, job_type, work_mode, min_experience_years, max_experience_years, education, skills, created_at, companies (name, is_verified)",
-          )
-          .eq("status", "active")
-          .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
-          .order("created_at", { ascending: false })
-          .limit(REC_JOBS_POOL_SIZE),
         supabase.from("candidate_experiences").select("id", { head: true, count: "exact" }).eq("user_id", uid),
         supabase.from("candidate_education").select("id", { head: true, count: "exact" }).eq("user_id", uid),
         supabase
@@ -120,20 +111,6 @@ function CandidateDashboard() {
         views: cand?.profile_views || 0,
         appliedWeek: appsList.filter((a) => isRecent(a.created_at)).length,
       });
-
-      // Recommended, best skill-match first
-      let recs: JobCardData[] = (jobs.data as unknown as JobCardData[]) || [];
-      const mySkills: string[] = (cand?.skills ?? []).map((s: string) => s.toLowerCase());
-      if (mySkills.length) {
-        recs = recs
-          .map((j) => ({
-            j,
-            score: (j.skills || []).filter((s) => mySkills.includes(s.toLowerCase())).length,
-          }))
-          .sort((a, b) => b.score - a.score)
-          .map((x) => x.j);
-      }
-      setRecommended(recs);
 
       // Missing items
       const miss: string[] = [];
@@ -173,19 +150,27 @@ function CandidateDashboard() {
 
   const firstName = name.split(" ")[0] || "there";
 
+  // Server-side candidate feed (feed_jobs_for_candidate): excludes jobs the
+  // candidate already applied to before ranking/pagination, so this replaces
+  // the old "fetch 60 then client-sort by skill match" — a partial server
+  // page can't be re-sorted client-side without breaking pagination/totals.
   const {
     page: recPage,
     setPage: setRecPage,
     rows: recommendedPage,
+    total: recommendedTotal,
     totalPages: recommendedTotalPages,
+    isLoading: recommendedLoading,
+    refetch: refetchRecommended,
   } = usePaginatedQuery<JobCardData>({
-    queryKey: ["candidate-dashboard", "recommended", recommended],
+    queryKey: ["candidate-dashboard", "recommended", candidateId],
     pageSize: REC_JOBS_PAGE_SIZE,
-    fetchPage: async ({ from, to }) => ({
-      rows: recommended.slice(from, to + 1),
-      total: recommended.length,
-    }),
-    enabled: recommended.length > 0,
+    fetchPage: async ({ from, to }) => {
+      const { rows, total, error } = await fetchCandidateJobFeed({}, "recommended", from, to);
+      if (error) return { rows: [], total: 0 };
+      return { rows, total };
+    },
+    enabled: !!candidateId,
   });
 
   const mainContent = (
@@ -195,18 +180,22 @@ function CandidateDashboard() {
           <h2 className="text-base font-bold text-foreground sm:text-lg">
             Recommended for you
           </h2>
-          {recommended.length > 0 && (
+          {recommendedTotal > 0 && (
             <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-1 text-xs font-bold text-success">
-              <CheckCircle2 className="h-3.5 w-3.5" /> {recommended.length} match
-              {recommended.length === 1 ? "" : "es"}
+              <CheckCircle2 className="h-3.5 w-3.5" /> {recommendedTotal} match
+              {recommendedTotal === 1 ? "" : "es"}
             </span>
           )}
         </div>
-        {recommended.length === 0 ? (
+        {recommendedLoading ? (
+          <div className="grid place-items-center rounded-xl border border-border bg-card p-8">
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          </div>
+        ) : recommendedTotal === 0 ? (
           <EmptyState
             icon={Briefcase}
             title="No matches yet"
-            body="Add a few skills to your profile so we can match you to relevant jobs."
+            body="Add a few skills to your profile so we can match you to relevant jobs — or you may have already applied to everything that matches."
             ctaLabel="Search jobs"
             ctaTo="/jobs"
           />
@@ -214,7 +203,15 @@ function CandidateDashboard() {
           <>
             <div className="grid gap-4">
               {recommendedPage.map((j) => (
-                <JobCard key={j.id} job={j} onApplied={refreshApplicationTotals} />
+                <JobCard
+                  key={j.id}
+                  job={j}
+                  variant="discovery"
+                  onApplied={() => {
+                    void refreshApplicationTotals();
+                    void refetchRecommended();
+                  }}
+                />
               ))}
             </div>
             {recommendedTotalPages > 1 && (
