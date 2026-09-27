@@ -83,11 +83,11 @@ BEGIN
   END IF;
 
   RETURN QUERY
-  WITH s AS (SELECT * FROM public.boost_settings WHERE id = 1),
+  WITH s AS (SELECT * FROM public.boost_settings bs WHERE bs.id = 1),
   scored AS (
     SELECT
       j.id, j.company_id, j.title, j.city, j.state, j.locality,
-      j.min_salary, j.max_salary, j.salary_period, j.job_type, j.work_mode,
+      j.min_salary, j.max_salary, j.salary_period, j.job_type::text AS job_type, j.work_mode::text AS work_mode,
       j.min_experience_years, j.max_experience_years, j.education, j.skills,
       j.created_at, j.pay_type, j.avg_incentive_monthly,
       c.name AS company_name, c.is_verified AS company_is_verified,

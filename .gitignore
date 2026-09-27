@@ -45,3 +45,7 @@ docs
 
 # Local MCP config (contains personal API keys/tokens) - copy .mcp.json.example instead
 .mcp.json
+
+# Test output & reports
+test-results/
+
