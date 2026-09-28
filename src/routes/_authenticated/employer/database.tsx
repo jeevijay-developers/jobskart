@@ -143,7 +143,7 @@ function DatabasePage() {
           return;
         }
         setActiveJobs(state.jobs);
-        setBalance(state.balance);
+        setBalance(state.contactBalance);
         setUnlocked(new Set(ids));
       }
       setLoading(false);
@@ -254,7 +254,7 @@ function DatabasePage() {
       });
       setContacts((prev) => ({ ...prev, [c.user_id]: r.contact }));
       setUnlocked((prev) => new Set(prev).add(c.user_id));
-      setBalance(r.balance);
+      setBalance(r.contactBalance);
       if (r.allowanceLeft != null) {
         setActiveJobs((prev) =>
           prev.map((j) =>
@@ -272,9 +272,11 @@ function DatabasePage() {
         toast.success("Already unlocked.");
       } else if (r.source === "allowance") {
         toast.success(`Unlocked · ${r.allowanceLeft} of this job's unlocks left`);
+      } else if (r.source === "monthly_pool") {
+        toast.success("Unlocked using your plan's monthly contact allowance — no credits spent.");
       } else {
         toast.success(
-          `Job's allowance used up — unlocked with credits · ${r.balance} credits left`,
+          `Unlocked with contact credits · ${r.contactBalance} credits left`,
         );
       }
     } catch (e) {
@@ -399,7 +401,7 @@ function DatabasePage() {
         <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-sm font-semibold text-foreground shadow-sm">
           <Coins className="h-4 w-4 text-primary" />
           <span className="tabular-nums">{balance}</span>
-          <span className="text-xs font-medium text-muted-foreground">credits</span>
+          <span className="text-xs font-medium text-muted-foreground">contact credits</span>
         </div>
       }
     >

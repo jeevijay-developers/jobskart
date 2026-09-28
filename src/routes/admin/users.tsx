@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { adminListUsers, adminSetUserStatus, adminDeleteUser } from "@/lib/admin.functions";
 
-export const Route = createFileRoute("/_authenticated/admin/users")({
+export const Route = createFileRoute("/admin/users")({
   component: UsersPage,
 });
 

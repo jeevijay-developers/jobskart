@@ -214,7 +214,14 @@ export const adminStats = createServerFn({ method: "GET" })
 
 export const adminGrantCredits = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((d: { companyId: string; delta: number; note?: string }) => d)
+  .validator(
+    (d: {
+      companyId: string;
+      delta: number;
+      note?: string;
+      benefitType?: "job_post" | "contact" | "boost";
+    }) => d,
+  )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -224,6 +231,7 @@ export const adminGrantCredits = createServerFn({ method: "POST" })
       _kind: "adjustment",
       _reference: { note: data.note ?? "admin grant" },
       _actor: context.userId,
+      _benefit_type: data.benefitType ?? "job_post",
     });
     if (error) throw new Error(error.message);
     return { balance: bal };

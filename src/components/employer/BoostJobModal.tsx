@@ -12,6 +12,8 @@ type BoostJobModalProps = {
   onOpenChange: (v: boolean) => void;
   job: { id: string; title: string; createdAt: string };
   balance: number;
+  /** Remaining this-month plan allowance — null means unlimited, 0/positive is exact. */
+  monthlyPoolRemaining: number | null;
   settings: { costCredits: number; windowHours: number; enabled: boolean };
   onBoosted: (result: BoostResult) => void;
 };
@@ -31,6 +33,7 @@ export function BoostJobModal({
   onOpenChange,
   job,
   balance,
+  monthlyPoolRemaining,
   settings,
   onBoosted,
 }: BoostJobModalProps) {
@@ -48,14 +51,22 @@ export function BoostJobModal({
   }, [open, job.id, runGetHistory]);
 
   const createdToday = isSameIstDay(job.createdAt);
-  const insufficientBalance = balance < settings.costCredits;
+  // A company can have plan pool capacity left even while its wallet
+  // boost_balance reads 0 — don't block the button on wallet balance alone.
+  const hasPoolLeft = monthlyPoolRemaining === null || monthlyPoolRemaining > 0;
+  const insufficientBalance = balance < settings.costCredits && !hasPoolLeft;
   const canBoost = settings.enabled && !createdToday && !insufficientBalance;
+  const willUsePool = hasPoolLeft;
 
   const submit = async () => {
     setBusy(true);
     try {
       const result = await runApplyBoost({ data: { jobId: job.id } });
-      toast.success(`"${job.title}" is boosted for ${settings.windowHours}h.`);
+      toast.success(
+        result.source === "monthly_pool"
+          ? `"${job.title}" is boosted for ${settings.windowHours}h — used your plan's monthly allowance, no credits spent.`
+          : `"${job.title}" is boosted for ${settings.windowHours}h.`,
+      );
       onBoosted(result);
       onOpenChange(false);
     } catch (e) {
@@ -78,16 +89,24 @@ export function BoostJobModal({
           <div className="grid grid-cols-2 gap-3 rounded-xl border border-border bg-surface p-4 text-sm">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cost</p>
-              <p className="mt-1 text-lg font-bold text-foreground">{settings.costCredits} credit{settings.costCredits === 1 ? "" : "s"}</p>
+              <p className="mt-1 text-lg font-bold text-foreground">
+                {willUsePool ? "Free · plan allowance" : `${settings.costCredits} credit${settings.costCredits === 1 ? "" : "s"}`}
+              </p>
             </div>
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Window</p>
               <p className="mt-1 text-lg font-bold text-foreground">{settings.windowHours}h of priority</p>
             </div>
             <div className="col-span-2 border-t border-border pt-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Your balance</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {willUsePool ? "Monthly boost allowance left" : "Your boost credits"}
+              </p>
               <p className={`mt-1 text-lg font-bold ${insufficientBalance ? "text-destructive" : "text-foreground"}`}>
-                {balance} credit{balance === 1 ? "" : "s"}
+                {willUsePool
+                  ? monthlyPoolRemaining === null
+                    ? "Unlimited"
+                    : `${monthlyPoolRemaining} left this month`
+                  : `${balance} credit${balance === 1 ? "" : "s"}`}
               </p>
             </div>
           </div>

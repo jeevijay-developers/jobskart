@@ -2,6 +2,8 @@
 
 Revenue is employer-side only. Two currencies: **plan entitlements** (recurring) and **credits** (prepaid top-up).
 
+> **2026-09-28 reconciliation note:** `employer-monetization-and-credit-strategy-plan.md` and `employer-monetization-detailed-implementation-plan.md` (repo root) extend this document's single-wallet, typed-consumption-order model — they do not replace it. Specifically: (1) the "credits" currency below is split into three named balances (job-post, contact, boost) instead of one generic pool, so an employer always sees what a balance is *for*; (2) Classic+ stays plan-only, never purchasable with credits, unchanged; (3) 60-day response retention is unaffected, unchanged; (4) consumption order (plan quota → allowance/wallet → block) is unchanged — only *which named wallet* pays at the fallback step is new. "Elevated ranking" for Trending (row 15 below) was not actually implemented in `feed_jobs()`'s scoring until `20260928061220_trending_ranking_bonus.sql`.
+
 ---
 
 ## 1. Job tiers

@@ -146,7 +146,7 @@ function ActivityPage() {
       setLoading(true);
       let q = supabase
         .from("employer_activity")
-        .select("id, kind, title, body, link, created_at, metadata")
+        .select("id, kind, title, body, link, created_at, metadata, actor:profiles!employer_activity_actor_id_profiles_fkey(full_name, email)")
         .eq("company_id", companyId)
         .order("created_at", { ascending: false })
         .range(0, FETCH_CHUNK);
@@ -186,7 +186,7 @@ function ActivityPage() {
     setLoadingMore(true);
     let q = supabase
       .from("employer_activity")
-      .select("id, kind, title, body, link, created_at, metadata")
+      .select("id, kind, title, body, link, created_at, metadata, actor:profiles!employer_activity_actor_id_profiles_fkey(full_name, email)")
       .eq("company_id", companyId)
       .order("created_at", { ascending: false })
       .range(items.length, items.length + FETCH_CHUNK);

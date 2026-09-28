@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as InterviewJoinRouteImport } from './routes/interview-join'
@@ -19,9 +20,20 @@ import { Route as JobsRouteImport } from './routes/jobs'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
-import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/admin/route'
 import { Route as AuthenticatedCandidateRouteRouteImport } from './routes/_authenticated/candidate/route'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as AdminBannersRouteImport } from './routes/admin/banners'
+import { Route as AdminCompaniesRouteImport } from './routes/admin/companies'
+import { Route as AdminCreditsRouteImport } from './routes/admin/credits'
+import { Route as AdminDashboardRouteImport } from './routes/admin/dashboard'
+import { Route as AdminJobsRouteImport } from './routes/admin/jobs'
+import { Route as AdminLearningRouteImport } from './routes/admin/learning'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
+import { Route as AdminMastersRouteImport } from './routes/admin/masters'
+import { Route as AdminPlansRouteImport } from './routes/admin/plans'
+import { Route as AdminResumesRouteImport } from './routes/admin/resumes'
+import { Route as AdminUsersRouteImport } from './routes/admin/users'
+import { Route as AdminVerificationsRouteImport } from './routes/admin/verifications'
 import { Route as CSlugRouteImport } from './routes/c.$slug'
 import { Route as CandidateLoginRouteImport } from './routes/candidate.login'
 import { Route as EmployerLoginRouteImport } from './routes/employer.login'
@@ -32,17 +44,6 @@ import { Route as SignupCandidateRouteImport } from './routes/signup.candidate'
 import { Route as SignupEmployerRouteImport } from './routes/signup.employer'
 import { Route as USlugRouteImport } from './routes/u.$slug'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
-import { Route as AuthenticatedAdminBannersRouteImport } from './routes/_authenticated/admin/banners'
-import { Route as AuthenticatedAdminCompaniesRouteImport } from './routes/_authenticated/admin/companies'
-import { Route as AuthenticatedAdminCreditsRouteImport } from './routes/_authenticated/admin/credits'
-import { Route as AuthenticatedAdminDashboardRouteImport } from './routes/_authenticated/admin/dashboard'
-import { Route as AuthenticatedAdminJobsRouteImport } from './routes/_authenticated/admin/jobs'
-import { Route as AuthenticatedAdminLearningRouteImport } from './routes/_authenticated/admin/learning'
-import { Route as AuthenticatedAdminMastersRouteImport } from './routes/_authenticated/admin/masters'
-import { Route as AuthenticatedAdminPlansRouteImport } from './routes/_authenticated/admin/plans'
-import { Route as AuthenticatedAdminResumesRouteImport } from './routes/_authenticated/admin/resumes'
-import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin/users'
-import { Route as AuthenticatedAdminVerificationsRouteImport } from './routes/_authenticated/admin/verifications'
 import { Route as AuthenticatedCandidateAlertsRouteImport } from './routes/_authenticated/candidate/alerts'
 import { Route as AuthenticatedCandidateApplicationsRouteImport } from './routes/_authenticated/candidate/applications'
 import { Route as AuthenticatedCandidateBrowseRouteImport } from './routes/_authenticated/candidate/browse'
@@ -78,6 +79,11 @@ const IndexRoute = IndexRouteImport.update({
 } as any)
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRouteRoute = AdminRouteRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -121,21 +127,76 @@ const Char91DotwellKnownChar93OauthProtectedResourceRoute =
     path: '/.well-known/oauth-protected-resource',
     getParentRoute: () => rootRouteImport,
   } as any)
-const AuthenticatedAdminRouteRoute = AuthenticatedAdminRouteRouteImport.update({
-  id: '/admin',
-  path: '/admin',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedCandidateRouteRoute =
   AuthenticatedCandidateRouteRouteImport.update({
     id: '/candidate',
     path: '/candidate',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminBannersRoute = AdminBannersRouteImport.update({
+  id: '/banners',
+  path: '/banners',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminCompaniesRoute = AdminCompaniesRouteImport.update({
+  id: '/companies',
+  path: '/companies',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminCreditsRoute = AdminCreditsRouteImport.update({
+  id: '/credits',
+  path: '/credits',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminDashboardRoute = AdminDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminJobsRoute = AdminJobsRouteImport.update({
+  id: '/jobs',
+  path: '/jobs',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminLearningRoute = AdminLearningRouteImport.update({
+  id: '/learning',
+  path: '/learning',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const AdminLoginRoute = AdminLoginRouteImport.update({
-  id: '/admin/login',
-  path: '/admin/login',
-  getParentRoute: () => rootRouteImport,
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminMastersRoute = AdminMastersRouteImport.update({
+  id: '/masters',
+  path: '/masters',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminPlansRoute = AdminPlansRouteImport.update({
+  id: '/plans',
+  path: '/plans',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminResumesRoute = AdminResumesRouteImport.update({
+  id: '/resumes',
+  path: '/resumes',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminVerificationsRoute = AdminVerificationsRouteImport.update({
+  id: '/verifications',
+  path: '/verifications',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 const CSlugRoute = CSlugRouteImport.update({
   id: '/c/$slug',
@@ -187,69 +248,6 @@ const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
   path: '/.lovable/oauth/consent',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedAdminBannersRoute =
-  AuthenticatedAdminBannersRouteImport.update({
-    id: '/banners',
-    path: '/banners',
-    getParentRoute: () => AuthenticatedAdminRouteRoute,
-  } as any)
-const AuthenticatedAdminCompaniesRoute =
-  AuthenticatedAdminCompaniesRouteImport.update({
-    id: '/companies',
-    path: '/companies',
-    getParentRoute: () => AuthenticatedAdminRouteRoute,
-  } as any)
-const AuthenticatedAdminCreditsRoute =
-  AuthenticatedAdminCreditsRouteImport.update({
-    id: '/credits',
-    path: '/credits',
-    getParentRoute: () => AuthenticatedAdminRouteRoute,
-  } as any)
-const AuthenticatedAdminDashboardRoute =
-  AuthenticatedAdminDashboardRouteImport.update({
-    id: '/dashboard',
-    path: '/dashboard',
-    getParentRoute: () => AuthenticatedAdminRouteRoute,
-  } as any)
-const AuthenticatedAdminJobsRoute = AuthenticatedAdminJobsRouteImport.update({
-  id: '/jobs',
-  path: '/jobs',
-  getParentRoute: () => AuthenticatedAdminRouteRoute,
-} as any)
-const AuthenticatedAdminLearningRoute =
-  AuthenticatedAdminLearningRouteImport.update({
-    id: '/learning',
-    path: '/learning',
-    getParentRoute: () => AuthenticatedAdminRouteRoute,
-  } as any)
-const AuthenticatedAdminMastersRoute =
-  AuthenticatedAdminMastersRouteImport.update({
-    id: '/masters',
-    path: '/masters',
-    getParentRoute: () => AuthenticatedAdminRouteRoute,
-  } as any)
-const AuthenticatedAdminPlansRoute = AuthenticatedAdminPlansRouteImport.update({
-  id: '/plans',
-  path: '/plans',
-  getParentRoute: () => AuthenticatedAdminRouteRoute,
-} as any)
-const AuthenticatedAdminResumesRoute =
-  AuthenticatedAdminResumesRouteImport.update({
-    id: '/resumes',
-    path: '/resumes',
-    getParentRoute: () => AuthenticatedAdminRouteRoute,
-  } as any)
-const AuthenticatedAdminUsersRoute = AuthenticatedAdminUsersRouteImport.update({
-  id: '/users',
-  path: '/users',
-  getParentRoute: () => AuthenticatedAdminRouteRoute,
-} as any)
-const AuthenticatedAdminVerificationsRoute =
-  AuthenticatedAdminVerificationsRouteImport.update({
-    id: '/verifications',
-    path: '/verifications',
-    getParentRoute: () => AuthenticatedAdminRouteRoute,
-  } as any)
 const AuthenticatedCandidateAlertsRoute =
   AuthenticatedCandidateAlertsRouteImport.update({
     id: '/alerts',
@@ -415,6 +413,7 @@ const AuthenticatedEmployerJobsJobIdEditRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/interview-join': typeof InterviewJoinRoute
@@ -422,10 +421,20 @@ export interface FileRoutesByFullPath {
   '/jobs': typeof JobsRouteWithChildren
   '/mcp': typeof McpRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/admin': typeof AuthenticatedAdminRouteRouteWithChildren
   '/candidate': typeof AuthenticatedCandidateRouteRouteWithChildren
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/admin/banners': typeof AdminBannersRoute
+  '/admin/companies': typeof AdminCompaniesRoute
+  '/admin/credits': typeof AdminCreditsRoute
+  '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/jobs': typeof AdminJobsRoute
+  '/admin/learning': typeof AdminLearningRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/masters': typeof AdminMastersRoute
+  '/admin/plans': typeof AdminPlansRoute
+  '/admin/resumes': typeof AdminResumesRoute
+  '/admin/users': typeof AdminUsersRoute
+  '/admin/verifications': typeof AdminVerificationsRoute
   '/c/$slug': typeof CSlugRoute
   '/candidate/login': typeof CandidateLoginRoute
   '/employer/login': typeof EmployerLoginRoute
@@ -435,18 +444,8 @@ export interface FileRoutesByFullPath {
   '/signup/candidate': typeof SignupCandidateRoute
   '/signup/employer': typeof SignupEmployerRoute
   '/u/$slug': typeof USlugRoute
+  '/admin/': typeof AdminIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
-  '/admin/banners': typeof AuthenticatedAdminBannersRoute
-  '/admin/companies': typeof AuthenticatedAdminCompaniesRoute
-  '/admin/credits': typeof AuthenticatedAdminCreditsRoute
-  '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
-  '/admin/jobs': typeof AuthenticatedAdminJobsRoute
-  '/admin/learning': typeof AuthenticatedAdminLearningRoute
-  '/admin/masters': typeof AuthenticatedAdminMastersRoute
-  '/admin/plans': typeof AuthenticatedAdminPlansRoute
-  '/admin/resumes': typeof AuthenticatedAdminResumesRoute
-  '/admin/users': typeof AuthenticatedAdminUsersRoute
-  '/admin/verifications': typeof AuthenticatedAdminVerificationsRoute
   '/candidate/alerts': typeof AuthenticatedCandidateAlertsRoute
   '/candidate/applications': typeof AuthenticatedCandidateApplicationsRoute
   '/candidate/browse': typeof AuthenticatedCandidateBrowseRoute
@@ -484,10 +483,20 @@ export interface FileRoutesByTo {
   '/jobs': typeof JobsRouteWithChildren
   '/mcp': typeof McpRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/admin': typeof AuthenticatedAdminRouteRouteWithChildren
   '/candidate': typeof AuthenticatedCandidateRouteRouteWithChildren
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/admin/banners': typeof AdminBannersRoute
+  '/admin/companies': typeof AdminCompaniesRoute
+  '/admin/credits': typeof AdminCreditsRoute
+  '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/jobs': typeof AdminJobsRoute
+  '/admin/learning': typeof AdminLearningRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/masters': typeof AdminMastersRoute
+  '/admin/plans': typeof AdminPlansRoute
+  '/admin/resumes': typeof AdminResumesRoute
+  '/admin/users': typeof AdminUsersRoute
+  '/admin/verifications': typeof AdminVerificationsRoute
   '/c/$slug': typeof CSlugRoute
   '/candidate/login': typeof CandidateLoginRoute
   '/employer/login': typeof EmployerLoginRoute
@@ -497,18 +506,8 @@ export interface FileRoutesByTo {
   '/signup/candidate': typeof SignupCandidateRoute
   '/signup/employer': typeof SignupEmployerRoute
   '/u/$slug': typeof USlugRoute
+  '/admin': typeof AdminIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
-  '/admin/banners': typeof AuthenticatedAdminBannersRoute
-  '/admin/companies': typeof AuthenticatedAdminCompaniesRoute
-  '/admin/credits': typeof AuthenticatedAdminCreditsRoute
-  '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
-  '/admin/jobs': typeof AuthenticatedAdminJobsRoute
-  '/admin/learning': typeof AuthenticatedAdminLearningRoute
-  '/admin/masters': typeof AuthenticatedAdminMastersRoute
-  '/admin/plans': typeof AuthenticatedAdminPlansRoute
-  '/admin/resumes': typeof AuthenticatedAdminResumesRoute
-  '/admin/users': typeof AuthenticatedAdminUsersRoute
-  '/admin/verifications': typeof AuthenticatedAdminVerificationsRoute
   '/candidate/alerts': typeof AuthenticatedCandidateAlertsRoute
   '/candidate/applications': typeof AuthenticatedCandidateApplicationsRoute
   '/candidate/browse': typeof AuthenticatedCandidateBrowseRoute
@@ -541,6 +540,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/admin': typeof AdminRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/interview-join': typeof InterviewJoinRoute
@@ -548,10 +548,20 @@ export interface FileRoutesById {
   '/jobs': typeof JobsRouteWithChildren
   '/mcp': typeof McpRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/_authenticated/admin': typeof AuthenticatedAdminRouteRouteWithChildren
   '/_authenticated/candidate': typeof AuthenticatedCandidateRouteRouteWithChildren
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/admin/banners': typeof AdminBannersRoute
+  '/admin/companies': typeof AdminCompaniesRoute
+  '/admin/credits': typeof AdminCreditsRoute
+  '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/jobs': typeof AdminJobsRoute
+  '/admin/learning': typeof AdminLearningRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/masters': typeof AdminMastersRoute
+  '/admin/plans': typeof AdminPlansRoute
+  '/admin/resumes': typeof AdminResumesRoute
+  '/admin/users': typeof AdminUsersRoute
+  '/admin/verifications': typeof AdminVerificationsRoute
   '/c/$slug': typeof CSlugRoute
   '/candidate/login': typeof CandidateLoginRoute
   '/employer/login': typeof EmployerLoginRoute
@@ -561,18 +571,8 @@ export interface FileRoutesById {
   '/signup/candidate': typeof SignupCandidateRoute
   '/signup/employer': typeof SignupEmployerRoute
   '/u/$slug': typeof USlugRoute
+  '/admin/': typeof AdminIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
-  '/_authenticated/admin/banners': typeof AuthenticatedAdminBannersRoute
-  '/_authenticated/admin/companies': typeof AuthenticatedAdminCompaniesRoute
-  '/_authenticated/admin/credits': typeof AuthenticatedAdminCreditsRoute
-  '/_authenticated/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
-  '/_authenticated/admin/jobs': typeof AuthenticatedAdminJobsRoute
-  '/_authenticated/admin/learning': typeof AuthenticatedAdminLearningRoute
-  '/_authenticated/admin/masters': typeof AuthenticatedAdminMastersRoute
-  '/_authenticated/admin/plans': typeof AuthenticatedAdminPlansRoute
-  '/_authenticated/admin/resumes': typeof AuthenticatedAdminResumesRoute
-  '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
-  '/_authenticated/admin/verifications': typeof AuthenticatedAdminVerificationsRoute
   '/_authenticated/candidate/alerts': typeof AuthenticatedCandidateAlertsRoute
   '/_authenticated/candidate/applications': typeof AuthenticatedCandidateApplicationsRoute
   '/_authenticated/candidate/browse': typeof AuthenticatedCandidateBrowseRoute
@@ -605,6 +605,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
     | '/auth'
     | '/forgot-password'
     | '/interview-join'
@@ -612,10 +613,20 @@ export interface FileRouteTypes {
     | '/jobs'
     | '/mcp'
     | '/reset-password'
-    | '/admin'
     | '/candidate'
     | '/.well-known/oauth-protected-resource'
+    | '/admin/banners'
+    | '/admin/companies'
+    | '/admin/credits'
+    | '/admin/dashboard'
+    | '/admin/jobs'
+    | '/admin/learning'
     | '/admin/login'
+    | '/admin/masters'
+    | '/admin/plans'
+    | '/admin/resumes'
+    | '/admin/users'
+    | '/admin/verifications'
     | '/c/$slug'
     | '/candidate/login'
     | '/employer/login'
@@ -625,18 +636,8 @@ export interface FileRouteTypes {
     | '/signup/candidate'
     | '/signup/employer'
     | '/u/$slug'
+    | '/admin/'
     | '/.lovable/oauth/consent'
-    | '/admin/banners'
-    | '/admin/companies'
-    | '/admin/credits'
-    | '/admin/dashboard'
-    | '/admin/jobs'
-    | '/admin/learning'
-    | '/admin/masters'
-    | '/admin/plans'
-    | '/admin/resumes'
-    | '/admin/users'
-    | '/admin/verifications'
     | '/candidate/alerts'
     | '/candidate/applications'
     | '/candidate/browse'
@@ -674,10 +675,20 @@ export interface FileRouteTypes {
     | '/jobs'
     | '/mcp'
     | '/reset-password'
-    | '/admin'
     | '/candidate'
     | '/.well-known/oauth-protected-resource'
+    | '/admin/banners'
+    | '/admin/companies'
+    | '/admin/credits'
+    | '/admin/dashboard'
+    | '/admin/jobs'
+    | '/admin/learning'
     | '/admin/login'
+    | '/admin/masters'
+    | '/admin/plans'
+    | '/admin/resumes'
+    | '/admin/users'
+    | '/admin/verifications'
     | '/c/$slug'
     | '/candidate/login'
     | '/employer/login'
@@ -687,18 +698,8 @@ export interface FileRouteTypes {
     | '/signup/candidate'
     | '/signup/employer'
     | '/u/$slug'
+    | '/admin'
     | '/.lovable/oauth/consent'
-    | '/admin/banners'
-    | '/admin/companies'
-    | '/admin/credits'
-    | '/admin/dashboard'
-    | '/admin/jobs'
-    | '/admin/learning'
-    | '/admin/masters'
-    | '/admin/plans'
-    | '/admin/resumes'
-    | '/admin/users'
-    | '/admin/verifications'
     | '/candidate/alerts'
     | '/candidate/applications'
     | '/candidate/browse'
@@ -730,6 +731,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_authenticated'
+    | '/admin'
     | '/auth'
     | '/forgot-password'
     | '/interview-join'
@@ -737,10 +739,20 @@ export interface FileRouteTypes {
     | '/jobs'
     | '/mcp'
     | '/reset-password'
-    | '/_authenticated/admin'
     | '/_authenticated/candidate'
     | '/.well-known/oauth-protected-resource'
+    | '/admin/banners'
+    | '/admin/companies'
+    | '/admin/credits'
+    | '/admin/dashboard'
+    | '/admin/jobs'
+    | '/admin/learning'
     | '/admin/login'
+    | '/admin/masters'
+    | '/admin/plans'
+    | '/admin/resumes'
+    | '/admin/users'
+    | '/admin/verifications'
     | '/c/$slug'
     | '/candidate/login'
     | '/employer/login'
@@ -750,18 +762,8 @@ export interface FileRouteTypes {
     | '/signup/candidate'
     | '/signup/employer'
     | '/u/$slug'
+    | '/admin/'
     | '/.lovable/oauth/consent'
-    | '/_authenticated/admin/banners'
-    | '/_authenticated/admin/companies'
-    | '/_authenticated/admin/credits'
-    | '/_authenticated/admin/dashboard'
-    | '/_authenticated/admin/jobs'
-    | '/_authenticated/admin/learning'
-    | '/_authenticated/admin/masters'
-    | '/_authenticated/admin/plans'
-    | '/_authenticated/admin/resumes'
-    | '/_authenticated/admin/users'
-    | '/_authenticated/admin/verifications'
     | '/_authenticated/candidate/alerts'
     | '/_authenticated/candidate/applications'
     | '/_authenticated/candidate/browse'
@@ -794,6 +796,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AdminRouteRoute: typeof AdminRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   InterviewJoinRoute: typeof InterviewJoinRoute
@@ -802,7 +805,6 @@ export interface RootRouteChildren {
   McpRoute: typeof McpRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
-  AdminLoginRoute: typeof AdminLoginRoute
   CSlugRoute: typeof CSlugRoute
   CandidateLoginRoute: typeof CandidateLoginRoute
   EmployerLoginRoute: typeof EmployerLoginRoute
@@ -829,6 +831,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -887,13 +896,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/admin': {
-      id: '/_authenticated/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AuthenticatedAdminRouteRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/candidate': {
       id: '/_authenticated/candidate'
       path: '/candidate'
@@ -901,12 +903,96 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCandidateRouteRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/banners': {
+      id: '/admin/banners'
+      path: '/banners'
+      fullPath: '/admin/banners'
+      preLoaderRoute: typeof AdminBannersRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/companies': {
+      id: '/admin/companies'
+      path: '/companies'
+      fullPath: '/admin/companies'
+      preLoaderRoute: typeof AdminCompaniesRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/credits': {
+      id: '/admin/credits'
+      path: '/credits'
+      fullPath: '/admin/credits'
+      preLoaderRoute: typeof AdminCreditsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/dashboard': {
+      id: '/admin/dashboard'
+      path: '/dashboard'
+      fullPath: '/admin/dashboard'
+      preLoaderRoute: typeof AdminDashboardRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/jobs': {
+      id: '/admin/jobs'
+      path: '/jobs'
+      fullPath: '/admin/jobs'
+      preLoaderRoute: typeof AdminJobsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/learning': {
+      id: '/admin/learning'
+      path: '/learning'
+      fullPath: '/admin/learning'
+      preLoaderRoute: typeof AdminLearningRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/login': {
       id: '/admin/login'
-      path: '/admin/login'
+      path: '/login'
       fullPath: '/admin/login'
       preLoaderRoute: typeof AdminLoginRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/masters': {
+      id: '/admin/masters'
+      path: '/masters'
+      fullPath: '/admin/masters'
+      preLoaderRoute: typeof AdminMastersRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/plans': {
+      id: '/admin/plans'
+      path: '/plans'
+      fullPath: '/admin/plans'
+      preLoaderRoute: typeof AdminPlansRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/resumes': {
+      id: '/admin/resumes'
+      path: '/resumes'
+      fullPath: '/admin/resumes'
+      preLoaderRoute: typeof AdminResumesRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/verifications': {
+      id: '/admin/verifications'
+      path: '/verifications'
+      fullPath: '/admin/verifications'
+      preLoaderRoute: typeof AdminVerificationsRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
     '/c/$slug': {
       id: '/c/$slug'
@@ -977,83 +1063,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/.lovable/oauth/consent'
       preLoaderRoute: typeof DotlovableOauthConsentRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    '/_authenticated/admin/banners': {
-      id: '/_authenticated/admin/banners'
-      path: '/banners'
-      fullPath: '/admin/banners'
-      preLoaderRoute: typeof AuthenticatedAdminBannersRouteImport
-      parentRoute: typeof AuthenticatedAdminRouteRoute
-    }
-    '/_authenticated/admin/companies': {
-      id: '/_authenticated/admin/companies'
-      path: '/companies'
-      fullPath: '/admin/companies'
-      preLoaderRoute: typeof AuthenticatedAdminCompaniesRouteImport
-      parentRoute: typeof AuthenticatedAdminRouteRoute
-    }
-    '/_authenticated/admin/credits': {
-      id: '/_authenticated/admin/credits'
-      path: '/credits'
-      fullPath: '/admin/credits'
-      preLoaderRoute: typeof AuthenticatedAdminCreditsRouteImport
-      parentRoute: typeof AuthenticatedAdminRouteRoute
-    }
-    '/_authenticated/admin/dashboard': {
-      id: '/_authenticated/admin/dashboard'
-      path: '/dashboard'
-      fullPath: '/admin/dashboard'
-      preLoaderRoute: typeof AuthenticatedAdminDashboardRouteImport
-      parentRoute: typeof AuthenticatedAdminRouteRoute
-    }
-    '/_authenticated/admin/jobs': {
-      id: '/_authenticated/admin/jobs'
-      path: '/jobs'
-      fullPath: '/admin/jobs'
-      preLoaderRoute: typeof AuthenticatedAdminJobsRouteImport
-      parentRoute: typeof AuthenticatedAdminRouteRoute
-    }
-    '/_authenticated/admin/learning': {
-      id: '/_authenticated/admin/learning'
-      path: '/learning'
-      fullPath: '/admin/learning'
-      preLoaderRoute: typeof AuthenticatedAdminLearningRouteImport
-      parentRoute: typeof AuthenticatedAdminRouteRoute
-    }
-    '/_authenticated/admin/masters': {
-      id: '/_authenticated/admin/masters'
-      path: '/masters'
-      fullPath: '/admin/masters'
-      preLoaderRoute: typeof AuthenticatedAdminMastersRouteImport
-      parentRoute: typeof AuthenticatedAdminRouteRoute
-    }
-    '/_authenticated/admin/plans': {
-      id: '/_authenticated/admin/plans'
-      path: '/plans'
-      fullPath: '/admin/plans'
-      preLoaderRoute: typeof AuthenticatedAdminPlansRouteImport
-      parentRoute: typeof AuthenticatedAdminRouteRoute
-    }
-    '/_authenticated/admin/resumes': {
-      id: '/_authenticated/admin/resumes'
-      path: '/resumes'
-      fullPath: '/admin/resumes'
-      preLoaderRoute: typeof AuthenticatedAdminResumesRouteImport
-      parentRoute: typeof AuthenticatedAdminRouteRoute
-    }
-    '/_authenticated/admin/users': {
-      id: '/_authenticated/admin/users'
-      path: '/users'
-      fullPath: '/admin/users'
-      preLoaderRoute: typeof AuthenticatedAdminUsersRouteImport
-      parentRoute: typeof AuthenticatedAdminRouteRoute
-    }
-    '/_authenticated/admin/verifications': {
-      id: '/_authenticated/admin/verifications'
-      path: '/verifications'
-      fullPath: '/admin/verifications'
-      preLoaderRoute: typeof AuthenticatedAdminVerificationsRouteImport
-      parentRoute: typeof AuthenticatedAdminRouteRoute
     }
     '/_authenticated/candidate/alerts': {
       id: '/_authenticated/candidate/alerts'
@@ -1247,40 +1256,6 @@ declare module '@tanstack/react-router' {
   }
 }
 
-interface AuthenticatedAdminRouteRouteChildren {
-  AuthenticatedAdminBannersRoute: typeof AuthenticatedAdminBannersRoute
-  AuthenticatedAdminCompaniesRoute: typeof AuthenticatedAdminCompaniesRoute
-  AuthenticatedAdminCreditsRoute: typeof AuthenticatedAdminCreditsRoute
-  AuthenticatedAdminDashboardRoute: typeof AuthenticatedAdminDashboardRoute
-  AuthenticatedAdminJobsRoute: typeof AuthenticatedAdminJobsRoute
-  AuthenticatedAdminLearningRoute: typeof AuthenticatedAdminLearningRoute
-  AuthenticatedAdminMastersRoute: typeof AuthenticatedAdminMastersRoute
-  AuthenticatedAdminPlansRoute: typeof AuthenticatedAdminPlansRoute
-  AuthenticatedAdminResumesRoute: typeof AuthenticatedAdminResumesRoute
-  AuthenticatedAdminUsersRoute: typeof AuthenticatedAdminUsersRoute
-  AuthenticatedAdminVerificationsRoute: typeof AuthenticatedAdminVerificationsRoute
-}
-
-const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren =
-  {
-    AuthenticatedAdminBannersRoute: AuthenticatedAdminBannersRoute,
-    AuthenticatedAdminCompaniesRoute: AuthenticatedAdminCompaniesRoute,
-    AuthenticatedAdminCreditsRoute: AuthenticatedAdminCreditsRoute,
-    AuthenticatedAdminDashboardRoute: AuthenticatedAdminDashboardRoute,
-    AuthenticatedAdminJobsRoute: AuthenticatedAdminJobsRoute,
-    AuthenticatedAdminLearningRoute: AuthenticatedAdminLearningRoute,
-    AuthenticatedAdminMastersRoute: AuthenticatedAdminMastersRoute,
-    AuthenticatedAdminPlansRoute: AuthenticatedAdminPlansRoute,
-    AuthenticatedAdminResumesRoute: AuthenticatedAdminResumesRoute,
-    AuthenticatedAdminUsersRoute: AuthenticatedAdminUsersRoute,
-    AuthenticatedAdminVerificationsRoute: AuthenticatedAdminVerificationsRoute,
-  }
-
-const AuthenticatedAdminRouteRouteWithChildren =
-  AuthenticatedAdminRouteRoute._addFileChildren(
-    AuthenticatedAdminRouteRouteChildren,
-  )
-
 interface AuthenticatedCandidateRouteRouteChildren {
   AuthenticatedCandidateAlertsRoute: typeof AuthenticatedCandidateAlertsRoute
   AuthenticatedCandidateApplicationsRoute: typeof AuthenticatedCandidateApplicationsRoute
@@ -1336,7 +1311,6 @@ const AuthenticatedEmployerJobsRouteWithChildren =
   )
 
 interface AuthenticatedRouteRouteChildren {
-  AuthenticatedAdminRouteRoute: typeof AuthenticatedAdminRouteRouteWithChildren
   AuthenticatedCandidateRouteRoute: typeof AuthenticatedCandidateRouteRouteWithChildren
   AuthenticatedEmployerActivityRoute: typeof AuthenticatedEmployerActivityRoute
   AuthenticatedEmployerCompanyRoute: typeof AuthenticatedEmployerCompanyRoute
@@ -1354,7 +1328,6 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
-  AuthenticatedAdminRouteRoute: AuthenticatedAdminRouteRouteWithChildren,
   AuthenticatedCandidateRouteRoute:
     AuthenticatedCandidateRouteRouteWithChildren,
   AuthenticatedEmployerActivityRoute: AuthenticatedEmployerActivityRoute,
@@ -1376,6 +1349,42 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
+interface AdminRouteRouteChildren {
+  AdminBannersRoute: typeof AdminBannersRoute
+  AdminCompaniesRoute: typeof AdminCompaniesRoute
+  AdminCreditsRoute: typeof AdminCreditsRoute
+  AdminDashboardRoute: typeof AdminDashboardRoute
+  AdminJobsRoute: typeof AdminJobsRoute
+  AdminLearningRoute: typeof AdminLearningRoute
+  AdminLoginRoute: typeof AdminLoginRoute
+  AdminMastersRoute: typeof AdminMastersRoute
+  AdminPlansRoute: typeof AdminPlansRoute
+  AdminResumesRoute: typeof AdminResumesRoute
+  AdminUsersRoute: typeof AdminUsersRoute
+  AdminVerificationsRoute: typeof AdminVerificationsRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+}
+
+const AdminRouteRouteChildren: AdminRouteRouteChildren = {
+  AdminBannersRoute: AdminBannersRoute,
+  AdminCompaniesRoute: AdminCompaniesRoute,
+  AdminCreditsRoute: AdminCreditsRoute,
+  AdminDashboardRoute: AdminDashboardRoute,
+  AdminJobsRoute: AdminJobsRoute,
+  AdminLearningRoute: AdminLearningRoute,
+  AdminLoginRoute: AdminLoginRoute,
+  AdminMastersRoute: AdminMastersRoute,
+  AdminPlansRoute: AdminPlansRoute,
+  AdminResumesRoute: AdminResumesRoute,
+  AdminUsersRoute: AdminUsersRoute,
+  AdminVerificationsRoute: AdminVerificationsRoute,
+  AdminIndexRoute: AdminIndexRoute,
+}
+
+const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
+  AdminRouteRouteChildren,
+)
+
 interface JobsRouteChildren {
   JobsJobIdRoute: typeof JobsJobIdRoute
 }
@@ -1389,6 +1398,7 @@ const JobsRouteWithChildren = JobsRoute._addFileChildren(JobsRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AdminRouteRoute: AdminRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   InterviewJoinRoute: InterviewJoinRoute,
@@ -1398,7 +1408,6 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
-  AdminLoginRoute: AdminLoginRoute,
   CSlugRoute: CSlugRoute,
   CandidateLoginRoute: CandidateLoginRoute,
   EmployerLoginRoute: EmployerLoginRoute,

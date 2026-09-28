@@ -73,6 +73,11 @@ export const getCompanyEntitlements = createServerFn({ method: "POST" })
         repost_allowed: boolean;
         unlocks_per_job: number;
         response_retention_days: number;
+        // Monthly pooled allowances (Option A) — -1 means unlimited, 0 means
+        // none. Replace the per-job allowance for paid plans; see
+        // 20260928065958_monthly_pool_allowance_option_a.sql.
+        contact_credits_per_month: number;
+        boost_credits_per_month: number;
       };
       tier_prices: { classic: number; classic_plus: number; trending: number };
       usage: {
@@ -80,6 +85,8 @@ export const getCompanyEntitlements = createServerFn({ method: "POST" })
         classic_posts_this_month: number;
         classic_plus_posts_this_month: number;
         trending_posts_this_month: number;
+        contact_pool_used_this_month: number;
+        boost_pool_used_this_month: number;
       };
     };
   });

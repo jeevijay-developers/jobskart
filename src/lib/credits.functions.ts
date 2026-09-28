@@ -19,7 +19,7 @@ export const listCreditPacks = createServerFn({ method: "GET" }).handler(async (
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("credit_packs")
-    .select("id, name, credits, price_inr, badge, sort")
+    .select("id, name, credits, price_inr, badge, sort, benefit_type")
     .eq("active", true)
     .order("sort", { ascending: true });
   if (error) throw new Error(error.message);
@@ -34,17 +34,19 @@ export const getCompanyWallet = createServerFn({ method: "POST" })
     await assertCompanyMember(context.supabase, context.userId, data.companyId);
     const { data: wallet } = await context.supabase
       .from("employer_credit_wallets")
-      .select("balance, updated_at")
+      .select("job_post_balance, contact_balance, boost_balance, updated_at")
       .eq("company_id", data.companyId)
       .maybeSingle();
     const { data: txns } = await context.supabase
       .from("credit_transactions")
-      .select("id, kind, delta, balance_after, reference, created_at")
+      .select("id, kind, delta, balance_after, reference, created_at, benefit_type")
       .eq("company_id", data.companyId)
       .order("created_at", { ascending: false })
       .limit(20);
     return {
-      balance: wallet?.balance ?? 0,
+      jobPostBalance: wallet?.job_post_balance ?? 0,
+      contactBalance: wallet?.contact_balance ?? 0,
+      boostBalance: wallet?.boost_balance ?? 0,
       transactions: txns ?? [],
     };
   });
@@ -270,7 +272,7 @@ export const unlockCandidateContact = createServerFn({ method: "POST" })
       rows as Array<{
         already_unlocked: boolean;
         balance_after: number;
-        source: "already" | "allowance" | "credits";
+        source: "already" | "allowance" | "monthly_pool" | "credits";
         allowance_left: number | null;
       }> | null
     )?.[0];
@@ -298,7 +300,9 @@ export const unlockCandidateContact = createServerFn({ method: "POST" })
         city: profile?.city ?? "",
       },
       alreadyUnlocked: !!result?.already_unlocked,
-      balance: result?.balance_after ?? 0,
+      // `balance_after` from unlock_candidate() is specifically the contact
+      // pool now (see Phase 1's named-balance split).
+      contactBalance: result?.balance_after ?? 0,
       source: result?.source ?? "credits",
       allowanceLeft: result?.allowance_left ?? null,
     };
@@ -337,7 +341,7 @@ export const getUnlockState = createServerFn({ method: "POST" })
         .order("created_at", { ascending: false }),
       context.supabase
         .from("employer_credit_wallets")
-        .select("balance")
+        .select("contact_balance")
         .eq("company_id", data.companyId)
         .maybeSingle(),
     ]);
@@ -352,7 +356,9 @@ export const getUnlockState = createServerFn({ method: "POST" })
     const allowanceByJob = new Map((allowances ?? []).map((a) => [a.job_id, a]));
 
     return {
-      balance: wallet?.balance ?? 0,
+      // This function is specifically the candidate-database unlock flow, so
+      // it only ever needed the contact pool.
+      contactBalance: wallet?.contact_balance ?? 0,
       jobs: (jobs ?? []).map((j) => {
         const a = allowanceByJob.get(j.id);
         return {

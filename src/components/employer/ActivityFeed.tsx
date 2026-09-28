@@ -7,6 +7,7 @@ import {
   Coins,
   FileEdit,
   Mail,
+  RefreshCw,
   ShieldCheck,
   Unlock,
   UserCheck,
@@ -24,6 +25,7 @@ export type ActivityItem = {
   link: string | null;
   created_at: string;
   metadata?: Record<string, unknown> | null;
+  actor?: { full_name: string | null; email: string | null } | null;
 };
 
 const ICONS: Record<string, { icon: LucideIcon; tone: string }> = {
@@ -37,14 +39,22 @@ const ICONS: Record<string, { icon: LucideIcon; tone: string }> = {
   "credits.granted": { icon: Coins, tone: "bg-primary-light text-primary" },
   "credits.adjusted": { icon: Coins, tone: "bg-surface text-muted-foreground" },
   "candidate.unlocked": { icon: Unlock, tone: "bg-primary-light text-primary" },
+  "candidate.invited_to_apply": { icon: Mail, tone: "bg-primary-light text-primary" },
   "team.invited": { icon: Mail, tone: "bg-primary-light text-primary" },
   "team.joined": { icon: Users, tone: "bg-success-light text-success" },
   "team.role_changed": { icon: ShieldCheck, tone: "bg-warning-light text-warning" },
   "team.removed": { icon: XCircle, tone: "bg-surface text-muted-foreground" },
+  "team.revoked": { icon: XCircle, tone: "bg-destructive-light text-destructive" },
+  "team.reactivated": { icon: RefreshCw, tone: "bg-success-light text-success" },
 };
 
 function iconFor(kind: string) {
   return ICONS[kind] ?? { icon: Activity, tone: "bg-surface text-muted-foreground" };
+}
+
+function actorLabel(actor?: { full_name: string | null; email: string | null } | null) {
+  if (!actor) return null;
+  return actor.full_name || actor.email || null;
 }
 
 export function ActivityFeed({
@@ -88,6 +98,7 @@ export function ActivityFeed({
       <span aria-hidden className="absolute left-[15px] top-2 bottom-2 w-px bg-border" />
       {items.map((it) => {
         const { icon: Icon, tone } = iconFor(it.kind);
+        const actor = actorLabel(it.actor);
         const body = (
           <div className="relative flex min-w-0 gap-3">
             <span className={`relative z-10 grid h-8 w-8 shrink-0 place-items-center rounded-full ring-4 ring-card ${tone}`}>
@@ -98,6 +109,11 @@ export function ActivityFeed({
               {it.body && <p className="mt-0.5 truncate text-xs text-muted-foreground">{it.body}</p>}
               <p className="mt-0.5 text-[10px] uppercase tracking-wider text-muted-foreground/80">
                 {formatDistanceToNow(new Date(it.created_at), { addSuffix: true })}
+                {actor && (
+                  <span className="ml-1.5 normal-case tracking-normal font-medium text-muted-foreground">
+                    · by {actor}
+                  </span>
+                )}
               </p>
             </div>
           </div>

@@ -5,7 +5,7 @@ import { BadgeCheck, FileText, Loader2, ShieldX } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { supabase } from "@/integrations/supabase/client";
 
-export const Route = createFileRoute("/_authenticated/admin/verifications")({
+export const Route = createFileRoute("/admin/verifications")({
   head: () => ({ meta: [{ title: "KYC Queue · JobsKart Admin" }] }),
   component: Page,
 });
