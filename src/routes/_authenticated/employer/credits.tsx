@@ -46,6 +46,13 @@ const withGst = (priceInr: number) => Math.round(priceInr * (1 + GST_RATE) * 100
 const formatInr = (n: number) =>
   n.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 const fmtLimit = (n: number) => (n === -1 ? "Unlimited" : n.toLocaleString("en-IN"));
+// Section 5 of the monetization plan: "show expiry date ... for every
+// purchased grant." Most current balances are legacy/no-expiry grants, so
+// this reads plainly rather than implying urgency where there is none.
+const expiryLabel = (nearest: string | null) =>
+  nearest
+    ? `Earliest expiry: ${new Date(nearest).toLocaleDateString("en-IN", { dateStyle: "medium" })}`
+    : "No expiry on current balance";
 
 export const Route = createFileRoute("/_authenticated/employer/credits")({
   head: () => ({ meta: [{ title: "Credits & usage · JobsKart Employer" }] }),
@@ -130,6 +137,11 @@ function CreditsPage() {
   const [jobPostBalance, setJobPostBalance] = useState(0);
   const [contactBalance, setContactBalance] = useState(0);
   const [boostBalance, setBoostBalance] = useState(0);
+  const [nearestExpiry, setNearestExpiry] = useState<Record<BenefitType, string | null>>({
+    job_post: null,
+    contact: null,
+    boost: null,
+  });
   const [txns, setTxns] = useState<Txn[]>([]);
   const [txnFilter, setTxnFilter] = useState<"all" | BenefitType>("all");
   const [packs, setPacks] = useState<Pack[]>([]);
@@ -169,6 +181,7 @@ function CreditsPage() {
         setContactBalance(w.contactBalance);
         setBoostBalance(w.boostBalance);
         setTxns(w.transactions as Txn[]);
+        void refreshBenefitExpiry(chosen.company_id);
         try {
           const inv = await listCompanyInvoices({ data: { companyId: chosen.company_id } });
           setInvoices(inv as Invoice[]);
@@ -186,6 +199,16 @@ function CreditsPage() {
     })();
   }, []);
 
+  const refreshBenefitExpiry = async (cid: string) => {
+    const { data, error } = await supabase.rpc("company_benefit_balances", { _company_id: cid });
+    if (error || !data) return;
+    const next: Record<BenefitType, string | null> = { job_post: null, contact: null, boost: null };
+    for (const row of data as Array<{ benefit_type: BenefitType; nearest_expiry: string | null }>) {
+      next[row.benefit_type] = row.nearest_expiry;
+    }
+    setNearestExpiry(next);
+  };
+
   const refreshEntitlements = async (cid: string) => {
     try {
       const ent = await getCompanyEntitlements({ data: { companyId: cid } });
@@ -201,6 +224,7 @@ function CreditsPage() {
     setContactBalance(w.contactBalance);
     setBoostBalance(w.boostBalance);
     setTxns(w.transactions as Txn[]);
+    void refreshBenefitExpiry(cid);
     try {
       const inv = await listCompanyInvoices({ data: { companyId: cid } });
       setInvoices(inv as Invoice[]);
@@ -392,6 +416,9 @@ function CreditsPage() {
           </p>
           <p className="mt-3 text-4xl font-black tabular-nums">{jobPostBalance.toLocaleString("en-IN")}</p>
           <p className="mt-2 text-xs text-primary-foreground/80">Spent posting Classic/Trending jobs beyond your plan quota.</p>
+          <p className="mt-2 text-[11px] font-medium text-primary-foreground/70">
+            {expiryLabel(nearestExpiry.job_post)}
+          </p>
         </div>
         <div className="rounded-2xl border border-border bg-card p-5">
           <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -399,6 +426,9 @@ function CreditsPage() {
           </p>
           <p className="mt-3 text-4xl font-black tabular-nums text-foreground">{contactBalance.toLocaleString("en-IN")}</p>
           <p className="mt-2 text-xs text-muted-foreground">Spent unlocking a candidate's contact once a job's free allowance runs out.</p>
+          <p className="mt-2 text-[11px] font-medium text-muted-foreground/80">
+            {expiryLabel(nearestExpiry.contact)}
+          </p>
         </div>
         <div className="rounded-2xl border border-border bg-card p-5">
           <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -406,6 +436,9 @@ function CreditsPage() {
           </p>
           <p className="mt-3 text-4xl font-black tabular-nums text-foreground">{boostBalance.toLocaleString("en-IN")}</p>
           <p className="mt-2 text-xs text-muted-foreground">Spent boosting a job's ranking for 24 hours.</p>
+          <p className="mt-2 text-[11px] font-medium text-muted-foreground/80">
+            {expiryLabel(nearestExpiry.boost)}
+          </p>
         </div>
       </div>
       <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-success-light px-2.5 py-1 text-xs font-semibold text-success">
