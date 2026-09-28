@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as InterviewJoinRouteImport } from './routes/interview-join'
+import { Route as Ivfix999RouteImport } from './routes/ivfix999'
 import { Route as JobsRouteImport } from './routes/jobs'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
@@ -92,6 +93,11 @@ const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
 const InterviewJoinRoute = InterviewJoinRouteImport.update({
   id: '/interview-join',
   path: '/interview-join',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Ivfix999Route = Ivfix999RouteImport.update({
+  id: '/ivfix999',
+  path: '/ivfix999',
   getParentRoute: () => rootRouteImport,
 } as any)
 const JobsRoute = JobsRouteImport.update({
@@ -412,6 +418,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/interview-join': typeof InterviewJoinRoute
+  '/ivfix999': typeof Ivfix999Route
   '/jobs': typeof JobsRouteWithChildren
   '/mcp': typeof McpRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -473,6 +480,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/interview-join': typeof InterviewJoinRoute
+  '/ivfix999': typeof Ivfix999Route
   '/jobs': typeof JobsRouteWithChildren
   '/mcp': typeof McpRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -536,6 +544,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/interview-join': typeof InterviewJoinRoute
+  '/ivfix999': typeof Ivfix999Route
   '/jobs': typeof JobsRouteWithChildren
   '/mcp': typeof McpRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -599,6 +608,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/forgot-password'
     | '/interview-join'
+    | '/ivfix999'
     | '/jobs'
     | '/mcp'
     | '/reset-password'
@@ -660,6 +670,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/forgot-password'
     | '/interview-join'
+    | '/ivfix999'
     | '/jobs'
     | '/mcp'
     | '/reset-password'
@@ -722,6 +733,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/forgot-password'
     | '/interview-join'
+    | '/ivfix999'
     | '/jobs'
     | '/mcp'
     | '/reset-password'
@@ -785,6 +797,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   InterviewJoinRoute: typeof InterviewJoinRoute
+  Ivfix999Route: typeof Ivfix999Route
   JobsRoute: typeof JobsRouteWithChildren
   McpRoute: typeof McpRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
@@ -837,6 +850,13 @@ declare module '@tanstack/react-router' {
       path: '/interview-join'
       fullPath: '/interview-join'
       preLoaderRoute: typeof InterviewJoinRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ivfix999': {
+      id: '/ivfix999'
+      path: '/ivfix999'
+      fullPath: '/ivfix999'
+      preLoaderRoute: typeof Ivfix999RouteImport
       parentRoute: typeof rootRouteImport
     }
     '/jobs': {
@@ -1372,6 +1392,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   InterviewJoinRoute: InterviewJoinRoute,
+  Ivfix999Route: Ivfix999Route,
   JobsRoute: JobsRouteWithChildren,
   McpRoute: McpRoute,
   ResetPasswordRoute: ResetPasswordRoute,

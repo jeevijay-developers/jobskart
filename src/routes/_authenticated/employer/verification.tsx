@@ -75,7 +75,7 @@ function VerificationPage() {
     <EmployerShell title="KYC & Verification" subtitle="Verified employers get 4× more applications and higher search rank.">
       <div className="grid min-w-0 gap-6 lg:grid-cols-[1.2fr_1fr]">
         <section className="min-w-0 rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-6">
-          <div className="mb-4 flex gap-0.5 sm:gap-2">
+          <div className="mb-4 flex gap-1 sm:gap-2">
             {([
               { v: "gst", label: "GST / PAN / CIN", icon: Building2 },
               { v: "email", label: "Business Email", icon: Mail },
@@ -85,7 +85,7 @@ function VerificationPage() {
               const active = method === t.v;
               return (
                 <button key={t.v} onClick={() => setMethod(t.v)}
-                  className={`flex flex-1 items-center justify-center gap-0.5 whitespace-nowrap rounded-lg px-0.5 py-2.5 text-[8.5px] font-semibold sm:gap-2 sm:px-3 sm:text-xs ${active ? "bg-primary text-primary-foreground" : "bg-surface text-foreground/70 hover:bg-foreground/5"}`}>
+                  className={`flex h-11 flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-lg px-1 text-[9.5px] font-semibold sm:h-auto sm:gap-2 sm:px-3 sm:py-2.5 sm:text-xs ${active ? "bg-primary text-primary-foreground" : "bg-surface text-foreground/70 hover:bg-foreground/5"}`}>
                   <Icon className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" /> {t.label}
                 </button>
               );

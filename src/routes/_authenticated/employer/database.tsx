@@ -408,7 +408,9 @@ function DatabasePage() {
           <ThemedSelect
             value={selectedJobId}
             onChange={(e) => setSelectedJobId(e.target.value)}
-            className="h-10 rounded-lg border border-border bg-card px-3 text-sm"
+            className="h-10 w-full max-w-[22rem] rounded-lg border border-border bg-card px-3 text-sm"
+            contentClassName="max-h-[min(17rem,var(--radix-select-content-available-height))] overflow-y-auto overflow-x-hidden"
+            itemClassName="hover:bg-surface hover:text-foreground focus:bg-surface focus:text-foreground data-[state=checked]:bg-primary/10 data-[state=checked]:text-primary data-[state=checked]:hover:bg-primary/10 data-[state=checked]:hover:text-primary data-[state=checked]:focus:bg-primary/10 data-[state=checked]:focus:text-primary"
           >
             <option value="">Select an active job to search against…</option>
             {activeJobs.map((j) => (
@@ -733,14 +735,16 @@ function DatabasePage() {
                       <button
                         onClick={() => handleUnlock(c)}
                         disabled={unlockingId === c.user_id}
-                        className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-foreground/90 px-3 text-xs font-semibold text-background hover:bg-foreground disabled:opacity-50"
+                        title={unlockCopy}
+                        aria-label={unlockCopy}
+                        className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-foreground/90 text-background hover:bg-foreground disabled:opacity-50 sm:inline-flex sm:h-9 sm:w-auto sm:gap-1.5 sm:px-3 sm:text-xs sm:font-semibold"
                       >
                         {unlockingId === c.user_id ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
                         ) : (
                           <Lock className="h-3.5 w-3.5" />
                         )}
-                        {unlockCopy}
+                        <span className="hidden sm:inline">{unlockCopy}</span>
                       </button>
                     </>
                   )}

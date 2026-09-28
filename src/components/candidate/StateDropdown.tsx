@@ -11,6 +11,8 @@ type Props = {
   triggerClassName?: string;
   /** Overrides the open menu's max-height in px (default: 272). */
   maxMenuHeight?: number;
+  /** Render an anchored menu inside a parent dialog's DOM tree. */
+  portalToBody?: boolean;
 };
 
 /**
@@ -26,6 +28,7 @@ export function StateDropdown({
   placeholder = "Select state",
   triggerClassName,
   maxMenuHeight,
+  portalToBody = true,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<
@@ -104,33 +107,45 @@ export function StateDropdown({
         <span className={value ? "" : "text-muted-foreground"}>{value || placeholder}</span>
         <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
       </button>
-      {open && menuPos && createPortal(
-        <div
-          ref={menuRef}
-          className="fixed z-[100] overflow-y-auto overflow-x-hidden rounded-xl border border-primary/15 bg-popover shadow-xl shadow-primary/10 [scrollbar-width:thin] box-border"
-          style={{
-            top: menuPos.top,
-            bottom: menuPos.bottom,
-            left: menuPos.left,
-            width: menuPos.width,
-            maxHeight: MENU_MAX_HEIGHT,
-          }}
-        >
-          {options.map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => pick(s)}
-              className={`block w-full px-3 py-2 text-left text-sm hover:bg-surface ${
-                s === value ? "bg-primary/10 font-medium text-primary" : ""
-              }`}
-            >
-              {s}
-            </button>
-          ))}
-        </div>,
-        document.body,
-      )}
+      {open && (portalToBody ? menuPos : true) && (() => {
+        const menu = (
+          <div
+            ref={menuRef}
+            className={`${portalToBody ? "fixed" : "absolute"} z-[100] overflow-y-auto overflow-x-hidden rounded-xl border border-primary/15 bg-popover shadow-xl shadow-primary/10 [scrollbar-width:thin] box-border`}
+            style={
+              portalToBody
+                ? {
+                    top: menuPos?.top,
+                    bottom: menuPos?.bottom,
+                    left: menuPos?.left,
+                    width: menuPos?.width,
+                    maxHeight: MENU_MAX_HEIGHT,
+                  }
+                : {
+                    top: "calc(100% + 4px)",
+                    left: 0,
+                    width: "100%",
+                    maxHeight: MENU_MAX_HEIGHT,
+                  }
+            }
+          >
+            {options.map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => pick(s)}
+                className={`block w-full px-3 py-2 text-left text-sm hover:bg-surface ${
+                  s === value ? "bg-primary/10 font-medium text-primary" : ""
+                }`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        );
+
+        return portalToBody ? createPortal(menu, document.body) : menu;
+      })()}
     </div>
   );
 }
