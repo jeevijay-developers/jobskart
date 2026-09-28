@@ -209,8 +209,8 @@ function ActivityPage() {
 
   return (
     <EmployerShell title="Activity" subtitle="Every event across your hiring workspace.">
-      <section className="mb-4 rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
-        <div className="flex flex-wrap gap-2">
+      <section className="mb-4 rounded-2xl border border-border bg-card p-1 shadow-[var(--shadow-card)] sm:p-5">
+        <div className="flex flex-wrap items-start gap-x-1.5 gap-y-3 sm:gap-2">
           {KINDS.map((k) => (
             <button
               key={k.value}
@@ -225,7 +225,7 @@ function ActivityPage() {
             </button>
           ))}
         </div>
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-4 flex flex-wrap items-start gap-x-1.5 gap-y-3 sm:mt-3 sm:gap-2">
           {TIME_RANGES.map((t) => (
             <button
               key={t.value}

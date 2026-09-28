@@ -6,6 +6,7 @@ import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { EmployerShell } from "@/components/employer/EmployerShell";
 import { StatCard } from "@/components/shared/StatCard";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
+import { ThemedSelect } from "@/components/ui/themed-form-controls";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchMyCompanies, getActiveCompanyId } from "@/lib/employer";
 import { getEmployerAnalytics, type EmployerAnalytics } from "@/lib/employer-analytics.functions";
@@ -84,23 +85,7 @@ function ReportsPage() {
   const empty = data.totals.jobs === 0;
 
   return (
-    <EmployerShell
-      title="Reports"
-      subtitle="Hiring performance with real data, refreshed live."
-      actions={
-        <div className="inline-flex rounded-lg border border-border bg-card p-0.5">
-          {([7, 30, 90] as const).map((r) => (
-            <button
-              key={r}
-              onClick={() => setRange(r)}
-              className={`rounded-md px-3 py-1.5 text-xs font-semibold ${
-                range === r ? "bg-primary text-primary-foreground" : "text-foreground/70 hover:bg-surface"
-              }`}
-            >{r}d</button>
-          ))}
-        </div>
-      }
-    >
+    <EmployerShell title="Reports" subtitle="Hiring performance with real data, refreshed live.">
       {empty ? (
         <div className="rounded-2xl border border-dashed border-border bg-surface p-10 text-center">
           <BarChart3 className="mx-auto mb-2 h-6 w-6 text-muted-foreground" />
@@ -118,9 +103,23 @@ function ReportsPage() {
 
           <div className="mt-6 grid gap-6 lg:grid-cols-3">
             <section className="lg:col-span-2 rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
-              <div className="mb-4 flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-primary" />
-                <h2 className="text-base font-bold">Applications · last {range} days</h2>
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-2">
+                  <TrendingUp className="h-4 w-4 shrink-0 text-primary" />
+                  <h2 className="text-base font-bold">Applications · last {range} days</h2>
+                </div>
+                <ThemedSelect
+                  aria-label="Application report time range"
+                  value={String(range)}
+                  onChange={(event) => setRange(Number(event.target.value) as 7 | 30 | 90)}
+                  className="h-8 w-24 rounded-lg px-2 text-xs font-semibold"
+                  contentClassName="max-h-none"
+                  itemClassName="min-h-8 px-2 text-xs hover:bg-surface hover:text-foreground focus:bg-surface focus:text-foreground data-[state=checked]:bg-primary/10 data-[state=checked]:text-primary data-[state=checked]:hover:bg-primary/10 data-[state=checked]:hover:text-primary data-[state=checked]:focus:bg-primary/10 data-[state=checked]:focus:text-primary"
+                >
+                  <option value="7">7 days</option>
+                  <option value="30">30 days</option>
+                  <option value="90">90 days</option>
+                </ThemedSelect>
               </div>
               <ChartContainer
                 config={applicationsChartConfig}

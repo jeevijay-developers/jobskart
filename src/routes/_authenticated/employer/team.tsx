@@ -550,6 +550,7 @@ function TeamPage() {
                   onChange={(e) => setRole(e.target.value)}
                   className="form-input"
                   contentClassName="max-h-[min(15rem,var(--radix-select-content-available-height))] overflow-y-auto overflow-x-hidden"
+                  itemClassName="hover:bg-surface hover:text-foreground focus:bg-surface focus:text-foreground data-[state=checked]:bg-primary/10 data-[state=checked]:text-primary data-[state=checked]:hover:bg-primary/10 data-[state=checked]:hover:text-primary data-[state=checked]:focus:bg-primary/10 data-[state=checked]:focus:text-primary"
                 >
                   <option value="recruiter">Recruiter — post jobs, manage applicants</option>
                   <option value="hr_admin">HR Admin — recruiter + edit company</option>

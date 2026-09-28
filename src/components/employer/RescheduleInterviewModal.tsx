@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { ThemedSelect } from "@/components/ui/themed-form-controls";
+import { StateDropdown } from "@/components/candidate/StateDropdown";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { rescheduleInterview } from "@/lib/interview.functions";
 import { minIstDate, TIME_OPTIONS } from "@/lib/interview-schedule-picker";
 
 const DURATIONS = [15, 30, 45, 60, 90];
+const DURATION_LABELS = DURATIONS.map((d) => `${d} min`);
 
 function mapRescheduleError(message: string): string {
   if (message.includes("interview_must_be_tomorrow_or_later")) {
@@ -102,34 +103,28 @@ export function RescheduleInterviewModal({
               <label className="text-xs font-semibold uppercase text-muted-foreground">
                 New time (IST)
               </label>
-              <ThemedSelect
+              <StateDropdown
                 value={time}
-                onChange={(e) => setTime(e.target.value)}
-                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-              >
-                {TIME_OPTIONS.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </ThemedSelect>
+                onChange={setTime}
+                options={TIME_OPTIONS}
+                portalToBody={false}
+                placeholder="Select a time…"
+                triggerClassName="form-input flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 text-left text-sm"
+              />
             </div>
           </div>
           <div>
             <label className="text-xs font-semibold uppercase text-muted-foreground">
               Duration
             </label>
-            <ThemedSelect
-              value={String(durationMin)}
-              onChange={(e) => setDurationMin(Number(e.target.value))}
-              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-            >
-              {DURATIONS.map((d) => (
-                <option key={d} value={d}>
-                  {d} min
-                </option>
-              ))}
-            </ThemedSelect>
+            <StateDropdown
+              value={`${durationMin} min`}
+              onChange={(v) => setDurationMin(Number(v.replace(" min", "")))}
+              options={DURATION_LABELS}
+              portalToBody={false}
+              placeholder="Select a duration…"
+              triggerClassName="form-input flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 text-left text-sm"
+            />
           </div>
           <div>
             <label className="text-xs font-semibold uppercase text-muted-foreground">
