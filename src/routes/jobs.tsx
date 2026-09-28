@@ -9,11 +9,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Briefcase, Filter, Loader2, Search, X } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
-import { z } from "zod";
 import { Navbar } from "@/components/site/Navbar";
 import { JobCard, type JobCardData } from "@/components/site/JobCard";
 import { AutocompleteInput } from "@/components/site/AutocompleteInput";
-import { CandidateMobileTabBar } from "@/components/candidate/CandidateShell";
+import { CandidateAppLayout } from "@/components/candidate/CandidateShell";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { OptionalSection } from "@/components/forms/OptionalSection";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,6 +27,7 @@ import {
 } from "@/lib/options";
 import { useJobTitleSuggestions } from "@/lib/useJobTitleSuggestions";
 import { fetchCandidateJobFeed, fetchPublicJobFeed, type JobFeedFilters } from "@/lib/job-feed";
+import { jobsSearchSchema, type JobsSearch } from "@/lib/jobs-search";
 
 // "Load More Jobs" batch size (mirrors the employer Activity page's pattern):
 // reveal BATCH_SIZE more jobs per click, buffered from a larger server chunk
@@ -50,29 +50,6 @@ function datePostedCutoffIso(key: string): string | null {
   if (!hours) return null;
   return new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
 }
-
-const jobsSearchSchema = z.object({
-  q: z.string().optional(),
-  city: z.string().optional(),
-  category: z.string().optional(),
-  jobType: z.string().optional(),
-  workMode: z.string().optional(),
-  minSalary: z.string().optional(),
-  maxSalary: z.string().optional(),
-  minExp: z.string().optional(),
-  maxExp: z.string().optional(),
-  datePosted: z.string().optional(),
-  education: z.string().optional(),
-  shift: z.string().optional(),
-  englishLevel: z.string().optional(),
-  company: z.string().optional(),
-  vehicle: z.string().optional(),
-  verifiedOnly: z.string().optional(),
-  sort: z.enum(SORT_OPTIONS).optional(),
-  page: z.coerce.number().int().min(1).optional(),
-});
-
-type JobsSearch = z.infer<typeof jobsSearchSchema>;
 
 export const Route = createFileRoute("/jobs")({
   validateSearch: jobsSearchSchema,
@@ -187,9 +164,9 @@ function JobsPage() {
   return <JobsList />;
 }
 
-function JobsList() {
-  const urlSearch = useSearch({ from: "/jobs" });
-  const navigate = useNavigate({ from: "/jobs" });
+export function JobsList({ embeddedInCandidateApp = false }: { embeddedInCandidateApp?: boolean }) {
+  const urlSearch = useSearch({ strict: false }) as JobsSearch;
+  const navigate = useNavigate();
   const [filters, setFilters] = useState<Filters>(() => filtersFromSearch(urlSearch));
   const [draft, setDraft] = useState<Filters>(() => filtersFromSearch(urlSearch));
   const sort: SortKey = urlSearch.sort ?? "recommended";
@@ -243,7 +220,7 @@ function JobsList() {
     };
   }, [session, sessionReady]);
 
-  const showCandidateTabBar = !!session && !isEmployer;
+  const showCandidateTabBar = embeddedInCandidateApp || (!!session && !isEmployer);
   // The candidate-aware feed (feed_jobs_for_candidate) requires auth.uid(),
   // so only a signed-in non-employer session ever uses it — guests and
   // employers keep the existing public feed_jobs()/direct-query behavior.
@@ -298,7 +275,9 @@ function JobsList() {
     maxSalary: filters.maxSalary || undefined,
     minExp: filters.minExp || undefined,
     maxExp: filters.maxExp || undefined,
-    postedAfter: filters.datePosted ? (datePostedCutoffIso(filters.datePosted) ?? undefined) : undefined,
+    postedAfter: filters.datePosted
+      ? (datePostedCutoffIso(filters.datePosted) ?? undefined)
+      : undefined,
     education: filters.education || undefined,
     shift: filters.shift || undefined,
     englishLevel: filters.englishLevel || undefined,
@@ -316,15 +295,27 @@ function JobsList() {
   const runQuery = async (
     from: number,
     to: number,
-  ): Promise<{ data: JobCardData[] | null; count: number | null; error: { message: string } | null }> => {
+  ): Promise<{
+    data: JobCardData[] | null;
+    count: number | null;
+    error: { message: string } | null;
+  }> => {
     if (isCandidateFeed) {
-      const { rows, total: count, error } = await fetchCandidateJobFeed(feedFilters, sort, from, to);
-      return error ? { data: null, count: null, error: { message: error } } : { data: rows, count, error: null };
+      const {
+        rows,
+        total: count,
+        error,
+      } = await fetchCandidateJobFeed(feedFilters, sort, from, to);
+      return error
+        ? { data: null, count: null, error: { message: error } }
+        : { data: rows, count, error: null };
     }
 
     if (sort === "recommended") {
       const { rows, total: count, error } = await fetchPublicJobFeed(feedFilters, from, to);
-      return error ? { data: null, count: null, error: { message: error } } : { data: rows, count, error: null };
+      return error
+        ? { data: null, count: null, error: { message: error } }
+        : { data: rows, count, error: null };
     }
 
     let q = supabase
@@ -503,9 +494,11 @@ function JobsList() {
       c.push({
         key: "datePosted",
         keys: ["datePosted"],
-        label: DATE_POSTED_OPTIONS.find((d) => d.id === filters.datePosted)?.label ?? filters.datePosted,
+        label:
+          DATE_POSTED_OPTIONS.find((d) => d.id === filters.datePosted)?.label ?? filters.datePosted,
       });
-    if (filters.education) c.push({ key: "education", keys: ["education"], label: filters.education });
+    if (filters.education)
+      c.push({ key: "education", keys: ["education"], label: filters.education });
     if (filters.shift)
       c.push({
         key: "shift",
@@ -516,11 +509,14 @@ function JobsList() {
       c.push({
         key: "englishLevel",
         keys: ["englishLevel"],
-        label: ENGLISH_LEVELS.find((l) => l.id === filters.englishLevel)?.label ?? filters.englishLevel,
+        label:
+          ENGLISH_LEVELS.find((l) => l.id === filters.englishLevel)?.label ?? filters.englishLevel,
       });
     if (filters.company) c.push({ key: "company", keys: ["company"], label: filters.company });
-    if (filters.vehicle) c.push({ key: "vehicle", keys: ["vehicle"], label: "Two-wheeler required" });
-    if (filters.verifiedOnly) c.push({ key: "verifiedOnly", keys: ["verifiedOnly"], label: "Verified employers" });
+    if (filters.vehicle)
+      c.push({ key: "vehicle", keys: ["vehicle"], label: "Two-wheeler required" });
+    if (filters.verifiedOnly)
+      c.push({ key: "verifiedOnly", keys: ["verifiedOnly"], label: "Verified employers" });
     return c;
   }, [filters]);
 
@@ -532,14 +528,14 @@ function JobsList() {
     navigate({ search: buildSearch(next, { sort }), replace: true });
   };
 
-  return (
-    <div
-      className={`flex min-h-screen flex-col bg-surface ${showCandidateTabBar ? "pb-20 lg:pb-0" : ""}`}
-    >
-      <Navbar />
-
+  const content = (
+    <>
       <section className="border-b border-border bg-card">
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <div
+          className={
+            showCandidateTabBar ? "w-full px-4 py-6" : "mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8"
+          }
+        >
           <div className="flex flex-row flex-nowrap items-center gap-2 sm:gap-3">
             {showCandidateTabBar && (
               <Link
@@ -584,7 +580,9 @@ function JobsList() {
             <button
               onClick={() => setMobileFilters(true)}
               aria-label="Filters"
-              className="relative inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-semibold text-foreground lg:hidden"
+              className={`relative h-11 shrink-0 items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-semibold text-foreground ${
+                showCandidateTabBar ? "inline-flex min-[1280px]:hidden" : "inline-flex lg:hidden"
+              }`}
             >
               <Filter className="h-4 w-4" />
               <span className="hidden sm:inline">
@@ -600,8 +598,16 @@ function JobsList() {
         </div>
       </section>
 
-      <div className="mx-auto flex w-full max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:px-8">
-        <aside className="hidden w-64 shrink-0 lg:block">
+      <div
+        className={
+          showCandidateTabBar
+            ? "flex w-full gap-6 py-6"
+            : "mx-auto flex w-full max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:px-8"
+        }
+      >
+        <aside
+          className={`hidden w-64 shrink-0 ${showCandidateTabBar ? "min-[1280px]:block" : "lg:block"}`}
+        >
           <FilterPanel draft={draft} setDraft={setDraft} apply={apply} reset={reset} />
         </aside>
 
@@ -666,7 +672,9 @@ function JobsList() {
             <div className="grid place-items-center rounded-xl border border-dashed border-border bg-card p-12 text-center">
               <Briefcase className="mb-3 h-8 w-8 text-muted-foreground" />
               <h2 className="text-lg font-semibold text-foreground">
-                {allAppliedEmpty ? "You've already applied to all matching jobs" : "No jobs match your filters"}
+                {allAppliedEmpty
+                  ? "You've already applied to all matching jobs"
+                  : "No jobs match your filters"}
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 {allAppliedEmpty
@@ -723,16 +731,26 @@ function JobsList() {
       </div>
 
       <Sheet open={mobileFilters} onOpenChange={setMobileFilters}>
-        <SheetContent
-          side="bottom"
-          className="max-h-[85vh] overflow-y-auto rounded-t-2xl p-6"
-        >
+        <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-2xl p-6">
           <SheetTitle className="mb-4 text-left">Filters</SheetTitle>
           <FilterPanel draft={draft} setDraft={setDraft} apply={apply} reset={reset} grouped />
         </SheetContent>
       </Sheet>
+    </>
+  );
 
-      {showCandidateTabBar && <CandidateMobileTabBar />}
+  if (embeddedInCandidateApp) {
+    return content;
+  }
+
+  if (showCandidateTabBar) {
+    return <CandidateAppLayout>{content}</CandidateAppLayout>;
+  }
+
+  return (
+    <div className="flex min-h-screen flex-col bg-surface">
+      <Navbar />
+      {content}
     </div>
   );
 }

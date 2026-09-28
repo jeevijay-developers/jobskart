@@ -19,6 +19,7 @@ import { Route as JobsRouteImport } from './routes/jobs'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
+import { Route as AuthenticatedCandidateRouteRouteImport } from './routes/_authenticated/candidate/route'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminBannersRouteImport } from './routes/admin/banners'
 import { Route as AdminCompaniesRouteImport } from './routes/admin/companies'
@@ -44,6 +45,7 @@ import { Route as USlugRouteImport } from './routes/u.$slug'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as AuthenticatedCandidateAlertsRouteImport } from './routes/_authenticated/candidate/alerts'
 import { Route as AuthenticatedCandidateApplicationsRouteImport } from './routes/_authenticated/candidate/applications'
+import { Route as AuthenticatedCandidateBrowseRouteImport } from './routes/_authenticated/candidate/browse'
 import { Route as AuthenticatedCandidateDashboardRouteImport } from './routes/_authenticated/candidate/dashboard'
 import { Route as AuthenticatedCandidateDocumentsRouteImport } from './routes/_authenticated/candidate/documents'
 import { Route as AuthenticatedCandidateNotificationsRouteImport } from './routes/_authenticated/candidate/notifications'
@@ -118,6 +120,12 @@ const Char91DotwellKnownChar93OauthProtectedResourceRoute =
     id: '/.well-known/oauth-protected-resource',
     path: '/.well-known/oauth-protected-resource',
     getParentRoute: () => rootRouteImport,
+  } as any)
+const AuthenticatedCandidateRouteRoute =
+  AuthenticatedCandidateRouteRouteImport.update({
+    id: '/candidate',
+    path: '/candidate',
+    getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
@@ -236,51 +244,57 @@ const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
 } as any)
 const AuthenticatedCandidateAlertsRoute =
   AuthenticatedCandidateAlertsRouteImport.update({
-    id: '/candidate/alerts',
-    path: '/candidate/alerts',
-    getParentRoute: () => AuthenticatedRouteRoute,
+    id: '/alerts',
+    path: '/alerts',
+    getParentRoute: () => AuthenticatedCandidateRouteRoute,
   } as any)
 const AuthenticatedCandidateApplicationsRoute =
   AuthenticatedCandidateApplicationsRouteImport.update({
-    id: '/candidate/applications',
-    path: '/candidate/applications',
-    getParentRoute: () => AuthenticatedRouteRoute,
+    id: '/applications',
+    path: '/applications',
+    getParentRoute: () => AuthenticatedCandidateRouteRoute,
+  } as any)
+const AuthenticatedCandidateBrowseRoute =
+  AuthenticatedCandidateBrowseRouteImport.update({
+    id: '/browse',
+    path: '/browse',
+    getParentRoute: () => AuthenticatedCandidateRouteRoute,
   } as any)
 const AuthenticatedCandidateDashboardRoute =
   AuthenticatedCandidateDashboardRouteImport.update({
-    id: '/candidate/dashboard',
-    path: '/candidate/dashboard',
-    getParentRoute: () => AuthenticatedRouteRoute,
+    id: '/dashboard',
+    path: '/dashboard',
+    getParentRoute: () => AuthenticatedCandidateRouteRoute,
   } as any)
 const AuthenticatedCandidateDocumentsRoute =
   AuthenticatedCandidateDocumentsRouteImport.update({
-    id: '/candidate/documents',
-    path: '/candidate/documents',
-    getParentRoute: () => AuthenticatedRouteRoute,
+    id: '/documents',
+    path: '/documents',
+    getParentRoute: () => AuthenticatedCandidateRouteRoute,
   } as any)
 const AuthenticatedCandidateNotificationsRoute =
   AuthenticatedCandidateNotificationsRouteImport.update({
-    id: '/candidate/notifications',
-    path: '/candidate/notifications',
-    getParentRoute: () => AuthenticatedRouteRoute,
+    id: '/notifications',
+    path: '/notifications',
+    getParentRoute: () => AuthenticatedCandidateRouteRoute,
   } as any)
 const AuthenticatedCandidateProfileRoute =
   AuthenticatedCandidateProfileRouteImport.update({
-    id: '/candidate/profile',
-    path: '/candidate/profile',
-    getParentRoute: () => AuthenticatedRouteRoute,
+    id: '/profile',
+    path: '/profile',
+    getParentRoute: () => AuthenticatedCandidateRouteRoute,
   } as any)
 const AuthenticatedCandidateSavedRoute =
   AuthenticatedCandidateSavedRouteImport.update({
-    id: '/candidate/saved',
-    path: '/candidate/saved',
-    getParentRoute: () => AuthenticatedRouteRoute,
+    id: '/saved',
+    path: '/saved',
+    getParentRoute: () => AuthenticatedCandidateRouteRoute,
   } as any)
 const AuthenticatedCandidateSettingsRoute =
   AuthenticatedCandidateSettingsRouteImport.update({
-    id: '/candidate/settings',
-    path: '/candidate/settings',
-    getParentRoute: () => AuthenticatedRouteRoute,
+    id: '/settings',
+    path: '/settings',
+    getParentRoute: () => AuthenticatedCandidateRouteRoute,
   } as any)
 const AuthenticatedEmployerActivityRoute =
   AuthenticatedEmployerActivityRouteImport.update({
@@ -400,6 +414,7 @@ export interface FileRoutesByFullPath {
   '/jobs': typeof JobsRouteWithChildren
   '/mcp': typeof McpRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/candidate': typeof AuthenticatedCandidateRouteRouteWithChildren
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/banners': typeof AdminBannersRoute
   '/admin/companies': typeof AdminCompaniesRoute
@@ -426,6 +441,7 @@ export interface FileRoutesByFullPath {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/candidate/alerts': typeof AuthenticatedCandidateAlertsRoute
   '/candidate/applications': typeof AuthenticatedCandidateApplicationsRoute
+  '/candidate/browse': typeof AuthenticatedCandidateBrowseRoute
   '/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
   '/candidate/documents': typeof AuthenticatedCandidateDocumentsRoute
   '/candidate/notifications': typeof AuthenticatedCandidateNotificationsRoute
@@ -459,6 +475,7 @@ export interface FileRoutesByTo {
   '/jobs': typeof JobsRouteWithChildren
   '/mcp': typeof McpRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/candidate': typeof AuthenticatedCandidateRouteRouteWithChildren
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/banners': typeof AdminBannersRoute
   '/admin/companies': typeof AdminCompaniesRoute
@@ -485,6 +502,7 @@ export interface FileRoutesByTo {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/candidate/alerts': typeof AuthenticatedCandidateAlertsRoute
   '/candidate/applications': typeof AuthenticatedCandidateApplicationsRoute
+  '/candidate/browse': typeof AuthenticatedCandidateBrowseRoute
   '/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
   '/candidate/documents': typeof AuthenticatedCandidateDocumentsRoute
   '/candidate/notifications': typeof AuthenticatedCandidateNotificationsRoute
@@ -521,6 +539,7 @@ export interface FileRoutesById {
   '/jobs': typeof JobsRouteWithChildren
   '/mcp': typeof McpRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/_authenticated/candidate': typeof AuthenticatedCandidateRouteRouteWithChildren
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/banners': typeof AdminBannersRoute
   '/admin/companies': typeof AdminCompaniesRoute
@@ -547,6 +566,7 @@ export interface FileRoutesById {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/_authenticated/candidate/alerts': typeof AuthenticatedCandidateAlertsRoute
   '/_authenticated/candidate/applications': typeof AuthenticatedCandidateApplicationsRoute
+  '/_authenticated/candidate/browse': typeof AuthenticatedCandidateBrowseRoute
   '/_authenticated/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
   '/_authenticated/candidate/documents': typeof AuthenticatedCandidateDocumentsRoute
   '/_authenticated/candidate/notifications': typeof AuthenticatedCandidateNotificationsRoute
@@ -583,6 +603,7 @@ export interface FileRouteTypes {
     | '/jobs'
     | '/mcp'
     | '/reset-password'
+    | '/candidate'
     | '/.well-known/oauth-protected-resource'
     | '/admin/banners'
     | '/admin/companies'
@@ -609,6 +630,7 @@ export interface FileRouteTypes {
     | '/.lovable/oauth/consent'
     | '/candidate/alerts'
     | '/candidate/applications'
+    | '/candidate/browse'
     | '/candidate/dashboard'
     | '/candidate/documents'
     | '/candidate/notifications'
@@ -642,6 +664,7 @@ export interface FileRouteTypes {
     | '/jobs'
     | '/mcp'
     | '/reset-password'
+    | '/candidate'
     | '/.well-known/oauth-protected-resource'
     | '/admin/banners'
     | '/admin/companies'
@@ -668,6 +691,7 @@ export interface FileRouteTypes {
     | '/.lovable/oauth/consent'
     | '/candidate/alerts'
     | '/candidate/applications'
+    | '/candidate/browse'
     | '/candidate/dashboard'
     | '/candidate/documents'
     | '/candidate/notifications'
@@ -703,6 +727,7 @@ export interface FileRouteTypes {
     | '/jobs'
     | '/mcp'
     | '/reset-password'
+    | '/_authenticated/candidate'
     | '/.well-known/oauth-protected-resource'
     | '/admin/banners'
     | '/admin/companies'
@@ -729,6 +754,7 @@ export interface FileRouteTypes {
     | '/.lovable/oauth/consent'
     | '/_authenticated/candidate/alerts'
     | '/_authenticated/candidate/applications'
+    | '/_authenticated/candidate/browse'
     | '/_authenticated/candidate/dashboard'
     | '/_authenticated/candidate/documents'
     | '/_authenticated/candidate/notifications'
@@ -849,6 +875,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/.well-known/oauth-protected-resource'
       preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/candidate': {
+      id: '/_authenticated/candidate'
+      path: '/candidate'
+      fullPath: '/candidate'
+      preLoaderRoute: typeof AuthenticatedCandidateRouteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/admin/': {
       id: '/admin/'
@@ -1013,59 +1046,66 @@ declare module '@tanstack/react-router' {
     }
     '/_authenticated/candidate/alerts': {
       id: '/_authenticated/candidate/alerts'
-      path: '/candidate/alerts'
+      path: '/alerts'
       fullPath: '/candidate/alerts'
       preLoaderRoute: typeof AuthenticatedCandidateAlertsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      parentRoute: typeof AuthenticatedCandidateRouteRoute
     }
     '/_authenticated/candidate/applications': {
       id: '/_authenticated/candidate/applications'
-      path: '/candidate/applications'
+      path: '/applications'
       fullPath: '/candidate/applications'
       preLoaderRoute: typeof AuthenticatedCandidateApplicationsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      parentRoute: typeof AuthenticatedCandidateRouteRoute
+    }
+    '/_authenticated/candidate/browse': {
+      id: '/_authenticated/candidate/browse'
+      path: '/browse'
+      fullPath: '/candidate/browse'
+      preLoaderRoute: typeof AuthenticatedCandidateBrowseRouteImport
+      parentRoute: typeof AuthenticatedCandidateRouteRoute
     }
     '/_authenticated/candidate/dashboard': {
       id: '/_authenticated/candidate/dashboard'
-      path: '/candidate/dashboard'
+      path: '/dashboard'
       fullPath: '/candidate/dashboard'
       preLoaderRoute: typeof AuthenticatedCandidateDashboardRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      parentRoute: typeof AuthenticatedCandidateRouteRoute
     }
     '/_authenticated/candidate/documents': {
       id: '/_authenticated/candidate/documents'
-      path: '/candidate/documents'
+      path: '/documents'
       fullPath: '/candidate/documents'
       preLoaderRoute: typeof AuthenticatedCandidateDocumentsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      parentRoute: typeof AuthenticatedCandidateRouteRoute
     }
     '/_authenticated/candidate/notifications': {
       id: '/_authenticated/candidate/notifications'
-      path: '/candidate/notifications'
+      path: '/notifications'
       fullPath: '/candidate/notifications'
       preLoaderRoute: typeof AuthenticatedCandidateNotificationsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      parentRoute: typeof AuthenticatedCandidateRouteRoute
     }
     '/_authenticated/candidate/profile': {
       id: '/_authenticated/candidate/profile'
-      path: '/candidate/profile'
+      path: '/profile'
       fullPath: '/candidate/profile'
       preLoaderRoute: typeof AuthenticatedCandidateProfileRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      parentRoute: typeof AuthenticatedCandidateRouteRoute
     }
     '/_authenticated/candidate/saved': {
       id: '/_authenticated/candidate/saved'
-      path: '/candidate/saved'
+      path: '/saved'
       fullPath: '/candidate/saved'
       preLoaderRoute: typeof AuthenticatedCandidateSavedRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      parentRoute: typeof AuthenticatedCandidateRouteRoute
     }
     '/_authenticated/candidate/settings': {
       id: '/_authenticated/candidate/settings'
-      path: '/candidate/settings'
+      path: '/settings'
       fullPath: '/candidate/settings'
       preLoaderRoute: typeof AuthenticatedCandidateSettingsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      parentRoute: typeof AuthenticatedCandidateRouteRoute
     }
     '/_authenticated/employer/activity': {
       id: '/_authenticated/employer/activity'
@@ -1196,6 +1236,38 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthenticatedCandidateRouteRouteChildren {
+  AuthenticatedCandidateAlertsRoute: typeof AuthenticatedCandidateAlertsRoute
+  AuthenticatedCandidateApplicationsRoute: typeof AuthenticatedCandidateApplicationsRoute
+  AuthenticatedCandidateBrowseRoute: typeof AuthenticatedCandidateBrowseRoute
+  AuthenticatedCandidateDashboardRoute: typeof AuthenticatedCandidateDashboardRoute
+  AuthenticatedCandidateDocumentsRoute: typeof AuthenticatedCandidateDocumentsRoute
+  AuthenticatedCandidateNotificationsRoute: typeof AuthenticatedCandidateNotificationsRoute
+  AuthenticatedCandidateProfileRoute: typeof AuthenticatedCandidateProfileRoute
+  AuthenticatedCandidateSavedRoute: typeof AuthenticatedCandidateSavedRoute
+  AuthenticatedCandidateSettingsRoute: typeof AuthenticatedCandidateSettingsRoute
+}
+
+const AuthenticatedCandidateRouteRouteChildren: AuthenticatedCandidateRouteRouteChildren =
+  {
+    AuthenticatedCandidateAlertsRoute: AuthenticatedCandidateAlertsRoute,
+    AuthenticatedCandidateApplicationsRoute:
+      AuthenticatedCandidateApplicationsRoute,
+    AuthenticatedCandidateBrowseRoute: AuthenticatedCandidateBrowseRoute,
+    AuthenticatedCandidateDashboardRoute: AuthenticatedCandidateDashboardRoute,
+    AuthenticatedCandidateDocumentsRoute: AuthenticatedCandidateDocumentsRoute,
+    AuthenticatedCandidateNotificationsRoute:
+      AuthenticatedCandidateNotificationsRoute,
+    AuthenticatedCandidateProfileRoute: AuthenticatedCandidateProfileRoute,
+    AuthenticatedCandidateSavedRoute: AuthenticatedCandidateSavedRoute,
+    AuthenticatedCandidateSettingsRoute: AuthenticatedCandidateSettingsRoute,
+  }
+
+const AuthenticatedCandidateRouteRouteWithChildren =
+  AuthenticatedCandidateRouteRoute._addFileChildren(
+    AuthenticatedCandidateRouteRouteChildren,
+  )
+
 interface AuthenticatedEmployerJobsRouteChildren {
   AuthenticatedEmployerJobsBulkRoute: typeof AuthenticatedEmployerJobsBulkRoute
   AuthenticatedEmployerJobsNewRoute: typeof AuthenticatedEmployerJobsNewRoute
@@ -1219,14 +1291,7 @@ const AuthenticatedEmployerJobsRouteWithChildren =
   )
 
 interface AuthenticatedRouteRouteChildren {
-  AuthenticatedCandidateAlertsRoute: typeof AuthenticatedCandidateAlertsRoute
-  AuthenticatedCandidateApplicationsRoute: typeof AuthenticatedCandidateApplicationsRoute
-  AuthenticatedCandidateDashboardRoute: typeof AuthenticatedCandidateDashboardRoute
-  AuthenticatedCandidateDocumentsRoute: typeof AuthenticatedCandidateDocumentsRoute
-  AuthenticatedCandidateNotificationsRoute: typeof AuthenticatedCandidateNotificationsRoute
-  AuthenticatedCandidateProfileRoute: typeof AuthenticatedCandidateProfileRoute
-  AuthenticatedCandidateSavedRoute: typeof AuthenticatedCandidateSavedRoute
-  AuthenticatedCandidateSettingsRoute: typeof AuthenticatedCandidateSettingsRoute
+  AuthenticatedCandidateRouteRoute: typeof AuthenticatedCandidateRouteRouteWithChildren
   AuthenticatedEmployerActivityRoute: typeof AuthenticatedEmployerActivityRoute
   AuthenticatedEmployerCompanyRoute: typeof AuthenticatedEmployerCompanyRoute
   AuthenticatedEmployerCreditsRoute: typeof AuthenticatedEmployerCreditsRoute
@@ -1243,16 +1308,8 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
-  AuthenticatedCandidateAlertsRoute: AuthenticatedCandidateAlertsRoute,
-  AuthenticatedCandidateApplicationsRoute:
-    AuthenticatedCandidateApplicationsRoute,
-  AuthenticatedCandidateDashboardRoute: AuthenticatedCandidateDashboardRoute,
-  AuthenticatedCandidateDocumentsRoute: AuthenticatedCandidateDocumentsRoute,
-  AuthenticatedCandidateNotificationsRoute:
-    AuthenticatedCandidateNotificationsRoute,
-  AuthenticatedCandidateProfileRoute: AuthenticatedCandidateProfileRoute,
-  AuthenticatedCandidateSavedRoute: AuthenticatedCandidateSavedRoute,
-  AuthenticatedCandidateSettingsRoute: AuthenticatedCandidateSettingsRoute,
+  AuthenticatedCandidateRouteRoute:
+    AuthenticatedCandidateRouteRouteWithChildren,
   AuthenticatedEmployerActivityRoute: AuthenticatedEmployerActivityRoute,
   AuthenticatedEmployerCompanyRoute: AuthenticatedEmployerCompanyRoute,
   AuthenticatedEmployerCreditsRoute: AuthenticatedEmployerCreditsRoute,
