@@ -70,6 +70,7 @@ function EmployerJobs() {
 
 const DEFAULT_BOOST_OVERVIEW = {
   balance: 0,
+  monthlyPoolRemaining: 0 as number | null,
   settings: { costCredits: 1, windowHours: 24, enabled: true },
   activeBoostEndsAtByJobId: {} as Record<string, string>,
 };
@@ -631,6 +632,7 @@ function EmployerJobsList() {
           onOpenChange={(v) => { if (!v) setBoostTarget(null); }}
           job={{ id: boostTarget.id, title: boostTarget.title, createdAt: boostTarget.created_at }}
           balance={boostOverview.balance}
+          monthlyPoolRemaining={boostOverview.monthlyPoolRemaining}
           settings={boostOverview.settings}
           onBoosted={() => {
             setBoostTarget(null);

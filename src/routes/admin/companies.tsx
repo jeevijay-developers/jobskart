@@ -7,44 +7,37 @@ import { AdminShell } from "@/components/admin/AdminShell";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { adminListJobs, adminToggleJobFeatured, adminCloseJob } from "@/lib/admin.functions";
+import { adminListCompanies, adminSetCompanyVerification } from "@/lib/admin.functions";
 
-export const Route = createFileRoute("/_authenticated/admin/jobs")({
+export const Route = createFileRoute("/admin/companies")({
   component: Page,
 });
 
 function Page() {
   const [search, setSearch] = useState("");
   const [visibleCount, setVisibleCount] = useState(5);
-  const list = useServerFn(adminListJobs);
-  const tog = useServerFn(adminToggleJobFeatured);
-  const close = useServerFn(adminCloseJob);
+  const list = useServerFn(adminListCompanies);
+  const setV = useServerFn(adminSetCompanyVerification);
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({
-    queryKey: ["admin", "jobs", search],
+    queryKey: ["admin", "companies", search],
     queryFn: () => list({ data: { search } }),
   });
-  const mTog = useMutation({
-    mutationFn: (v: { jobId: string; featured: boolean }) => tog({ data: v }),
+  const mut = useMutation({
+    mutationFn: (v: { companyId: string; status: "verified" | "pending" | "rejected" }) =>
+      setV({ data: v }),
     onSuccess: () => {
       toast.success("Updated");
-      qc.invalidateQueries({ queryKey: ["admin", "jobs"] });
-    },
-  });
-  const mClose = useMutation({
-    mutationFn: (jobId: string) => close({ data: { jobId } }),
-    onSuccess: () => {
-      toast.success("Closed");
-      qc.invalidateQueries({ queryKey: ["admin", "jobs"] });
+      qc.invalidateQueries({ queryKey: ["admin", "companies"] });
     },
   });
   const rows = data?.rows ?? [];
   const visibleRows = rows.slice(0, visibleCount);
 
   return (
-    <AdminShell title="Jobs" subtitle="Moderate and feature job postings">
+    <AdminShell title="Companies" subtitle="Approve and moderate employers">
       <Input
-        placeholder="Search title"
+        placeholder="Search company"
         value={search}
         onChange={(e) => {
           setSearch(e.target.value);
@@ -56,31 +49,36 @@ function Page() {
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
         ) : !rows.length ? (
-          <p className="text-sm text-muted-foreground">No jobs.</p>
+          <p className="text-sm text-muted-foreground">No companies yet.</p>
         ) : (
-          visibleRows.map((j: any) => (
+          visibleRows.map((c: any) => (
             <div
-              key={j.id}
+              key={c.id}
               className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4"
             >
               <div>
-                <p className="font-semibold text-foreground">{j.title}</p>
+                <p className="font-semibold text-foreground">{c.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {j.companies?.name ?? "—"} • {j.applications_count ?? 0} applicants
+                  {c.industry || "—"} • {c.hq_city || "—"}
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <Badge variant={j.status === "active" ? "secondary" : "outline"}>{j.status}</Badge>
-                {j.is_featured ? <Badge>Featured</Badge> : null}
+                <Badge variant={c.verification_status === "verified" ? "secondary" : "outline"}>
+                  {c.verification_status || "pending"}
+                </Badge>
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => mTog.mutate({ jobId: j.id, featured: !j.is_featured })}
+                  onClick={() => mut.mutate({ companyId: c.id, status: "verified" })}
                 >
-                  {j.is_featured ? "Unfeature" : "Feature"}
+                  Verify
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => mClose.mutate(j.id)}>
-                  Close
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => mut.mutate({ companyId: c.id, status: "rejected" })}
+                >
+                  Reject
                 </Button>
               </div>
             </div>
@@ -94,7 +92,7 @@ function Page() {
             variant="outline"
             onClick={() => setVisibleCount((count) => count + 5)}
           >
-            Load More Jobs
+            Load More Companies
           </Button>
         </div>
       ) : null}

@@ -5,7 +5,7 @@ import { Loader2, Save } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { supabase } from "@/integrations/supabase/client";
 
-export const Route = createFileRoute("/_authenticated/admin/plans")({
+export const Route = createFileRoute("/admin/plans")({
   head: () => ({ meta: [{ title: "Plan Settings · JobsKart Admin" }] }),
   component: Page,
 });
@@ -137,8 +137,8 @@ function Page() {
           <h3 className="pt-4 text-sm font-bold">Candidate database</h3>
           {num(
             "unlocks_per_job",
-            "Unlocks per job",
-            "Free unlock allowance seeded per job when it goes active. Default: 25.",
+            "Unlocks per job (fallback)",
+            "Only used when a company has no plan and the Basic plan row is missing. Each plan's own allowance (Basic/Regular/Unlimited) is what actually seeds a job's free unlocks — edit the plans table for that.",
           )}
           {num(
             "db_searches_per_hour",

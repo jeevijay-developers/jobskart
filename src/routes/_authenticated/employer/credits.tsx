@@ -9,7 +9,6 @@ import {
   Loader2,
   ShieldCheck,
   Sparkles,
-  TrendingUp,
 } from "lucide-react";
 import { toast } from "sonner";
 import { EmployerShell } from "@/components/employer/EmployerShell";
@@ -53,7 +52,20 @@ export const Route = createFileRoute("/_authenticated/employer/credits")({
   component: CreditsPage,
 });
 
-type Pack = { id: string; name: string; credits: number; price_inr: number; badge: string | null };
+type BenefitType = "job_post" | "contact" | "boost";
+type Pack = {
+  id: string;
+  name: string;
+  credits: number;
+  price_inr: number;
+  badge: string | null;
+  benefit_type: BenefitType;
+};
+const BENEFIT_LABELS: Record<BenefitType, string> = {
+  job_post: "Job Post",
+  contact: "Contact",
+  boost: "Boost",
+};
 type PlanLimits = {
   live_jobs_max: number;
   classic_posts_per_month: number;
@@ -62,6 +74,8 @@ type PlanLimits = {
   repost_allowed: boolean;
   unlocks_per_job: number;
   response_retention_days: number;
+  contact_credits_per_month: number;
+  boost_credits_per_month: number;
 };
 type Plan = { id: string; name: string; price_inr: number; limits: PlanLimits };
 type Entitlements = {
@@ -76,6 +90,7 @@ type Txn = {
   balance_after: number;
   reference: unknown;
   created_at: string;
+  benefit_type: BenefitType;
 };
 type Invoice = {
   id: string;
@@ -112,8 +127,11 @@ declare global {
 function CreditsPage() {
   const [active, setActive] = useState<EmployerMembership | null>(null);
   const [loading, setLoading] = useState(true);
-  const [balance, setBalance] = useState(0);
+  const [jobPostBalance, setJobPostBalance] = useState(0);
+  const [contactBalance, setContactBalance] = useState(0);
+  const [boostBalance, setBoostBalance] = useState(0);
   const [txns, setTxns] = useState<Txn[]>([]);
+  const [txnFilter, setTxnFilter] = useState<"all" | BenefitType>("all");
   const [packs, setPacks] = useState<Pack[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [buyingId, setBuyingId] = useState<string | null>(null);
@@ -147,7 +165,9 @@ function CreditsPage() {
       setPlans(pl as Plan[]);
       if (chosen) {
         const w = await getCompanyWallet({ data: { companyId: chosen.company_id } });
-        setBalance(w.balance);
+        setJobPostBalance(w.jobPostBalance);
+        setContactBalance(w.contactBalance);
+        setBoostBalance(w.boostBalance);
         setTxns(w.transactions as Txn[]);
         try {
           const inv = await listCompanyInvoices({ data: { companyId: chosen.company_id } });
@@ -177,7 +197,9 @@ function CreditsPage() {
 
   const refreshWallet = async (cid: string) => {
     const w = await getCompanyWallet({ data: { companyId: cid } });
-    setBalance(w.balance);
+    setJobPostBalance(w.jobPostBalance);
+    setContactBalance(w.contactBalance);
+    setBoostBalance(w.boostBalance);
     setTxns(w.transactions as Txn[]);
     try {
       const inv = await listCompanyInvoices({ data: { companyId: cid } });
@@ -231,7 +253,9 @@ function CreditsPage() {
                 razorpaySignature: resp.razorpay_signature,
               },
             });
-            toast.success(`+${order.credits} credits added · balance ${r.balance}`);
+            toast.success(
+              `+${order.credits} ${BENEFIT_LABELS[pack.benefit_type]} credits added · balance ${r.balance}`,
+            );
             await refreshWallet(active.company_id);
           } catch (e) {
             toast.error(e instanceof Error ? e.message : "Verification failed.");
@@ -359,36 +383,33 @@ function CreditsPage() {
       title="Credits & usage"
       subtitle="Buy credits to unlock candidate contacts from the database."
     >
-      {/* Balance hero */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2 overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary via-primary to-primary-dark p-6 text-primary-foreground shadow-lg">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary-foreground/80">
-                <Coins className="h-3.5 w-3.5" /> Available credits
-              </p>
-              <p className="mt-3 text-5xl font-black tabular-nums">{balance.toLocaleString("en-IN")}</p>
-              <p className="mt-2 text-sm text-primary-foreground/80">
-                1 credit = 1 candidate contact unlock.
-              </p>
-            </div>
-            <div className="hidden h-16 w-16 shrink-0 place-items-center rounded-2xl bg-white/10 sm:grid">
-              <Coins className="h-8 w-8" />
-            </div>
-          </div>
+      {/* Balance hero — three named balances, never a single generic "credits" number,
+          so an employer always sees what a balance is for. */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div className="overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary via-primary to-primary-dark p-5 text-primary-foreground shadow-lg">
+          <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary-foreground/80">
+            <Coins className="h-3.5 w-3.5" /> Job Post credits
+          </p>
+          <p className="mt-3 text-4xl font-black tabular-nums">{jobPostBalance.toLocaleString("en-IN")}</p>
+          <p className="mt-2 text-xs text-primary-foreground/80">Spent posting Classic/Trending jobs beyond your plan quota.</p>
         </div>
         <div className="rounded-2xl border border-border bg-card p-5">
           <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <TrendingUp className="h-3.5 w-3.5" /> This month
+            <Coins className="h-3.5 w-3.5" /> Contact credits
           </p>
-          <p className="mt-3 text-3xl font-bold text-foreground tabular-nums">
-            {txns.filter((t) => t.kind === "unlock").reduce((a, b) => a + Math.abs(b.delta), 0)}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">Unlocks used</p>
-          <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-success-light px-2.5 py-1 text-xs font-semibold text-success">
-            <ShieldCheck className="h-3.5 w-3.5" /> Secured by Razorpay
-          </div>
+          <p className="mt-3 text-4xl font-black tabular-nums text-foreground">{contactBalance.toLocaleString("en-IN")}</p>
+          <p className="mt-2 text-xs text-muted-foreground">Spent unlocking a candidate's contact once a job's free allowance runs out.</p>
         </div>
+        <div className="rounded-2xl border border-border bg-card p-5">
+          <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <Coins className="h-3.5 w-3.5" /> Boost credits
+          </p>
+          <p className="mt-3 text-4xl font-black tabular-nums text-foreground">{boostBalance.toLocaleString("en-IN")}</p>
+          <p className="mt-2 text-xs text-muted-foreground">Spent boosting a job's ranking for 24 hours.</p>
+        </div>
+      </div>
+      <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-success-light px-2.5 py-1 text-xs font-semibold text-success">
+        <ShieldCheck className="h-3.5 w-3.5" /> Secured by Razorpay
       </div>
 
       {/* Plans */}
@@ -433,7 +454,8 @@ function CreditsPage() {
                   <li>Job posts / month: <span className="font-semibold text-foreground">{fmtLimit(plan.limits.classic_posts_per_month)}</span></li>
                   <li>Trending boosts / month: <span className="font-semibold text-foreground">{fmtLimit(plan.limits.trending_posts_per_month)}</span></li>
                   <li>Reposting (Classic+): <span className="font-semibold text-foreground">{plan.limits.classic_plus_enabled ? "Yes" : "No"}</span></li>
-                  <li>Candidate unlocks / job: <span className="font-semibold text-foreground">{fmtLimit(plan.limits.unlocks_per_job)}</span></li>
+                  <li>Contact credits / month: <span className="font-semibold text-foreground">{fmtLimit(plan.limits.contact_credits_per_month)}</span></li>
+                  <li>Boost credits / month: <span className="font-semibold text-foreground">{fmtLimit(plan.limits.boost_credits_per_month)}</span></li>
                   <li>Response history: <span className="font-semibold text-foreground">{fmtLimit(plan.limits.response_retention_days)} days</span></li>
                 </ul>
                 {isCurrent && entitlements?.subscribed && entitlements.plan_ends_at && (
@@ -495,90 +517,123 @@ function CreditsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Packs */}
-      <section className="mt-8">
-        <header className="mb-4 flex items-end justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-foreground">Buy credits</h2>
-            <p className="text-sm text-muted-foreground">
-              Prices in INR, exclusive of GST. 18% GST is added at checkout.
-              {boostCost != null && (
-                <> · Boosting a job costs {boostCost} credit{boostCost === 1 ? "" : "s"}.</>
-              )}
-            </p>
-          </div>
-        </header>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {packs.map((p) => (
-            <div
-              key={p.id}
-              className={`relative flex flex-col rounded-2xl border bg-card p-5 shadow-sm transition hover:shadow-md ${
-                p.badge ? "border-primary/40 ring-1 ring-primary/10" : "border-border"
-              }`}
-            >
-              {p.badge && (
-                <span className="absolute -top-2 right-4 inline-flex items-center gap-1 rounded-full bg-primary px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary-foreground shadow">
-                  <Sparkles className="h-3 w-3" /> {p.badge}
-                </span>
-              )}
-              <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                {p.name}
-              </p>
-              <p className="mt-2 text-3xl font-black text-foreground tabular-nums">
-                {p.credits.toLocaleString("en-IN")}
-                <span className="ml-1 text-sm font-semibold text-muted-foreground">credits</span>
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                ₹{(p.price_inr / p.credits).toFixed(2)} per credit
-              </p>
-              <div className="mt-4">
-                <p className="text-2xl font-bold text-foreground">
-                  ₹{p.price_inr.toLocaleString("en-IN")}
-                  <span className="ml-1 text-sm font-semibold text-muted-foreground">+ GST</span>
-                </p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  ₹{formatInr(withGst(p.price_inr))} incl. 18% GST
+      {/* Packs — grouped by benefit_type so a Boost Pack can never be
+          mistaken for a Job Post pack. A group with no packs (e.g. before
+          the Phase 2 catalogue seed lands) simply doesn't render. */}
+      {(["job_post", "contact", "boost"] as const).map((bt) => {
+        const group = packs.filter((p) => p.benefit_type === bt);
+        if (group.length === 0) return null;
+        return (
+          <section key={bt} className="mt-8">
+            <header className="mb-4 flex items-end justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-foreground">{BENEFIT_LABELS[bt]} Packs</h2>
+                <p className="text-sm text-muted-foreground">
+                  Prices in INR, exclusive of GST. 18% GST is added at checkout.
+                  {bt === "boost" && boostCost != null && (
+                    <> · Boosting a job costs {boostCost} credit{boostCost === 1 ? "" : "s"}.</>
+                  )}
                 </p>
               </div>
-              <button
-                onClick={() => handleBuy(p)}
-                disabled={buyingId !== null}
-                className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-50"
-              >
-                {buyingId === p.id ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <>
-                    <CreditCard className="h-4 w-4" /> Buy now
-                  </>
-                )}
-              </button>
+            </header>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {group.map((p) => (
+                <div
+                  key={p.id}
+                  className={`relative flex flex-col rounded-2xl border bg-card p-5 shadow-sm transition hover:shadow-md ${
+                    p.badge ? "border-primary/40 ring-1 ring-primary/10" : "border-border"
+                  }`}
+                >
+                  {p.badge && (
+                    <span className="absolute -top-2 right-4 inline-flex items-center gap-1 rounded-full bg-primary px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary-foreground shadow">
+                      <Sparkles className="h-3 w-3" /> {p.badge}
+                    </span>
+                  )}
+                  <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                    {p.name}
+                  </p>
+                  <p className="mt-2 text-3xl font-black text-foreground tabular-nums">
+                    {p.credits.toLocaleString("en-IN")}
+                    <span className="ml-1 text-sm font-semibold text-muted-foreground">
+                      {BENEFIT_LABELS[bt].toLowerCase()} credits
+                    </span>
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    ₹{(p.price_inr / p.credits).toFixed(2)} per credit
+                  </p>
+                  <div className="mt-4">
+                    <p className="text-2xl font-bold text-foreground">
+                      ₹{p.price_inr.toLocaleString("en-IN")}
+                      <span className="ml-1 text-sm font-semibold text-muted-foreground">+ GST</span>
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      ₹{formatInr(withGst(p.price_inr))} incl. 18% GST
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleBuy(p)}
+                    disabled={buyingId !== null}
+                    className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-50"
+                  >
+                    {buyingId === p.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <>
+                        <CreditCard className="h-4 w-4" /> Buy now
+                      </>
+                    )}
+                  </button>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      </section>
+          </section>
+        );
+      })}
 
       {/* Transactions */}
       <section className="mt-8">
-        <h2 className="mb-3 text-lg font-bold text-foreground">Recent transactions</h2>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-lg font-bold text-foreground">Recent transactions</h2>
+          <div className="inline-flex rounded-lg border border-border bg-card p-1 text-xs font-semibold">
+            {(["all", "job_post", "contact", "boost"] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setTxnFilter(f)}
+                className={`rounded-md px-3 py-1.5 transition ${
+                  txnFilter === f
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {f === "all" ? "All" : BENEFIT_LABELS[f]}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="overflow-hidden rounded-2xl border border-border bg-card">
-          {txns.length === 0 ? (
-            <p className="p-8 text-center text-sm text-muted-foreground">
-              No transactions yet — buy your first credit pack above.
-            </p>
-          ) : (
+          {(() => {
+            const filtered = txnFilter === "all" ? txns : txns.filter((t) => t.benefit_type === txnFilter);
+            if (filtered.length === 0) {
+              return (
+                <p className="p-8 text-center text-sm text-muted-foreground">
+                  No transactions yet — buy your first credit pack above.
+                </p>
+              );
+            }
+            return (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-surface/60 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   <tr>
                     <th className="px-4 py-3">When</th>
                     <th className="px-4 py-3">Type</th>
+                    <th className="px-4 py-3">Balance</th>
                     <th className="px-4 py-3 text-right">Change</th>
-                    <th className="px-4 py-3 text-right">Balance</th>
+                    <th className="px-4 py-3 text-right">Balance after</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {txns.map((t) => (
+                  {filtered.map((t) => (
                     <tr key={t.id} className="border-t border-border">
                       <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                         {new Date(t.created_at).toLocaleString("en-IN", {
@@ -587,6 +642,7 @@ function CreditsPage() {
                         })}
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 font-medium text-foreground capitalize">{t.kind}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">{BENEFIT_LABELS[t.benefit_type]}</td>
                       <td
                         className={`whitespace-nowrap px-4 py-3 text-right font-semibold tabular-nums ${
                           t.delta >= 0 ? "text-success" : "text-foreground"
@@ -603,7 +659,8 @@ function CreditsPage() {
                 </tbody>
               </table>
             </div>
-          )}
+            );
+          })()}
         </div>
       </section>
 

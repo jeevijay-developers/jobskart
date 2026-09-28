@@ -11,14 +11,54 @@ import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { adminGrantCredits } from "@/lib/admin.functions";
 
-export const Route = createFileRoute("/_authenticated/admin/credits")({
+export const Route = createFileRoute("/admin/credits")({
   component: Page,
 });
 
+type BenefitType = "job_post" | "contact" | "boost";
+const BENEFIT_TYPES: BenefitType[] = ["job_post", "contact", "boost"];
+const BENEFIT_LABELS: Record<BenefitType, string> = {
+  job_post: "Job Post",
+  contact: "Contact",
+  boost: "Boost",
+};
+
+function BenefitTypeSelect({
+  value,
+  onChange,
+}: {
+  value: BenefitType;
+  onChange: (v: BenefitType) => void;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value as BenefitType)}
+      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+    >
+      {BENEFIT_TYPES.map((bt) => (
+        <option key={bt} value={bt}>
+          {BENEFIT_LABELS[bt]}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 function Page() {
   const qc = useQueryClient();
-  const [pack, setPack] = useState({ name: "", credits: 100, price_inr: 999 });
-  const [grant, setGrant] = useState({ companyId: "", delta: 10, note: "" });
+  const [pack, setPack] = useState<{
+    name: string;
+    credits: number;
+    price_inr: number;
+    benefit_type: BenefitType;
+  }>({ name: "", credits: 100, price_inr: 999, benefit_type: "job_post" });
+  const [grant, setGrant] = useState<{
+    companyId: string;
+    delta: number;
+    note: string;
+    benefitType: BenefitType;
+  }>({ companyId: "", delta: 10, note: "", benefitType: "job_post" });
   const grantFn = useServerFn(adminGrantCredits);
   const [boost, setBoost] = useState<{
     cost_credits: number; window_hours: number; boost_weight: number;
@@ -60,7 +100,7 @@ function Page() {
 
   const addPack = useMutation({
     mutationFn: async () => { const { error } = await supabase.from("credit_packs").insert({ ...pack, active: true }); if (error) throw error; },
-    onSuccess: () => { toast.success("Pack added"); setPack({ name: "", credits: 100, price_inr: 999 }); qc.invalidateQueries({ queryKey: ["credit-packs"] }); },
+    onSuccess: () => { toast.success("Pack added"); setPack({ name: "", credits: 100, price_inr: 999, benefit_type: "job_post" }); qc.invalidateQueries({ queryKey: ["credit-packs"] }); },
     onError: (e: any) => toast.error(e.message),
   });
   const togPack = useMutation({
@@ -68,7 +108,7 @@ function Page() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["credit-packs"] }),
   });
   const doGrant = useMutation({
-    mutationFn: () => grantFn({ data: { companyId: grant.companyId, delta: grant.delta, note: grant.note } }),
+    mutationFn: () => grantFn({ data: { companyId: grant.companyId, delta: grant.delta, note: grant.note, benefitType: grant.benefitType } }),
     onSuccess: () => { toast.success("Credits applied"); qc.invalidateQueries({ queryKey: ["credit-txns"] }); },
     onError: (e: any) => toast.error(e.message),
   });
@@ -77,8 +117,13 @@ function Page() {
     <AdminShell title="Credits & Payments" subtitle="Packs, manual grants, ledger">
       <section className="mb-8">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Credit Packs</h2>
-        <div className="mb-3 grid gap-2 rounded-2xl border border-border bg-card p-4 sm:grid-cols-4">
+        <p className="mb-3 text-xs text-muted-foreground">
+          Each pack grants one named balance — Job Post, Contact, or Boost — never a generic pool.
+          Pick the type before saving; it can't be changed after employers start buying the pack.
+        </p>
+        <div className="mb-3 grid gap-2 rounded-2xl border border-border bg-card p-4 sm:grid-cols-5">
           <div><Label>Name</Label><Input value={pack.name} onChange={(e) => setPack({ ...pack, name: e.target.value })} /></div>
+          <div><Label>Type</Label><BenefitTypeSelect value={pack.benefit_type} onChange={(v) => setPack({ ...pack, benefit_type: v })} /></div>
           <div><Label>Credits</Label><Input type="number" value={pack.credits} onChange={(e) => setPack({ ...pack, credits: +e.target.value })} /></div>
           <div><Label>Price (₹)</Label><Input type="number" value={pack.price_inr} onChange={(e) => setPack({ ...pack, price_inr: +e.target.value })} /></div>
           <div className="flex items-end"><Button onClick={() => addPack.mutate()} className="w-full">Add pack</Button></div>
@@ -87,7 +132,12 @@ function Page() {
           {(packs ?? []).map((p: any) => (
             <div key={p.id} className="flex items-center justify-between rounded-xl border border-border bg-card p-3">
               <div>
-                <p className="text-sm font-medium">{p.name} — {p.credits} credits</p>
+                <p className="text-sm font-medium">
+                  {p.name} — {p.credits} credits{" "}
+                  <span className="rounded-full bg-surface px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    {BENEFIT_LABELS[p.benefit_type as BenefitType] ?? p.benefit_type}
+                  </span>
+                </p>
                 <p className="text-xs text-muted-foreground">₹{p.price_inr}</p>
               </div>
               <Switch checked={p.active} onCheckedChange={() => togPack.mutate(p)} />
@@ -98,11 +148,12 @@ function Page() {
 
       <section className="mb-8">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Grant credits</h2>
-        <div className="grid gap-2 rounded-2xl border border-border bg-card p-4 sm:grid-cols-4">
+        <div className="grid gap-2 rounded-2xl border border-border bg-card p-4 sm:grid-cols-5">
           <div className="sm:col-span-2"><Label>Company ID</Label><Input value={grant.companyId} onChange={(e) => setGrant({ ...grant, companyId: e.target.value })} placeholder="UUID" /></div>
+          <div><Label>Type</Label><BenefitTypeSelect value={grant.benefitType} onChange={(v) => setGrant({ ...grant, benefitType: v })} /></div>
           <div><Label>Delta</Label><Input type="number" value={grant.delta} onChange={(e) => setGrant({ ...grant, delta: +e.target.value })} /></div>
           <div className="flex items-end"><Button onClick={() => doGrant.mutate()} className="w-full">Apply</Button></div>
-          <div className="sm:col-span-4"><Label>Note</Label><Input value={grant.note} onChange={(e) => setGrant({ ...grant, note: e.target.value })} /></div>
+          <div className="sm:col-span-5"><Label>Note</Label><Input value={grant.note} onChange={(e) => setGrant({ ...grant, note: e.target.value })} /></div>
         </div>
       </section>
 
@@ -171,7 +222,9 @@ function Page() {
             <div key={t.id} className="flex items-center justify-between border-b border-border px-4 py-3 text-sm last:border-0">
               <div>
                 <p className="font-medium text-foreground">{t.companies?.name ?? t.company_id}</p>
-                <p className="text-xs text-muted-foreground">{t.kind}</p>
+                <p className="text-xs text-muted-foreground">
+                  {t.kind} · {BENEFIT_LABELS[t.benefit_type as BenefitType] ?? t.benefit_type}
+                </p>
               </div>
               <div className="text-right">
                 <p className={`font-semibold ${t.delta < 0 ? "text-destructive" : "text-success"}`}>{t.delta > 0 ? "+" : ""}{t.delta}</p>

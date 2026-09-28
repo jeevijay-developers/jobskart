@@ -26,10 +26,10 @@ export function CreditChip() {
         if (!cid) return;
         const { data } = await supabase
           .from("employer_credit_wallets")
-          .select("balance")
+          .select("job_post_balance")
           .eq("company_id", cid)
           .maybeSingle();
-        if (!cancelled) setBalance(data?.balance ?? 0);
+        if (!cancelled) setBalance(data?.job_post_balance ?? 0);
       } catch {
         /* ignore */
       }
@@ -44,7 +44,7 @@ export function CreditChip() {
   return (
     <div className="w-full">
       <div className="flex items-center justify-between gap-3 text-xs">
-        <span className="font-medium text-muted-foreground">Credits Remaining</span>
+        <span className="font-medium text-muted-foreground">Job Post Credits</span>
         <span className="shrink-0 font-semibold text-foreground tabular-nums">
           {balance} / {creditCapacity}
         </span>

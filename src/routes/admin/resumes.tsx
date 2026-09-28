@@ -5,7 +5,7 @@ import { AdminShell } from "@/components/admin/AdminShell";
 import { Button } from "@/components/ui/button";
 import { adminListResumes } from "@/lib/admin.functions";
 
-export const Route = createFileRoute("/_authenticated/admin/resumes")({
+export const Route = createFileRoute("/admin/resumes")({
   component: Page,
 });
 

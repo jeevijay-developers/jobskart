@@ -5,7 +5,7 @@ import { ArrowUpRight, Briefcase, Building2, FileCheck2, Gauge, IndianRupee, Shi
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminOverview } from "@/lib/admin-overview.functions";
 
-export const Route = createFileRoute("/_authenticated/admin/dashboard")({
+export const Route = createFileRoute("/admin/dashboard")({
   head: () => ({ meta: [{ title: "Admin · Overview · JobsKart" }] }),
   component: Dash,
 });
