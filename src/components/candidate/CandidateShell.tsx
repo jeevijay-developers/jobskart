@@ -1,21 +1,23 @@
-import { Link, useLocation } from "@tanstack/react-router";
+import { Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import {
   Bell,
   Bookmark,
   FileText,
   FolderOpen,
   LayoutDashboard,
+  LogOut,
   Search,
   Settings,
   UserRound,
   Zap,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { Navbar } from "@/components/site/Navbar";
+import { toast } from "sonner";
+import { signOut } from "@/lib/auth";
 
 const navItems = [
   { to: "/candidate/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/jobs", label: "Browse jobs", icon: Search },
+  { to: "/candidate/browse", label: "Browse jobs", icon: Search },
   { to: "/candidate/applications", label: "Applications", icon: FileText },
   { to: "/candidate/saved", label: "Saved jobs", icon: Bookmark },
   { to: "/candidate/alerts", label: "Job alerts", icon: Zap },
@@ -25,7 +27,12 @@ const navItems = [
   { to: "/candidate/settings", label: "Settings", icon: Settings },
 ] as const;
 const mobileItems = navItems.filter((i) =>
-  ["/candidate/dashboard", "/jobs", "/candidate/applications", "/candidate/profile"].includes(i.to),
+  [
+    "/candidate/dashboard",
+    "/candidate/browse",
+    "/candidate/applications",
+    "/candidate/profile",
+  ].includes(i.to),
 );
 
 export function CandidateShell({
@@ -39,53 +46,84 @@ export function CandidateShell({
   children: ReactNode;
   actions?: ReactNode;
 }) {
+  return (
+    <>
+      {(title || subtitle || actions) && (
+        <header className="mb-6 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+              {title}
+            </h1>
+            {subtitle ? <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p> : null}
+          </div>
+          {actions}
+        </header>
+      )}
+      {children}
+    </>
+  );
+}
+
+export function CandidateAppLayout({ children }: { children?: ReactNode }) {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      toast.success("Signed out.");
+      navigate({ to: "/" });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Sign out failed.");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-surface pb-20 lg:pb-0">
-      <Navbar />
-      <div className="mx-auto flex w-full max-w-7xl gap-6 overflow-x-hidden px-4 py-6 sm:px-6 lg:px-8">
-        <aside className="hidden w-60 shrink-0 lg:block">
-          <nav className="sticky top-20 space-y-1 rounded-2xl border border-border bg-card p-3 shadow-[var(--shadow-card)]">
-            {navItems.map((item) => {
-              const active = pathname === item.to || pathname.startsWith(item.to + "/");
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                    active ? "bg-primary-light text-primary" : "text-foreground/80 hover:bg-surface"
-                  }`}
-                >
-                  <Icon className="h-4 w-4" />
-                  {item.label}
-                </Link>
-              );
-            })}
+      <div className="flex min-h-screen w-full min-w-0 overflow-x-hidden">
+        <aside className="fixed bottom-0 left-0 top-0 z-40 hidden w-64 border-r border-border bg-card lg:block">
+          <nav className="flex h-full min-h-0 flex-col">
+            <div className="min-h-0 flex-1 space-y-1 overflow-y-auto px-4 pb-6 pt-8">
+              {navItems.map((item) => {
+                const active = pathname === item.to || pathname.startsWith(item.to + "/");
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    className={`flex h-11 items-center gap-3 whitespace-nowrap rounded-lg px-3 text-[15px] font-medium leading-none transition-colors ${
+                      active
+                        ? "bg-primary-light text-primary"
+                        : "text-foreground/80 hover:bg-surface"
+                    }`}
+                  >
+                    <Icon className="h-[18px] w-[18px] shrink-0" />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+            <div className="shrink-0 border-t border-border p-4">
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-border px-3 text-sm font-semibold text-foreground/80 transition-colors hover:border-destructive/40 hover:bg-destructive-light hover:text-destructive"
+              >
+                <LogOut className="h-4 w-4 shrink-0" />
+                Sign out
+              </button>
+            </div>
           </nav>
         </aside>
-        <main className="min-w-0 flex-1">
-          {(title || subtitle || actions) && (
-            <header className="mb-6 flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">{title}</h1>
-                {subtitle ? <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p> : null}
-              </div>
-              {actions}
-            </header>
-          )}
-          {children}
+        <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:ml-64 lg:px-8 xl:px-10 2xl:px-12">
+          {children ?? <Outlet />}
         </main>
       </div>
-
       <CandidateMobileTabBar />
     </div>
   );
 }
 
-// Standalone so pages outside CandidateShell (e.g. the public /jobs route,
-// which candidates reach via this same tab bar's "Browse" tab) can render the
-// same persistent bottom nav instead of losing it when they navigate there.
 export function CandidateMobileTabBar() {
   const { pathname } = useLocation();
   return (

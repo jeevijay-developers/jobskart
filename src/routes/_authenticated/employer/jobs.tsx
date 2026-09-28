@@ -581,7 +581,7 @@ function EmployerJobsList() {
                     <span>Posted {formatDistanceToNow(new Date(j.created_at), { addSuffix: true })}</span>
                   </p>
                 </div>
-                <div className="ml-7 flex w-full shrink-0 items-center justify-end sm:ml-0 sm:w-auto">
+                <div className="ml-7 flex w-[calc(100%-1.75rem)] shrink-0 items-center justify-end pr-1 sm:ml-0 sm:w-auto sm:pr-0">
                   <Link
                     to="/employer/jobs/$jobId/applicants"
                     params={{ jobId: j.id }}

@@ -82,15 +82,25 @@ function CandidateDashboard() {
       }
 
       const [{ data: profile }, apps, expRes, eduRes, learn] = await Promise.all([
-        supabase.from("profiles").select("full_name, city, mobile_verified").eq("id", uid).maybeSingle(),
+        supabase
+          .from("profiles")
+          .select("full_name, city, mobile_verified")
+          .eq("id", uid)
+          .maybeSingle(),
         supabase
           .from("applications")
           .select("id, status, created_at, job_id, jobs(title, companies(name))")
           .eq("candidate_id", uid)
           .order("created_at", { ascending: false })
           .limit(20),
-        supabase.from("candidate_experiences").select("id", { head: true, count: "exact" }).eq("user_id", uid),
-        supabase.from("candidate_education").select("id", { head: true, count: "exact" }).eq("user_id", uid),
+        supabase
+          .from("candidate_experiences")
+          .select("id", { head: true, count: "exact" })
+          .eq("user_id", uid),
+        supabase
+          .from("candidate_education")
+          .select("id", { head: true, count: "exact" })
+          .eq("user_id", uid),
         supabase
           .from("learning_resources")
           .select("id, title, slug, cover_url, kind, category")
@@ -117,9 +127,11 @@ function CandidateDashboard() {
       if (!cand?.headline) miss.push("Add a headline");
       if (!cand?.resume_url) miss.push("Upload your resume");
       if ((cand?.skills?.length || 0) < 3) miss.push("Add at least 3 skills");
-      if (!expRes.count && cand?.experience_status === "experienced") miss.push("Add work experience");
+      if (!expRes.count && cand?.experience_status === "experienced")
+        miss.push("Add work experience");
       if (cand?.kyc_status !== "verified") miss.push("Verify your identity");
-      if (!cand?.expected_salary && cand?.experience_status !== "student") miss.push("Add expected salary");
+      if (!cand?.expected_salary && cand?.experience_status !== "student")
+        miss.push("Add expected salary");
       setMissing(miss);
 
       setLearning((learn.data as LearningRow[]) || []);
@@ -173,121 +185,119 @@ function CandidateDashboard() {
     enabled: !!candidateId,
   });
 
-  const mainContent = (
-    <>
-      <section>
-        <div className="mb-3 flex items-center gap-2">
-          <h2 className="text-base font-bold text-foreground sm:text-lg">
-            Recommended for you
-          </h2>
-          {recommendedTotal > 0 && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-1 text-xs font-bold text-success">
-              <CheckCircle2 className="h-3.5 w-3.5" /> {recommendedTotal} match
-              {recommendedTotal === 1 ? "" : "es"}
-            </span>
-          )}
-        </div>
-        {recommendedLoading ? (
-          <div className="grid place-items-center rounded-xl border border-border bg-card p-8">
-            <Loader2 className="h-5 w-5 animate-spin text-primary" />
-          </div>
-        ) : recommendedTotal === 0 ? (
-          <EmptyState
-            icon={Briefcase}
-            title="No matches yet"
-            body="Add a few skills to your profile so we can match you to relevant jobs — or you may have already applied to everything that matches."
-            ctaLabel="Search jobs"
-            ctaTo="/jobs"
-          />
-        ) : (
-          <>
-            <div className="grid gap-4">
-              {recommendedPage.map((j) => (
-                <JobCard
-                  key={j.id}
-                  job={j}
-                  variant="discovery"
-                  onApplied={() => {
-                    void refreshApplicationTotals();
-                    void refetchRecommended();
-                  }}
-                />
-              ))}
-            </div>
-            {recommendedTotalPages > 1 && (
-              <Pagination
-                page={recPage}
-                totalPages={recommendedTotalPages}
-                onChange={setRecPage}
-                ariaLabel="Recommended jobs pagination"
-                className="mt-6"
-              />
-            )}
-          </>
-        )}
-      </section>
+  const recommendedHeading = (
+    <div className="mb-3 flex items-center gap-2">
+      <h2 className="text-base font-bold text-foreground sm:text-lg">Recommended for you</h2>
+      {recommendedTotal > 0 && (
+        <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-1 text-xs font-bold text-success">
+          <CheckCircle2 className="h-3.5 w-3.5" /> {recommendedTotal} match
+          {recommendedTotal === 1 ? "" : "es"}
+        </span>
+      )}
+    </div>
+  );
 
-      {/* Learning corner */}
-      {learning.length > 0 && (
-        <section>
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <h2 className="inline-flex items-center gap-2 text-base font-bold text-foreground sm:text-lg">
-              <BookOpen className="h-4 w-4 text-primary" /> Learning corner
-            </h2>
-            <span className="text-xs text-muted-foreground">Boost your career</span>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {learning.slice(0, 2).map((l) => (
-              <a
-                key={l.id}
-                href={`/learning/${l.slug}`}
-                className="group block overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card)] transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-[var(--shadow-card-hover)]"
-              >
-                <div className="relative aspect-[16/9] overflow-hidden bg-primary-light">
-                  {l.cover_url ? (
-                    <img
-                      src={l.cover_url}
-                      alt={l.title}
-                      loading="lazy"
-                      className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                    />
-                  ) : (
-                    <div className="grid h-full w-full place-items-center text-primary/40">
-                      {l.kind === "video" ? (
-                        <PlayCircle className="h-10 w-10" strokeWidth={1.5} />
-                      ) : (
-                        <BookOpen className="h-10 w-10" strokeWidth={1.5} />
-                      )}
-                    </div>
-                  )}
-                  <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-background/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-foreground">
-                    {l.kind === "video" ? (
-                      <>
-                        <PlayCircle className="h-3 w-3" /> Video
-                      </>
-                    ) : (
-                      <>
-                        <BookOpen className="h-3 w-3" /> Article
-                      </>
-                    )}
-                  </span>
-                </div>
-                <div className="p-4">
-                  {l.category && (
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-primary">
-                      {l.category}
-                    </p>
-                  )}
-                  <h3 className="mt-1 line-clamp-2 text-sm font-bold text-foreground group-hover:text-primary">
-                    {l.title}
-                  </h3>
-                </div>
-              </a>
+  const recommendedContent = (
+    <section>
+      {recommendedLoading ? (
+        <div className="grid place-items-center rounded-xl border border-border bg-card p-8">
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+        </div>
+      ) : recommendedTotal === 0 ? (
+        <EmptyState
+          icon={Briefcase}
+          title="No matches yet"
+          body="Add a few skills to your profile so we can match you to relevant jobs — or you may have already applied to everything that matches."
+          ctaLabel="Search jobs"
+          ctaTo="/jobs"
+        />
+      ) : (
+        <>
+          <div className="grid gap-4">
+            {recommendedPage.map((j) => (
+              <JobCard
+                key={j.id}
+                job={j}
+                variant="discovery"
+                onApplied={() => {
+                  void refreshApplicationTotals();
+                  void refetchRecommended();
+                }}
+              />
             ))}
           </div>
-        </section>
+          {recommendedTotalPages > 1 && (
+            <Pagination
+              page={recPage}
+              totalPages={recommendedTotalPages}
+              onChange={setRecPage}
+              ariaLabel="Recommended jobs pagination"
+              className="mt-6"
+            />
+          )}
+        </>
       )}
-    </>
+    </section>
+  );
+
+  const learningContent = learning.length > 0 && (
+    <section>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h2 className="inline-flex items-center gap-2 text-base font-bold text-foreground sm:text-lg">
+          <BookOpen className="h-4 w-4 text-primary" /> Learning corner
+        </h2>
+        <span className="text-xs text-muted-foreground">Boost your career</span>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {learning.slice(0, 2).map((l) => (
+          <a
+            key={l.id}
+            href={`/learning/${l.slug}`}
+            className="group block overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card)] transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-[var(--shadow-card-hover)]"
+          >
+            <div className="relative aspect-[16/9] overflow-hidden bg-primary-light">
+              {l.cover_url ? (
+                <img
+                  src={l.cover_url}
+                  alt={l.title}
+                  loading="lazy"
+                  className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                />
+              ) : (
+                <div className="grid h-full w-full place-items-center text-primary/40">
+                  {l.kind === "video" ? (
+                    <PlayCircle className="h-10 w-10" strokeWidth={1.5} />
+                  ) : (
+                    <BookOpen className="h-10 w-10" strokeWidth={1.5} />
+                  )}
+                </div>
+              )}
+              <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-background/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-foreground">
+                {l.kind === "video" ? (
+                  <>
+                    <PlayCircle className="h-3 w-3" /> Video
+                  </>
+                ) : (
+                  <>
+                    <BookOpen className="h-3 w-3" /> Article
+                  </>
+                )}
+              </span>
+            </div>
+            <div className="p-4">
+              {l.category && (
+                <p className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                  {l.category}
+                </p>
+              )}
+              <h3 className="mt-1 line-clamp-2 text-sm font-bold text-foreground group-hover:text-primary">
+                {l.title}
+              </h3>
+            </div>
+          </a>
+        ))}
+      </div>
+    </section>
   );
 
   return (
@@ -298,7 +308,7 @@ function CandidateDashboard() {
       <HeroBand firstName={firstName} strength={strength} verified={verified} />
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 min-[1180px]:grid-cols-4">
         <StatCard
           label="Applications"
           value={counts.applied}
@@ -330,14 +340,28 @@ function CandidateDashboard() {
       </div>
 
       {missing.length > 0 ? (
-        <div className="mt-6 grid gap-6 lg:grid-cols-3">
-          <div className="space-y-6 lg:col-span-2">{mainContent}</div>
-          <div className="space-y-6">
+        <div className="mt-6 grid min-w-0 items-start gap-x-6 min-[1180px]:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)]">
+          <div className="min-w-0 min-[1180px]:col-start-1 min-[1180px]:row-start-1">
+            {recommendedHeading}
+          </div>
+          <div className="min-w-0 min-[1180px]:col-start-1 min-[1180px]:row-start-2">
+            {recommendedContent}
+          </div>
+          <div className="mt-6 min-w-0 min-[1180px]:col-start-2 min-[1180px]:row-start-2 min-[1180px]:mt-0">
             <ChecklistCard items={missing} />
           </div>
+          {learningContent && (
+            <div className="mt-6 min-w-0 min-[1180px]:col-start-1 min-[1180px]:row-start-3">
+              {learningContent}
+            </div>
+          )}
         </div>
       ) : (
-        <div className="mt-6 space-y-6">{mainContent}</div>
+        <div className="mt-6 min-w-0">
+          {recommendedHeading}
+          {recommendedContent}
+          {learningContent && <div className="mt-6">{learningContent}</div>}
+        </div>
       )}
     </CandidateShell>
   );
@@ -487,9 +511,7 @@ function NudgeBanner({ strength, missing }: { strength: number; missing: string[
     if (!next) return;
 
     const dismissed =
-      typeof window !== "undefined"
-        ? window.localStorage.getItem(`${DISMISS_KEY}_${next}`)
-        : null;
+      typeof window !== "undefined" ? window.localStorage.getItem(`${DISMISS_KEY}_${next}`) : null;
     if (dismissed) return;
 
     setKind(next);

@@ -19,6 +19,7 @@ import { Route as McpRouteImport } from './routes/mcp'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/admin/route'
+import { Route as AuthenticatedCandidateRouteRouteImport } from './routes/_authenticated/candidate/route'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as CSlugRouteImport } from './routes/c.$slug'
 import { Route as CandidateLoginRouteImport } from './routes/candidate.login'
@@ -43,6 +44,7 @@ import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAdminVerificationsRouteImport } from './routes/_authenticated/admin/verifications'
 import { Route as AuthenticatedCandidateAlertsRouteImport } from './routes/_authenticated/candidate/alerts'
 import { Route as AuthenticatedCandidateApplicationsRouteImport } from './routes/_authenticated/candidate/applications'
+import { Route as AuthenticatedCandidateBrowseRouteImport } from './routes/_authenticated/candidate/browse'
 import { Route as AuthenticatedCandidateDashboardRouteImport } from './routes/_authenticated/candidate/dashboard'
 import { Route as AuthenticatedCandidateDocumentsRouteImport } from './routes/_authenticated/candidate/documents'
 import { Route as AuthenticatedCandidateNotificationsRouteImport } from './routes/_authenticated/candidate/notifications'
@@ -118,6 +120,12 @@ const AuthenticatedAdminRouteRoute = AuthenticatedAdminRouteRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedCandidateRouteRoute =
+  AuthenticatedCandidateRouteRouteImport.update({
+    id: '/candidate',
+    path: '/candidate',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AdminLoginRoute = AdminLoginRouteImport.update({
   id: '/admin/login',
   path: '/admin/login',
@@ -238,51 +246,57 @@ const AuthenticatedAdminVerificationsRoute =
   } as any)
 const AuthenticatedCandidateAlertsRoute =
   AuthenticatedCandidateAlertsRouteImport.update({
-    id: '/candidate/alerts',
-    path: '/candidate/alerts',
-    getParentRoute: () => AuthenticatedRouteRoute,
+    id: '/alerts',
+    path: '/alerts',
+    getParentRoute: () => AuthenticatedCandidateRouteRoute,
   } as any)
 const AuthenticatedCandidateApplicationsRoute =
   AuthenticatedCandidateApplicationsRouteImport.update({
-    id: '/candidate/applications',
-    path: '/candidate/applications',
-    getParentRoute: () => AuthenticatedRouteRoute,
+    id: '/applications',
+    path: '/applications',
+    getParentRoute: () => AuthenticatedCandidateRouteRoute,
+  } as any)
+const AuthenticatedCandidateBrowseRoute =
+  AuthenticatedCandidateBrowseRouteImport.update({
+    id: '/browse',
+    path: '/browse',
+    getParentRoute: () => AuthenticatedCandidateRouteRoute,
   } as any)
 const AuthenticatedCandidateDashboardRoute =
   AuthenticatedCandidateDashboardRouteImport.update({
-    id: '/candidate/dashboard',
-    path: '/candidate/dashboard',
-    getParentRoute: () => AuthenticatedRouteRoute,
+    id: '/dashboard',
+    path: '/dashboard',
+    getParentRoute: () => AuthenticatedCandidateRouteRoute,
   } as any)
 const AuthenticatedCandidateDocumentsRoute =
   AuthenticatedCandidateDocumentsRouteImport.update({
-    id: '/candidate/documents',
-    path: '/candidate/documents',
-    getParentRoute: () => AuthenticatedRouteRoute,
+    id: '/documents',
+    path: '/documents',
+    getParentRoute: () => AuthenticatedCandidateRouteRoute,
   } as any)
 const AuthenticatedCandidateNotificationsRoute =
   AuthenticatedCandidateNotificationsRouteImport.update({
-    id: '/candidate/notifications',
-    path: '/candidate/notifications',
-    getParentRoute: () => AuthenticatedRouteRoute,
+    id: '/notifications',
+    path: '/notifications',
+    getParentRoute: () => AuthenticatedCandidateRouteRoute,
   } as any)
 const AuthenticatedCandidateProfileRoute =
   AuthenticatedCandidateProfileRouteImport.update({
-    id: '/candidate/profile',
-    path: '/candidate/profile',
-    getParentRoute: () => AuthenticatedRouteRoute,
+    id: '/profile',
+    path: '/profile',
+    getParentRoute: () => AuthenticatedCandidateRouteRoute,
   } as any)
 const AuthenticatedCandidateSavedRoute =
   AuthenticatedCandidateSavedRouteImport.update({
-    id: '/candidate/saved',
-    path: '/candidate/saved',
-    getParentRoute: () => AuthenticatedRouteRoute,
+    id: '/saved',
+    path: '/saved',
+    getParentRoute: () => AuthenticatedCandidateRouteRoute,
   } as any)
 const AuthenticatedCandidateSettingsRoute =
   AuthenticatedCandidateSettingsRouteImport.update({
-    id: '/candidate/settings',
-    path: '/candidate/settings',
-    getParentRoute: () => AuthenticatedRouteRoute,
+    id: '/settings',
+    path: '/settings',
+    getParentRoute: () => AuthenticatedCandidateRouteRoute,
   } as any)
 const AuthenticatedEmployerActivityRoute =
   AuthenticatedEmployerActivityRouteImport.update({
@@ -402,6 +416,7 @@ export interface FileRoutesByFullPath {
   '/mcp': typeof McpRoute
   '/reset-password': typeof ResetPasswordRoute
   '/admin': typeof AuthenticatedAdminRouteRouteWithChildren
+  '/candidate': typeof AuthenticatedCandidateRouteRouteWithChildren
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/login': typeof AdminLoginRoute
   '/c/$slug': typeof CSlugRoute
@@ -427,6 +442,7 @@ export interface FileRoutesByFullPath {
   '/admin/verifications': typeof AuthenticatedAdminVerificationsRoute
   '/candidate/alerts': typeof AuthenticatedCandidateAlertsRoute
   '/candidate/applications': typeof AuthenticatedCandidateApplicationsRoute
+  '/candidate/browse': typeof AuthenticatedCandidateBrowseRoute
   '/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
   '/candidate/documents': typeof AuthenticatedCandidateDocumentsRoute
   '/candidate/notifications': typeof AuthenticatedCandidateNotificationsRoute
@@ -461,6 +477,7 @@ export interface FileRoutesByTo {
   '/mcp': typeof McpRoute
   '/reset-password': typeof ResetPasswordRoute
   '/admin': typeof AuthenticatedAdminRouteRouteWithChildren
+  '/candidate': typeof AuthenticatedCandidateRouteRouteWithChildren
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/login': typeof AdminLoginRoute
   '/c/$slug': typeof CSlugRoute
@@ -486,6 +503,7 @@ export interface FileRoutesByTo {
   '/admin/verifications': typeof AuthenticatedAdminVerificationsRoute
   '/candidate/alerts': typeof AuthenticatedCandidateAlertsRoute
   '/candidate/applications': typeof AuthenticatedCandidateApplicationsRoute
+  '/candidate/browse': typeof AuthenticatedCandidateBrowseRoute
   '/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
   '/candidate/documents': typeof AuthenticatedCandidateDocumentsRoute
   '/candidate/notifications': typeof AuthenticatedCandidateNotificationsRoute
@@ -522,6 +540,7 @@ export interface FileRoutesById {
   '/mcp': typeof McpRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteRouteWithChildren
+  '/_authenticated/candidate': typeof AuthenticatedCandidateRouteRouteWithChildren
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/login': typeof AdminLoginRoute
   '/c/$slug': typeof CSlugRoute
@@ -547,6 +566,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/verifications': typeof AuthenticatedAdminVerificationsRoute
   '/_authenticated/candidate/alerts': typeof AuthenticatedCandidateAlertsRoute
   '/_authenticated/candidate/applications': typeof AuthenticatedCandidateApplicationsRoute
+  '/_authenticated/candidate/browse': typeof AuthenticatedCandidateBrowseRoute
   '/_authenticated/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
   '/_authenticated/candidate/documents': typeof AuthenticatedCandidateDocumentsRoute
   '/_authenticated/candidate/notifications': typeof AuthenticatedCandidateNotificationsRoute
@@ -583,6 +603,7 @@ export interface FileRouteTypes {
     | '/mcp'
     | '/reset-password'
     | '/admin'
+    | '/candidate'
     | '/.well-known/oauth-protected-resource'
     | '/admin/login'
     | '/c/$slug'
@@ -608,6 +629,7 @@ export interface FileRouteTypes {
     | '/admin/verifications'
     | '/candidate/alerts'
     | '/candidate/applications'
+    | '/candidate/browse'
     | '/candidate/dashboard'
     | '/candidate/documents'
     | '/candidate/notifications'
@@ -642,6 +664,7 @@ export interface FileRouteTypes {
     | '/mcp'
     | '/reset-password'
     | '/admin'
+    | '/candidate'
     | '/.well-known/oauth-protected-resource'
     | '/admin/login'
     | '/c/$slug'
@@ -667,6 +690,7 @@ export interface FileRouteTypes {
     | '/admin/verifications'
     | '/candidate/alerts'
     | '/candidate/applications'
+    | '/candidate/browse'
     | '/candidate/dashboard'
     | '/candidate/documents'
     | '/candidate/notifications'
@@ -702,6 +726,7 @@ export interface FileRouteTypes {
     | '/mcp'
     | '/reset-password'
     | '/_authenticated/admin'
+    | '/_authenticated/candidate'
     | '/.well-known/oauth-protected-resource'
     | '/admin/login'
     | '/c/$slug'
@@ -727,6 +752,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/verifications'
     | '/_authenticated/candidate/alerts'
     | '/_authenticated/candidate/applications'
+    | '/_authenticated/candidate/browse'
     | '/_authenticated/candidate/dashboard'
     | '/_authenticated/candidate/documents'
     | '/_authenticated/candidate/notifications'
@@ -846,6 +872,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AuthenticatedAdminRouteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/candidate': {
+      id: '/_authenticated/candidate'
+      path: '/candidate'
+      fullPath: '/candidate'
+      preLoaderRoute: typeof AuthenticatedCandidateRouteRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/admin/login': {
@@ -1004,59 +1037,66 @@ declare module '@tanstack/react-router' {
     }
     '/_authenticated/candidate/alerts': {
       id: '/_authenticated/candidate/alerts'
-      path: '/candidate/alerts'
+      path: '/alerts'
       fullPath: '/candidate/alerts'
       preLoaderRoute: typeof AuthenticatedCandidateAlertsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      parentRoute: typeof AuthenticatedCandidateRouteRoute
     }
     '/_authenticated/candidate/applications': {
       id: '/_authenticated/candidate/applications'
-      path: '/candidate/applications'
+      path: '/applications'
       fullPath: '/candidate/applications'
       preLoaderRoute: typeof AuthenticatedCandidateApplicationsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      parentRoute: typeof AuthenticatedCandidateRouteRoute
+    }
+    '/_authenticated/candidate/browse': {
+      id: '/_authenticated/candidate/browse'
+      path: '/browse'
+      fullPath: '/candidate/browse'
+      preLoaderRoute: typeof AuthenticatedCandidateBrowseRouteImport
+      parentRoute: typeof AuthenticatedCandidateRouteRoute
     }
     '/_authenticated/candidate/dashboard': {
       id: '/_authenticated/candidate/dashboard'
-      path: '/candidate/dashboard'
+      path: '/dashboard'
       fullPath: '/candidate/dashboard'
       preLoaderRoute: typeof AuthenticatedCandidateDashboardRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      parentRoute: typeof AuthenticatedCandidateRouteRoute
     }
     '/_authenticated/candidate/documents': {
       id: '/_authenticated/candidate/documents'
-      path: '/candidate/documents'
+      path: '/documents'
       fullPath: '/candidate/documents'
       preLoaderRoute: typeof AuthenticatedCandidateDocumentsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      parentRoute: typeof AuthenticatedCandidateRouteRoute
     }
     '/_authenticated/candidate/notifications': {
       id: '/_authenticated/candidate/notifications'
-      path: '/candidate/notifications'
+      path: '/notifications'
       fullPath: '/candidate/notifications'
       preLoaderRoute: typeof AuthenticatedCandidateNotificationsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      parentRoute: typeof AuthenticatedCandidateRouteRoute
     }
     '/_authenticated/candidate/profile': {
       id: '/_authenticated/candidate/profile'
-      path: '/candidate/profile'
+      path: '/profile'
       fullPath: '/candidate/profile'
       preLoaderRoute: typeof AuthenticatedCandidateProfileRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      parentRoute: typeof AuthenticatedCandidateRouteRoute
     }
     '/_authenticated/candidate/saved': {
       id: '/_authenticated/candidate/saved'
-      path: '/candidate/saved'
+      path: '/saved'
       fullPath: '/candidate/saved'
       preLoaderRoute: typeof AuthenticatedCandidateSavedRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      parentRoute: typeof AuthenticatedCandidateRouteRoute
     }
     '/_authenticated/candidate/settings': {
       id: '/_authenticated/candidate/settings'
-      path: '/candidate/settings'
+      path: '/settings'
       fullPath: '/candidate/settings'
       preLoaderRoute: typeof AuthenticatedCandidateSettingsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      parentRoute: typeof AuthenticatedCandidateRouteRoute
     }
     '/_authenticated/employer/activity': {
       id: '/_authenticated/employer/activity'
@@ -1221,6 +1261,38 @@ const AuthenticatedAdminRouteRouteWithChildren =
     AuthenticatedAdminRouteRouteChildren,
   )
 
+interface AuthenticatedCandidateRouteRouteChildren {
+  AuthenticatedCandidateAlertsRoute: typeof AuthenticatedCandidateAlertsRoute
+  AuthenticatedCandidateApplicationsRoute: typeof AuthenticatedCandidateApplicationsRoute
+  AuthenticatedCandidateBrowseRoute: typeof AuthenticatedCandidateBrowseRoute
+  AuthenticatedCandidateDashboardRoute: typeof AuthenticatedCandidateDashboardRoute
+  AuthenticatedCandidateDocumentsRoute: typeof AuthenticatedCandidateDocumentsRoute
+  AuthenticatedCandidateNotificationsRoute: typeof AuthenticatedCandidateNotificationsRoute
+  AuthenticatedCandidateProfileRoute: typeof AuthenticatedCandidateProfileRoute
+  AuthenticatedCandidateSavedRoute: typeof AuthenticatedCandidateSavedRoute
+  AuthenticatedCandidateSettingsRoute: typeof AuthenticatedCandidateSettingsRoute
+}
+
+const AuthenticatedCandidateRouteRouteChildren: AuthenticatedCandidateRouteRouteChildren =
+  {
+    AuthenticatedCandidateAlertsRoute: AuthenticatedCandidateAlertsRoute,
+    AuthenticatedCandidateApplicationsRoute:
+      AuthenticatedCandidateApplicationsRoute,
+    AuthenticatedCandidateBrowseRoute: AuthenticatedCandidateBrowseRoute,
+    AuthenticatedCandidateDashboardRoute: AuthenticatedCandidateDashboardRoute,
+    AuthenticatedCandidateDocumentsRoute: AuthenticatedCandidateDocumentsRoute,
+    AuthenticatedCandidateNotificationsRoute:
+      AuthenticatedCandidateNotificationsRoute,
+    AuthenticatedCandidateProfileRoute: AuthenticatedCandidateProfileRoute,
+    AuthenticatedCandidateSavedRoute: AuthenticatedCandidateSavedRoute,
+    AuthenticatedCandidateSettingsRoute: AuthenticatedCandidateSettingsRoute,
+  }
+
+const AuthenticatedCandidateRouteRouteWithChildren =
+  AuthenticatedCandidateRouteRoute._addFileChildren(
+    AuthenticatedCandidateRouteRouteChildren,
+  )
+
 interface AuthenticatedEmployerJobsRouteChildren {
   AuthenticatedEmployerJobsBulkRoute: typeof AuthenticatedEmployerJobsBulkRoute
   AuthenticatedEmployerJobsNewRoute: typeof AuthenticatedEmployerJobsNewRoute
@@ -1245,14 +1317,7 @@ const AuthenticatedEmployerJobsRouteWithChildren =
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRouteRoute: typeof AuthenticatedAdminRouteRouteWithChildren
-  AuthenticatedCandidateAlertsRoute: typeof AuthenticatedCandidateAlertsRoute
-  AuthenticatedCandidateApplicationsRoute: typeof AuthenticatedCandidateApplicationsRoute
-  AuthenticatedCandidateDashboardRoute: typeof AuthenticatedCandidateDashboardRoute
-  AuthenticatedCandidateDocumentsRoute: typeof AuthenticatedCandidateDocumentsRoute
-  AuthenticatedCandidateNotificationsRoute: typeof AuthenticatedCandidateNotificationsRoute
-  AuthenticatedCandidateProfileRoute: typeof AuthenticatedCandidateProfileRoute
-  AuthenticatedCandidateSavedRoute: typeof AuthenticatedCandidateSavedRoute
-  AuthenticatedCandidateSettingsRoute: typeof AuthenticatedCandidateSettingsRoute
+  AuthenticatedCandidateRouteRoute: typeof AuthenticatedCandidateRouteRouteWithChildren
   AuthenticatedEmployerActivityRoute: typeof AuthenticatedEmployerActivityRoute
   AuthenticatedEmployerCompanyRoute: typeof AuthenticatedEmployerCompanyRoute
   AuthenticatedEmployerCreditsRoute: typeof AuthenticatedEmployerCreditsRoute
@@ -1270,16 +1335,8 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRouteRoute: AuthenticatedAdminRouteRouteWithChildren,
-  AuthenticatedCandidateAlertsRoute: AuthenticatedCandidateAlertsRoute,
-  AuthenticatedCandidateApplicationsRoute:
-    AuthenticatedCandidateApplicationsRoute,
-  AuthenticatedCandidateDashboardRoute: AuthenticatedCandidateDashboardRoute,
-  AuthenticatedCandidateDocumentsRoute: AuthenticatedCandidateDocumentsRoute,
-  AuthenticatedCandidateNotificationsRoute:
-    AuthenticatedCandidateNotificationsRoute,
-  AuthenticatedCandidateProfileRoute: AuthenticatedCandidateProfileRoute,
-  AuthenticatedCandidateSavedRoute: AuthenticatedCandidateSavedRoute,
-  AuthenticatedCandidateSettingsRoute: AuthenticatedCandidateSettingsRoute,
+  AuthenticatedCandidateRouteRoute:
+    AuthenticatedCandidateRouteRouteWithChildren,
   AuthenticatedEmployerActivityRoute: AuthenticatedEmployerActivityRoute,
   AuthenticatedEmployerCompanyRoute: AuthenticatedEmployerCompanyRoute,
   AuthenticatedEmployerCreditsRoute: AuthenticatedEmployerCreditsRoute,
