@@ -19,6 +19,17 @@ import logoAsset from "@/assets/jobskart-logo.png";
 import { NotificationBell } from "@/components/site/NotificationBell";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { signOut } from "@/lib/auth";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const navItems = [
   { to: "/candidate/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -76,6 +87,7 @@ export function CandidateShell({
 export function CandidateAppLayout({ children }: { children?: ReactNode }) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  const [signOutOpen, setSignOutOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const handleSignOut = async () => {
@@ -114,14 +126,29 @@ export function CandidateAppLayout({ children }: { children?: ReactNode }) {
               })}
             </div>
             <div className="shrink-0 border-t border-border p-4">
-              <button
-                type="button"
-                onClick={handleSignOut}
-                className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-border px-3 text-sm font-semibold text-foreground/80 transition-colors hover:border-destructive/40 hover:bg-destructive-light hover:text-destructive"
-              >
-                <LogOut className="h-4 w-4 shrink-0" />
-                Sign out
-              </button>
+              <AlertDialog open={signOutOpen} onOpenChange={setSignOutOpen}>
+                <AlertDialogTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-border px-3 text-sm font-semibold text-foreground/80 transition-colors hover:border-destructive/40 hover:bg-destructive-light hover:text-destructive"
+                  >
+                    <LogOut className="h-4 w-4 shrink-0" />
+                    Sign out
+                  </button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Sign out?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      You'll need to sign in again to get back to your dashboard.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleSignOut}>Sign out</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </nav>
         </aside>
@@ -196,8 +223,12 @@ export function CandidateAppLayout({ children }: { children?: ReactNode }) {
             <button
               type="button"
               onClick={() => {
+                // Same confirmation as the desktop sidebar's Sign out button
+                // (the AlertDialog below, shared via `signOutOpen`) — Radix
+                // portals its content to document.body, so it renders fine
+                // even though this button sits in the mobile-only drawer.
                 setDrawerOpen(false);
-                handleSignOut();
+                setSignOutOpen(true);
               }}
               className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground"
             >

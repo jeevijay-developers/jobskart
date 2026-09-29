@@ -785,7 +785,17 @@ function Stat({ value, label, icon: Icon, tone }: { value: number; label: string
 function DlgShell({ open, onClose, title, children, onSave, saving, footerButtonsSideBySide }: { open: boolean; onClose: () => void; title: string; children: React.ReactNode; onSave?: () => void; saving?: boolean; footerButtonsSideBySide?: boolean }) {
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent
+        className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"
+        onPointerDownOutside={(e) => {
+          // StateDropdown portals its open menu to document.body for fixed
+          // positioning, so it sits outside this DialogContent's DOM subtree.
+          // Radix's Dialog otherwise treats a pointerdown there as "outside"
+          // and dismisses the whole modal before the option's own click can
+          // register — this keeps dropdown option clicks from being swallowed.
+          if ((e.target as HTMLElement | null)?.closest("[data-portal-dropdown]")) e.preventDefault();
+        }}
+      >
         <DialogHeader><DialogTitle>{title}</DialogTitle></DialogHeader>
         <div className="py-2">{children}</div>
         {onSave && (
@@ -944,14 +954,15 @@ function PersonalDialog({ open, onClose, uid, p, c, onSaved }: { open: boolean; 
         <Field label="Full name" required error={fieldErrors.full_name}><input className="form-input" value={full_name} onChange={(e) => setFn(e.target.value)} /></Field>
         <Field label="Mobile" required error={fieldErrors.mobile}><input className="form-input" value={mobile} onChange={(e) => setMo(e.target.value.replace(/\D/g, "").slice(0, 10))} /></Field>
         <Field label="State" required error={fieldErrors.state}>
-          <StateDropdown
+          <CityTownAutocomplete
             value={state}
-            options={INDIAN_STATES_AND_UTS}
             onChange={(next) => {
               setState(next);
               // A city from the previous state is no longer valid for the new one.
               setCity("");
             }}
+            suggestions={[...INDIAN_STATES_AND_UTS]}
+            placeholder="Select or type state"
           />
         </Field>
         <Field label="Date of birth" required error={fieldErrors.dob}>

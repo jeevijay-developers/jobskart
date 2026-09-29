@@ -11,6 +11,10 @@ type Props = {
   triggerClassName?: string;
   /** Overrides the open menu's max-height in px (default: 272). */
   maxMenuHeight?: number;
+  /** Opt-in: shows a search box atop the menu that filters options as you type. */
+  searchable?: boolean;
+  /** Placeholder for the search box (searchable only). Default: "Search…". */
+  searchPlaceholder?: string;
   /** Render an anchored menu inside a parent dialog's DOM tree. */
   portalToBody?: boolean;
 };
@@ -28,15 +32,22 @@ export function StateDropdown({
   placeholder = "Select state",
   triggerClassName,
   maxMenuHeight,
+  searchable,
+  searchPlaceholder = "Search…",
   portalToBody = true,
 }: Props) {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const [menuPos, setMenuPos] = useState<
     { left: number; width: number } & ({ top: number; bottom?: undefined } | { top?: undefined; bottom: number })
   >();
   const containerRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
   const MENU_MAX_HEIGHT = maxMenuHeight ?? 272; // matches CityTownAutocomplete / ThemedSelect dropdowns by default
+  const visibleOptions = searchable && search.trim()
+    ? options.filter((s) => s.toLowerCase().includes(search.trim().toLowerCase()))
+    : options;
 
   useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
@@ -95,7 +106,13 @@ export function StateDropdown({
   const pick = (v: string) => {
     onChange(v);
     setOpen(false);
+    setSearch("");
   };
+
+  useEffect(() => {
+    if (open && searchable) searchRef.current?.focus();
+    if (!open) setSearch("");
+  }, [open, searchable]);
 
   return (
     <div ref={containerRef} className="relative">
@@ -111,7 +128,8 @@ export function StateDropdown({
         const menu = (
           <div
             ref={menuRef}
-            className={`${portalToBody ? "fixed" : "absolute"} z-[100] overflow-y-auto overflow-x-hidden rounded-xl border border-primary/15 bg-popover shadow-xl shadow-primary/10 [scrollbar-width:thin] box-border`}
+            data-portal-dropdown={portalToBody || undefined}
+            className={`${portalToBody ? "fixed" : "absolute"} z-[100] flex flex-col overflow-hidden rounded-xl border border-primary/15 bg-popover shadow-xl shadow-primary/10 box-border`}
             style={
               portalToBody
                 ? {
@@ -120,6 +138,14 @@ export function StateDropdown({
                     left: menuPos?.left,
                     width: menuPos?.width,
                     maxHeight: MENU_MAX_HEIGHT,
+                    // Radix's Dialog sets document.body.style.pointerEvents = "none"
+                    // while modal (re-enabling "auto" only on the overlay/content
+                    // nodes it manages). This menu is portaled straight to
+                    // document.body too, so without this override it silently
+                    // inherits "none" and every option becomes unclickable — even
+                    // though it's visually on top, z-index doesn't matter once an
+                    // element is pointer-events:none.
+                    pointerEvents: "auto",
                   }
                 : {
                     top: "calc(100% + 4px)",
@@ -129,18 +155,35 @@ export function StateDropdown({
                   }
             }
           >
-            {options.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => pick(s)}
-                className={`block w-full px-3 py-2 text-left text-sm hover:bg-surface ${
-                  s === value ? "bg-primary/10 font-medium text-primary" : ""
-                }`}
-              >
-                {s}
-              </button>
-            ))}
+            {searchable && (
+              <div className="shrink-0 border-b border-border p-1.5">
+                <input
+                  ref={searchRef}
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={searchPlaceholder}
+                  className="form-input w-full text-sm"
+                />
+              </div>
+            )}
+            <div className="min-h-0 overflow-y-auto overflow-x-hidden [scrollbar-width:thin]">
+              {visibleOptions.length === 0 && (
+                <div className="px-3 py-2 text-sm text-muted-foreground">No matches</div>
+              )}
+              {visibleOptions.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onMouseDown={() => pick(s)}
+                  className={`block w-full px-3 py-2 text-left text-sm hover:bg-surface ${
+                    s === value ? "bg-primary/10 font-medium text-primary" : ""
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
           </div>
         );
 

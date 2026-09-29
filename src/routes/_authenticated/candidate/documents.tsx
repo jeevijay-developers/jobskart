@@ -65,6 +65,17 @@ function DocumentsPage() {
     load();
   }, []);
 
+  // A category (resume/ID proof/education cert/experience letter/other) holds
+  // at most one active document — same category-membership rule used at render
+  // time, shared here so "replace on re-upload" partitions rows identically.
+  const docsForCategory = (key: DocKey, list: Doc[]) => {
+    const dbType = DOC_TYPES.find((t) => t.key === key)!.dbType;
+    return list.filter((r) => {
+      if (r.doc_type !== dbType) return false;
+      return dbType !== "certificate" || r.file_path.split("/")[1] === key;
+    });
+  };
+
   const upload = async (docType: DocKey, file: File) => {
     if (file.size > 5 * 1024 * 1024) return toast.error("File too large (max 5 MB).");
     const { data: sess } = await supabase.auth.getSession();
@@ -88,6 +99,17 @@ function DocumentsPage() {
       if (insErr) {
         await supabase.storage.from("candidate-docs").remove([path]);
         throw insErr;
+      }
+      // Replace, don't accumulate: once the new file is safely uploaded and
+      // recorded, remove whatever previously occupied this category (both
+      // the storage object and the DB row) so exactly one remains.
+      const previous = docsForCategory(docType, rows);
+      if (previous.length > 0) {
+        await supabase.storage.from("candidate-docs").remove(previous.map((d) => d.file_path));
+        await supabase
+          .from("candidate_documents")
+          .delete()
+          .in("id", previous.map((d) => d.id));
       }
       toast.success("Uploaded");
       await load();
@@ -121,10 +143,7 @@ function DocumentsPage() {
     >
       <div className="grid grid-cols-1 gap-4">
         {DOC_TYPES.map((t) => {
-          const owned = rows.filter((r) => {
-            if (r.doc_type !== t.dbType) return false;
-            return t.dbType !== "certificate" || r.file_path.split("/")[1] === t.key;
-          });
+          const owned = docsForCategory(t.key, rows);
           return (
             <div
               key={t.key}
