@@ -303,6 +303,79 @@ export type Database = {
           },
         ]
       }
+      billing_product_entitlements: {
+        Row: {
+          benefit_type: Database["public"]["Enums"]["benefit_type"]
+          id: string
+          product_id: string
+          quantity: number
+          validity_days: number | null
+        }
+        Insert: {
+          benefit_type: Database["public"]["Enums"]["benefit_type"]
+          id?: string
+          product_id: string
+          quantity: number
+          validity_days?: number | null
+        }
+        Update: {
+          benefit_type?: Database["public"]["Enums"]["benefit_type"]
+          id?: string
+          product_id?: string
+          quantity?: number
+          validity_days?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_product_entitlements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "billing_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      billing_products: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          id: string
+          kind: string
+          legacy_credit_pack_id: string | null
+          name: string
+          price_inr: number
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          id?: string
+          kind: string
+          legacy_credit_pack_id?: string | null
+          name: string
+          price_inr: number
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          legacy_credit_pack_id?: string | null
+          name?: string
+          price_inr?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_products_legacy_credit_pack_id_fkey"
+            columns: ["legacy_credit_pack_id"]
+            isOneToOne: false
+            referencedRelation: "credit_packs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       boost_settings: {
         Row: {
           boost_weight: number
@@ -860,6 +933,107 @@ export type Database = {
           website?: string | null
         }
         Relationships: []
+      }
+      company_benefit_grants: {
+        Row: {
+          benefit_type: Database["public"]["Enums"]["benefit_type"]
+          company_id: string
+          created_by: string | null
+          expires_at: string | null
+          granted_at: string
+          id: string
+          quantity: number
+          reference: Json
+          remaining: number
+          source: string
+        }
+        Insert: {
+          benefit_type: Database["public"]["Enums"]["benefit_type"]
+          company_id: string
+          created_by?: string | null
+          expires_at?: string | null
+          granted_at?: string
+          id?: string
+          quantity: number
+          reference?: Json
+          remaining: number
+          source: string
+        }
+        Update: {
+          benefit_type?: Database["public"]["Enums"]["benefit_type"]
+          company_id?: string
+          created_by?: string | null
+          expires_at?: string | null
+          granted_at?: string
+          id?: string
+          quantity?: number
+          reference?: Json
+          remaining?: number
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_benefit_grants_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_benefit_ledger: {
+        Row: {
+          benefit_type: Database["public"]["Enums"]["benefit_type"]
+          company_id: string
+          created_at: string
+          created_by: string | null
+          delta: number
+          event: string
+          grant_id: string | null
+          id: string
+          reference: Json
+          resource_key: string | null
+        }
+        Insert: {
+          benefit_type: Database["public"]["Enums"]["benefit_type"]
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          delta: number
+          event: string
+          grant_id?: string | null
+          id?: string
+          reference?: Json
+          resource_key?: string | null
+        }
+        Update: {
+          benefit_type?: Database["public"]["Enums"]["benefit_type"]
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          delta?: number
+          event?: string
+          grant_id?: string | null
+          id?: string
+          reference?: Json
+          resource_key?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_benefit_ledger_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_benefit_ledger_grant_id_fkey"
+            columns: ["grant_id"]
+            isOneToOne: false
+            referencedRelation: "company_benefit_grants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       company_documents: {
         Row: {
@@ -2785,6 +2959,16 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_grant_company_benefit: {
+        Args: {
+          _benefit_type: Database["public"]["Enums"]["benefit_type"]
+          _company_id: string
+          _quantity: number
+          _reason: string
+          _validity_days: number
+        }
+        Returns: string
+      }
       admin_launch_state: { Args: { _state: string }; Returns: number }
       admin_refund_job_post_credit: {
         Args: { _job_id: string; _reason: string }
@@ -2817,6 +3001,16 @@ export type Database = {
           _zoom_start_url?: string
         }
         Returns: undefined
+      }
+      benefit_reconciliation_report: {
+        Args: never
+        Returns: {
+          benefit_type: Database["public"]["Enums"]["benefit_type"]
+          company_id: string
+          drift: number
+          grants_remaining: number
+          wallet_balance: number
+        }[]
       }
       buyer_gst_state_code: {
         Args: { _gstin: string; _pincode: string }
@@ -2865,6 +3059,14 @@ export type Database = {
           max_times: number
         }[]
       }
+      company_benefit_balances: {
+        Args: { _company_id: string }
+        Returns: {
+          benefit_type: Database["public"]["Enums"]["benefit_type"]
+          nearest_expiry: string
+          remaining: number
+        }[]
+      }
       compute_candidate_match: {
         Args: {
           _candidate_user_id: string
@@ -2875,6 +3077,17 @@ export type Database = {
       }
       compute_job_quality: {
         Args: { j: Database["public"]["Tables"]["jobs"]["Row"] }
+        Returns: number
+      }
+      consume_company_benefit: {
+        Args: {
+          _actor?: string
+          _benefit_type: Database["public"]["Enums"]["benefit_type"]
+          _company_id: string
+          _quantity: number
+          _reference?: Json
+          _resource_key?: string
+        }
         Returns: number
       }
       create_company_with_owner: {
@@ -2903,6 +3116,7 @@ export type Database = {
         Args: { _candidate_user_id: string; _job_id: string }
         Returns: undefined
       }
+      expire_benefit_grants: { Args: never; Returns: number }
       feed_jobs: {
         Args: {
           _category?: string
@@ -3130,6 +3344,18 @@ export type Database = {
           _title: string
         }
         Returns: Json
+      }
+      grant_company_benefit: {
+        Args: {
+          _actor?: string
+          _benefit_type: Database["public"]["Enums"]["benefit_type"]
+          _company_id: string
+          _quantity: number
+          _reference?: Json
+          _source?: string
+          _validity_days?: number
+        }
+        Returns: string
       }
       gst_state_name: { Args: { _code: string }; Returns: string }
       has_company_membership: {
