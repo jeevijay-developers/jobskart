@@ -6,13 +6,18 @@ import {
   FolderOpen,
   LayoutDashboard,
   LogOut,
+  Menu,
   Search,
   Settings,
   UserRound,
   Zap,
 } from "lucide-react";
 import type { ReactNode } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
+import logoAsset from "@/assets/jobskart-logo.png";
+import { NotificationBell } from "@/components/site/NotificationBell";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { signOut } from "@/lib/auth";
 
 const navItems = [
@@ -34,6 +39,10 @@ const mobileItems = navItems.filter((i) =>
     "/candidate/profile",
   ].includes(i.to),
 );
+// Everything not already reachable from the mobile bottom tab bar — shown in
+// the hamburger drawer instead, so nothing from the desktop sidebar is lost
+// on mobile without duplicating Dashboard/Browse/Applications/Profile.
+const drawerItems = navItems.filter((i) => !mobileItems.includes(i));
 
 export function CandidateShell({
   title,
@@ -67,6 +76,7 @@ export function CandidateShell({
 export function CandidateAppLayout({ children }: { children?: ReactNode }) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const handleSignOut = async () => {
     try {
@@ -115,11 +125,87 @@ export function CandidateAppLayout({ children }: { children?: ReactNode }) {
             </div>
           </nav>
         </aside>
-        <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:ml-64 lg:px-8 xl:px-10 2xl:px-12">
+
+        {/* Mobile-only fixed top header — same structure/behavior as
+            EmployerShell's mobile header (logo left, bell + hamburger right,
+            fixed while page content scrolls underneath). */}
+        <div className="fixed inset-x-0 top-0 z-40 flex h-14 items-center justify-between border-b border-border bg-surface px-3 lg:hidden">
+          <Link to="/candidate/dashboard" className="flex items-center">
+            <img src={logoAsset} alt="JobsKart" className="h-7 w-auto" />
+          </Link>
+          <div className="flex items-center gap-2">
+            <NotificationBell />
+            <button
+              type="button"
+              aria-label="Open menu"
+              onClick={() => setDrawerOpen(true)}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-foreground"
+            >
+              <Menu className="h-6 w-6" />
+            </button>
+          </div>
+        </div>
+
+        <main className="min-w-0 flex-1 px-4 pb-6 pt-20 sm:px-6 lg:ml-64 lg:px-8 lg:py-6 xl:px-10 2xl:px-12">
           {children ?? <Outlet />}
         </main>
       </div>
       <CandidateMobileTabBar />
+
+      <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
+        {/* Tapping any blank area inside the drawer (not an actual link/button)
+            closes it, same as tapping the dark overlay. Checking
+            e.target === e.currentTarget on each container means only a click
+            that lands directly on that container's own background — never one
+            that bubbled up from a Link or button inside it — closes the
+            drawer, so menu items and Sign out are unaffected. */}
+        <SheetContent
+          side="right"
+          className="flex w-80 max-w-[85vw] flex-col"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setDrawerOpen(false);
+          }}
+        >
+          <SheetTitle className="sr-only">Candidate navigation</SheetTitle>
+          <nav
+            className="flex flex-col gap-1 overflow-y-auto pr-10"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setDrawerOpen(false);
+            }}
+          >
+            {drawerItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  onClick={() => setDrawerOpen(false)}
+                  className="flex items-center gap-2 rounded-lg px-3 py-3 text-base font-medium text-foreground hover:bg-surface"
+                >
+                  <Icon className="h-4 w-4" /> {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+          <div
+            className="mt-auto pt-6"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setDrawerOpen(false);
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                setDrawerOpen(false);
+                handleSignOut();
+              }}
+              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground"
+            >
+              <LogOut className="h-4 w-4" /> Sign out
+            </button>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
