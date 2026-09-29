@@ -12,8 +12,20 @@ import {
   Zap,
 } from "lucide-react";
 import type { ReactNode } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { signOut } from "@/lib/auth";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const navItems = [
   { to: "/candidate/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -67,6 +79,7 @@ export function CandidateShell({
 export function CandidateAppLayout({ children }: { children?: ReactNode }) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  const [signOutOpen, setSignOutOpen] = useState(false);
 
   const handleSignOut = async () => {
     try {
@@ -104,14 +117,29 @@ export function CandidateAppLayout({ children }: { children?: ReactNode }) {
               })}
             </div>
             <div className="shrink-0 border-t border-border p-4">
-              <button
-                type="button"
-                onClick={handleSignOut}
-                className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-border px-3 text-sm font-semibold text-foreground/80 transition-colors hover:border-destructive/40 hover:bg-destructive-light hover:text-destructive"
-              >
-                <LogOut className="h-4 w-4 shrink-0" />
-                Sign out
-              </button>
+              <AlertDialog open={signOutOpen} onOpenChange={setSignOutOpen}>
+                <AlertDialogTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-border px-3 text-sm font-semibold text-foreground/80 transition-colors hover:border-destructive/40 hover:bg-destructive-light hover:text-destructive"
+                  >
+                    <LogOut className="h-4 w-4 shrink-0" />
+                    Sign out
+                  </button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Sign out?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      You'll need to sign in again to get back to your dashboard.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleSignOut}>Sign out</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </nav>
         </aside>
