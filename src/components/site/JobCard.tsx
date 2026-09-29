@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Bookmark, BookmarkCheck, Briefcase, GraduationCap, IndianRupee, MapPin, Rocket, Share2 } from "lucide-react";
+import { Bookmark, BookmarkCheck, Briefcase, GraduationCap, IndianRupee, MapPin, Rocket, Share2, Target } from "lucide-react";
 import { formatExperience, formatSalary, jobTypeLabel, timeAgo, workModeLabel } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 import { useSavedJob } from "@/hooks/use-saved-job";
@@ -28,9 +28,13 @@ export type JobCardData = {
   avg_incentive_monthly?: number | null;
   company_id?: string;
   companies?: { name: string; is_verified: boolean | null } | null;
-  // Set only by the "Recommended" sort (feed_jobs RPC) — transparently shows
+  // Set by the "Recommended" sort (feed_jobs RPC) — transparently shows
   // candidates why a job is prominent, never a hidden ranking boost.
   boosted?: boolean;
+  // NEW: Personalized relevance score from recommend_jobs_for_candidate (0-1)
+  relevance_score?: number | null;
+  // NEW: Explainable scoring breakdown for transparency
+  score_breakdown?: Record<string, any> | null;
 };
 
 export function JobCard({
@@ -127,6 +131,11 @@ export function JobCard({
                 {job.boosted && (
                   <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary-light px-2 py-0.5 text-[10px] font-semibold uppercase text-primary">
                     <Rocket className="h-3 w-3" /> Boosted
+                  </span>
+                )}
+                {job.relevance_score !== undefined && job.relevance_score !== null && (
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-success-light px-2 py-0.5 text-[10px] font-semibold uppercase text-success">
+                    <Target className="h-3 w-3" /> {Math.round(job.relevance_score * 100)}% Match
                   </span>
                 )}
                 <span className="shrink-0 text-xs text-muted-foreground">{timeAgo(job.created_at)}</span>

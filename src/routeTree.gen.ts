@@ -34,6 +34,7 @@ import { Route as AdminPlansRouteImport } from './routes/admin/plans'
 import { Route as AdminResumesRouteImport } from './routes/admin/resumes'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminVerificationsRouteImport } from './routes/admin/verifications'
+import { Route as ApiResumeBuilderRouteImport } from './routes/api/resume-builder'
 import { Route as CSlugRouteImport } from './routes/c.$slug'
 import { Route as CandidateLoginRouteImport } from './routes/candidate.login'
 import { Route as EmployerLoginRouteImport } from './routes/employer.login'
@@ -56,6 +57,7 @@ import { Route as AuthenticatedCandidateSettingsRouteImport } from './routes/_au
 import { Route as AuthenticatedEmployerActivityRouteImport } from './routes/_authenticated/employer/activity'
 import { Route as AuthenticatedEmployerCompanyRouteImport } from './routes/_authenticated/employer/company'
 import { Route as AuthenticatedEmployerCreditsRouteImport } from './routes/_authenticated/employer/credits'
+import { Route as AuthenticatedEmployerCrmRouteImport } from './routes/_authenticated/employer/crm'
 import { Route as AuthenticatedEmployerDashboardRouteImport } from './routes/_authenticated/employer/dashboard'
 import { Route as AuthenticatedEmployerDatabaseRouteImport } from './routes/_authenticated/employer/database'
 import { Route as AuthenticatedEmployerInterviewsRouteImport } from './routes/_authenticated/employer/interviews'
@@ -198,6 +200,11 @@ const AdminVerificationsRoute = AdminVerificationsRouteImport.update({
   path: '/verifications',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const ApiResumeBuilderRoute = ApiResumeBuilderRouteImport.update({
+  id: '/api/resume-builder',
+  path: '/api/resume-builder',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CSlugRoute = CSlugRouteImport.update({
   id: '/c/$slug',
   path: '/c/$slug',
@@ -320,6 +327,12 @@ const AuthenticatedEmployerCreditsRoute =
     path: '/employer/credits',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedEmployerCrmRoute =
+  AuthenticatedEmployerCrmRouteImport.update({
+    id: '/employer/crm',
+    path: '/employer/crm',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedEmployerDashboardRoute =
   AuthenticatedEmployerDashboardRouteImport.update({
     id: '/employer/dashboard',
@@ -435,6 +448,7 @@ export interface FileRoutesByFullPath {
   '/admin/resumes': typeof AdminResumesRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/verifications': typeof AdminVerificationsRoute
+  '/api/resume-builder': typeof ApiResumeBuilderRoute
   '/c/$slug': typeof CSlugRoute
   '/candidate/login': typeof CandidateLoginRoute
   '/employer/login': typeof EmployerLoginRoute
@@ -458,6 +472,7 @@ export interface FileRoutesByFullPath {
   '/employer/activity': typeof AuthenticatedEmployerActivityRoute
   '/employer/company': typeof AuthenticatedEmployerCompanyRoute
   '/employer/credits': typeof AuthenticatedEmployerCreditsRoute
+  '/employer/crm': typeof AuthenticatedEmployerCrmRoute
   '/employer/dashboard': typeof AuthenticatedEmployerDashboardRoute
   '/employer/database': typeof AuthenticatedEmployerDatabaseRoute
   '/employer/interviews': typeof AuthenticatedEmployerInterviewsRoute
@@ -497,6 +512,7 @@ export interface FileRoutesByTo {
   '/admin/resumes': typeof AdminResumesRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/verifications': typeof AdminVerificationsRoute
+  '/api/resume-builder': typeof ApiResumeBuilderRoute
   '/c/$slug': typeof CSlugRoute
   '/candidate/login': typeof CandidateLoginRoute
   '/employer/login': typeof EmployerLoginRoute
@@ -520,6 +536,7 @@ export interface FileRoutesByTo {
   '/employer/activity': typeof AuthenticatedEmployerActivityRoute
   '/employer/company': typeof AuthenticatedEmployerCompanyRoute
   '/employer/credits': typeof AuthenticatedEmployerCreditsRoute
+  '/employer/crm': typeof AuthenticatedEmployerCrmRoute
   '/employer/dashboard': typeof AuthenticatedEmployerDashboardRoute
   '/employer/database': typeof AuthenticatedEmployerDatabaseRoute
   '/employer/interviews': typeof AuthenticatedEmployerInterviewsRoute
@@ -562,6 +579,7 @@ export interface FileRoutesById {
   '/admin/resumes': typeof AdminResumesRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/verifications': typeof AdminVerificationsRoute
+  '/api/resume-builder': typeof ApiResumeBuilderRoute
   '/c/$slug': typeof CSlugRoute
   '/candidate/login': typeof CandidateLoginRoute
   '/employer/login': typeof EmployerLoginRoute
@@ -585,6 +603,7 @@ export interface FileRoutesById {
   '/_authenticated/employer/activity': typeof AuthenticatedEmployerActivityRoute
   '/_authenticated/employer/company': typeof AuthenticatedEmployerCompanyRoute
   '/_authenticated/employer/credits': typeof AuthenticatedEmployerCreditsRoute
+  '/_authenticated/employer/crm': typeof AuthenticatedEmployerCrmRoute
   '/_authenticated/employer/dashboard': typeof AuthenticatedEmployerDashboardRoute
   '/_authenticated/employer/database': typeof AuthenticatedEmployerDatabaseRoute
   '/_authenticated/employer/interviews': typeof AuthenticatedEmployerInterviewsRoute
@@ -627,6 +646,7 @@ export interface FileRouteTypes {
     | '/admin/resumes'
     | '/admin/users'
     | '/admin/verifications'
+    | '/api/resume-builder'
     | '/c/$slug'
     | '/candidate/login'
     | '/employer/login'
@@ -650,6 +670,7 @@ export interface FileRouteTypes {
     | '/employer/activity'
     | '/employer/company'
     | '/employer/credits'
+    | '/employer/crm'
     | '/employer/dashboard'
     | '/employer/database'
     | '/employer/interviews'
@@ -689,6 +710,7 @@ export interface FileRouteTypes {
     | '/admin/resumes'
     | '/admin/users'
     | '/admin/verifications'
+    | '/api/resume-builder'
     | '/c/$slug'
     | '/candidate/login'
     | '/employer/login'
@@ -712,6 +734,7 @@ export interface FileRouteTypes {
     | '/employer/activity'
     | '/employer/company'
     | '/employer/credits'
+    | '/employer/crm'
     | '/employer/dashboard'
     | '/employer/database'
     | '/employer/interviews'
@@ -753,6 +776,7 @@ export interface FileRouteTypes {
     | '/admin/resumes'
     | '/admin/users'
     | '/admin/verifications'
+    | '/api/resume-builder'
     | '/c/$slug'
     | '/candidate/login'
     | '/employer/login'
@@ -776,6 +800,7 @@ export interface FileRouteTypes {
     | '/_authenticated/employer/activity'
     | '/_authenticated/employer/company'
     | '/_authenticated/employer/credits'
+    | '/_authenticated/employer/crm'
     | '/_authenticated/employer/dashboard'
     | '/_authenticated/employer/database'
     | '/_authenticated/employer/interviews'
@@ -805,6 +830,7 @@ export interface RootRouteChildren {
   McpRoute: typeof McpRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  ApiResumeBuilderRoute: typeof ApiResumeBuilderRoute
   CSlugRoute: typeof CSlugRoute
   CandidateLoginRoute: typeof CandidateLoginRoute
   EmployerLoginRoute: typeof EmployerLoginRoute
@@ -994,6 +1020,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminVerificationsRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/api/resume-builder': {
+      id: '/api/resume-builder'
+      path: '/api/resume-builder'
+      fullPath: '/api/resume-builder'
+      preLoaderRoute: typeof ApiResumeBuilderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/c/$slug': {
       id: '/c/$slug'
       path: '/c/$slug'
@@ -1146,6 +1179,13 @@ declare module '@tanstack/react-router' {
       path: '/employer/credits'
       fullPath: '/employer/credits'
       preLoaderRoute: typeof AuthenticatedEmployerCreditsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/employer/crm': {
+      id: '/_authenticated/employer/crm'
+      path: '/employer/crm'
+      fullPath: '/employer/crm'
+      preLoaderRoute: typeof AuthenticatedEmployerCrmRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/employer/dashboard': {
@@ -1315,6 +1355,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedEmployerActivityRoute: typeof AuthenticatedEmployerActivityRoute
   AuthenticatedEmployerCompanyRoute: typeof AuthenticatedEmployerCompanyRoute
   AuthenticatedEmployerCreditsRoute: typeof AuthenticatedEmployerCreditsRoute
+  AuthenticatedEmployerCrmRoute: typeof AuthenticatedEmployerCrmRoute
   AuthenticatedEmployerDashboardRoute: typeof AuthenticatedEmployerDashboardRoute
   AuthenticatedEmployerDatabaseRoute: typeof AuthenticatedEmployerDatabaseRoute
   AuthenticatedEmployerInterviewsRoute: typeof AuthenticatedEmployerInterviewsRoute
@@ -1333,6 +1374,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedEmployerActivityRoute: AuthenticatedEmployerActivityRoute,
   AuthenticatedEmployerCompanyRoute: AuthenticatedEmployerCompanyRoute,
   AuthenticatedEmployerCreditsRoute: AuthenticatedEmployerCreditsRoute,
+  AuthenticatedEmployerCrmRoute: AuthenticatedEmployerCrmRoute,
   AuthenticatedEmployerDashboardRoute: AuthenticatedEmployerDashboardRoute,
   AuthenticatedEmployerDatabaseRoute: AuthenticatedEmployerDatabaseRoute,
   AuthenticatedEmployerInterviewsRoute: AuthenticatedEmployerInterviewsRoute,
@@ -1408,6 +1450,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  ApiResumeBuilderRoute: ApiResumeBuilderRoute,
   CSlugRoute: CSlugRoute,
   CandidateLoginRoute: CandidateLoginRoute,
   EmployerLoginRoute: EmployerLoginRoute,

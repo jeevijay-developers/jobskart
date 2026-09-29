@@ -14,8 +14,10 @@ import { INDIAN_STATES_AND_UTS, CITIES_BY_STATE, type IndianState } from "@/lib/
 import { CityTownAutocomplete } from "@/components/candidate/CityTownAutocomplete";
 import { StateDropdown } from "@/components/candidate/StateDropdown";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { ResumeUpload } from "@/components/candidate/ResumeUpload";
+import { ResumeUpload, type ImportSource } from "@/components/candidate/ResumeUpload";
 import type { ParsedResumePayload } from "@/lib/resume.functions";
+import { SalaryPicker, type SalaryChoiceKind } from "@/components/candidate/SalaryPicker";
+import { EducationNudge } from "@/components/candidate/EducationNudge";
 
 export const Route = createFileRoute("/_authenticated/candidate/profile")({
   head: () => ({ meta: [{ title: "My Profile · JobsKart" }] }),
@@ -27,10 +29,11 @@ type Candidate = {
   headline: string | null; bio: string | null; date_of_birth: string | null; gender: string | null;
   experience_status: string; years_experience: number; last_role: string | null;
   skills: string[]; preferred_job_types: string[]; preferred_work_mode: string | null;
-  preferred_cities: string[]; expected_salary: number | null; notice_period_days: number | null;
+  preferred_cities: string[]; expected_salary: number | null; expected_salary_choice_kind: string | null; notice_period_days: number | null;
   resume_url: string | null; resume_name: string | null;
   government_id_type: string | null; government_id_last4: string | null; kyc_status: string;
   profile_slug: string | null; profile_strength: number; profile_views: number;
+  highest_qualification: string | null;
 };
 type Exp = { id?: string; job_title: string; company_name: string; start_date: string; end_date: string; is_current: boolean; description: string };
 type Edu = { id?: string; level: string; board_or_university: string; institute: string; year_of_passing: number | ""; marks: string };
@@ -412,6 +415,9 @@ function ProfilePage() {
         </div>
 
         {/* Education */}
+        {uid && c.highest_qualification && (
+          <EducationNudge candidateId={uid} highestQualification={c.highest_qualification} surface="profile" onSaved={load} />
+        )}
         <div data-section="education" className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
           <div className="mb-6 flex items-center justify-between">
             <h3 className="flex items-center gap-2 text-[15px] font-bold text-foreground">
@@ -628,6 +634,9 @@ function ProfilePage() {
             </div>
 
             {/* Education */}
+            {uid && c.highest_qualification && (
+              <EducationNudge candidateId={uid} highestQualification={c.highest_qualification} surface="profile" onSaved={load} />
+            )}
             <div id="education" data-section="education" className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
               <div className="mb-6 flex items-center justify-between">
                 <h3 className="flex items-center gap-2 text-[15px] font-bold text-foreground">
@@ -716,12 +725,12 @@ function ProfilePage() {
       {/* Editor dialogs */}
       <AvatarDialog open={open === "avatar"} onClose={() => setOpen(null)} uid={uid!} onSaved={load} />
       <PersonalDialog open={open === "personal"} onClose={() => setOpen(null)} uid={uid!} p={p} c={c} onSaved={load} />
-      <CareerDialog open={open === "career"} onClose={() => setOpen(null)} uid={uid!} c={c} onSaved={load} />
+      <CareerDialog open={open === "career"} onClose={() => setOpen(null)} uid={uid!} c={c} city={p.city} onSaved={load} />
       <SkillsDialog open={open === "skills"} onClose={() => setOpen(null)} uid={uid!} c={c} onSaved={load} />
       <ExperiencesDialog open={open === "experience"} onClose={() => setOpen(null)} uid={uid!} items={experiences} onSaved={load} />
       <EducationDialog open={open === "education"} onClose={() => setOpen(null)} uid={uid!} items={educations} onSaved={load} />
       <LanguagesDialog open={open === "languages"} onClose={() => setOpen(null)} uid={uid!} items={languages} onSaved={load} />
-      <ResumeDialog open={open === "resume"} onClose={() => setOpen(null)} uid={uid!} current={c.resume_name} onSaved={load} />
+      <ResumeDialog open={open === "resume"} onClose={() => setOpen(null)} uid={uid!} current={c.resume_name} p={p} c={c} onSaved={load} />
       <KycDialog open={open === "kyc"} onClose={() => setOpen(null)} uid={uid!} c={c} onSaved={load} />
     </CandidateShell>
   );
@@ -988,23 +997,25 @@ const STATUS_OPTIONS = [
   { id: "student", label: "Student" },
 ] as const;
 
-function CareerDialog({ open, onClose, uid, c, onSaved }: { open: boolean; onClose: () => void; uid: string; c: Candidate; onSaved: () => void }) {
+function CareerDialog({ open, onClose, uid, c, city, onSaved }: { open: boolean; onClose: () => void; uid: string; c: Candidate; city: string; onSaved: () => void }) {
   const [status, setStatus] = useState(c.experience_status); const [years, setYears] = useState(c.years_experience);
   const [lastRole, setLastRole] = useState(c.last_role || ""); const [jobTypes, setJobTypes] = useState<string[]>(c.preferred_job_types || []);
   const [workMode, setWorkMode] = useState(c.preferred_work_mode || "onsite");
   const [cities, setCities] = useState<string[]>(c.preferred_cities || []);
   const [salary, setSalary] = useState<number | "">(c.expected_salary ?? "");
+  const [salaryChoiceKind, setSalaryChoiceKind] = useState<SalaryChoiceKind | null>((c.expected_salary_choice_kind as SalaryChoiceKind) || null);
   const [notice, setNotice] = useState<number | "">(c.notice_period_days ?? "");
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{ status?: string; years?: string; jobTypes?: string; workMode?: string; salary?: string }>({});
-  useEffect(() => { if (open) { setStatus(c.experience_status); setYears(c.years_experience); setLastRole(c.last_role || ""); setJobTypes(c.preferred_job_types || []); setWorkMode(c.preferred_work_mode || "onsite"); setCities(c.preferred_cities || []); setSalary(c.expected_salary ?? ""); setNotice(c.notice_period_days ?? ""); setFieldErrors({}); } }, [open, c]);
+  useEffect(() => { if (open) { setStatus(c.experience_status); setYears(c.years_experience); setLastRole(c.last_role || ""); setJobTypes(c.preferred_job_types || []); setWorkMode(c.preferred_work_mode || "onsite"); setCities(c.preferred_cities || []); setSalary(c.expected_salary ?? ""); setSalaryChoiceKind((c.expected_salary_choice_kind as SalaryChoiceKind) || null); setNotice(c.notice_period_days ?? ""); setFieldErrors({}); } }, [open, c]);
   const save = async () => {
     const next: typeof fieldErrors = {};
     if (!status) next.status = "Please select your status.";
     if (years == null || years === undefined || Number.isNaN(years)) next.years = "Please enter your years of experience.";
     if (!jobTypes.length) next.jobTypes = "Please select at least one job type.";
     if (!workMode) next.workMode = "Please select a work mode.";
-    if (typeof salary !== "number") next.salary = "Please enter your expected salary.";
+    const salaryOptedOut = salaryChoiceKind === "flexible" || salaryChoiceKind === "undisclosed";
+    if (!salaryOptedOut && typeof salary !== "number") next.salary = "Please enter your expected salary, or choose flexible / prefer not to say.";
     setFieldErrors(next);
     if (Object.keys(next).length > 0) return;
     setSaving(true);
@@ -1012,6 +1023,7 @@ function CareerDialog({ open, onClose, uid, c, onSaved }: { open: boolean; onClo
       experience_status: status as "fresher" | "experienced" | "student", years_experience: years || 0, last_role: lastRole || null,
       preferred_job_types: jobTypes, preferred_work_mode: workMode,
       preferred_cities: cities, expected_salary: typeof salary === "number" ? salary : null,
+      expected_salary_choice_kind: salaryChoiceKind,
       notice_period_days: typeof notice === "number" ? notice : null,
     }).eq("user_id", uid);
     setSaving(false); toast.success("Saved"); onSaved(); onClose();
@@ -1048,7 +1060,19 @@ function CareerDialog({ open, onClose, uid, c, onSaved }: { open: boolean; onClo
             onChange={(label) => setWorkMode(WORK_MODES.find((w) => w.label === label)?.id || "onsite")}
           />
         </Field>
-        <Field label="Expected salary (₹/mo)" required error={fieldErrors.salary}><input type="number" className="form-input" value={salary} onChange={(e) => setSalary(e.target.value ? Number(e.target.value) : "")} /></Field>
+        <div className="sm:col-span-2">
+          <Field label="Expected salary" required error={fieldErrors.salary}>
+            <SalaryPicker
+              candidateId={uid}
+              role={lastRole || "Executive"}
+              city={city}
+              experienceStatus={status as "fresher" | "experienced" | "student"}
+              value={salary}
+              choiceKind={salaryChoiceKind}
+              onChange={(v, kind) => { setSalary(v); setSalaryChoiceKind(kind); }}
+            />
+          </Field>
+        </div>
         <Field label="Notice period (days)"><input type="number" min={0} className="form-input" value={notice} onChange={(e) => { const v = e.target.value ? Number(e.target.value) : ""; setNotice(v === "" ? "" : Math.max(0, v)); }} onKeyDown={(e) => { if (e.key === "-" || e.key === "e") e.preventDefault(); }} /></Field>
         <div className="sm:col-span-2"><Field label="Preferred cities"><ChipInput values={cities} onChange={setCities} suggestions={INDIAN_CITIES} /></Field></div>
       </div>
@@ -1215,6 +1239,7 @@ function LanguagesDialog({ open, onClose, uid, items, onSaved }: { open: boolean
 type ReviewState = {
   parsed: ParsedResumePayload;
   file: File;
+  source: ImportSource;
   full_name: string;
   city: string;
   headline: string;
@@ -1224,7 +1249,23 @@ type ReviewState = {
   education: NonNullable<ParsedResumePayload["education"]>;
 };
 
-function ResumeDialog({ open, onClose, uid, current, onSaved }: { open: boolean; onClose: () => void; uid: string; current: string | null; onSaved: () => void }) {
+// Conflict UI: shown only when the extracted value differs from what's
+// already in the field — a one-click way to override the "keep existing"
+// default, never an automatic overwrite.
+function ResumeSuggestHint({ suggested, current, onUse }: { suggested: string | null | undefined; current: string; onUse: (v: string) => void }) {
+  if (!suggested || suggested === current) return null;
+  return (
+    <button
+      type="button"
+      onClick={() => onUse(suggested)}
+      className="mt-1 text-left text-[11px] font-medium text-primary hover:underline"
+    >
+      Resume suggests "{suggested}" — use this
+    </button>
+  );
+}
+
+function ResumeDialog({ open, onClose, uid, current, p, c, onSaved }: { open: boolean; onClose: () => void; uid: string; current: string | null; p: Profile; c: Candidate; onSaved: () => void }) {
   const [review, setReview] = useState<ReviewState | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -1236,15 +1277,27 @@ function ResumeDialog({ open, onClose, uid, current, onSaved }: { open: boolean;
     }
   }, [open]);
 
-  const onParsed = (parsed: ParsedResumePayload, file: File) => {
+  // Conflict rule: when the candidate already has a value for a single-value
+  // field, default to keeping it — the extracted value is offered as a
+  // one-click suggestion instead of silently replacing it. Skills merge
+  // (existing ∪ extracted) since that field is additive, never destructive.
+  const onParsed = (parsed: ParsedResumePayload, file: File, source: ImportSource) => {
+    const mergedSkills = [...c.skills];
+    const seen = new Set(c.skills.map((s) => s.toLowerCase()));
+    for (const s of parsed.skills ?? []) {
+      if (!seen.has(s.toLowerCase())) { seen.add(s.toLowerCase()); mergedSkills.push(s); }
+    }
     setReview({
       parsed,
       file,
-      full_name: parsed.full_name ?? "",
-      city: parsed.city ?? "",
-      headline: parsed.headline ?? "",
-      years_experience: typeof parsed.years_experience === "number" ? String(parsed.years_experience) : "",
-      skills: parsed.skills ?? [],
+      source,
+      full_name: p.full_name || parsed.full_name || "",
+      city: p.city || parsed.city || "",
+      headline: c.headline || parsed.headline || "",
+      years_experience: c.years_experience
+        ? String(c.years_experience)
+        : typeof parsed.years_experience === "number" ? String(parsed.years_experience) : "",
+      skills: mergedSkills.slice(0, 25),
       experiences: parsed.experiences ?? [],
       education: parsed.education ?? [],
     });
@@ -1322,28 +1375,50 @@ function ResumeDialog({ open, onClose, uid, current, onSaved }: { open: boolean;
               Current: <span className="font-medium text-foreground">{current}</span> — uploading a new file will replace it.
             </p>
           )}
-          <ResumeUpload onParsed={onParsed} />
+          <ResumeUpload candidateId={uid} onParsed={onParsed} />
         </>
       )}
 
       {review && (
         <div className="space-y-4">
           <p className="text-xs text-muted-foreground">
-            We pulled the following from <span className="font-medium text-foreground">{review.file.name}</span>. Edit anything that looks off, then save.
+            We pulled the following from <span className="font-medium text-foreground">{review.file.name}</span>{" "}
+            (source: {review.source === "linkedin_pdf" ? "LinkedIn export" : review.source === "other" ? "other document" : "resume"}).
+            Fields you'd already filled in are kept as-is — use a suggestion below to override one. Edit anything, then save.
           </p>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Full name">
               <input className="form-input" value={review.full_name} onChange={(e) => setReview({ ...review, full_name: e.target.value })} />
+              <ResumeSuggestHint
+                suggested={review.parsed.full_name}
+                current={review.full_name}
+                onUse={(v) => setReview({ ...review, full_name: v })}
+              />
             </Field>
             <Field label="City">
               <input className="form-input" value={review.city} onChange={(e) => setReview({ ...review, city: e.target.value })} />
+              <ResumeSuggestHint
+                suggested={review.parsed.city}
+                current={review.city}
+                onUse={(v) => setReview({ ...review, city: v })}
+              />
             </Field>
             <Field label="Headline">
               <input className="form-input" value={review.headline} onChange={(e) => setReview({ ...review, headline: e.target.value })} maxLength={200} />
+              <ResumeSuggestHint
+                suggested={review.parsed.headline}
+                current={review.headline}
+                onUse={(v) => setReview({ ...review, headline: v })}
+              />
             </Field>
             <Field label="Years of experience">
               <input className="form-input" type="number" min={0} max={60} value={review.years_experience} onChange={(e) => setReview({ ...review, years_experience: e.target.value })} />
+              <ResumeSuggestHint
+                suggested={typeof review.parsed.years_experience === "number" ? String(review.parsed.years_experience) : null}
+                current={review.years_experience}
+                onUse={(v) => setReview({ ...review, years_experience: v })}
+              />
             </Field>
           </div>
 

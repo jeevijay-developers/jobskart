@@ -586,6 +586,7 @@ function EmployerJobsList() {
                   <Link
                     to="/employer/jobs/$jobId/applicants"
                     params={{ jobId: j.id }}
+                    search={{ source: "recommended" }}
                     className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-[11px] font-semibold text-primary transition-colors hover:border-primary/40 hover:bg-primary-light"
                   >
                     <Users className="h-3.5 w-3.5" /> Review candidates

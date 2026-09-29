@@ -7,12 +7,13 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function assertCompanyMember(supabase: any, userId: string, companyId: string) {
+export async function assertCompanyMember(supabase: any, userId: string, companyId: string) {
   const { data, error } = await supabase
     .from("employer_members")
     .select("user_id")
     .eq("company_id", companyId)
     .eq("user_id", userId)
+    .eq("status", "active")
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) throw new Error("You don't have access to this company.");

@@ -15,6 +15,7 @@ async function assertCompanyMember(supabase: any, userId: string, companyId: str
     .select("user_id")
     .eq("company_id", companyId)
     .eq("user_id", userId)
+    .eq("status", "active")
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) throw new Error("You don't have access to this company.");

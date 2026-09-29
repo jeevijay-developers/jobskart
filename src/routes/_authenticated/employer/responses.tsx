@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -17,6 +17,7 @@ import {
   AlertTriangle,
   MoreVertical,
   Search,
+  Sparkles,
   UserRound,
 } from "lucide-react";
 import { EmployerShell } from "@/components/employer/EmployerShell";
@@ -61,6 +62,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchMyCompanies, getActiveCompanyId } from "@/lib/employer";
 import { recommendShortlist } from "@/lib/ai-shortlist.functions";
 import { buildDownloadDataset } from "@/lib/downloads.functions";
+import { mapCrmError, moveStage, type ApplicationStatus } from "@/lib/crm.functions";
 import { Pagination } from "@/components/site/Pagination";
 import { usePaginatedQuery } from "@/hooks/use-paginated-query";
 
@@ -178,6 +180,7 @@ function ResponsesPage() {
   const [shortlistN, setShortlistN] = useState(10);
   const [downloading, setDownloading] = useState(false);
   const [expiringCount, setExpiringCount] = useState(0);
+  const [recommendedCount, setRecommendedCount] = useState(0);
 
   const [filterOpen, setFilterOpen] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
@@ -195,6 +198,7 @@ function ResponsesPage() {
 
   const recommend = useServerFn(recommendShortlist);
   const buildDownload = useServerFn(buildDownloadDataset);
+  const move = useServerFn(moveStage);
 
   const doDownload = async () => {
     if (!cid) return;
@@ -320,12 +324,12 @@ function ResponsesPage() {
 
   const setStatus = async (ids: string[], status: string) => {
     setReviewing((r) => (r && ids.includes(r.id) ? { ...r, status } : r));
-    const { error } = await supabase
-      .from("applications")
-      .update({ status } as never)
-      .in("id", ids);
-    if (error) {
-      toast.error(error.message);
+    try {
+      await move({
+        data: { applicationIds: ids, status: status as ApplicationStatus },
+      });
+    } catch (e) {
+      toast.error(mapCrmError(e instanceof Error ? e.message : "Update failed"));
       return;
     }
     toast.success(`Marked ${ids.length} as ${status}`);
@@ -405,6 +409,31 @@ function ResponsesPage() {
     // eslint-disable-next-line
   }, [tab, jobFilter]);
 
+  // Job-specific AI recommendations quick-action: when a job is selected,
+  // surface how many database candidates match it but haven't applied yet.
+  useEffect(() => {
+    if (!jobFilter) {
+      setRecommendedCount(0);
+      return;
+    }
+    let cancelled = false;
+    supabase
+      .rpc("get_recommended_candidates_for_job", {
+        _job_id: jobFilter,
+        _limit: 1,
+        _offset: 0,
+        _min_score: 40,
+      })
+      .then(({ data, error }) => {
+        if (cancelled || error) return;
+        const rows = (data ?? []) as Array<{ total_count: number }>;
+        setRecommendedCount(rows[0]?.total_count ?? 0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [jobFilter]);
+
   return (
     <EmployerShell
       title="Responses"
@@ -437,6 +466,22 @@ function ResponsesPage() {
           {expiringCount > 0 ? ` (${expiringCount} job(s) expiring soon)` : ""}
         </span>
       </div>
+
+      {jobFilter && recommendedCount > 0 && (
+        <Link
+          to="/employer/jobs/$jobId/applicants"
+          params={{ jobId: jobFilter }}
+          search={{ source: "recommended" }}
+          className="mb-3 flex items-center gap-3 rounded-xl border border-primary/20 bg-primary-light/40 px-4 py-3 transition-colors hover:bg-primary-light/60"
+        >
+          <Sparkles className="h-5 w-5 shrink-0 text-primary" />
+          <p className="min-w-0 text-sm text-foreground">
+            We found <strong>{recommendedCount} matching candidates</strong> for{" "}
+            {jobs.find((j) => j.id === jobFilter)?.title ?? "this job"} who haven't applied yet.
+            <span className="ml-1 font-semibold text-primary">View AI Recommended Profiles →</span>
+          </p>
+        </Link>
+      )}
 
       <div className="mb-3 inline-flex max-w-full gap-1 rounded-lg border border-border bg-card p-1">
         <button

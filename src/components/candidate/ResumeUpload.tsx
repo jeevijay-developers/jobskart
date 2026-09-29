@@ -8,14 +8,27 @@ import {
   type ParsedResumePayload,
 } from "@/lib/resume.functions";
 import { RESUME_ACCEPT, validateResumeFile } from "@/lib/validators";
+import { supabase } from "@/integrations/supabase/client";
+
+export type ImportSource = "resume" | "linkedin_pdf" | "other";
+
+const SOURCE_OPTIONS: { id: ImportSource; label: string }[] = [
+  { id: "resume", label: "Resume" },
+  { id: "linkedin_pdf", label: "LinkedIn PDF/export" },
+  { id: "other", label: "Other document" },
+];
 
 type Props = {
+  /** Candidate's user id — when provided, a provenance row is written to candidate_imports. */
+  candidateId?: string | null;
   /** Called as soon as the file itself is validated — upload/save it here, independent of AI parsing. */
-  onUploaded?: (file: File) => void;
+  onUploaded?: (file: File, source: ImportSource) => void;
   /** Called only if AI auto-fill succeeds. Never gates the file save. */
-  onParsed: (data: ParsedResumePayload, file: File) => void;
+  onParsed: (data: ParsedResumePayload, file: File, source: ImportSource) => void;
   /** Existing resume filename, if one was already uploaded. */
   existingName?: string | null;
+  /** Hide the source picker (defaults to shown) — for callers that always mean "resume". */
+  hideSourcePicker?: boolean;
 };
 
 type Stage = "idle" | "uploading" | "reading" | "filling" | "done";
@@ -29,11 +42,12 @@ const STAGE_LABEL: Record<Exclude<Stage, "idle" | "done">, string> = {
 const AUTOFILL_UNAVAILABLE_MESSAGE =
   "Resume uploaded successfully, but auto-fill is temporarily unavailable. You can continue manually.";
 
-export function ResumeUpload({ onUploaded, onParsed, existingName }: Props) {
+export function ResumeUpload({ candidateId, onUploaded, onParsed, existingName, hideSourcePicker }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [stage, setStage] = useState<Stage>("idle");
   const [done, setDone] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [source, setSource] = useState<ImportSource>("resume");
 
   const busy = stage === "uploading" || stage === "reading" || stage === "filling";
   const handlePick = () => inputRef.current?.click();
@@ -55,8 +69,21 @@ export function ResumeUpload({ onUploaded, onParsed, existingName }: Props) {
     // The file itself is valid — save it now. This must succeed (or fail)
     // independently of whatever happens with AI parsing below.
     setStage("uploading");
-    onUploaded?.(file);
+    onUploaded?.(file, source);
     setDone(file.name);
+
+    let importId: string | null = null;
+    if (candidateId) {
+      const { data } = await supabase
+        .from("candidate_imports")
+        .insert({
+          candidate_id: candidateId, source, file_name: file.name,
+          mime_type: file.type, size_bytes: file.size, status: "uploaded",
+        })
+        .select("id")
+        .single();
+      importId = data?.id ?? null;
+    }
 
     try {
       const base64 = await fileToBase64(file);
@@ -65,9 +92,10 @@ export function ResumeUpload({ onUploaded, onParsed, existingName }: Props) {
         data: { fileName: file.name, mimeType: file.type, base64 },
       });
       setStage("filling");
-      onParsed(data, file);
+      onParsed(data, file, source);
       setStage("done");
       toast.success("Resume parsed — review the auto-filled fields below.");
+      if (importId) await supabase.from("candidate_imports").update({ status: "parsed" }).eq("id", importId);
     } catch (e) {
       // parseResume's server handler already normalizes AI-gateway/network
       // failures into one of the safe messages below before throwing — but
@@ -84,6 +112,7 @@ export function ResumeUpload({ onUploaded, onParsed, existingName }: Props) {
       const notice = onUploaded ? AUTOFILL_UNAVAILABLE_MESSAGE : msg;
       setError(notice);
       setStage("done");
+      if (importId) await supabase.from("candidate_imports").update({ status: "failed", error_code: msg.slice(0, 100) }).eq("id", importId);
       if (onUploaded) toast.info(notice);
       else toast.error(notice);
     }
@@ -98,11 +127,32 @@ export function ResumeUpload({ onUploaded, onParsed, existingName }: Props) {
           <Wand2 className="h-5 w-5" strokeWidth={2.25} />
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="text-base font-bold text-foreground">Upload resume — auto-fill in seconds</h3>
+          <h3 className="text-base font-bold text-foreground">Upload resume or LinkedIn PDF — auto-fill in seconds</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Drop your PDF, DOCX or a photo of your resume and we fill your basics, experience, skills
-            and education. You can edit anything afterward.
+            Drop your PDF, DOCX or a photo of your resume — or a PDF exported from LinkedIn — and we
+            fill your basics, experience, skills and education. You can review and edit everything
+            before it's saved; nothing overwrites your existing details silently.
           </p>
+
+          {!hideSourcePicker && (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {SOURCE_OPTIONS.map((o) => (
+                <button
+                  key={o.id}
+                  type="button"
+                  disabled={busy}
+                  onClick={() => setSource(o.id)}
+                  className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                    source === o.id
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-card text-foreground/70 hover:border-primary/40"
+                  }`}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          )}
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <button

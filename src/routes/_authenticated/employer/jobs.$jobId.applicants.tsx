@@ -1,13 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import {
   ArrowLeft,
   ArrowUpDown,
   Ban,
   Flame,
+  LayoutGrid,
+  List,
   Lock,
   Mail,
   MapPin,
+  MoreVertical,
   Sparkles,
   Users,
   Zap,
@@ -17,12 +21,32 @@ import { EmployerShell } from "@/components/employer/EmployerShell";
 import { ApplicantCard } from "@/components/employer/ApplicantCard";
 import { ApplicantReviewPanel } from "@/components/employer/ApplicantReviewPanel";
 import { ScheduleInterviewModal } from "@/components/employer/ScheduleInterviewModal";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { APPLICANT_STATUSES, applicantStatusLabel } from "@/lib/applicantStatus";
+import { mapCrmError, moveStage, type ApplicationStatus } from "@/lib/crm.functions";
+
+type ApplicantsSearch = { source?: "applied" | "recommended" };
 
 export const Route = createFileRoute("/_authenticated/employer/jobs/$jobId/applicants")({
+  validateSearch: (search: Record<string, unknown>): ApplicantsSearch => ({
+    source: search.source === "recommended" ? "recommended" : undefined,
+  }),
   head: () => ({ meta: [{ title: "Applicants · JobsKart" }] }),
-  component: ApplicantsPage,
+  // Remount per job: this route stays mounted across job-to-job navigation
+  // (same route match, params updated in place), so without a `key` all
+  // job-scoped state (source tab, applicants, recommended list, filters)
+  // would leak from the previously viewed job into the newly viewed one.
+  component: () => {
+    const { jobId } = Route.useParams();
+    return <ApplicantsPage key={jobId} />;
+  },
 });
 
 type Application = {
@@ -124,13 +148,87 @@ function TagBadge({ tag }: { tag: string }) {
 }
 
 // ─── Match Score Ring ─────────────────────────────────────────────────────────
-function MatchScoreRing({ score }: { score: number }) {
+function MatchScoreRing({ score, onClick }: { score: number; onClick?: () => void }) {
   const color = score >= 75 ? "text-emerald-600" : score >= 50 ? "text-warning" : "text-muted-foreground";
   const ring = score >= 75 ? "bg-emerald-50 ring-emerald-200" : score >= 50 ? "bg-warning-light ring-warning/30" : "bg-surface ring-border";
+  const Tag = onClick ? "button" : "div";
   return (
-    <div className={`grid h-12 w-12 shrink-0 place-items-center rounded-full ring-2 ${ring}`}>
+    <Tag
+      type={onClick ? "button" : undefined}
+      onClick={onClick}
+      className={`grid h-12 w-12 shrink-0 place-items-center rounded-full ring-2 ${ring} ${onClick ? "cursor-pointer hover:ring-4 transition-[box-shadow]" : ""}`}
+      title={onClick ? "See why this candidate matched" : undefined}
+    >
       <span className={`text-sm font-black ${color}`}>{score}</span>
-    </div>
+    </Tag>
+  );
+}
+
+// ─── Match Explanation Modal ───────────────────────────────────────────────────
+const BREAKDOWN_MAX: Record<string, number> = {
+  skills: 60,
+  location: 20,
+  experience: 15,
+  salary: 5,
+};
+const BREAKDOWN_LABEL: Record<string, string> = {
+  skills: "Skills overlap",
+  location: "Location compatibility",
+  experience: "Experience match",
+  salary: "Salary overlap",
+  activity: "Recently active bonus",
+  intent: "Hiring-intent bonus",
+  proximity: "Proximity bonus",
+};
+
+function MatchExplanationModal({
+  candidate,
+  onClose,
+}: {
+  candidate: RecommendedCandidate;
+  onClose: () => void;
+}) {
+  const breakdown = candidate.match_breakdown ?? {};
+  const baseRows = ["skills", "location", "experience", "salary"].filter((k) => k in breakdown);
+  const bonusRows = ["activity", "intent", "proximity"].filter((k) => (breakdown[k] ?? 0) > 0);
+
+  return (
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" /> Why {candidate.match_score}% match?
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-2.5">
+          {baseRows.map((key) => (
+            <div key={key} className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">{BREAKDOWN_LABEL[key]}</span>
+              <span className="font-semibold text-foreground">
+                {breakdown[key]}/{BREAKDOWN_MAX[key]} pts
+              </span>
+            </div>
+          ))}
+          {bonusRows.length > 0 && (
+            <div className="mt-2 space-y-2 border-t border-border pt-2">
+              {bonusRows.map((key) => (
+                <div key={key} className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">{BREAKDOWN_LABEL[key]}</span>
+                  <span className="font-semibold text-success">+{breakdown[key]} pts</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {candidate.tags.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-1.5 border-t border-border pt-3">
+              {candidate.tags.map((tag) => (
+                <TagBadge key={tag} tag={tag} />
+              ))}
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -140,12 +238,14 @@ function RecommendedCard({
   onInvite,
   onDismiss,
   onUnlock,
+  onExplain,
   inviting,
 }: {
   candidate: RecommendedCandidate;
   onInvite: (id: string) => void;
   onDismiss: (id: string) => void;
   onUnlock: (id: string) => void;
+  onExplain: (candidate: RecommendedCandidate) => void;
   inviting: boolean;
 }) {
   const name = candidate.full_name ?? "Candidate";
@@ -163,7 +263,7 @@ function RecommendedCard({
           >
             {isAnonymous ? "?" : name.split(" ").slice(0, 2).map((n) => n[0]).join("").toUpperCase()}
           </div>
-          <MatchScoreRing score={candidate.match_score} />
+          <MatchScoreRing score={candidate.match_score} onClick={() => onExplain(candidate)} />
           <span className="text-[9px] font-bold uppercase text-muted-foreground tracking-wider">Match</span>
         </div>
 
@@ -242,9 +342,59 @@ function RecommendedCard({
   );
 }
 
+// ─── Board Card (pipeline column item) ──────────────────────────────────────
+function BoardCard({
+  app,
+  score,
+  onMove,
+  onView,
+}: {
+  app: Application;
+  score?: number;
+  onMove: (status: string) => void;
+  onView: () => void;
+}) {
+  const name = app.profiles?.full_name ?? "Candidate";
+  return (
+    <div className="rounded-lg border border-border bg-card p-2.5 shadow-sm">
+      <div className="flex items-start justify-between gap-1">
+        <button onClick={onView} className="min-w-0 flex-1 text-left">
+          <p className="truncate text-xs font-semibold text-foreground hover:text-primary">{name}</p>
+        </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="rounded p-0.5 text-muted-foreground hover:bg-surface"
+              aria-label={`Move ${name}`}
+            >
+              <MoreVertical className="h-3.5 w-3.5" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={onView}>View profile</DropdownMenuItem>
+            {APPLICANT_STATUSES.filter((s) => s.id !== app.status).map((s) => (
+              <DropdownMenuItem key={s.id} onSelect={() => onMove(s.id)}>
+                Move to {s.label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground">
+        {score != null && <span className="font-bold text-primary">{score}% match</span>}
+        {app.candidate_profiles?.years_experience != null && (
+          <span>{app.candidate_profiles.years_experience} yr{app.candidate_profiles.years_experience !== 1 ? "s" : ""}</span>
+        )}
+        {app.profiles?.city && <span className="truncate">{app.profiles.city}</span>}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 function ApplicantsPage() {
   const { jobId } = Route.useParams();
+  const { source: sourceParam } = Route.useSearch();
   const [job, setJob] = useState<{ title: string; status: string; company_id: string } | null>(null);
 
   // Applied candidates state
@@ -253,12 +403,22 @@ function ApplicantsPage() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>("all");
   const [sortOrder, setSortOrder] = useState<"match" | "newest" | "oldest">("match");
+  const [boardView, setBoardView] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [scheduling, setScheduling] = useState<Application | null>(null);
   const [ranked, setRanked] = useState<Record<string, { score: number; tags: string[] }>>({});
 
   // Source switcher
-  const [source, setSource] = useState<Source>("applied");
+  const [source, setSource] = useState<Source>(sourceParam === "recommended" ? "recommended" : "applied");
+  const [explaining, setExplaining] = useState<RecommendedCandidate | null>(null);
+
+  // Keep the active tab in sync with ?source= on every navigation to this
+  // route (not just the first mount) — e.g. clicking a different "Review
+  // candidates" / "view now" link while this route is already mounted, or
+  // using back/forward between two links with different `source` values.
+  useEffect(() => {
+    setSource(sourceParam === "recommended" ? "recommended" : "applied");
+  }, [sourceParam]);
 
   // Recommended candidates state
   const [recommended, setRecommended] = useState<RecommendedCandidate[]>([]);
@@ -364,16 +524,24 @@ function ApplicantsPage() {
   };
 
   // ─── Applied candidates: actions ──────────────────────────────────────────
+  const move = useServerFn(moveStage);
+
   const updateStatus = async (ids: string[], status: string) => {
     if (status === "interview" && ids.length === 1) {
       const applicant = apps.find((a) => a.id === ids[0]);
       if (applicant) setScheduling(applicant);
       return;
     }
+    const prevApps = apps;
     setApps((prev) => prev.map((a) => (ids.includes(a.id) ? { ...a, status } : a)));
     setReviewing((r) => (r && ids.includes(r.id) ? { ...r, status } : r));
-    const { error } = await supabase.from("applications").update({ status } as never).in("id", ids);
-    if (error) { toast.error(error.message); load(); return; }
+    try {
+      await move({ data: { applicationIds: ids, status: status as ApplicationStatus } });
+    } catch (e) {
+      setApps(prevApps);
+      toast.error(mapCrmError(e instanceof Error ? e.message : "Update failed"));
+      return;
+    }
     toast.success(ids.length > 1 ? `Moved ${ids.length} to ${applicantStatusLabel(status)}` : `Marked as ${applicantStatusLabel(status)}`);
     setSelectedIds((prev) => { const n = new Set(prev); ids.forEach((id) => n.delete(id)); return n; });
   };
@@ -489,6 +657,7 @@ function ApplicantsPage() {
           ) : (
             <>
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                {!boardView && (
                 <div className="w-full rounded-xl border border-border bg-card p-1 sm:flex sm:w-auto sm:flex-wrap sm:gap-1">
                   <div className="grid grid-cols-4 gap-1 sm:contents">
                     {TABS.filter((t) => t.id !== "hired" && t.id !== "rejected").map((t) => (
@@ -517,15 +686,62 @@ function ApplicantsPage() {
                     ))}
                   </div>
                 </div>
-                <button
-                  onClick={() => setSortOrder((s) => (s === "match" ? "newest" : s === "newest" ? "oldest" : "match"))}
-                  className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold hover:bg-surface"
-                >
-                  <ArrowUpDown className="h-3.5 w-3.5" />{" "}
-                  {sortOrder === "match" ? "Best match" : sortOrder === "newest" ? "Newest first" : "Oldest first"}
-                </button>
+                )}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setBoardView((v) => !v)}
+                    className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold hover:bg-surface"
+                    aria-label={boardView ? "Switch to list view" : "Switch to board view"}
+                  >
+                    {boardView ? <List className="h-3.5 w-3.5" /> : <LayoutGrid className="h-3.5 w-3.5" />}{" "}
+                    {boardView ? "List" : "Board"}
+                  </button>
+                  {!boardView && (
+                    <button
+                      onClick={() => setSortOrder((s) => (s === "match" ? "newest" : s === "newest" ? "oldest" : "match"))}
+                      className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold hover:bg-surface"
+                    >
+                      <ArrowUpDown className="h-3.5 w-3.5" />{" "}
+                      {sortOrder === "match" ? "Best match" : sortOrder === "newest" ? "Newest first" : "Oldest first"}
+                    </button>
+                  )}
+                </div>
               </div>
 
+              {boardView ? (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                  {APPLICANT_STATUSES.map((s) => {
+                    const colApps = apps
+                      .filter((a) => a.status === s.id)
+                      .sort((a, b) => (ranked[b.id]?.score ?? -1) - (ranked[a.id]?.score ?? -1));
+                    return (
+                      <div key={s.id} className="flex min-h-[10rem] flex-col rounded-xl border border-border bg-surface/60 p-2">
+                        <div className="mb-2 flex items-center justify-between px-1">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{s.label}</span>
+                          <span className="rounded-full bg-card px-2 py-0.5 text-[10px] font-bold tabular-nums text-foreground">
+                            {colApps.length}
+                          </span>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          {colApps.length === 0 && (
+                            <p className="px-1 py-4 text-center text-[11px] text-muted-foreground">No one here</p>
+                          )}
+                          {colApps.map((a) => (
+                            <BoardCard
+                              key={a.id}
+                              app={a}
+                              score={ranked[a.id]?.score}
+                              onMove={(status) => updateStatus([a.id], status)}
+                              onView={() => setReviewing(a)}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+              <>
               {selectedIds.size > 0 && (
                 <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-primary/30 bg-primary-light p-3">
                   <span className="text-xs font-semibold text-primary">{selectedIds.size} selected</span>
@@ -575,6 +791,8 @@ function ApplicantsPage() {
                     />
                   ))}
                 </div>
+              )}
+              </>
               )}
             </>
           )}
@@ -642,6 +860,7 @@ function ApplicantsPage() {
                     onInvite={handleInvite}
                     onDismiss={handleDismiss}
                     onUnlock={handleUnlock}
+                    onExplain={setExplaining}
                     inviting={invitingId === c.user_id}
                   />
                 ))}
@@ -666,6 +885,10 @@ function ApplicantsPage() {
             </>
           )}
         </div>
+      )}
+
+      {explaining && (
+        <MatchExplanationModal candidate={explaining} onClose={() => setExplaining(null)} />
       )}
 
       {/* Panels */}

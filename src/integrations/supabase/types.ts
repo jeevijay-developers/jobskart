@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       admin_seed: {
@@ -303,6 +328,27 @@ export type Database = {
           },
         ]
       }
+      benefit_reconciliation_checks: {
+        Row: {
+          checked_at: string
+          drift: Json
+          drift_count: number
+          id: string
+        }
+        Insert: {
+          checked_at?: string
+          drift?: Json
+          drift_count: number
+          id?: string
+        }
+        Update: {
+          checked_at?: string
+          drift?: Json
+          drift_count?: number
+          id?: string
+        }
+        Relationships: []
+      }
       billing_product_entitlements: {
         Row: {
           benefit_type: Database["public"]["Enums"]["benefit_type"]
@@ -486,6 +532,8 @@ export type Database = {
           institute: string | null
           level: string
           marks: string | null
+          source_import_id: string | null
+          source_kind: string | null
           updated_at: string
           user_id: string
           year_of_passing: number | null
@@ -497,6 +545,8 @@ export type Database = {
           institute?: string | null
           level: string
           marks?: string | null
+          source_import_id?: string | null
+          source_kind?: string | null
           updated_at?: string
           user_id: string
           year_of_passing?: number | null
@@ -508,11 +558,21 @@ export type Database = {
           institute?: string | null
           level?: string
           marks?: string | null
+          source_import_id?: string | null
+          source_kind?: string | null
           updated_at?: string
           user_id?: string
           year_of_passing?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "candidate_education_source_import_id_fkey"
+            columns: ["source_import_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_imports"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       candidate_experiences: {
         Row: {
@@ -523,6 +583,8 @@ export type Database = {
           id: string
           is_current: boolean
           job_title: string
+          source_import_id: string | null
+          source_kind: string | null
           start_date: string | null
           updated_at: string
           user_id: string
@@ -535,6 +597,8 @@ export type Database = {
           id?: string
           is_current?: boolean
           job_title: string
+          source_import_id?: string | null
+          source_kind?: string | null
           start_date?: string | null
           updated_at?: string
           user_id: string
@@ -547,9 +611,61 @@ export type Database = {
           id?: string
           is_current?: boolean
           job_title?: string
+          source_import_id?: string | null
+          source_kind?: string | null
           start_date?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_experiences_source_import_id_fkey"
+            columns: ["source_import_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      candidate_imports: {
+        Row: {
+          candidate_id: string
+          created_at: string
+          error_code: string | null
+          file_name: string | null
+          file_path: string | null
+          id: string
+          mime_type: string | null
+          parser_version: string
+          size_bytes: number | null
+          source: string
+          status: string
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string
+          error_code?: string | null
+          file_name?: string | null
+          file_path?: string | null
+          id?: string
+          mime_type?: string | null
+          parser_version?: string
+          size_bytes?: number | null
+          source: string
+          status?: string
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string
+          error_code?: string | null
+          file_name?: string | null
+          file_path?: string | null
+          id?: string
+          mime_type?: string | null
+          parser_version?: string
+          size_bytes?: number | null
+          source?: string
+          status?: string
         }
         Relationships: []
       }
@@ -652,6 +768,63 @@ export type Database = {
         }
         Relationships: []
       }
+      candidate_profile_events: {
+        Row: {
+          candidate_id: string
+          context: Json
+          created_at: string
+          event_key: string
+          id: string
+        }
+        Insert: {
+          candidate_id: string
+          context?: Json
+          created_at?: string
+          event_key: string
+          id?: string
+        }
+        Update: {
+          candidate_id?: string
+          context?: Json
+          created_at?: string
+          event_key?: string
+          id?: string
+        }
+        Relationships: []
+      }
+      candidate_profile_tasks: {
+        Row: {
+          candidate_id: string
+          created_at: string
+          id: string
+          last_shown_at: string | null
+          snoozed_until: string | null
+          status: string
+          task_key: string
+          updated_at: string
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string
+          id?: string
+          last_shown_at?: string | null
+          snoozed_until?: string | null
+          status?: string
+          task_key: string
+          updated_at?: string
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string
+          id?: string
+          last_shown_at?: string | null
+          snoozed_until?: string | null
+          status?: string
+          task_key?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       candidate_profiles: {
         Row: {
           assets: string[]
@@ -660,6 +833,8 @@ export type Database = {
           current_salary: number | null
           date_of_birth: string | null
           expected_salary: number | null
+          expected_salary_choice_kind: string | null
+          expected_salary_period: string
           experience_status: Database["public"]["Enums"]["experience_status"]
           gender: string | null
           government_id_last4: string | null
@@ -695,6 +870,8 @@ export type Database = {
           current_salary?: number | null
           date_of_birth?: string | null
           expected_salary?: number | null
+          expected_salary_choice_kind?: string | null
+          expected_salary_period?: string
           experience_status?: Database["public"]["Enums"]["experience_status"]
           gender?: string | null
           government_id_last4?: string | null
@@ -730,6 +907,8 @@ export type Database = {
           current_salary?: number | null
           date_of_birth?: string | null
           expected_salary?: number | null
+          expected_salary_choice_kind?: string | null
+          expected_salary_period?: string
           experience_status?: Database["public"]["Enums"]["experience_status"]
           gender?: string | null
           government_id_last4?: string | null
@@ -757,6 +936,132 @@ export type Database = {
           whatsapp_number?: string | null
           whatsapp_opt_in?: boolean
           years_experience?: number
+        }
+        Relationships: []
+      }
+      automation_rules: {
+        Row: {
+          action: Database["public"]["Enums"]["crm_action"]
+          action_payload: Json
+          company_id: string
+          conditions: Json
+          cooldown_hours: number
+          created_at: string
+          created_by: string
+          enabled: boolean
+          id: string
+          max_fires_per_lead: number
+          name: string
+          trigger: Database["public"]["Enums"]["crm_trigger"]
+          updated_at: string
+        }
+        Insert: {
+          action: Database["public"]["Enums"]["crm_action"]
+          action_payload?: Json
+          company_id: string
+          conditions?: Json
+          cooldown_hours?: number
+          created_at?: string
+          created_by: string
+          enabled?: boolean
+          id?: string
+          max_fires_per_lead?: number
+          name: string
+          trigger: Database["public"]["Enums"]["crm_trigger"]
+          updated_at?: string
+        }
+        Update: {
+          action?: Database["public"]["Enums"]["crm_action"]
+          action_payload?: Json
+          company_id?: string
+          conditions?: Json
+          cooldown_hours?: number
+          created_at?: string
+          created_by?: string
+          enabled?: boolean
+          id?: string
+          max_fires_per_lead?: number
+          name?: string
+          trigger?: Database["public"]["Enums"]["crm_trigger"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      automation_runs: {
+        Row: {
+          application_id: string | null
+          candidate_id: string | null
+          company_id: string
+          detail: Json
+          fired_at: string
+          id: string
+          result: string
+          rule_id: string
+          trigger_key: string
+        }
+        Insert: {
+          application_id?: string | null
+          candidate_id?: string | null
+          company_id: string
+          detail?: Json
+          fired_at?: string
+          id?: string
+          result: string
+          rule_id: string
+          trigger_key: string
+        }
+        Update: {
+          application_id?: string | null
+          candidate_id?: string | null
+          company_id?: string
+          detail?: Json
+          fired_at?: string
+          id?: string
+          result?: string
+          rule_id?: string
+          trigger_key?: string
+        }
+        Relationships: []
+      }
+      call_logs: {
+        Row: {
+          application_id: string | null
+          caller_id: string
+          candidate_id: string
+          company_id: string
+          contact_source: string
+          created_at: string
+          duration_sec: number | null
+          id: string
+          job_id: string | null
+          notes: string | null
+          outcome: Database["public"]["Enums"]["call_outcome"]
+        }
+        Insert: {
+          application_id?: string | null
+          caller_id: string
+          candidate_id: string
+          company_id: string
+          contact_source: string
+          created_at?: string
+          duration_sec?: number | null
+          id?: string
+          job_id?: string | null
+          notes?: string | null
+          outcome: Database["public"]["Enums"]["call_outcome"]
+        }
+        Update: {
+          application_id?: string | null
+          caller_id?: string
+          candidate_id?: string
+          company_id?: string
+          contact_source?: string
+          created_at?: string
+          duration_sec?: number | null
+          id?: string
+          job_id?: string | null
+          notes?: string | null
+          outcome?: Database["public"]["Enums"]["call_outcome"]
         }
         Relationships: []
       }
@@ -1287,6 +1592,30 @@ export type Database = {
           },
         ]
       }
+      crm_settings: {
+        Row: {
+          automation_batch: number
+          id: number
+          outcome_followup_hours: Json
+          updated_at: string
+          weights: Json
+        }
+        Insert: {
+          automation_batch?: number
+          id?: number
+          outcome_followup_hours: Json
+          updated_at?: string
+          weights: Json
+        }
+        Update: {
+          automation_batch?: number
+          id?: number
+          outcome_followup_hours?: Json
+          updated_at?: string
+          weights?: Json
+        }
+        Relationships: []
+      }
       download_events: {
         Row: {
           company_id: string | null
@@ -1520,6 +1849,72 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      follow_up_tasks: {
+        Row: {
+          application_id: string | null
+          assignee_id: string | null
+          body: string | null
+          candidate_id: string
+          company_id: string
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          created_by: string
+          due_at: string
+          due_notified_at: string | null
+          id: string
+          job_id: string | null
+          priority: number
+          source: string
+          source_ref: string | null
+          status: Database["public"]["Enums"]["followup_task_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          application_id?: string | null
+          assignee_id?: string | null
+          body?: string | null
+          candidate_id: string
+          company_id: string
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          created_by: string
+          due_at: string
+          due_notified_at?: string | null
+          id?: string
+          job_id?: string | null
+          priority?: number
+          source?: string
+          source_ref?: string | null
+          status?: Database["public"]["Enums"]["followup_task_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          application_id?: string | null
+          assignee_id?: string | null
+          body?: string | null
+          candidate_id?: string
+          company_id?: string
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          created_by?: string
+          due_at?: string
+          due_notified_at?: string | null
+          id?: string
+          job_id?: string | null
+          priority?: number
+          source?: string
+          source_ref?: string | null
+          status?: Database["public"]["Enums"]["followup_task_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       industries: {
         Row: {
@@ -3067,6 +3462,10 @@ export type Database = {
           remaining: number
         }[]
       }
+      company_crm_entitlement: {
+        Args: { _company_id: string }
+        Returns: { automation_enabled: boolean; rules_max: number }[]
+      }
       compute_candidate_match: {
         Args: {
           _candidate_user_id: string
@@ -3230,6 +3629,69 @@ export type Database = {
         }
         Returns: Json
       }
+      crm_admin_update_settings: {
+        Args: { _weights: Json; _outcome_hours: Json }
+        Returns: undefined
+      }
+      crm_ensure_default_rules: {
+        Args: { _company_id: string; _actor?: string }
+        Returns: number
+      }
+      crm_log_call: {
+        Args: {
+          _company_id: string
+          _candidate_id: string
+          _outcome: Database["public"]["Enums"]["call_outcome"]
+          _application_id?: string
+          _job_id?: string
+          _notes?: string
+          _duration_sec?: number
+          _follow_up_at?: string
+          _actor?: string
+        }
+        Returns: Json
+      }
+      crm_save_rule: {
+        Args: {
+          _company_id: string
+          _name: string
+          _trigger: Database["public"]["Enums"]["crm_trigger"]
+          _action: Database["public"]["Enums"]["crm_action"]
+          _enabled: boolean
+          _rule_id?: string
+          _conditions?: Json
+          _action_payload?: Json
+          _cooldown_hours?: number
+          _max_fires_per_lead?: number
+          _actor?: string
+        }
+        Returns: string
+      }
+      crm_save_task: {
+        Args: {
+          _company_id: string
+          _candidate_id: string
+          _title: string
+          _due_at: string
+          _task_id?: string
+          _application_id?: string
+          _job_id?: string
+          _body?: string
+          _priority?: number
+          _assignee_id?: string
+          _actor?: string
+        }
+        Returns: string
+      }
+      crm_set_task_status: {
+        Args: {
+          _task_id: string
+          _status: Database["public"]["Enums"]["followup_task_status"]
+          _new_due_at?: string
+          _actor?: string
+        }
+        Returns: undefined
+      }
       get_company_entitlements: { Args: { _company_id: string }; Returns: Json }
       get_company_private: {
         Args: { _company_id: string }
@@ -3290,6 +3752,49 @@ export type Database = {
           website: string
         }[]
       }
+      get_crm_leads: {
+        Args: {
+          _company_id: string
+          _job_id?: string
+          _source?: string
+          _stage?: string
+          _contacted?: boolean
+          _limit?: number
+          _offset?: number
+        }
+        Returns: {
+          candidate_id: string
+          application_id: string | null
+          source: string
+          stage: string
+          job_id: string | null
+          job_title: string | null
+          full_name: string | null
+          city: string | null
+          avatar_url: string | null
+          headline: string | null
+          applied_at: string | null
+          unlocked_at: string | null
+          contacted: boolean
+          last_call_at: string | null
+          last_outcome: string | null
+          open_tasks: number
+          next_follow_up_at: string | null
+          total_count: number
+        }[]
+      }
+      get_crm_next_best_actions: {
+        Args: { _company_id: string; _limit?: number }
+        Returns: {
+          kind: string
+          score: number
+          reason: string
+          application_id: string | null
+          candidate_id: string
+          job_id: string | null
+          link: string
+        }[]
+      }
       get_ranked_job_applicants: {
         Args: { _job_id: string; _sort_by?: string; _status?: string }
         Returns: {
@@ -3306,6 +3811,18 @@ export type Database = {
           status: string
           tags: string[]
           years_experience: number
+        }[]
+      }
+      get_recommended_candidates_digest: {
+        Args: { _company_id: string }
+        Returns: {
+          active_count: number
+          hot_count: number
+          nearby_count: number
+          top_job_id: string
+          top_job_matches: number
+          top_job_title: string
+          total_matches: number
         }[]
       }
       get_recommended_candidates_for_job: {
@@ -3345,18 +3862,32 @@ export type Database = {
         }
         Returns: Json
       }
-      grant_company_benefit: {
-        Args: {
-          _actor?: string
-          _benefit_type: Database["public"]["Enums"]["benefit_type"]
-          _company_id: string
-          _quantity: number
-          _reference?: Json
-          _source?: string
-          _validity_days?: number
-        }
-        Returns: string
-      }
+      grant_company_benefit:
+        | {
+            Args: {
+              _actor?: string
+              _benefit_type: Database["public"]["Enums"]["benefit_type"]
+              _company_id: string
+              _quantity: number
+              _reference?: Json
+              _source?: string
+              _validity_days?: number
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              _actor?: string
+              _benefit_type: Database["public"]["Enums"]["benefit_type"]
+              _company_id: string
+              _event?: string
+              _quantity: number
+              _reference?: Json
+              _source?: string
+              _validity_days?: number
+            }
+            Returns: string
+          }
       gst_state_name: { Args: { _code: string }; Returns: string }
       has_company_membership: {
         Args: { _company_id: string; _user_id: string }
@@ -3415,6 +3946,7 @@ export type Database = {
         Args: { _company_id: string; _kind: string; _meta?: Json }
         Returns: undefined
       }
+      mark_application_viewed: { Args: { _application_id: string }; Returns: undefined }
       mark_razorpay_order_failed: {
         Args: {
           _razorpay_order_id: string
@@ -3533,6 +4065,7 @@ export type Database = {
         Args: { _company_id: string; _fallback?: number; _key: string }
         Returns: number
       }
+      run_benefit_reconciliation_check: { Args: never; Returns: number }
       search_candidates_for_company: {
         Args: {
           _cities?: string[]
@@ -3592,6 +4125,13 @@ export type Database = {
           source: string
         }[]
       }
+      update_application_status: {
+        Args: {
+          _application_ids: string[]
+          _status: Database["public"]["Enums"]["application_status"]
+        }
+        Returns: undefined
+      }
       update_member_role: {
         Args: {
           _company_id: string
@@ -3612,6 +4152,13 @@ export type Database = {
         | "rejected"
         | "withdrawn"
       benefit_type: "job_post" | "contact" | "boost"
+      call_outcome:
+        | "connected_interested"
+        | "connected_neutral"
+        | "connected_not_interested"
+        | "no_answer"
+        | "switched_off"
+        | "wrong_number"
       company_size: "1-10" | "11-50" | "51-200" | "201-500" | "500+"
       company_type:
         | "proprietorship"
@@ -3630,8 +4177,16 @@ export type Database = {
         | "boost"
         | "job_post"
         | "repost"
+      crm_action: "create_task" | "notify" | "move_stage"
+      crm_trigger:
+        | "application_uncontacted_h"
+        | "call_no_answer"
+        | "stage_stalled_h"
+        | "task_overdue_h"
+        | "unlock_unused_h"
       employer_role: "super_admin" | "hr_admin" | "recruiter"
       experience_status: "fresher" | "experienced" | "student"
+      followup_task_status: "open" | "done" | "snoozed" | "cancelled"
       interview_mode: "video" | "phone" | "onsite"
       interview_provider: "jobskart_zoom" | "external_link"
       interview_status:
@@ -3778,6 +4333,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       app_platform_role: ["super_admin"],

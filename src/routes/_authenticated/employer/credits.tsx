@@ -54,6 +54,27 @@ const expiryLabel = (nearest: string | null) =>
     ? `Earliest expiry: ${new Date(nearest).toLocaleDateString("en-IN", { dateStyle: "medium" })}`
     : "No expiry on current balance";
 
+const LEDGER_EVENT_TONE: Record<LedgerEvent, string> = {
+  grant: "bg-primary-light text-primary",
+  consume: "bg-surface text-foreground",
+  refund: "bg-success-light text-success",
+  expire: "bg-destructive-light text-destructive",
+  adjust: "bg-warning-light text-warning",
+};
+
+function ledgerDetail(row: LedgerRow): string {
+  const ref = row.reference ?? {};
+  if (typeof ref.reason === "string") return ref.reason;
+  if (typeof ref.migrated_from === "string") return `Migrated from ${ref.migrated_from}`;
+  if (row.event === "expire") return "Validity elapsed";
+  if (row.event === "consume") {
+    const grants = Array.isArray(ref.grants_consumed) ? ref.grants_consumed.length : 1;
+    return grants > 1 ? `Drawn from ${grants} grants` : "Drawn from one grant";
+  }
+  if (typeof ref.via === "string") return `Via ${ref.via}${typeof ref.kind === "string" ? ` (${ref.kind})` : ""}`;
+  return row.resource_key ? `Ref: ${row.resource_key}` : "—";
+}
+
 export const Route = createFileRoute("/_authenticated/employer/credits")({
   head: () => ({ meta: [{ title: "Credits & usage · JobsKart Employer" }] }),
   component: CreditsPage,
@@ -98,6 +119,16 @@ type Txn = {
   reference: unknown;
   created_at: string;
   benefit_type: BenefitType;
+};
+type LedgerEvent = "grant" | "consume" | "expire" | "refund" | "adjust";
+type LedgerRow = {
+  id: string;
+  benefit_type: BenefitType;
+  event: LedgerEvent;
+  delta: number;
+  resource_key: string | null;
+  reference: Record<string, unknown> | null;
+  created_at: string;
 };
 type Invoice = {
   id: string;
@@ -144,6 +175,8 @@ function CreditsPage() {
   });
   const [txns, setTxns] = useState<Txn[]>([]);
   const [txnFilter, setTxnFilter] = useState<"all" | BenefitType>("all");
+  const [ledgerRows, setLedgerRows] = useState<LedgerRow[]>([]);
+  const [showLedger, setShowLedger] = useState(false);
   const [packs, setPacks] = useState<Pack[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [buyingId, setBuyingId] = useState<string | null>(null);
@@ -182,6 +215,7 @@ function CreditsPage() {
         setBoostBalance(w.boostBalance);
         setTxns(w.transactions as Txn[]);
         void refreshBenefitExpiry(chosen.company_id);
+        void refreshLedger(chosen.company_id);
         try {
           const inv = await listCompanyInvoices({ data: { companyId: chosen.company_id } });
           setInvoices(inv as Invoice[]);
@@ -209,6 +243,22 @@ function CreditsPage() {
     setNearestExpiry(next);
   };
 
+  // Section 11 checklist: "Employer can ... inspect every consumption
+  // event." The grant/ledger model records exactly which grant a
+  // consumption drew from, refunds/expiries as their own distinguishable
+  // events, and resource keys — richer detail than the summary transaction
+  // list above, which stays as-is for the familiar running-balance view.
+  const refreshLedger = async (cid: string) => {
+    const { data, error } = await supabase
+      .from("company_benefit_ledger")
+      .select("id, benefit_type, event, delta, resource_key, reference, created_at")
+      .eq("company_id", cid)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (error) return;
+    setLedgerRows((data ?? []) as unknown as LedgerRow[]);
+  };
+
   const refreshEntitlements = async (cid: string) => {
     try {
       const ent = await getCompanyEntitlements({ data: { companyId: cid } });
@@ -225,6 +275,7 @@ function CreditsPage() {
     setBoostBalance(w.boostBalance);
     setTxns(w.transactions as Txn[]);
     void refreshBenefitExpiry(cid);
+    void refreshLedger(cid);
     try {
       const inv = await listCompanyInvoices({ data: { companyId: cid } });
       setInvoices(inv as Invoice[]);
@@ -562,7 +613,9 @@ function CreditsPage() {
               <div>
                 <h2 className="text-lg font-bold text-foreground">{BENEFIT_LABELS[bt]} Packs</h2>
                 <p className="text-sm text-muted-foreground">
-                  Prices in INR, exclusive of GST. 18% GST is added at checkout.
+                  Prices in INR, exclusive of GST. 18% GST is added at checkout. Credits currently
+                  do not expire and are non-refundable once purchased, except where JobsKart
+                  rejects a job before it goes live.
                   {bt === "boost" && boostCost != null && (
                     <> · Boosting a job costs {boostCost} credit{boostCost === 1 ? "" : "s"}.</>
                   )}
@@ -695,6 +748,78 @@ function CreditsPage() {
             );
           })()}
         </div>
+      </section>
+
+      {/* Grant & consumption ledger — per-grant detail (expiry, source, which
+          grant a consumption drew from) that the summary transaction table
+          above doesn't carry. Collapsed by default since most employers only
+          need it when reconciling a specific charge with support. */}
+      <section className="mt-8">
+        <button
+          type="button"
+          onClick={() => setShowLedger((v) => !v)}
+          className="flex w-full items-center justify-between rounded-2xl border border-border bg-card px-5 py-4 text-left"
+        >
+          <div>
+            <h2 className="text-lg font-bold text-foreground">Grant &amp; consumption ledger</h2>
+            <p className="text-sm text-muted-foreground">
+              Every credit lot issued and every consumption drawn from it, in order.
+            </p>
+          </div>
+          <span className="text-sm font-semibold text-primary">{showLedger ? "Hide" : "Show"}</span>
+        </button>
+        {showLedger && (
+          <div className="mt-3 overflow-hidden rounded-2xl border border-border bg-card">
+            {ledgerRows.length === 0 ? (
+              <p className="p-8 text-center text-sm text-muted-foreground">No ledger entries yet.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-surface/60 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    <tr>
+                      <th className="px-4 py-3">When</th>
+                      <th className="px-4 py-3">Type</th>
+                      <th className="px-4 py-3">Event</th>
+                      <th className="px-4 py-3 text-right">Change</th>
+                      <th className="px-4 py-3">Detail</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ledgerRows.map((row) => (
+                      <tr key={row.id} className="border-t border-border">
+                        <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
+                          {new Date(row.created_at).toLocaleString("en-IN", {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          })}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
+                          {BENEFIT_LABELS[row.benefit_type]}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3">
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${LEDGER_EVENT_TONE[row.event]}`}
+                          >
+                            {row.event}
+                          </span>
+                        </td>
+                        <td
+                          className={`whitespace-nowrap px-4 py-3 text-right font-semibold tabular-nums ${
+                            row.delta >= 0 ? "text-success" : "text-foreground"
+                          }`}
+                        >
+                          {row.delta >= 0 ? "+" : ""}
+                          {row.delta}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground">{ledgerDetail(row)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
       {/* Invoices */}

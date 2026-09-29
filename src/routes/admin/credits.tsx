@@ -87,6 +87,22 @@ function Page() {
     queryKey: ["recent-boosts"],
     queryFn: async () => (await supabase.from("job_boosts").select("*, jobs(title), companies(name)").order("created_at", { ascending: false }).limit(20)).data ?? [],
   });
+  // Automated drift check between employer_credit_wallets (still
+  // authoritative) and the new company_benefit_grants ledger, run every 6h
+  // by cron (run_benefit_reconciliation_check / 20260929060001). This is
+  // the visibility layer for that — support shouldn't need to query the DB
+  // directly to know the two systems agree.
+  const { data: reconciliationChecks } = useQuery({
+    queryKey: ["benefit-reconciliation-checks"],
+    queryFn: async () =>
+      (
+        await supabase
+          .from("benefit_reconciliation_checks")
+          .select("*")
+          .order("checked_at", { ascending: false })
+          .limit(10)
+      ).data ?? [],
+  });
 
   const saveBoostSettings = useMutation({
     mutationFn: async () => {
@@ -115,6 +131,57 @@ function Page() {
 
   return (
     <AdminShell title="Credits & Payments" subtitle="Packs, manual grants, ledger">
+      <section className="mb-8">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          Benefit ledger reconciliation
+        </h2>
+        {(() => {
+          const latest = reconciliationChecks?.[0] as
+            | { checked_at: string; drift_count: number; drift: unknown }
+            | undefined;
+          if (!latest) {
+            return <p className="text-sm text-muted-foreground">No reconciliation checks recorded yet.</p>;
+          }
+          const clean = latest.drift_count === 0;
+          return (
+            <div className="rounded-2xl border border-border bg-card p-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${
+                    clean ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                  }`}
+                >
+                  {clean ? "In sync" : `${latest.drift_count} compan${latest.drift_count === 1 ? "y" : "ies"} drifted`}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  Last checked {new Date(latest.checked_at).toLocaleString()} · runs every 6h, plus hourly grant expiry
+                </span>
+              </div>
+              {!clean && (
+                <pre className="mt-3 overflow-x-auto rounded-lg bg-surface p-3 text-xs text-foreground">
+                  {JSON.stringify(latest.drift, null, 2)}
+                </pre>
+              )}
+              {(reconciliationChecks?.length ?? 0) > 1 && (
+                <details className="mt-3">
+                  <summary className="cursor-pointer text-xs font-medium text-muted-foreground">
+                    History ({reconciliationChecks!.length})
+                  </summary>
+                  <div className="mt-2 space-y-1">
+                    {reconciliationChecks!.slice(1).map((c: any) => (
+                      <p key={c.id} className="text-xs text-muted-foreground">
+                        {new Date(c.checked_at).toLocaleString()} —{" "}
+                        {c.drift_count === 0 ? "in sync" : `${c.drift_count} drifted`}
+                      </p>
+                    ))}
+                  </div>
+                </details>
+              )}
+            </div>
+          );
+        })()}
+      </section>
+
       <section className="mb-8">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Credit Packs</h2>
         <p className="mb-3 text-xs text-muted-foreground">

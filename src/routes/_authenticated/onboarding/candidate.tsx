@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { INDIAN_CITIES, SUGGESTED_LANGUAGES, JOB_TYPE_OPTIONS, WORK_MODES, suggestRelatedRoles, suggestSkillsForRoles, DEFAULT_SKILL_SUGGESTIONS } from "@/lib/options";
 import { computeProfileStrength } from "@/lib/profileStrength";
 import { ResumeUpload } from "@/components/candidate/ResumeUpload";
+import { SalaryPicker, type SalaryChoiceKind } from "@/components/candidate/SalaryPicker";
 import type { ParsedResumePayload } from "@/lib/resume.functions";
 import {
   fullNameSchema,
@@ -135,6 +136,7 @@ function OnboardingPage() {
   const [workModes, setWorkModes] = useState<string[]>([]);
   const [preferredCities, setPreferredCities] = useState<string[]>([]);
   const [expectedSalary, setExpectedSalary] = useState<number | "">("");
+  const [expectedSalaryChoiceKind, setExpectedSalaryChoiceKind] = useState<SalaryChoiceKind | null>(null);
   const [noticeDays, setNoticeDays] = useState<number | "">(0);
   const [resume, setResume] = useState<{ name: string; path: string } | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -167,7 +169,8 @@ function OnboardingPage() {
         setExpectedSalary(c.expected_salary || "");
         setNoticeDays(c.notice_period_days ?? 0);
         if (c.resume_url) setResume({ name: c.resume_name || "Resume", path: c.resume_url });
-        const cExt = c as unknown as { whatsapp_number?: string | null; whatsapp_opt_in?: boolean | null; highest_qualification?: string | null; interested_roles?: string[] | null };
+        const cExt = c as unknown as { whatsapp_number?: string | null; whatsapp_opt_in?: boolean | null; highest_qualification?: string | null; interested_roles?: string[] | null; expected_salary_choice_kind?: SalaryChoiceKind | null };
+        setExpectedSalaryChoiceKind(cExt.expected_salary_choice_kind || null);
         const savedWa = to10(cExt.whatsapp_number || "");
         setWhatsapp(savedWa || to10(p?.mobile));
         setWhatsappCustom(!!savedWa && savedWa !== to10(p?.mobile));
@@ -317,6 +320,7 @@ function OnboardingPage() {
           preferred_work_mode: workModes.join(","),
           preferred_cities: preferredCities,
           expected_salary: typeof expectedSalary === "number" ? expectedSalary : null,
+          expected_salary_choice_kind: expectedSalaryChoiceKind,
           notice_period_days: typeof noticeDays === "number" ? noticeDays : null,
           resume_url: resume?.path || null,
           resume_name: resume?.name || null,
@@ -436,7 +440,8 @@ function OnboardingPage() {
       if (preferredCities.length < 1) return "Add at least 1 preferred city.";
       if (preferredCities.length > 4) return "You can pick up to 4 cities.";
       if (expStatus === "experienced") {
-        if (!expectedSalary || expectedSalary <= 0) return "Enter your expected monthly salary.";
+        const salaryOptedOut = expectedSalaryChoiceKind === "flexible" || expectedSalaryChoiceKind === "undisclosed";
+        if (!salaryOptedOut && (!expectedSalary || expectedSalary <= 0)) return "Enter your expected monthly salary, or choose flexible / prefer not to say.";
         if (noticeDays === "" || (typeof noticeDays === "number" && noticeDays < 0)) return "Enter your notice period.";
       }
     }
@@ -595,6 +600,7 @@ function OnboardingPage() {
                 {currentLabel === "Basics" && (
                   <div className="space-y-5">
                     <ResumeUpload
+                      candidateId={uid}
                       existingName={resume?.name ?? null}
                       onUploaded={(file: File) => {
                         // Saves the raw file immediately, independent of AI parsing below.
@@ -948,9 +954,19 @@ function OnboardingPage() {
                           </Field>
                         </div>
                         {expStatus !== "student" && (
-                          <Field label={`Expected monthly salary (₹)${expStatus === "experienced" ? " *" : ""}`}>
-                            <input type="number" className="form-input" value={expectedSalary} onChange={(e) => setExpectedSalary(e.target.value ? Number(e.target.value) : "")} placeholder="e.g. 25000" />
-                          </Field>
+                          <div className="sm:col-span-2">
+                            <Field label={`Expected monthly salary${expStatus === "experienced" ? " *" : ""}`}>
+                              <SalaryPicker
+                                candidateId={uid}
+                                role={interestedRoles[0] || lastRole}
+                                city={city}
+                                experienceStatus={expStatus}
+                                value={expectedSalary}
+                                choiceKind={expectedSalaryChoiceKind}
+                                onChange={(v, kind) => { setExpectedSalary(v); setExpectedSalaryChoiceKind(kind); }}
+                              />
+                            </Field>
+                          </div>
                         )}
                         {expStatus === "experienced" && (
                           <Field label="Notice period (days) *">

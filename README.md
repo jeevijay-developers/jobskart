@@ -715,3 +715,11 @@ cd <repository-name>
 npm i
 npm run dev
 ```
+## Feature Flags
+
+The AI recommendation feature can be toggled via the environment variable `VITE_FEATURE_AI_RECOMMENDATIONS`. Set to `true` to enable AI-powered candidate recommendations in the job responses page; set to `false` to disable and show only standard responses.
+
+To enable locally:
+```bash
+VITE_FEATURE_AI_RECOMMENDATIONS=true npm run dev
+```

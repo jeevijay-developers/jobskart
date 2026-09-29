@@ -1,18 +1,15 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { JobCardData } from "@/components/site/JobCard";
 
-// Shared feed adapter (see applied-jobs-discovery-feed-implementation.md):
-// the one place Dashboard and `/jobs` build feed_jobs*() RPC args and map
-// rows back into JobCardData, so the two screens can never quietly diverge
-// on filters or on what "eligible" means.
-//
-// fetchPublicJobFeed() is the existing public contract (feed_jobs, guest +
-// employer "Recommended" only — unchanged). fetchCandidateJobFeed() is the
-// new identity-scoped contract (feed_jobs_for_candidate) that every signed-in
-// candidate sort on `/jobs`, plus the Dashboard, should use instead — it
-// excludes the candidate's own applied job IDs before ranking, count, and
-// pagination. Guests/employers never call it (they have no application
-// history to exclude, and the RPC requires auth.uid()).
+/**
+ * Shared feed adapter — the one place Dashboard and `/jobs` build RPC args
+ * and map rows back into JobCardData, so the two screens can never quietly
+ * diverge on filters or on what "eligible" means.
+ *
+ * - fetchPublicJobFeed(): guest + employer "Recommended" sort only (unchanged, uses feed_jobs)
+ * - fetchCandidateJobFeed(): identity-scoped, uses recommend_jobs_for_candidate
+ *   (personalized scoring + applied-job exclusion as a discovery invariant)
+ */
 
 export type JobFeedSort = "recommended" | "newest" | "oldest" | "salary_high" | "salary_low";
 
@@ -43,8 +40,8 @@ export type JobFeedResult = {
   error: string | null;
 };
 
-// The shape feed_jobs() / feed_jobs_for_candidate() both return a row of.
-type FeedRow = {
+// The shape returned by recommend_jobs_for_candidate (extends feed_jobs_for_candidate)
+type RecommendRow = {
   id: string;
   company_id: string;
   title: string;
@@ -66,10 +63,12 @@ type FeedRow = {
   company_name: string | null;
   company_is_verified: boolean | null;
   boosted: boolean | null;
+  score: number | null;              // NEW: personalized relevance score (0-1)
+  score_breakdown: Record<string, any> | null;  // NEW: explainable scoring breakdown
   total_count: number | string;
 };
 
-function mapFeedRows(rows: FeedRow[]): JobCardData[] {
+function mapRecommendRows(rows: RecommendRow[]): JobCardData[] {
   return rows.map((r) => ({
     id: r.id,
     company_id: r.company_id,
@@ -91,10 +90,13 @@ function mapFeedRows(rows: FeedRow[]): JobCardData[] {
     avg_incentive_monthly: r.avg_incentive_monthly,
     companies: { name: r.company_name ?? "", is_verified: r.company_is_verified },
     boosted: r.boosted ?? false,
+    // NEW: attach score for UI indicators (e.g., "95% match")
+    relevance_score: r.score,
+    score_breakdown: r.score_breakdown,
   }));
 }
 
-function feedTotal(rows: FeedRow[]): number {
+function recommendTotal(rows: RecommendRow[]): number {
   return rows.length > 0 ? Number(rows[0].total_count) : 0;
 }
 
@@ -129,30 +131,27 @@ export async function fetchPublicJobFeed(
 ): Promise<JobFeedResult> {
   const { data, error } = await supabase.rpc("feed_jobs", baseRpcArgs(filters, from, to));
   if (error) return { rows: [], total: 0, error: error.message };
-  const rows = (data ?? []) as FeedRow[];
-  return { rows: mapFeedRows(rows), total: feedTotal(rows), error: null };
+  const rows = (data ?? []) as RecommendRow[];
+  return { rows: mapRecommendRows(rows), total: recommendTotal(rows), error: null };
 }
 
 /**
- * Candidate feed (feed_jobs_for_candidate): identity comes from auth.uid()
- * server-side, never a client-supplied id. Supports every `/jobs` sort (not
- * just Recommended) so applied-job exclusion is a discovery invariant, not a
- * Recommended-only feature. Not yet in the generated Supabase types — cast
- * the RPC name, same pattern used for other just-added RPCs in this repo
- * (e.g. `admin_set_verification`, `register_download`).
+ * Candidate feed (recommend_jobs_for_candidate): identity comes from auth.uid()
+ * server-side. Returns personalized relevance scores with explainable breakdown.
+ * Applied-job exclusion is a discovery invariant (not just for "recommended" sort).
+ * The `sort` parameter is now ignored — results are always ranked by personalized score.
  */
 export async function fetchCandidateJobFeed(
   filters: JobFeedFilters,
-  sort: JobFeedSort,
+  _sort: JobFeedSort,  // kept for API compatibility; ignored by new RPC
   from: number,
   to: number,
 ): Promise<JobFeedResult> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await supabase.rpc("feed_jobs_for_candidate" as any, {
-    ...baseRpcArgs(filters, from, to),
-    _sort: sort,
-  });
+  const { data, error } = await supabase.rpc("recommend_jobs_for_candidate" as any, 
+    baseRpcArgs(filters, from, to)
+  );
   if (error) return { rows: [], total: 0, error: error.message };
-  const rows = (data ?? []) as unknown as FeedRow[];
-  return { rows: mapFeedRows(rows), total: feedTotal(rows), error: null };
+  const rows = (data ?? []) as unknown as RecommendRow[];
+  return { rows: mapRecommendRows(rows), total: recommendTotal(rows), error: null };
 }
