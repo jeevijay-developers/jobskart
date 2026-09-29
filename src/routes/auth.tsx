@@ -58,16 +58,27 @@ function AuthPage() {
   const [tab, setTab] = useState<SignupUserType>(search.tab ?? "candidate");
 
   const onSuccess = async (isNew: boolean, resolvedRole: SignupUserType = tab) => {
-    if (search.redirect) {
-      window.location.assign(search.redirect);
-      return;
-    }
     if (resolvedRole === "candidate") {
+      // A stored `redirect` (from being bounced off a protected candidate
+      // route pre-login) is always safe to honor as-is — candidates have no
+      // separate onboarding-completion gate the way employers do.
+      if (search.redirect) {
+        window.location.assign(search.redirect);
+        return;
+      }
       navigate({ to: isNew ? "/onboarding/candidate" : "/candidate/dashboard" });
       return;
     }
 
-    // Employer: route to onboarding if they have no company yet (or onboarding incomplete).
+    // Employer: always resolve onboarding state BEFORE navigating anywhere,
+    // including when a `redirect` search param is present. Honoring
+    // `search.redirect` unconditionally (as before) sent a brand-new employer
+    // straight to whatever protected employer route they were bounced from
+    // pre-login (e.g. /employer/dashboard) — that route would then run its
+    // own "do I have a company yet?" check on mount, briefly rendering its
+    // authenticated shell before redirecting again to /onboarding/employer.
+    // Checking onboarding completion here first, and only trusting
+    // `search.redirect` once we know it's safe, removes that flash.
     try {
       const { data: u } = await supabase.auth.getUser();
       const uid = u.user?.id;
@@ -79,7 +90,15 @@ function AuthPage() {
           .limit(1);
         const row = members?.[0] as { companies?: { onboarding_completed?: boolean } } | undefined;
         const done = row?.companies?.onboarding_completed === true;
-        navigate({ to: done ? "/employer/dashboard" : "/onboarding/employer" });
+        if (!done) {
+          navigate({ to: "/onboarding/employer" });
+          return;
+        }
+        if (search.redirect) {
+          window.location.assign(search.redirect);
+          return;
+        }
+        navigate({ to: "/employer/dashboard" });
         return;
       }
     } catch {

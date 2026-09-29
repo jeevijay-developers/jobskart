@@ -2,7 +2,7 @@ import { ThemedSelect } from "@/components/ui/themed-form-controls";
 ("use client");
 
 import * as React from "react";
-import { CalendarDays } from "lucide-react";
+import { CalendarDays, ChevronDown } from "lucide-react";
 
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -160,6 +160,98 @@ function formatDate(date: Date) {
   }).format(date);
 }
 
+type ThemedListDropdownOption = { value: string; label: string };
+
+/**
+ * Compact scrollable dropdown — same presentation pattern as
+ * CityTownAutocomplete/CityMultiSelect (absolute panel, thin internal
+ * scroll, rounded/shadowed popover styling), not a Radix Select, so there
+ * are no native-looking scroll-arrow buttons and the panel floats over
+ * surrounding content instead of pushing it down. Used by the calendar's
+ * Month/Year controls and the employer company switcher.
+ */
+function ThemedListDropdown({
+  label,
+  value,
+  options,
+  onChange,
+  className,
+  maxHeight = 192,
+  selectedOptionClassName,
+}: {
+  label: string;
+  value: string;
+  options: ThemedListDropdownOption[];
+  onChange: (value: string) => void;
+  className?: string;
+  maxHeight?: number;
+  selectedOptionClassName?: string;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const selectedRef = React.useRef<HTMLButtonElement>(null);
+  const MENU_MAX_HEIGHT = maxHeight;
+
+  React.useEffect(() => {
+    if (!open) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (!containerRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [open]);
+
+  React.useEffect(() => {
+    if (open) selectedRef.current?.scrollIntoView({ block: "nearest" });
+  }, [open]);
+
+  const selectedLabel = options.find((o) => o.value === value)?.label ?? value;
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        aria-label={label}
+        onClick={() => setOpen((o) => !o)}
+        className={cn(
+          "form-input flex h-9 w-full items-center justify-between rounded-lg bg-card text-left text-sm",
+          className,
+        )}
+      >
+        <span>{selectedLabel}</span>
+        <ChevronDown className="pointer-events-none h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+      </button>
+      {open && (
+        <div
+          className="absolute left-0 right-0 top-full z-[80] mt-1 overflow-y-auto overflow-x-hidden rounded-xl border border-primary/15 bg-popover shadow-xl shadow-primary/10 [scrollbar-width:thin]"
+          style={{ maxHeight: MENU_MAX_HEIGHT }}
+        >
+          {options.map((option) => {
+            const isSelected = option.value === value;
+            return (
+              <button
+                key={option.value}
+                ref={isSelected ? selectedRef : undefined}
+                type="button"
+                onClick={() => {
+                  onChange(option.value);
+                  setOpen(false);
+                }}
+                className={cn(
+                  "block w-full px-3 py-2 text-left text-sm hover:bg-surface",
+                  isSelected && (selectedOptionClassName ?? "bg-primary text-primary-foreground hover:bg-primary"),
+                )}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** A fully themed calendar popover that never invokes the browser's native date UI. */
 function ThemedDatePicker({
   value,
@@ -230,7 +322,7 @@ function ThemedDatePicker({
           )}
         >
           <span>{selected ? formatDate(selected) : placeholder}</span>
-          <CalendarDays className="h-4 w-4 shrink-0 text-primary" />
+          <CalendarDays className="pointer-events-none h-4 w-4 shrink-0 text-primary" />
         </button>
       </PopoverTrigger>
       <PopoverContent
@@ -240,34 +332,18 @@ function ThemedDatePicker({
         className="w-[min(21rem,calc(100vw-1.5rem))] rounded-2xl border-primary/15 bg-popover p-3 shadow-2xl shadow-primary/10"
       >
         <div className="mb-2 grid grid-cols-[1fr_6.5rem] gap-2 px-1">
-          <ThemedSelect
-            aria-label="Month"
+          <ThemedListDropdown
+            label="Month"
             value={String(month.getMonth())}
-            onChange={(event) =>
-              setMonth(new Date(month.getFullYear(), Number(event.target.value), 1))
-            }
-            className="h-9 rounded-lg"
-          >
-            {months.map((label, index) => (
-              <option key={label} value={index}>
-                {label}
-              </option>
-            ))}
-          </ThemedSelect>
-          <ThemedSelect
-            aria-label="Year"
+            options={months.map((label, index) => ({ value: String(index), label }))}
+            onChange={(value) => setMonth(new Date(month.getFullYear(), Number(value), 1))}
+          />
+          <ThemedListDropdown
+            label="Year"
             value={String(month.getFullYear())}
-            onChange={(event) =>
-              setMonth(new Date(Number(event.target.value), month.getMonth(), 1))
-            }
-            className="h-9 rounded-lg"
-          >
-            {years.map((year) => (
-              <option key={year} value={year}>
-                {year}
-              </option>
-            ))}
-          </ThemedSelect>
+            options={years.map((year) => ({ value: String(year), label: String(year) }))}
+            onChange={(value) => setMonth(new Date(Number(value), month.getMonth(), 1))}
+          />
         </div>
         <Calendar
           mode="single"
@@ -283,4 +359,4 @@ function ThemedDatePicker({
   );
 }
 
-export { ThemedDatePicker, ThemedSelect };
+export { ThemedDatePicker, ThemedSelect, ThemedListDropdown };

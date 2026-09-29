@@ -222,6 +222,15 @@ export function JobCard({
             title: job.title,
             min_salary: job.min_salary,
             max_salary: job.max_salary,
+            salary_period: job.salary_period,
+            company_name: job.companies?.name,
+            company_verified: job.companies?.is_verified,
+            job_type: job.job_type,
+            work_mode: job.work_mode,
+            min_experience_years: job.min_experience_years,
+            max_experience_years: job.max_experience_years,
+            skills: job.skills,
+            created_at: job.created_at,
           }}
           onApplied={() => {
             setApplied(true);

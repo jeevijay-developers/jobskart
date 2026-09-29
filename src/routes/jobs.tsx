@@ -580,9 +580,7 @@ export function JobsList({ embeddedInCandidateApp = false }: { embeddedInCandida
             <button
               onClick={() => setMobileFilters(true)}
               aria-label="Filters"
-              className={`relative h-11 shrink-0 items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-semibold text-foreground ${
-                showCandidateTabBar ? "inline-flex min-[1280px]:hidden" : "inline-flex lg:hidden"
-              }`}
+              className="relative inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-semibold text-foreground"
             >
               <Filter className="h-4 w-4" />
               <span className="hidden sm:inline">
@@ -605,12 +603,6 @@ export function JobsList({ embeddedInCandidateApp = false }: { embeddedInCandida
             : "mx-auto flex w-full max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:px-8"
         }
       >
-        <aside
-          className={`hidden w-64 shrink-0 ${showCandidateTabBar ? "min-[1280px]:block" : "lg:block"}`}
-        >
-          <FilterPanel draft={draft} setDraft={setDraft} apply={apply} reset={reset} />
-        </aside>
-
         <main className="min-w-0 flex-1">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-muted-foreground">

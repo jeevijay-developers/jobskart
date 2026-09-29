@@ -338,7 +338,14 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
   const [userId, setUserId] = useState<string | null>(null);
   const [companyLoading, setCompanyLoading] = useState(true);
   const [setupError, setSetupError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  // Each button owns its own loading flag so clicking "Publish job" never
+  // animates "Save changes" (or vice versa) — see JobWizard save/publish
+  // button fix. `saving` stays as a derived "any action in flight" flag to
+  // keep the existing disabled-while-busy behavior on every button.
+  const [activeAction, setActiveAction] = useState<
+    "draft" | "publish" | "save" | "savePublish" | null
+  >(null);
+  const saving = activeAction !== null;
   const [isConsultant, setIsConsultant] = useState(false);
   const [form, setForm] = useState<Form>(initialForm);
 
@@ -379,14 +386,6 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
       try {
         setCompanyLoading(true);
         setSetupError(null);
-        if (new URLSearchParams(window.location.search).get("__cityQa") === "1") {
-          setUserId("visual-qa");
-          setCompanyId("visual-qa");
-          setCompanyName("JobsKart QA");
-          setStep(1);
-          setForm((current) => ({ ...current, city: "Varanasi" }));
-          return;
-        }
         const { data: user, error } = await supabase.auth.getUser();
         if (error || !user.user) {
           setSetupError("Your session expired. Please sign in again.");
@@ -673,7 +672,7 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
         }
       }
     }
-    setSaving(true);
+    setActiveAction(asDraft ? "draft" : "publish");
     try {
       let uid = userId;
       if (!uid) {
@@ -729,7 +728,7 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
       console.error(e);
       toast.error(e instanceof Error ? e.message : "Could not publish.");
     } finally {
-      setSaving(false);
+      setActiveAction(null);
     }
   };
 
@@ -751,7 +750,7 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
         }
       }
     }
-    setSaving(true);
+    setActiveAction(thenPublish ? "savePublish" : "save");
     try {
       const fields = buildFieldsFromForm(form, jdInput, isConsultant);
       const { error } = await supabase
@@ -784,7 +783,7 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
       console.error(e);
       toast.error(e instanceof Error ? e.message : "Could not save changes.");
     } finally {
-      setSaving(false);
+      setActiveAction(null);
     }
   };
 
@@ -1921,7 +1920,8 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                         disabled={saving || !form.title.trim()}
                         className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-4 text-sm font-semibold hover:bg-surface disabled:opacity-50"
                       >
-                        {saving && <Loader2 className="h-4 w-4 animate-spin" />} Save changes
+                        {activeAction === "save" && <Loader2 className="h-4 w-4 animate-spin" />}{" "}
+                        Save changes
                       </button>
                       {jobStatus === "draft" && step === 3 && (
                         <button
@@ -1932,7 +1932,10 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                           disabled={saving}
                           className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-60"
                         >
-                          {saving && <Loader2 className="h-4 w-4 animate-spin" />} Publish job
+                          {activeAction === "savePublish" && (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          )}{" "}
+                          Publish job
                         </button>
                       )}
                     </>
@@ -1944,6 +1947,7 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                         disabled={saving || !form.title.trim()}
                         className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-4 text-sm font-semibold hover:bg-surface disabled:opacity-50"
                       >
+                        {activeAction === "draft" && <Loader2 className="h-4 w-4 animate-spin" />}{" "}
                         Save as draft
                       </button>
                       {step < 3 ? (
@@ -1961,7 +1965,10 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                           disabled={saving}
                           className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-60"
                         >
-                          {saving && <Loader2 className="h-4 w-4 animate-spin" />} Publish job
+                          {activeAction === "publish" && (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          )}{" "}
+                          Publish job
                         </button>
                       )}
                     </>
