@@ -1,7 +1,7 @@
-import { ThemedSelect } from "@/components/ui/themed-form-controls";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
+import { CityTownAutocomplete } from "@/components/candidate/CityTownAutocomplete";
 import { supabase } from "@/integrations/supabase/client";
 import { setActiveCompanyId } from "@/lib/employer";
 import { INDIAN_CITIES } from "@/lib/options";
@@ -58,7 +58,7 @@ function EmployerOnboarding() {
   const [designation, setDesignation] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [industry, setIndustry] = useState("");
-  const [size, setSize] = useState<string>("11-50");
+  const [size, setSize] = useState<string>("1-10");
   const [foundedYear, setFoundedYear] = useState<string>("");
   const [hqCity, setHqCity] = useState("");
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -258,16 +258,13 @@ function EmployerOnboarding() {
             ))}
           </div>
           <Field label="Other city">
-            <ThemedSelect
+            <CityTownAutocomplete
               value={TOP_CITIES.includes(hqCity) ? "" : hqCity}
-              onChange={(e) => setHqCity(e.target.value)}
-              className="form-input"
-            >
-              <option value="">Pick another city…</option>
-              {INDIAN_CITIES.filter((c) => !TOP_CITIES.includes(c)).map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </ThemedSelect>
+              onChange={setHqCity}
+              suggestions={INDIAN_CITIES.filter((c) => !TOP_CITIES.includes(c))}
+              placeholder="Search for your city…"
+              showDropdownIndicator
+            />
           </Field>
         </div>
       ),

@@ -299,6 +299,25 @@ function EmployerJobsList() {
     reload();
   };
 
+  const bulkResume = async () => {
+    const ids = jobs.filter((j) => selected.has(j.id) && j.status === "paused").map((j) => j.id);
+    if (!ids.length) return;
+    setBulkBusy(true);
+    const { error } = await supabase.from("jobs").update({ status: "active" } as never).in("id", ids);
+    setBulkBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success(`Resumed ${ids.length} job${ids.length === 1 ? "" : "s"}.`);
+    setSelected(new Set());
+    reload();
+  };
+
+  const selectedJobs = jobs.filter((job) => selected.has(job.id));
+  const selectedStatus = selectedJobs.length > 0 && selectedJobs.every((job) => job.status === "active")
+    ? "active"
+    : selectedJobs.length > 0 && selectedJobs.every((job) => job.status === "paused")
+      ? "paused"
+      : null;
+
   const statusLabel = statusFilter === "all"
     ? "All status"
     : `${statusFilter[0].toUpperCase()}${statusFilter.slice(1)} (${counts[statusFilter] ?? 0})`;
@@ -310,15 +329,26 @@ function EmployerJobsList() {
       actions={
         selected.size > 0 ? (
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold text-muted-foreground">{selected.size} selected</span>
-            <button
-              type="button"
-              onClick={bulkPause}
-              disabled={bulkBusy}
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-sm font-semibold hover:bg-surface disabled:opacity-50"
-            >
-              <Pause className="h-4 w-4" /> Pause
-            </button>
+            {selectedStatus === "active" && (
+              <button
+                type="button"
+                onClick={bulkPause}
+                disabled={bulkBusy}
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-sm font-semibold hover:bg-surface disabled:opacity-50"
+              >
+                <Pause className="h-4 w-4" /> Pause
+              </button>
+            )}
+            {selectedStatus === "paused" && (
+              <button
+                type="button"
+                onClick={bulkResume}
+                disabled={bulkBusy}
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-sm font-semibold hover:bg-surface disabled:opacity-50"
+              >
+                <Play className="h-4 w-4" /> Resume
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setConfirmDeleteOpen(true)}

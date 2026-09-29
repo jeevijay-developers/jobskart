@@ -33,7 +33,6 @@ export type DraftPatch = {
   interview_type?: "in_person" | "telephonic";
   interview_same_as_company?: boolean;
   joining_fee_required?: boolean;
-  city?: string;
   pay_type?: "fixed" | "fixed_incentive" | "incentive_only";
   min_salary?: string;
   max_salary?: string;
@@ -183,7 +182,6 @@ function fromHistory(h: CompanyHistoryJob): DraftPatch {
   if (h.industry) patch.industry = h.industry;
   if (h.job_type) patch.job_type = h.job_type;
   if (h.work_mode) patch.work_mode = h.work_mode;
-  if (h.city) patch.city = h.city;
   if (h.pay_type === "fixed" || h.pay_type === "fixed_incentive" || h.pay_type === "incentive_only") {
     patch.pay_type = h.pay_type;
   }

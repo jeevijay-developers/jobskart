@@ -625,7 +625,7 @@ function CreditsPage() {
 
       {/* Transactions */}
       <section className="mt-8">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 lg:flex-nowrap lg:justify-start lg:gap-4">
           <h2 className="text-lg font-bold text-foreground">Recent transactions</h2>
           <div className="inline-flex rounded-lg border border-border bg-card p-1 text-xs font-semibold">
             {(["all", "job_post", "contact", "boost"] as const).map((f) => (

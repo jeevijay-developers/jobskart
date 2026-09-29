@@ -5,6 +5,16 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { NotificationBell } from "@/components/site/NotificationBell";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import logoAsset from "@/assets/jobskart-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import { signOut } from "@/lib/auth";
@@ -94,6 +104,7 @@ export function EmployerShell({
   const navigate = useNavigate();
   const primary = nav.slice(0, 4);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [signOutConfirmOpen, setSignOutConfirmOpen] = useState(false);
 
   const handleSignOut = async () => {
     try {
@@ -140,7 +151,7 @@ export function EmployerShell({
               <CreditChip />
               <button
                 type="button"
-                onClick={handleSignOut}
+                onClick={() => setSignOutConfirmOpen(true)}
                 className="flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-border px-3 text-xs font-semibold text-foreground/80 transition-colors hover:border-destructive/40 hover:bg-destructive-light hover:text-destructive"
               >
                 <LogOut className="h-3.5 w-3.5" />
@@ -234,7 +245,7 @@ export function EmployerShell({
               type="button"
               onClick={() => {
                 setMoreOpen(false);
-                handleSignOut();
+                setSignOutConfirmOpen(true);
               }}
               className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground"
             >
@@ -243,6 +254,19 @@ export function EmployerShell({
           </div>
         </SheetContent>
       </Sheet>
+
+      <AlertDialog open={signOutConfirmOpen} onOpenChange={setSignOutConfirmOpen}>
+        <AlertDialogContent className="w-[calc(100%-2rem)] max-w-sm rounded-xl border-border bg-card sm:rounded-xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sign out?</AlertDialogTitle>
+            <AlertDialogDescription>Are you sure you want to sign out?</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSignOut}>Sign out</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
