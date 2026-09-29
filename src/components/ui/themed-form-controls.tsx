@@ -23,6 +23,7 @@ type ThemedSelectProps = Omit<
 > & {
   children: React.ReactNode;
   contentClassName?: string;
+  itemClassName?: string;
 };
 
 type ParsedOption = {
@@ -64,6 +65,7 @@ function ThemedSelect({
   onChange,
   className,
   contentClassName,
+  itemClassName,
   disabled,
   name,
   id,
@@ -119,7 +121,10 @@ function ThemedSelect({
             key={`${option.value}-${index}`}
             value={option.value}
             disabled={option.disabled}
-            className="min-h-10 cursor-pointer rounded-lg px-3 pr-9 font-medium focus:bg-primary focus:text-primary-foreground data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+            className={cn(
+              "min-h-10 cursor-pointer rounded-lg px-3 pr-9 font-medium focus:bg-primary focus:text-primary-foreground data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground",
+              itemClassName,
+            )}
           >
             {option.label}
           </SelectItem>

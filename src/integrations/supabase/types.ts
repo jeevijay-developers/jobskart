@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       admin_seed: {
@@ -328,6 +303,79 @@ export type Database = {
           },
         ]
       }
+      billing_product_entitlements: {
+        Row: {
+          benefit_type: Database["public"]["Enums"]["benefit_type"]
+          id: string
+          product_id: string
+          quantity: number
+          validity_days: number | null
+        }
+        Insert: {
+          benefit_type: Database["public"]["Enums"]["benefit_type"]
+          id?: string
+          product_id: string
+          quantity: number
+          validity_days?: number | null
+        }
+        Update: {
+          benefit_type?: Database["public"]["Enums"]["benefit_type"]
+          id?: string
+          product_id?: string
+          quantity?: number
+          validity_days?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_product_entitlements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "billing_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      billing_products: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          id: string
+          kind: string
+          legacy_credit_pack_id: string | null
+          name: string
+          price_inr: number
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          id?: string
+          kind: string
+          legacy_credit_pack_id?: string | null
+          name: string
+          price_inr: number
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          legacy_credit_pack_id?: string | null
+          name?: string
+          price_inr?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_products_legacy_credit_pack_id_fkey"
+            columns: ["legacy_credit_pack_id"]
+            isOneToOne: false
+            referencedRelation: "credit_packs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       boost_settings: {
         Row: {
           boost_weight: number
@@ -337,6 +385,7 @@ export type Database = {
           id: number
           max_boosts_per_company_day: number
           quality_weight: number
+          trending_weight: number
           updated_at: string
           window_hours: number
         }
@@ -348,6 +397,7 @@ export type Database = {
           id?: number
           max_boosts_per_company_day?: number
           quality_weight?: number
+          trending_weight?: number
           updated_at?: string
           window_hours?: number
         }
@@ -359,6 +409,7 @@ export type Database = {
           id?: number
           max_boosts_per_company_day?: number
           quality_weight?: number
+          trending_weight?: number
           updated_at?: string
           window_hours?: number
         }
@@ -717,6 +768,7 @@ export type Database = {
           credits_spent: number
           id: string
           job_id: string | null
+          source: string
           unlocked_by: string | null
         }
         Insert: {
@@ -726,6 +778,7 @@ export type Database = {
           credits_spent?: number
           id?: string
           job_id?: string | null
+          source: string
           unlocked_by?: string | null
         }
         Update: {
@@ -735,6 +788,7 @@ export type Database = {
           credits_spent?: number
           id?: string
           job_id?: string | null
+          source?: string
           unlocked_by?: string | null
         }
         Relationships: [
@@ -808,7 +862,6 @@ export type Database = {
           onboarding_completed: boolean
           pan_number: string | null
           pincode: string | null
-          plan_id: string | null
           primary_city: string | null
           size: Database["public"]["Enums"]["company_size"] | null
           slug: string | null
@@ -839,7 +892,6 @@ export type Database = {
           onboarding_completed?: boolean
           pan_number?: string | null
           pincode?: string | null
-          plan_id?: string | null
           primary_city?: string | null
           size?: Database["public"]["Enums"]["company_size"] | null
           slug?: string | null
@@ -870,7 +922,6 @@ export type Database = {
           onboarding_completed?: boolean
           pan_number?: string | null
           pincode?: string | null
-          plan_id?: string | null
           primary_city?: string | null
           size?: Database["public"]["Enums"]["company_size"] | null
           slug?: string | null
@@ -881,12 +932,105 @@ export type Database = {
           verification_status?: string
           website?: string | null
         }
+        Relationships: []
+      }
+      company_benefit_grants: {
+        Row: {
+          benefit_type: Database["public"]["Enums"]["benefit_type"]
+          company_id: string
+          created_by: string | null
+          expires_at: string | null
+          granted_at: string
+          id: string
+          quantity: number
+          reference: Json
+          remaining: number
+          source: string
+        }
+        Insert: {
+          benefit_type: Database["public"]["Enums"]["benefit_type"]
+          company_id: string
+          created_by?: string | null
+          expires_at?: string | null
+          granted_at?: string
+          id?: string
+          quantity: number
+          reference?: Json
+          remaining: number
+          source: string
+        }
+        Update: {
+          benefit_type?: Database["public"]["Enums"]["benefit_type"]
+          company_id?: string
+          created_by?: string | null
+          expires_at?: string | null
+          granted_at?: string
+          id?: string
+          quantity?: number
+          reference?: Json
+          remaining?: number
+          source?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "companies_plan_id_fkey"
-            columns: ["plan_id"]
+            foreignKeyName: "company_benefit_grants_company_id_fkey"
+            columns: ["company_id"]
             isOneToOne: false
-            referencedRelation: "plans"
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_benefit_ledger: {
+        Row: {
+          benefit_type: Database["public"]["Enums"]["benefit_type"]
+          company_id: string
+          created_at: string
+          created_by: string | null
+          delta: number
+          event: string
+          grant_id: string | null
+          id: string
+          reference: Json
+          resource_key: string | null
+        }
+        Insert: {
+          benefit_type: Database["public"]["Enums"]["benefit_type"]
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          delta: number
+          event: string
+          grant_id?: string | null
+          id?: string
+          reference?: Json
+          resource_key?: string | null
+        }
+        Update: {
+          benefit_type?: Database["public"]["Enums"]["benefit_type"]
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          delta?: number
+          event?: string
+          grant_id?: string | null
+          id?: string
+          reference?: Json
+          resource_key?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_benefit_ledger_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_benefit_ledger_grant_id_fkey"
+            columns: ["grant_id"]
+            isOneToOne: false
+            referencedRelation: "company_benefit_grants"
             referencedColumns: ["id"]
           },
         ]
@@ -1067,6 +1211,7 @@ export type Database = {
         Row: {
           active: boolean
           badge: string | null
+          benefit_type: Database["public"]["Enums"]["benefit_type"]
           created_at: string
           credits: number
           id: string
@@ -1077,6 +1222,7 @@ export type Database = {
         Insert: {
           active?: boolean
           badge?: string | null
+          benefit_type?: Database["public"]["Enums"]["benefit_type"]
           created_at?: string
           credits: number
           id?: string
@@ -1087,6 +1233,7 @@ export type Database = {
         Update: {
           active?: boolean
           badge?: string | null
+          benefit_type?: Database["public"]["Enums"]["benefit_type"]
           created_at?: string
           credits?: number
           id?: string
@@ -1099,6 +1246,7 @@ export type Database = {
       credit_transactions: {
         Row: {
           balance_after: number
+          benefit_type: Database["public"]["Enums"]["benefit_type"]
           company_id: string
           created_at: string
           created_by: string | null
@@ -1109,6 +1257,7 @@ export type Database = {
         }
         Insert: {
           balance_after: number
+          benefit_type: Database["public"]["Enums"]["benefit_type"]
           company_id: string
           created_at?: string
           created_by?: string | null
@@ -1119,6 +1268,7 @@ export type Database = {
         }
         Update: {
           balance_after?: number
+          benefit_type?: Database["public"]["Enums"]["benefit_type"]
           company_id?: string
           created_at?: string
           created_by?: string | null
@@ -1229,6 +1379,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "employer_activity_actor_id_profiles_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "employer_activity_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
@@ -1239,18 +1396,24 @@ export type Database = {
       }
       employer_credit_wallets: {
         Row: {
-          balance: number
+          boost_balance: number
           company_id: string
+          contact_balance: number
+          job_post_balance: number
           updated_at: string
         }
         Insert: {
-          balance?: number
+          boost_balance?: number
           company_id: string
+          contact_balance?: number
+          job_post_balance?: number
           updated_at?: string
         }
         Update: {
-          balance?: number
+          boost_balance?: number
           company_id?: string
+          contact_balance?: number
+          job_post_balance?: number
           updated_at?: string
         }
         Relationships: [
@@ -1315,21 +1478,30 @@ export type Database = {
           company_id: string
           created_at: string
           id: string
+          revoked_at: string | null
+          revoked_by: string | null
           role: Database["public"]["Enums"]["employer_role"]
+          status: string
           user_id: string
         }
         Insert: {
           company_id: string
           created_at?: string
           id?: string
+          revoked_at?: string | null
+          revoked_by?: string | null
           role?: Database["public"]["Enums"]["employer_role"]
+          status?: string
           user_id: string
         }
         Update: {
           company_id?: string
           created_at?: string
           id?: string
+          revoked_at?: string | null
+          revoked_by?: string | null
           role?: Database["public"]["Enums"]["employer_role"]
+          status?: string
           user_id?: string
         }
         Relationships: [
@@ -1338,6 +1510,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employer_members_user_id_profiles_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1609,6 +1788,7 @@ export type Database = {
           ends_at: string
           id: string
           job_id: string
+          source: string
           starts_at: string
         }
         Insert: {
@@ -1620,6 +1800,7 @@ export type Database = {
           ends_at: string
           id?: string
           job_id: string
+          source?: string
           starts_at?: string
         }
         Update: {
@@ -1631,6 +1812,7 @@ export type Database = {
           ends_at?: string
           id?: string
           job_id?: string
+          source?: string
           starts_at?: string
         }
         Relationships: [
@@ -1643,6 +1825,35 @@ export type Database = {
           },
           {
             foreignKeyName: "job_boosts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_candidate_dismissals: {
+        Row: {
+          candidate_user_id: string
+          created_at: string
+          dismissed_by: string | null
+          job_id: string
+        }
+        Insert: {
+          candidate_user_id: string
+          created_at?: string
+          dismissed_by?: string | null
+          job_id: string
+        }
+        Update: {
+          candidate_user_id?: string
+          created_at?: string
+          dismissed_by?: string | null
+          job_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_candidate_dismissals_job_id_fkey"
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "jobs"
@@ -2489,6 +2700,7 @@ export type Database = {
         Row: {
           amount_inr: number
           amount_paise: number | null
+          benefit_type: Database["public"]["Enums"]["benefit_type"] | null
           company_id: string
           created_at: string
           created_by: string | null
@@ -2508,6 +2720,7 @@ export type Database = {
         Insert: {
           amount_inr: number
           amount_paise?: number | null
+          benefit_type?: Database["public"]["Enums"]["benefit_type"] | null
           company_id: string
           created_at?: string
           created_by?: string | null
@@ -2527,6 +2740,7 @@ export type Database = {
         Update: {
           amount_inr?: number
           amount_paise?: number | null
+          benefit_type?: Database["public"]["Enums"]["benefit_type"] | null
           company_id?: string
           created_at?: string
           created_by?: string | null
@@ -2745,7 +2959,21 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_grant_company_benefit: {
+        Args: {
+          _benefit_type: Database["public"]["Enums"]["benefit_type"]
+          _company_id: string
+          _quantity: number
+          _reason: string
+          _validity_days: number
+        }
+        Returns: string
+      }
       admin_launch_state: { Args: { _state: string }; Returns: number }
+      admin_refund_job_post_credit: {
+        Args: { _job_id: string; _reason: string }
+        Returns: Json
+      }
       admin_set_verification: {
         Args: { _id: string; _notes: string; _status: string }
         Returns: undefined
@@ -2754,6 +2982,7 @@ export type Database = {
       apply_credit_delta: {
         Args: {
           _actor?: string
+          _benefit_type?: Database["public"]["Enums"]["benefit_type"]
           _company_id: string
           _delta: number
           _kind: Database["public"]["Enums"]["credit_txn_kind"]
@@ -2772,6 +3001,16 @@ export type Database = {
           _zoom_start_url?: string
         }
         Returns: undefined
+      }
+      benefit_reconciliation_report: {
+        Args: never
+        Returns: {
+          benefit_type: Database["public"]["Enums"]["benefit_type"]
+          company_id: string
+          drift: number
+          grants_remaining: number
+          wallet_balance: number
+        }[]
       }
       buyer_gst_state_code: {
         Args: { _gstin: string; _pincode: string }
@@ -2820,6 +3059,14 @@ export type Database = {
           max_times: number
         }[]
       }
+      company_benefit_balances: {
+        Args: { _company_id: string }
+        Returns: {
+          benefit_type: Database["public"]["Enums"]["benefit_type"]
+          nearest_expiry: string
+          remaining: number
+        }[]
+      }
       compute_candidate_match: {
         Args: {
           _candidate_user_id: string
@@ -2830,6 +3077,17 @@ export type Database = {
       }
       compute_job_quality: {
         Args: { j: Database["public"]["Tables"]["jobs"]["Row"] }
+        Returns: number
+      }
+      consume_company_benefit: {
+        Args: {
+          _actor?: string
+          _benefit_type: Database["public"]["Enums"]["benefit_type"]
+          _company_id: string
+          _quantity: number
+          _reference?: Json
+          _resource_key?: string
+        }
         Returns: number
       }
       create_company_with_owner: {
@@ -2854,6 +3112,11 @@ export type Database = {
         Returns: Json
       }
       current_financial_year: { Args: never; Returns: string }
+      dismiss_recommended_candidate: {
+        Args: { _candidate_user_id: string; _job_id: string }
+        Returns: undefined
+      }
+      expire_benefit_grants: { Args: never; Returns: number }
       feed_jobs: {
         Args: {
           _category?: string
@@ -2871,6 +3134,54 @@ export type Database = {
           _posted_after?: string
           _q?: string
           _shift?: string
+          _vehicle?: boolean
+          _verified_only?: boolean
+          _work_mode?: string
+        }
+        Returns: {
+          avg_incentive_monthly: number
+          boosted: boolean
+          city: string
+          company_id: string
+          company_is_verified: boolean
+          company_name: string
+          created_at: string
+          education: string
+          id: string
+          job_type: string
+          locality: string
+          max_experience_years: number
+          max_salary: number
+          min_experience_years: number
+          min_salary: number
+          pay_type: string
+          salary_period: string
+          score: number
+          skills: string[]
+          state: string
+          title: string
+          total_count: number
+          work_mode: string
+        }[]
+      }
+      feed_jobs_for_candidate: {
+        Args: {
+          _category?: string
+          _city?: string
+          _company?: string
+          _education?: string
+          _english_level?: string
+          _job_type?: string
+          _limit?: number
+          _max_exp?: number
+          _max_salary?: number
+          _min_exp?: number
+          _min_salary?: number
+          _offset?: number
+          _posted_after?: string
+          _q?: string
+          _shift?: string
+          _sort?: string
           _vehicle?: boolean
           _verified_only?: boolean
           _work_mode?: string
@@ -2997,6 +3308,33 @@ export type Database = {
           years_experience: number
         }[]
       }
+      get_recommended_candidates_for_job: {
+        Args: {
+          _filter?: string
+          _job_id: string
+          _limit?: number
+          _min_score?: number
+          _offset?: number
+        }
+        Returns: {
+          avatar_url: string
+          city: string
+          full_name: string
+          headline: string
+          is_unlocked: boolean
+          last_role: string
+          match_breakdown: Json
+          match_score: number
+          preferred_cities: string[]
+          preferred_work_mode: string
+          profile_slug: string
+          skills: string[]
+          tags: string[]
+          total_count: number
+          user_id: string
+          years_experience: number
+        }[]
+      }
       get_salary_suggestion: {
         Args: {
           _category?: string
@@ -3006,6 +3344,18 @@ export type Database = {
           _title: string
         }
         Returns: Json
+      }
+      grant_company_benefit: {
+        Args: {
+          _actor?: string
+          _benefit_type: Database["public"]["Enums"]["benefit_type"]
+          _company_id: string
+          _quantity: number
+          _reference?: Json
+          _source?: string
+          _validity_days?: number
+        }
+        Returns: string
       }
       gst_state_name: { Args: { _code: string }; Returns: string }
       has_company_membership: {
@@ -3028,6 +3378,10 @@ export type Database = {
         Returns: boolean
       }
       increment_profile_views: { Args: { _slug: string }; Returns: undefined }
+      invite_candidate_to_apply: {
+        Args: { _candidate_user_id: string; _job_id: string; _message?: string }
+        Returns: undefined
+      }
       issue_credit_pack_invoice: {
         Args: { _order_id: string; _razorpay_payment_id: string }
         Returns: string
@@ -3073,6 +3427,14 @@ export type Database = {
       normalize_phone_e164: { Args: { _phone: string }; Returns: string }
       process_job_expiry_batch: { Args: never; Returns: Json }
       purge_expired_responses: { Args: never; Returns: Json }
+      reactivate_member: {
+        Args: {
+          _company_id: string
+          _role?: Database["public"]["Enums"]["employer_role"]
+          _user_id: string
+        }
+        Returns: undefined
+      }
       refresh_computed_salary_bands: { Args: never; Returns: number }
       register_download: {
         Args: { _company_id: string; _count: number; _kind: string }
@@ -3167,6 +3529,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      resolve_company_plan_limit: {
+        Args: { _company_id: string; _fallback?: number; _key: string }
+        Returns: number
+      }
       search_candidates_for_company: {
         Args: {
           _cities?: string[]
@@ -3245,6 +3611,7 @@ export type Database = {
         | "hired"
         | "rejected"
         | "withdrawn"
+      benefit_type: "job_post" | "contact" | "boost"
       company_size: "1-10" | "11-50" | "51-200" | "201-500" | "500+"
       company_type:
         | "proprietorship"
@@ -3411,9 +3778,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       app_platform_role: ["super_admin"],
@@ -3425,6 +3789,7 @@ export const Constants = {
         "rejected",
         "withdrawn",
       ],
+      benefit_type: ["job_post", "contact", "boost"],
       company_size: ["1-10", "11-50", "51-200", "201-500", "500+"],
       company_type: [
         "proprietorship",

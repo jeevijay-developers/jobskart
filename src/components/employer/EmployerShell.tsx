@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { NotificationBell } from "@/components/site/NotificationBell";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import logoAsset from "@/assets/jobskart-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import { signOut } from "@/lib/auth";
 import { fetchMyCompanies, getActiveCompanyId } from "@/lib/employer";
@@ -26,10 +27,10 @@ export function CreditChip() {
         if (!cid) return;
         const { data } = await supabase
           .from("employer_credit_wallets")
-          .select("balance")
+          .select("job_post_balance")
           .eq("company_id", cid)
           .maybeSingle();
-        if (!cancelled) setBalance(data?.balance ?? 0);
+        if (!cancelled) setBalance(data?.job_post_balance ?? 0);
       } catch {
         /* ignore */
       }
@@ -44,7 +45,7 @@ export function CreditChip() {
   return (
     <div className="w-full">
       <div className="flex items-center justify-between gap-3 text-xs">
-        <span className="font-medium text-muted-foreground">Credits Remaining</span>
+        <span className="font-medium text-muted-foreground">Job Post Credits</span>
         <span className="shrink-0 font-semibold text-foreground tabular-nums">
           {balance} / {creditCapacity}
         </span>
@@ -148,7 +149,23 @@ export function EmployerShell({
             </div>
           </nav>
         </aside>
-        <main className="min-w-0 flex-1 px-3 py-6 sm:px-6 lg:ml-64 lg:px-8 xl:px-10 2xl:px-12">
+        <main className="min-w-0 flex-1 px-3 pb-6 pt-20 sm:px-6 lg:ml-64 lg:px-8 lg:py-6 xl:px-10 2xl:px-12">
+          <div className="fixed inset-x-0 top-0 z-40 flex h-14 items-center justify-between border-b border-border bg-surface px-3 lg:hidden">
+            <Link to="/employer/dashboard" className="flex items-center">
+              <img src={logoAsset} alt="JobsKart" className="h-7 w-auto" />
+            </Link>
+            <div className="flex items-center gap-2">
+              <NotificationBell />
+              <button
+                type="button"
+                aria-label="Open menu"
+                onClick={() => setMoreOpen(true)}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-foreground"
+              >
+                <Menu className="h-6 w-6" />
+              </button>
+            </div>
+          </div>
           <header className="mb-6 flex flex-row flex-wrap items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-3">
@@ -162,7 +179,7 @@ export function EmployerShell({
             <div
               className={`flex shrink-0 items-center gap-2 ${headerRightInset ? "lg:pr-14 xl:pr-16" : ""}`}
             >
-              <div className="hidden sm:block">
+              <div className="hidden lg:block">
                 <NotificationBell />
               </div>
               {actions}
@@ -173,7 +190,7 @@ export function EmployerShell({
       </div>
 
       <nav
-        className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-5 items-stretch border-t border-border bg-card/95 backdrop-blur lg:hidden"
+        className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-4 items-stretch border-t border-border bg-card/95 backdrop-blur lg:hidden"
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       >
         {primary.map((item) => {
@@ -192,20 +209,12 @@ export function EmployerShell({
             </Link>
           );
         })}
-        <button
-          type="button"
-          onClick={() => setMoreOpen(true)}
-          className="flex min-w-0 flex-col items-center justify-center gap-1 px-0.5 py-2.5 text-center text-[10px] font-medium leading-none text-muted-foreground"
-        >
-          <Menu className="h-5 w-5 shrink-0" />
-          <span className="w-full truncate">More</span>
-        </button>
       </nav>
 
       <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
         <SheetContent side="right" className="flex w-80 max-w-[85vw] flex-col">
-          <SheetTitle>More</SheetTitle>
-          <nav className="mt-4 flex flex-col gap-1 overflow-y-auto">
+          <SheetTitle className="sr-only">Employer navigation</SheetTitle>
+          <nav className="flex flex-col gap-1 overflow-y-auto pr-10">
             {EMPLOYER_OVERFLOW_LINKS.map((item) => {
               const Icon = item.icon;
               return (

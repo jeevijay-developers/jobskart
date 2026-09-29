@@ -38,6 +38,7 @@ export type BoostResult = {
   ends_at: string;
   credits_spent: number;
   balance_after: number;
+  source: "monthly_pool" | "wallet";
 };
 
 // ---------------- applyBoost ----------------
@@ -65,10 +66,10 @@ export const getBoostOverview = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertCompanyMember(context.supabase, context.userId, data.companyId);
 
-    const [walletRes, settingsRes, boostsRes] = await Promise.all([
+    const [walletRes, settingsRes, boostsRes, entitlementsRes] = await Promise.all([
       context.supabase
         .from("employer_credit_wallets")
-        .select("balance")
+        .select("boost_balance")
         .eq("company_id", data.companyId)
         .maybeSingle(),
       context.supabase.from("boost_settings").select("*").eq("id", 1).maybeSingle(),
@@ -77,6 +78,8 @@ export const getBoostOverview = createServerFn({ method: "POST" })
         .select("job_id, ends_at")
         .eq("company_id", data.companyId)
         .gt("ends_at", new Date().toISOString()),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      context.supabase.rpc("get_company_entitlements", { _company_id: data.companyId }) as any,
     ]);
     if (settingsRes.error) throw new Error(settingsRes.error.message);
     if (boostsRes.error) throw new Error(boostsRes.error.message);
@@ -89,9 +92,23 @@ export const getBoostOverview = createServerFn({ method: "POST" })
       }
     }
 
+    // Monthly pooled boost allowance (Option A) — a company can have plan
+    // capacity left even while boost_balance (the wallet) reads 0, so the
+    // UI must not gate the boost button on wallet balance alone.
+    const entitlements = entitlementsRes?.data as
+      | { limits?: { boost_credits_per_month?: number }; usage?: { boost_pool_used_this_month?: number } }
+      | null
+      | undefined;
+    const poolLimit = entitlements?.limits?.boost_credits_per_month ?? 0;
+    const poolUsed = entitlements?.usage?.boost_pool_used_this_month ?? 0;
+    const monthlyPoolRemaining = poolLimit === -1 ? null : Math.max(0, poolLimit - poolUsed);
+
     const settings = settingsRes.data;
     return {
-      balance: walletRes.data?.balance ?? 0,
+      balance: walletRes.data?.boost_balance ?? 0,
+      // null means "unlimited pool" (plan limit -1); a number is the exact
+      // remaining count this month; 0 means no plan pool applies/is left.
+      monthlyPoolRemaining,
       settings: {
         costCredits: settings?.cost_credits ?? 1,
         windowHours: settings?.window_hours ?? 24,

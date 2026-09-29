@@ -1,4 +1,3 @@
-import { ThemedSelect } from "@/components/ui/themed-form-controls";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -18,6 +17,7 @@ import {
   AlertTriangle,
   MoreVertical,
   Search,
+  UserRound,
 } from "lucide-react";
 import { EmployerShell } from "@/components/employer/EmployerShell";
 import {
@@ -106,6 +106,65 @@ type AiRow = {
 };
 
 type PendingStatusChange = { ids: string[]; names: string[]; status: string; label: string };
+
+/**
+ * This list deliberately remains in the Sheet's DOM tree. Radix Select
+ * portals its content to document.body, which makes the menu escape the
+ * transformed side panel and lose the trigger's practical width at runtime.
+ */
+function JobFilterSelect({
+  jobs,
+  value,
+  onValueChange,
+}: {
+  jobs: { id: string; title: string }[];
+  value: string;
+  onValueChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const selectedLabel = jobs.find((job) => job.id === value)?.title ?? "All jobs";
+
+  return (
+    <div className="relative w-full">
+      <button
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+        className="form-input flex h-10 w-full items-center justify-between bg-card text-left"
+      >
+        <span className="min-w-0 truncate">{selectedLabel}</span>
+        <ChevronDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
+      </button>
+      {open && (
+        <div
+          role="listbox"
+          aria-label="Job"
+          className="absolute left-0 top-[calc(100%+0.375rem)] z-[60] max-h-64 w-full overflow-x-hidden overflow-y-auto rounded-xl border border-primary/15 bg-popover p-1 shadow-xl shadow-primary/10"
+        >
+          {[{ id: "", title: "All jobs" }, ...jobs].map((job) => (
+            <button
+              type="button"
+              role="option"
+              aria-selected={job.id === value}
+              key={job.id || "all"}
+              onClick={() => {
+                onValueChange(job.id);
+                setOpen(false);
+              }}
+              className={`flex min-h-10 w-full items-center rounded-lg px-3 text-left text-sm font-medium ${job.id === value
+                ? "bg-primary text-primary-foreground"
+                : "text-foreground hover:bg-surface"
+                }`}
+            >
+              <span className="truncate">{job.title}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function ResponsesPage() {
   const [cid, setCid] = useState<string | null>(null);
@@ -447,18 +506,11 @@ function ResponsesPage() {
                 <label className="mb-1.5 block text-xs font-semibold text-muted-foreground">
                   Job
                 </label>
-                <ThemedSelect
+                <JobFilterSelect
+                  jobs={jobs}
                   value={jobDraft}
-                  onChange={(e) => setJobDraft(e.target.value)}
-                  className="form-input h-10 w-full"
-                >
-                  <option value="">All jobs</option>
-                  {jobs.map((j) => (
-                    <option key={j.id} value={j.id}>
-                      {j.title}
-                    </option>
-                  ))}
-                </ThemedSelect>
+                  onValueChange={setJobDraft}
+                />
               </div>
             </div>
             <SheetFooter className="mt-6">
@@ -553,7 +605,7 @@ function ResponsesPage() {
               {Object.values(statusCounts).reduce((sum, n) => sum + n, 0)}
             </span>
           </button>
-          {APPLICANT_STATUSES.slice(0, 4).map((status) => (
+          {APPLICANT_STATUSES.map((status) => (
             <button
               type="button"
               key={status.id}
@@ -588,7 +640,7 @@ function ResponsesPage() {
             >
               <div
                 role="row"
-                className="hidden grid-cols-[minmax(12rem,1.5fr)_minmax(9rem,1fr)_minmax(8rem,.85fr)_minmax(7rem,.7fr)_minmax(9rem,.9fr)] gap-4 border-b border-border bg-surface/60 px-4 py-2.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground min-[1180px]:grid"
+                className="hidden grid-cols-[minmax(12rem,1.5fr)_minmax(9rem,1fr)_minmax(8rem,.85fr)_minmax(7rem,.7fr)_minmax(6rem,.55fr)] gap-4 border-b border-border bg-surface/60 px-4 py-2.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground min-[1180px]:grid"
               >
                 <span role="columnheader">Candidate</span>
                 <span role="columnheader">Job role</span>
@@ -596,7 +648,7 @@ function ResponsesPage() {
                 <span role="columnheader" className="text-center">
                   Status
                 </span>
-                <span role="columnheader" className="pr-2 text-right">
+                <span role="columnheader" className="pr-4 text-right">
                   Actions
                 </span>
               </div>
@@ -606,8 +658,7 @@ function ResponsesPage() {
                     <li
                       key={r.id}
                       role="row"
-                      onClick={() => setReviewing(r)}
-                      className="grid min-w-0 cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-1.5 px-3 py-2.5 transition-colors hover:bg-surface/70 sm:px-4 min-[1180px]:grid-cols-[minmax(12rem,1.5fr)_minmax(9rem,1fr)_minmax(8rem,.85fr)_minmax(7rem,.7fr)_minmax(9rem,.9fr)] min-[1180px]:gap-4"
+                      className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-1.5 px-3 py-2.5 sm:px-4 min-[1180px]:grid-cols-[minmax(12rem,1.5fr)_minmax(9rem,1fr)_minmax(8rem,.85fr)_minmax(7rem,.7fr)_minmax(6rem,.55fr)] min-[1180px]:gap-4"
                     >
                       <div role="cell" className="flex min-w-0 items-center gap-2.5">
                         <div className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full bg-primary-light text-xs font-bold text-primary ring-1 ring-primary/10">
@@ -662,7 +713,7 @@ function ResponsesPage() {
 
                       <div
                         role="cell"
-                        className="col-start-2 row-span-2 row-start-2 flex items-center justify-end gap-1.5 self-center min-[1180px]:col-auto min-[1180px]:row-auto min-[1180px]:row-span-1 min-[1180px]:pr-2"
+                        className="col-start-2 row-span-2 row-start-2 flex items-center justify-end gap-1.5 self-center min-[1180px]:col-auto min-[1180px]:row-auto min-[1180px]:row-span-1 min-[1180px]:pr-4"
                       >
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -677,28 +728,37 @@ function ResponsesPage() {
                             </button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() =>
-                                askConfirm([r.id], [r.profiles?.full_name], "shortlisted")
-                              }
-                            >
-                              <CheckCircle2 className="mr-2 h-4 w-4 text-success" /> Shortlist
+                            <DropdownMenuItem onClick={() => setReviewing(r)}>
+                              <UserRound className="mr-2 h-4 w-4" /> Profile
                             </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                setScheduling({
-                                  applicationId: r.id,
-                                  candidateName: r.profiles?.full_name ?? null,
-                                })
-                              }
-                            >
-                              <Calendar className="mr-2 h-4 w-4 text-warning" /> Interview
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => askConfirm([r.id], [r.profiles?.full_name], "rejected")}
-                            >
-                              <XCircle className="mr-2 h-4 w-4 text-muted-foreground" /> Reject
-                            </DropdownMenuItem>
+                            {r.status === "applied" && (
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  askConfirm([r.id], [r.profiles?.full_name], "shortlisted")
+                                }
+                              >
+                                <CheckCircle2 className="mr-2 h-4 w-4 text-success" /> Shortlist
+                              </DropdownMenuItem>
+                            )}
+                            {(r.status === "applied" || r.status === "shortlisted") && (
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  setScheduling({
+                                    applicationId: r.id,
+                                    candidateName: r.profiles?.full_name ?? null,
+                                  })
+                                }
+                              >
+                                <Calendar className="mr-2 h-4 w-4 text-warning" /> Interview
+                              </DropdownMenuItem>
+                            )}
+                            {r.status !== "hired" && r.status !== "rejected" && (
+                              <DropdownMenuItem
+                                onClick={() => askConfirm([r.id], [r.profiles?.full_name], "rejected")}
+                              >
+                                <XCircle className="mr-2 h-4 w-4 text-muted-foreground" /> Reject
+                              </DropdownMenuItem>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>

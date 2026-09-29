@@ -15,6 +15,8 @@ type Props = {
   searchable?: boolean;
   /** Placeholder for the search box (searchable only). Default: "Search…". */
   searchPlaceholder?: string;
+  /** Render an anchored menu inside a parent dialog's DOM tree. */
+  portalToBody?: boolean;
 };
 
 /**
@@ -32,6 +34,7 @@ export function StateDropdown({
   maxMenuHeight,
   searchable,
   searchPlaceholder = "Search…",
+  portalToBody = true,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -121,59 +124,71 @@ export function StateDropdown({
         <span className={value ? "" : "text-muted-foreground"}>{value || placeholder}</span>
         <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
       </button>
-      {open && menuPos && createPortal(
-        <div
-          ref={menuRef}
-          data-portal-dropdown
-          className="fixed z-[100] flex flex-col overflow-hidden rounded-xl border border-primary/15 bg-popover shadow-xl shadow-primary/10 box-border"
-          style={{
-            top: menuPos.top,
-            bottom: menuPos.bottom,
-            left: menuPos.left,
-            width: menuPos.width,
-            maxHeight: MENU_MAX_HEIGHT,
-            // Radix's Dialog sets document.body.style.pointerEvents = "none"
-            // while modal (re-enabling "auto" only on the overlay/content
-            // nodes it manages). This menu is portaled straight to
-            // document.body too, so without this override it silently
-            // inherits "none" and every option becomes unclickable — even
-            // though it's visually on top, z-index doesn't matter once an
-            // element is pointer-events:none.
-            pointerEvents: "auto",
-          }}
-        >
-          {searchable && (
-            <div className="shrink-0 border-b border-border p-1.5">
-              <input
-                ref={searchRef}
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder={searchPlaceholder}
-                className="form-input w-full text-sm"
-              />
-            </div>
-          )}
-          <div className="min-h-0 overflow-y-auto overflow-x-hidden [scrollbar-width:thin]">
-            {visibleOptions.length === 0 && (
-              <div className="px-3 py-2 text-sm text-muted-foreground">No matches</div>
+      {open && (portalToBody ? menuPos : true) && (() => {
+        const menu = (
+          <div
+            ref={menuRef}
+            data-portal-dropdown={portalToBody || undefined}
+            className={`${portalToBody ? "fixed" : "absolute"} z-[100] flex flex-col overflow-hidden rounded-xl border border-primary/15 bg-popover shadow-xl shadow-primary/10 box-border`}
+            style={
+              portalToBody
+                ? {
+                    top: menuPos?.top,
+                    bottom: menuPos?.bottom,
+                    left: menuPos?.left,
+                    width: menuPos?.width,
+                    maxHeight: MENU_MAX_HEIGHT,
+                    // Radix's Dialog sets document.body.style.pointerEvents = "none"
+                    // while modal (re-enabling "auto" only on the overlay/content
+                    // nodes it manages). This menu is portaled straight to
+                    // document.body too, so without this override it silently
+                    // inherits "none" and every option becomes unclickable — even
+                    // though it's visually on top, z-index doesn't matter once an
+                    // element is pointer-events:none.
+                    pointerEvents: "auto",
+                  }
+                : {
+                    top: "calc(100% + 4px)",
+                    left: 0,
+                    width: "100%",
+                    maxHeight: MENU_MAX_HEIGHT,
+                  }
+            }
+          >
+            {searchable && (
+              <div className="shrink-0 border-b border-border p-1.5">
+                <input
+                  ref={searchRef}
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={searchPlaceholder}
+                  className="form-input w-full text-sm"
+                />
+              </div>
             )}
-            {visibleOptions.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onMouseDown={() => pick(s)}
-                className={`block w-full px-3 py-2 text-left text-sm hover:bg-surface ${
-                  s === value ? "bg-primary/10 font-medium text-primary" : ""
-                }`}
-              >
-                {s}
-              </button>
-            ))}
+            <div className="min-h-0 overflow-y-auto overflow-x-hidden [scrollbar-width:thin]">
+              {visibleOptions.length === 0 && (
+                <div className="px-3 py-2 text-sm text-muted-foreground">No matches</div>
+              )}
+              {visibleOptions.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onMouseDown={() => pick(s)}
+                  className={`block w-full px-3 py-2 text-left text-sm hover:bg-surface ${
+                    s === value ? "bg-primary/10 font-medium text-primary" : ""
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>,
-        document.body,
-      )}
+        );
+
+        return portalToBody ? createPortal(menu, document.body) : menu;
+      })()}
     </div>
   );
 }
