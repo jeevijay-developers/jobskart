@@ -223,8 +223,12 @@ export function CandidateAppLayout({ children }: { children?: ReactNode }) {
             <button
               type="button"
               onClick={() => {
+                // Same confirmation as the desktop sidebar's Sign out button
+                // (the AlertDialog below, shared via `signOutOpen`) — Radix
+                // portals its content to document.body, so it renders fine
+                // even though this button sits in the mobile-only drawer.
                 setDrawerOpen(false);
-                handleSignOut();
+                setSignOutOpen(true);
               }}
               className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground"
             >
