@@ -160,32 +160,37 @@ function formatDate(date: Date) {
   }).format(date);
 }
 
-type CalendarDropdownOption = { value: string; label: string };
+type ThemedListDropdownOption = { value: string; label: string };
 
 /**
- * Compact scrollable dropdown for the calendar's Month/Year controls — same
- * presentation pattern as CityTownAutocomplete/CityMultiSelect (absolute
- * panel, thin internal scroll, rounded/shadowed popover styling), not a
- * Radix Select, so there are no native-looking scroll-arrow buttons and the
- * panel floats over the calendar instead of pushing it down.
+ * Compact scrollable dropdown — same presentation pattern as
+ * CityTownAutocomplete/CityMultiSelect (absolute panel, thin internal
+ * scroll, rounded/shadowed popover styling), not a Radix Select, so there
+ * are no native-looking scroll-arrow buttons and the panel floats over
+ * surrounding content instead of pushing it down. Used by the calendar's
+ * Month/Year controls and the employer company switcher.
  */
-function CalendarFieldDropdown({
+function ThemedListDropdown({
   label,
   value,
   options,
   onChange,
   className,
+  maxHeight = 192,
+  selectedOptionClassName,
 }: {
   label: string;
   value: string;
-  options: CalendarDropdownOption[];
+  options: ThemedListDropdownOption[];
   onChange: (value: string) => void;
   className?: string;
+  maxHeight?: number;
+  selectedOptionClassName?: string;
 }) {
   const [open, setOpen] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const selectedRef = React.useRef<HTMLButtonElement>(null);
-  const MENU_MAX_HEIGHT = 192;
+  const MENU_MAX_HEIGHT = maxHeight;
 
   React.useEffect(() => {
     if (!open) return;
@@ -234,7 +239,7 @@ function CalendarFieldDropdown({
                 }}
                 className={cn(
                   "block w-full px-3 py-2 text-left text-sm hover:bg-surface",
-                  isSelected && "bg-primary text-primary-foreground hover:bg-primary",
+                  isSelected && (selectedOptionClassName ?? "bg-primary text-primary-foreground hover:bg-primary"),
                 )}
               >
                 {option.label}
@@ -327,13 +332,13 @@ function ThemedDatePicker({
         className="w-[min(21rem,calc(100vw-1.5rem))] rounded-2xl border-primary/15 bg-popover p-3 shadow-2xl shadow-primary/10"
       >
         <div className="mb-2 grid grid-cols-[1fr_6.5rem] gap-2 px-1">
-          <CalendarFieldDropdown
+          <ThemedListDropdown
             label="Month"
             value={String(month.getMonth())}
             options={months.map((label, index) => ({ value: String(index), label }))}
             onChange={(value) => setMonth(new Date(month.getFullYear(), Number(value), 1))}
           />
-          <CalendarFieldDropdown
+          <ThemedListDropdown
             label="Year"
             value={String(month.getFullYear())}
             options={years.map((year) => ({ value: String(year), label: String(year) }))}
@@ -354,4 +359,4 @@ function ThemedDatePicker({
   );
 }
 
-export { ThemedDatePicker, ThemedSelect };
+export { ThemedDatePicker, ThemedSelect, ThemedListDropdown };

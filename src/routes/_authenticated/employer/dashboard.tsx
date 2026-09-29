@@ -1,4 +1,4 @@
-import { ThemedSelect } from "@/components/ui/themed-form-controls";
+import { ThemedListDropdown } from "@/components/ui/themed-form-controls";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
@@ -292,24 +292,20 @@ function EmployerDashboard() {
       title="Employer dashboard"
       headerRightInset
       actions={
-        <ThemedSelect
-          aria-label="Active company"
-          className="form-input h-9 w-full max-w-[220px] text-sm sm:w-auto"
+        <ThemedListDropdown
+          label="Active company"
+          className="h-9 w-full max-w-[220px] text-sm sm:w-auto"
           value={active.company_id}
-          onChange={(e) => {
-            const next = companies.find((c) => c.company_id === e.target.value);
+          options={companies.map((c) => ({ value: c.company_id, label: c.companies.name }))}
+          selectedOptionClassName="bg-primary/10 font-medium text-primary hover:bg-primary/15"
+          onChange={(value) => {
+            const next = companies.find((c) => c.company_id === value);
             if (next) {
               setActive(next);
               setActiveCompanyId(next.company_id);
             }
           }}
-        >
-          {companies.map((c) => (
-            <option key={c.company_id} value={c.company_id}>
-              {c.companies.name}
-            </option>
-          ))}
-        </ThemedSelect>
+        />
       }
     >
       <div className="space-y-5 sm:space-y-6">
