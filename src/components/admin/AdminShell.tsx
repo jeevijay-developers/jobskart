@@ -7,6 +7,8 @@ import {
   Database,
   Megaphone,
   GraduationCap,
+  BookOpen,
+  MessagesSquare,
   Coins,
   FileText,
   ShieldCheck,
@@ -29,6 +31,8 @@ const nav = [
   { to: "/admin/plans", label: "Plan Settings", icon: Settings2 },
   { to: "/admin/banners", label: "Banners", icon: Megaphone },
   { to: "/admin/learning", label: "Learning", icon: GraduationCap },
+  { to: "/admin/content", label: "Content Library", icon: BookOpen },
+  { to: "/admin/interview-prep", label: "Interview prep", icon: MessagesSquare },
   { to: "/admin/credits", label: "Credits", icon: Coins },
   { to: "/admin/resumes", label: "Resumes", icon: FileText },
 ] as const;

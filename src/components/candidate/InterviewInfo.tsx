@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Calendar, ExternalLink, MapPin, Phone, Smartphone, Video } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
@@ -168,6 +169,15 @@ export function InterviewInfo({ interview }: { interview: Interview }) {
         ))}
 
       {interview.notes && <p className="mt-3 rounded-lg bg-card p-3 text-sm">{interview.notes}</p>}
+
+      {upcoming && !isTerminal && (
+        <Link
+          to="/candidate/interview-prep"
+          className="mt-3 inline-flex h-9 items-center rounded-lg border border-primary px-3 text-xs font-bold text-primary hover:bg-primary-light"
+        >
+          Prepare for this interview
+        </Link>
+      )}
     </div>
   );
 }

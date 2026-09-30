@@ -16,6 +16,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as InterviewJoinRouteImport } from './routes/interview-join'
 import { Route as JobsRouteImport } from './routes/jobs'
+import { Route as LearnRouteImport } from './routes/learn'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
@@ -23,8 +24,10 @@ import { Route as AuthenticatedCandidateRouteRouteImport } from './routes/_authe
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminBannersRouteImport } from './routes/admin/banners'
 import { Route as AdminCompaniesRouteImport } from './routes/admin/companies'
+import { Route as AdminContentRouteImport } from './routes/admin/content'
 import { Route as AdminCreditsRouteImport } from './routes/admin/credits'
 import { Route as AdminDashboardRouteImport } from './routes/admin/dashboard'
+import { Route as AdminInterviewPrepRouteImport } from './routes/admin/interview-prep'
 import { Route as AdminJobsRouteImport } from './routes/admin/jobs'
 import { Route as AdminLearningRouteImport } from './routes/admin/learning'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
@@ -67,6 +70,11 @@ import { Route as AuthenticatedEmployerTeamRouteImport } from './routes/_authent
 import { Route as AuthenticatedEmployerVerificationRouteImport } from './routes/_authenticated/employer/verification'
 import { Route as AuthenticatedOnboardingCandidateRouteImport } from './routes/_authenticated/onboarding/candidate'
 import { Route as AuthenticatedOnboardingEmployerRouteImport } from './routes/_authenticated/onboarding/employer'
+import { Route as LearnCertificationSlugRouteImport } from './routes/learn.certification.$slug'
+import { Route as LearnCourseSlugRouteImport } from './routes/learn.course.$slug'
+import { Route as LearnPostSlugRouteImport } from './routes/learn.post.$slug'
+import { Route as AuthenticatedCandidateInterviewPrepIndexRouteImport } from './routes/_authenticated/candidate/interview-prep.index'
+import { Route as AuthenticatedCandidateInterviewPrepSessionIdRouteImport } from './routes/_authenticated/candidate/interview-prep.$sessionId'
 import { Route as AuthenticatedEmployerJobsBulkRouteImport } from './routes/_authenticated/employer/jobs.bulk'
 import { Route as AuthenticatedEmployerJobsNewRouteImport } from './routes/_authenticated/employer/jobs.new'
 import { Route as ApiPublicWebhooksRazorpayRouteImport } from './routes/api/public/webhooks/razorpay'
@@ -107,6 +115,11 @@ const JobsRoute = JobsRouteImport.update({
   path: '/jobs',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LearnRoute = LearnRouteImport.update({
+  id: '/learn',
+  path: '/learn',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const McpRoute = McpRouteImport.update({
   id: '/mcp',
   path: '/mcp',
@@ -144,6 +157,11 @@ const AdminCompaniesRoute = AdminCompaniesRouteImport.update({
   path: '/companies',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminContentRoute = AdminContentRouteImport.update({
+  id: '/content',
+  path: '/content',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const AdminCreditsRoute = AdminCreditsRouteImport.update({
   id: '/credits',
   path: '/credits',
@@ -152,6 +170,11 @@ const AdminCreditsRoute = AdminCreditsRouteImport.update({
 const AdminDashboardRoute = AdminDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminInterviewPrepRoute = AdminInterviewPrepRouteImport.update({
+  id: '/interview-prep',
+  path: '/interview-prep',
   getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminJobsRoute = AdminJobsRouteImport.update({
@@ -387,6 +410,33 @@ const AuthenticatedOnboardingEmployerRoute =
     path: '/onboarding/employer',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const LearnCertificationSlugRoute = LearnCertificationSlugRouteImport.update({
+  id: '/certification/$slug',
+  path: '/certification/$slug',
+  getParentRoute: () => LearnRoute,
+} as any)
+const LearnCourseSlugRoute = LearnCourseSlugRouteImport.update({
+  id: '/course/$slug',
+  path: '/course/$slug',
+  getParentRoute: () => LearnRoute,
+} as any)
+const LearnPostSlugRoute = LearnPostSlugRouteImport.update({
+  id: '/post/$slug',
+  path: '/post/$slug',
+  getParentRoute: () => LearnRoute,
+} as any)
+const AuthenticatedCandidateInterviewPrepIndexRoute =
+  AuthenticatedCandidateInterviewPrepIndexRouteImport.update({
+    id: '/interview-prep/',
+    path: '/interview-prep/',
+    getParentRoute: () => AuthenticatedCandidateRouteRoute,
+  } as any)
+const AuthenticatedCandidateInterviewPrepSessionIdRoute =
+  AuthenticatedCandidateInterviewPrepSessionIdRouteImport.update({
+    id: '/interview-prep/$sessionId',
+    path: '/interview-prep/$sessionId',
+    getParentRoute: () => AuthenticatedCandidateRouteRoute,
+  } as any)
 const AuthenticatedEmployerJobsBulkRoute =
   AuthenticatedEmployerJobsBulkRouteImport.update({
     id: '/bulk',
@@ -425,14 +475,17 @@ export interface FileRoutesByFullPath {
   '/forgot-password': typeof ForgotPasswordRoute
   '/interview-join': typeof InterviewJoinRoute
   '/jobs': typeof JobsRouteWithChildren
+  '/learn': typeof LearnRouteWithChildren
   '/mcp': typeof McpRoute
   '/reset-password': typeof ResetPasswordRoute
   '/candidate': typeof AuthenticatedCandidateRouteRouteWithChildren
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/banners': typeof AdminBannersRoute
   '/admin/companies': typeof AdminCompaniesRoute
+  '/admin/content': typeof AdminContentRoute
   '/admin/credits': typeof AdminCreditsRoute
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/interview-prep': typeof AdminInterviewPrepRoute
   '/admin/jobs': typeof AdminJobsRoute
   '/admin/learning': typeof AdminLearningRoute
   '/admin/login': typeof AdminLoginRoute
@@ -476,9 +529,14 @@ export interface FileRoutesByFullPath {
   '/employer/verification': typeof AuthenticatedEmployerVerificationRoute
   '/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
   '/onboarding/employer': typeof AuthenticatedOnboardingEmployerRoute
+  '/learn/certification/$slug': typeof LearnCertificationSlugRoute
+  '/learn/course/$slug': typeof LearnCourseSlugRoute
+  '/learn/post/$slug': typeof LearnPostSlugRoute
+  '/candidate/interview-prep/$sessionId': typeof AuthenticatedCandidateInterviewPrepSessionIdRoute
   '/employer/jobs/bulk': typeof AuthenticatedEmployerJobsBulkRoute
   '/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
   '/api/public/webhooks/razorpay': typeof ApiPublicWebhooksRazorpayRoute
+  '/candidate/interview-prep/': typeof AuthenticatedCandidateInterviewPrepIndexRoute
   '/employer/jobs/$jobId/applicants': typeof AuthenticatedEmployerJobsJobIdApplicantsRoute
   '/employer/jobs/$jobId/edit': typeof AuthenticatedEmployerJobsJobIdEditRoute
 }
@@ -488,14 +546,17 @@ export interface FileRoutesByTo {
   '/forgot-password': typeof ForgotPasswordRoute
   '/interview-join': typeof InterviewJoinRoute
   '/jobs': typeof JobsRouteWithChildren
+  '/learn': typeof LearnRouteWithChildren
   '/mcp': typeof McpRoute
   '/reset-password': typeof ResetPasswordRoute
   '/candidate': typeof AuthenticatedCandidateRouteRouteWithChildren
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/banners': typeof AdminBannersRoute
   '/admin/companies': typeof AdminCompaniesRoute
+  '/admin/content': typeof AdminContentRoute
   '/admin/credits': typeof AdminCreditsRoute
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/interview-prep': typeof AdminInterviewPrepRoute
   '/admin/jobs': typeof AdminJobsRoute
   '/admin/learning': typeof AdminLearningRoute
   '/admin/login': typeof AdminLoginRoute
@@ -539,9 +600,14 @@ export interface FileRoutesByTo {
   '/employer/verification': typeof AuthenticatedEmployerVerificationRoute
   '/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
   '/onboarding/employer': typeof AuthenticatedOnboardingEmployerRoute
+  '/learn/certification/$slug': typeof LearnCertificationSlugRoute
+  '/learn/course/$slug': typeof LearnCourseSlugRoute
+  '/learn/post/$slug': typeof LearnPostSlugRoute
+  '/candidate/interview-prep/$sessionId': typeof AuthenticatedCandidateInterviewPrepSessionIdRoute
   '/employer/jobs/bulk': typeof AuthenticatedEmployerJobsBulkRoute
   '/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
   '/api/public/webhooks/razorpay': typeof ApiPublicWebhooksRazorpayRoute
+  '/candidate/interview-prep': typeof AuthenticatedCandidateInterviewPrepIndexRoute
   '/employer/jobs/$jobId/applicants': typeof AuthenticatedEmployerJobsJobIdApplicantsRoute
   '/employer/jobs/$jobId/edit': typeof AuthenticatedEmployerJobsJobIdEditRoute
 }
@@ -554,14 +620,17 @@ export interface FileRoutesById {
   '/forgot-password': typeof ForgotPasswordRoute
   '/interview-join': typeof InterviewJoinRoute
   '/jobs': typeof JobsRouteWithChildren
+  '/learn': typeof LearnRouteWithChildren
   '/mcp': typeof McpRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/candidate': typeof AuthenticatedCandidateRouteRouteWithChildren
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/banners': typeof AdminBannersRoute
   '/admin/companies': typeof AdminCompaniesRoute
+  '/admin/content': typeof AdminContentRoute
   '/admin/credits': typeof AdminCreditsRoute
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/interview-prep': typeof AdminInterviewPrepRoute
   '/admin/jobs': typeof AdminJobsRoute
   '/admin/learning': typeof AdminLearningRoute
   '/admin/login': typeof AdminLoginRoute
@@ -605,9 +674,14 @@ export interface FileRoutesById {
   '/_authenticated/employer/verification': typeof AuthenticatedEmployerVerificationRoute
   '/_authenticated/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
   '/_authenticated/onboarding/employer': typeof AuthenticatedOnboardingEmployerRoute
+  '/learn/certification/$slug': typeof LearnCertificationSlugRoute
+  '/learn/course/$slug': typeof LearnCourseSlugRoute
+  '/learn/post/$slug': typeof LearnPostSlugRoute
+  '/_authenticated/candidate/interview-prep/$sessionId': typeof AuthenticatedCandidateInterviewPrepSessionIdRoute
   '/_authenticated/employer/jobs/bulk': typeof AuthenticatedEmployerJobsBulkRoute
   '/_authenticated/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
   '/api/public/webhooks/razorpay': typeof ApiPublicWebhooksRazorpayRoute
+  '/_authenticated/candidate/interview-prep/': typeof AuthenticatedCandidateInterviewPrepIndexRoute
   '/_authenticated/employer/jobs/$jobId/applicants': typeof AuthenticatedEmployerJobsJobIdApplicantsRoute
   '/_authenticated/employer/jobs/$jobId/edit': typeof AuthenticatedEmployerJobsJobIdEditRoute
 }
@@ -620,14 +694,17 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/interview-join'
     | '/jobs'
+    | '/learn'
     | '/mcp'
     | '/reset-password'
     | '/candidate'
     | '/.well-known/oauth-protected-resource'
     | '/admin/banners'
     | '/admin/companies'
+    | '/admin/content'
     | '/admin/credits'
     | '/admin/dashboard'
+    | '/admin/interview-prep'
     | '/admin/jobs'
     | '/admin/learning'
     | '/admin/login'
@@ -671,9 +748,14 @@ export interface FileRouteTypes {
     | '/employer/verification'
     | '/onboarding/candidate'
     | '/onboarding/employer'
+    | '/learn/certification/$slug'
+    | '/learn/course/$slug'
+    | '/learn/post/$slug'
+    | '/candidate/interview-prep/$sessionId'
     | '/employer/jobs/bulk'
     | '/employer/jobs/new'
     | '/api/public/webhooks/razorpay'
+    | '/candidate/interview-prep/'
     | '/employer/jobs/$jobId/applicants'
     | '/employer/jobs/$jobId/edit'
   fileRoutesByTo: FileRoutesByTo
@@ -683,14 +765,17 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/interview-join'
     | '/jobs'
+    | '/learn'
     | '/mcp'
     | '/reset-password'
     | '/candidate'
     | '/.well-known/oauth-protected-resource'
     | '/admin/banners'
     | '/admin/companies'
+    | '/admin/content'
     | '/admin/credits'
     | '/admin/dashboard'
+    | '/admin/interview-prep'
     | '/admin/jobs'
     | '/admin/learning'
     | '/admin/login'
@@ -734,9 +819,14 @@ export interface FileRouteTypes {
     | '/employer/verification'
     | '/onboarding/candidate'
     | '/onboarding/employer'
+    | '/learn/certification/$slug'
+    | '/learn/course/$slug'
+    | '/learn/post/$slug'
+    | '/candidate/interview-prep/$sessionId'
     | '/employer/jobs/bulk'
     | '/employer/jobs/new'
     | '/api/public/webhooks/razorpay'
+    | '/candidate/interview-prep'
     | '/employer/jobs/$jobId/applicants'
     | '/employer/jobs/$jobId/edit'
   id:
@@ -748,14 +838,17 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/interview-join'
     | '/jobs'
+    | '/learn'
     | '/mcp'
     | '/reset-password'
     | '/_authenticated/candidate'
     | '/.well-known/oauth-protected-resource'
     | '/admin/banners'
     | '/admin/companies'
+    | '/admin/content'
     | '/admin/credits'
     | '/admin/dashboard'
+    | '/admin/interview-prep'
     | '/admin/jobs'
     | '/admin/learning'
     | '/admin/login'
@@ -799,9 +892,14 @@ export interface FileRouteTypes {
     | '/_authenticated/employer/verification'
     | '/_authenticated/onboarding/candidate'
     | '/_authenticated/onboarding/employer'
+    | '/learn/certification/$slug'
+    | '/learn/course/$slug'
+    | '/learn/post/$slug'
+    | '/_authenticated/candidate/interview-prep/$sessionId'
     | '/_authenticated/employer/jobs/bulk'
     | '/_authenticated/employer/jobs/new'
     | '/api/public/webhooks/razorpay'
+    | '/_authenticated/candidate/interview-prep/'
     | '/_authenticated/employer/jobs/$jobId/applicants'
     | '/_authenticated/employer/jobs/$jobId/edit'
   fileRoutesById: FileRoutesById
@@ -814,6 +912,7 @@ export interface RootRouteChildren {
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   InterviewJoinRoute: typeof InterviewJoinRoute
   JobsRoute: typeof JobsRouteWithChildren
+  LearnRoute: typeof LearnRouteWithChildren
   McpRoute: typeof McpRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
@@ -881,6 +980,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof JobsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/learn': {
+      id: '/learn'
+      path: '/learn'
+      fullPath: '/learn'
+      preLoaderRoute: typeof LearnRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/mcp': {
       id: '/mcp'
       path: '/mcp'
@@ -930,6 +1036,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminCompaniesRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/content': {
+      id: '/admin/content'
+      path: '/content'
+      fullPath: '/admin/content'
+      preLoaderRoute: typeof AdminContentRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/credits': {
       id: '/admin/credits'
       path: '/credits'
@@ -942,6 +1055,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/admin/dashboard'
       preLoaderRoute: typeof AdminDashboardRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/interview-prep': {
+      id: '/admin/interview-prep'
+      path: '/interview-prep'
+      fullPath: '/admin/interview-prep'
+      preLoaderRoute: typeof AdminInterviewPrepRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/admin/jobs': {
@@ -1238,6 +1358,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedOnboardingEmployerRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/learn/certification/$slug': {
+      id: '/learn/certification/$slug'
+      path: '/certification/$slug'
+      fullPath: '/learn/certification/$slug'
+      preLoaderRoute: typeof LearnCertificationSlugRouteImport
+      parentRoute: typeof LearnRoute
+    }
+    '/learn/course/$slug': {
+      id: '/learn/course/$slug'
+      path: '/course/$slug'
+      fullPath: '/learn/course/$slug'
+      preLoaderRoute: typeof LearnCourseSlugRouteImport
+      parentRoute: typeof LearnRoute
+    }
+    '/learn/post/$slug': {
+      id: '/learn/post/$slug'
+      path: '/post/$slug'
+      fullPath: '/learn/post/$slug'
+      preLoaderRoute: typeof LearnPostSlugRouteImport
+      parentRoute: typeof LearnRoute
+    }
+    '/_authenticated/candidate/interview-prep/': {
+      id: '/_authenticated/candidate/interview-prep/'
+      path: '/interview-prep'
+      fullPath: '/candidate/interview-prep/'
+      preLoaderRoute: typeof AuthenticatedCandidateInterviewPrepIndexRouteImport
+      parentRoute: typeof AuthenticatedCandidateRouteRoute
+    }
+    '/_authenticated/candidate/interview-prep/$sessionId': {
+      id: '/_authenticated/candidate/interview-prep/$sessionId'
+      path: '/interview-prep/$sessionId'
+      fullPath: '/candidate/interview-prep/$sessionId'
+      preLoaderRoute: typeof AuthenticatedCandidateInterviewPrepSessionIdRouteImport
+      parentRoute: typeof AuthenticatedCandidateRouteRoute
+    }
     '/_authenticated/employer/jobs/bulk': {
       id: '/_authenticated/employer/jobs/bulk'
       path: '/bulk'
@@ -1286,6 +1441,8 @@ interface AuthenticatedCandidateRouteRouteChildren {
   AuthenticatedCandidateProfileRoute: typeof AuthenticatedCandidateProfileRoute
   AuthenticatedCandidateSavedRoute: typeof AuthenticatedCandidateSavedRoute
   AuthenticatedCandidateSettingsRoute: typeof AuthenticatedCandidateSettingsRoute
+  AuthenticatedCandidateInterviewPrepSessionIdRoute: typeof AuthenticatedCandidateInterviewPrepSessionIdRoute
+  AuthenticatedCandidateInterviewPrepIndexRoute: typeof AuthenticatedCandidateInterviewPrepIndexRoute
 }
 
 const AuthenticatedCandidateRouteRouteChildren: AuthenticatedCandidateRouteRouteChildren =
@@ -1301,6 +1458,10 @@ const AuthenticatedCandidateRouteRouteChildren: AuthenticatedCandidateRouteRoute
     AuthenticatedCandidateProfileRoute: AuthenticatedCandidateProfileRoute,
     AuthenticatedCandidateSavedRoute: AuthenticatedCandidateSavedRoute,
     AuthenticatedCandidateSettingsRoute: AuthenticatedCandidateSettingsRoute,
+    AuthenticatedCandidateInterviewPrepSessionIdRoute:
+      AuthenticatedCandidateInterviewPrepSessionIdRoute,
+    AuthenticatedCandidateInterviewPrepIndexRoute:
+      AuthenticatedCandidateInterviewPrepIndexRoute,
   }
 
 const AuthenticatedCandidateRouteRouteWithChildren =
@@ -1374,8 +1535,10 @@ const AuthenticatedRouteRouteWithChildren =
 interface AdminRouteRouteChildren {
   AdminBannersRoute: typeof AdminBannersRoute
   AdminCompaniesRoute: typeof AdminCompaniesRoute
+  AdminContentRoute: typeof AdminContentRoute
   AdminCreditsRoute: typeof AdminCreditsRoute
   AdminDashboardRoute: typeof AdminDashboardRoute
+  AdminInterviewPrepRoute: typeof AdminInterviewPrepRoute
   AdminJobsRoute: typeof AdminJobsRoute
   AdminLearningRoute: typeof AdminLearningRoute
   AdminLoginRoute: typeof AdminLoginRoute
@@ -1390,8 +1553,10 @@ interface AdminRouteRouteChildren {
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminBannersRoute: AdminBannersRoute,
   AdminCompaniesRoute: AdminCompaniesRoute,
+  AdminContentRoute: AdminContentRoute,
   AdminCreditsRoute: AdminCreditsRoute,
   AdminDashboardRoute: AdminDashboardRoute,
+  AdminInterviewPrepRoute: AdminInterviewPrepRoute,
   AdminJobsRoute: AdminJobsRoute,
   AdminLearningRoute: AdminLearningRoute,
   AdminLoginRoute: AdminLoginRoute,
@@ -1417,6 +1582,20 @@ const JobsRouteChildren: JobsRouteChildren = {
 
 const JobsRouteWithChildren = JobsRoute._addFileChildren(JobsRouteChildren)
 
+interface LearnRouteChildren {
+  LearnCertificationSlugRoute: typeof LearnCertificationSlugRoute
+  LearnCourseSlugRoute: typeof LearnCourseSlugRoute
+  LearnPostSlugRoute: typeof LearnPostSlugRoute
+}
+
+const LearnRouteChildren: LearnRouteChildren = {
+  LearnCertificationSlugRoute: LearnCertificationSlugRoute,
+  LearnCourseSlugRoute: LearnCourseSlugRoute,
+  LearnPostSlugRoute: LearnPostSlugRoute,
+}
+
+const LearnRouteWithChildren = LearnRoute._addFileChildren(LearnRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
@@ -1425,6 +1604,7 @@ const rootRouteChildren: RootRouteChildren = {
   ForgotPasswordRoute: ForgotPasswordRoute,
   InterviewJoinRoute: InterviewJoinRoute,
   JobsRoute: JobsRouteWithChildren,
+  LearnRoute: LearnRouteWithChildren,
   McpRoute: McpRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:

@@ -18,6 +18,7 @@ function SettingsPage() {
     email_alerts: true,
     whatsapp_alerts: false,
     weekly_digest: true,
+    interview_prep_reminders: false,
   });
 
   useEffect(() => {
@@ -79,6 +80,7 @@ function SettingsPage() {
             </header>
             <Row icon={Bell} title="Email alerts" desc="Get emailed when recruiters shortlist you or send updates." k="email_alerts" />
             <Row icon={MessageCircle} title="WhatsApp alerts" desc="Instant updates for interviews, offers and match jobs." k="whatsapp_alerts" />
+            <Row icon={Bell} title="Interview practice reminders" desc="One in-app nudge to practise before an upcoming interview. Off by default; never shared with employers." k="interview_prep_reminders" />
             <Row icon={Bell} title="Weekly job digest" desc="A curated list of the best-matching jobs every Monday." k="weekly_digest" />
             <div className="flex justify-end border-t border-border p-4">
               <button onClick={save} disabled={saving} className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-50">

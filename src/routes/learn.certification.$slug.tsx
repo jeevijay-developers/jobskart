@@ -1,0 +1,262 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { useEffect, useState } from "react";
+import { ArrowLeft, Award, CheckCircle2, Loader2, Lock } from "lucide-react";
+import { toast } from "sonner";
+import { Navbar } from "@/components/site/Navbar";
+import { Footer } from "@/components/site/Footer";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  createCertificationOrder,
+  getMyCertificatePurchases,
+  reportCertificationPaymentFailure,
+  verifyCertificationPayment,
+} from "@/lib/learning.functions";
+
+export const Route = createFileRoute("/learn/certification/$slug")({
+  component: CertificationPage,
+});
+
+type Cert = {
+  id: string;
+  title: string;
+  excerpt: string | null;
+  cover_url: string | null;
+  certifications:
+    | {
+        price_inr: number;
+        provider: string;
+        partner_name: string | null;
+        pass_mark: number;
+        max_attempts: number;
+      }
+    | {
+        price_inr: number;
+        provider: string;
+        partner_name: string | null;
+        pass_mark: number;
+        max_attempts: number;
+      }[]
+    | null;
+};
+
+function one<T>(v: T | T[] | null): T | null {
+  return Array.isArray(v) ? (v[0] ?? null) : v;
+}
+
+function CertificationPage() {
+  const { slug } = Route.useParams();
+  const [cert, setCert] = useState<Cert | null | "not_found">(null);
+  const [owned, setOwned] = useState<{ certificate_no: string } | null>(null);
+  const [buying, setBuying] = useState(false);
+  const createOrder = useServerFn(createCertificationOrder);
+  const verify = useServerFn(verifyCertificationPayment);
+  const reportFailure = useServerFn(reportCertificationPaymentFailure);
+  const myPurchases = useServerFn(getMyCertificatePurchases);
+
+  useEffect(() => {
+    let cancelled = false;
+    supabase
+      .from("content_items")
+      .select(
+        "id, title, excerpt, cover_url, certifications(price_inr, provider, partner_name, pass_mark, max_attempts)",
+      )
+      .eq("slug", slug)
+      .eq("content_type", "certification")
+      .eq("status", "published")
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return;
+        const row = (data as unknown as Cert | null) ?? "not_found";
+        setCert(row);
+        if (row !== "not_found") {
+          myPurchases({ data: undefined })
+            .then((rows) => {
+              const mine = rows.find((r) => r.certification_id === row.id);
+              if (!cancelled && mine) setOwned({ certificate_no: mine.certificate_no ?? "" });
+            })
+            .catch(() => {
+              // Not signed in, or the check failed — treat as "not yet purchased"; the
+              // Buy button itself requires sign-in and re-checks server-side anyway.
+            });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slug]);
+
+  const handleBuy = async () => {
+    if (cert === null || cert === "not_found") return;
+    const { data: sess } = await supabase.auth.getSession();
+    if (!sess.session) {
+      toast.error("Please sign in as a candidate to buy a certification.");
+      return;
+    }
+    if (typeof window === "undefined" || !window.Razorpay) {
+      toast.error("Checkout not loaded yet. Refresh and try again.");
+      return;
+    }
+    setBuying(true);
+    try {
+      const order = await createOrder({ data: { certificationId: cert.id } });
+      const rzp = new window.Razorpay({
+        key: order.keyId,
+        order_id: order.orderId,
+        amount: order.amount,
+        currency: order.currency,
+        name: "JobsKart",
+        description: order.title,
+        prefill: order.prefill,
+        theme: { color: "#1A55BD" },
+        handler: async (resp: {
+          razorpay_order_id: string;
+          razorpay_payment_id: string;
+          razorpay_signature: string;
+        }) => {
+          try {
+            const r = await verify({
+              data: {
+                razorpayOrderId: resp.razorpay_order_id,
+                razorpayPaymentId: resp.razorpay_payment_id,
+                razorpaySignature: resp.razorpay_signature,
+              },
+            });
+            toast.success("Certification purchased!");
+            setOwned({ certificate_no: r.certificateNo ?? "" });
+          } catch (e) {
+            toast.error(e instanceof Error ? e.message : "Verification failed.");
+          } finally {
+            setBuying(false);
+          }
+        },
+        modal: { ondismiss: () => setBuying(false) },
+      });
+      rzp.on(
+        "payment.failed",
+        (resp: {
+          error?: { description?: string; metadata?: { order_id?: string; payment_id?: string } };
+        }) => {
+          toast.error(resp.error?.description || "Payment failed. Try another method.");
+          void reportFailure({
+            data: {
+              razorpayOrderId: resp.error?.metadata?.order_id ?? order.orderId,
+              razorpayPaymentId: resp.error?.metadata?.payment_id,
+            },
+          }).catch(() => {
+            /* best-effort; the webhook records failures too */
+          });
+        },
+      );
+      rzp.open();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not start checkout.");
+      setBuying(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-surface">
+      <Navbar />
+      <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
+        <Link
+          to="/learn"
+          className="inline-flex items-center gap-1 text-sm font-semibold text-primary"
+        >
+          <ArrowLeft className="h-4 w-4" /> Back to Learning
+        </Link>
+
+        {cert === null ? (
+          <div className="mt-8 grid place-items-center rounded-xl border border-border bg-card p-12">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          </div>
+        ) : cert === "not_found" ? (
+          <div className="mt-8 rounded-xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
+            This certification isn't available.
+          </div>
+        ) : (
+          (() => {
+            const details = one(cert.certifications);
+            const price = details?.price_inr ?? 0;
+            return (
+              <div className="mt-6">
+                {cert.cover_url && (
+                  <img
+                    src={cert.cover_url}
+                    alt=""
+                    className="mb-6 w-full rounded-xl object-cover"
+                  />
+                )}
+                <div className="flex items-center gap-2">
+                  <Award className="h-6 w-6 text-primary" />
+                  <h1 className="text-2xl font-bold text-foreground sm:text-3xl">{cert.title}</h1>
+                </div>
+                {cert.excerpt && <p className="mt-2 text-muted-foreground">{cert.excerpt}</p>}
+
+                {details && (
+                  <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <dt className="text-xs font-semibold uppercase text-muted-foreground">
+                        Pass mark
+                      </dt>
+                      <dd className="text-foreground">{details.pass_mark}%</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs font-semibold uppercase text-muted-foreground">
+                        Attempts
+                      </dt>
+                      <dd className="text-foreground">{details.max_attempts}</dd>
+                    </div>
+                    {details.provider === "partner" && details.partner_name && (
+                      <div className="col-span-2">
+                        <dt className="text-xs font-semibold uppercase text-muted-foreground">
+                          Issued with
+                        </dt>
+                        <dd className="text-foreground">{details.partner_name}</dd>
+                      </div>
+                    )}
+                  </dl>
+                )}
+
+                <div className="mt-6 rounded-xl border border-border bg-card p-5">
+                  {owned ? (
+                    <div className="flex items-center gap-2 text-success">
+                      <CheckCircle2 className="h-5 w-5" />
+                      <div>
+                        <p className="font-semibold">You own this certification</p>
+                        {owned.certificate_no && (
+                          <p className="text-xs text-muted-foreground">
+                            Certificate No. {owned.certificate_no}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ) : price > 0 ? (
+                    <>
+                      <p className="text-lg font-bold text-foreground">₹{price}</p>
+                      <button
+                        onClick={handleBuy}
+                        disabled={buying}
+                        className="mt-3 inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+                      >
+                        {buying && <Loader2 className="h-4 w-4 animate-spin" />}
+                        Buy now
+                      </button>
+                      <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+                        <Lock className="h-3 w-3" /> Secure checkout via Razorpay.
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">This certification is free.</p>
+                  )}
+                </div>
+              </div>
+            );
+          })()
+        )}
+      </main>
+      <Footer />
+    </div>
+  );
+}

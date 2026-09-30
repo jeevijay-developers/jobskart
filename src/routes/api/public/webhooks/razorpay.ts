@@ -28,7 +28,8 @@ export const Route = createFileRoute("/api/public/webhooks/razorpay")({
         const body = await request.text();
         if (!signature) return new Response("Missing signature", { status: 401 });
 
-        const { hmacSha256Matches, fulfilRazorpayOrder } = await import("@/lib/razorpay.server");
+        const { hmacSha256Matches, fulfilRazorpayOrder, fulfilCertificationOrder } =
+          await import("@/lib/razorpay.server");
         if (!hmacSha256Matches(secret, body, signature)) {
           return new Response("Invalid signature", { status: 401 });
         }
@@ -45,8 +46,58 @@ export const Route = createFileRoute("/api/public/webhooks/razorpay")({
         const paymentId = payment?.id;
         if (!orderId || !paymentId) return new Response("ignored", { status: 200 });
 
+        // Certification orders (candidate_orders) and credit/plan orders (razorpay_orders)
+        // are disjoint tables sharing this one endpoint — check which this order id belongs
+        // to. maybeSingle(), not single(): "no row" is the expected, common case here (most
+        // webhook events are for the other table), not an error.
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: candidateOrder } = await supabaseAdmin
+          .from("candidate_orders")
+          .select("id")
+          .eq("razorpay_order_id", orderId)
+          .maybeSingle();
+
+        if (candidateOrder) {
+          if (event.event === "payment.failed") {
+            const { error } = await supabaseAdmin.rpc("mark_certification_order_failed", {
+              _razorpay_order_id: orderId,
+              _razorpay_payment_id: paymentId,
+            });
+            if (error) {
+              console.error("mark_certification_order_failed failed", error.message);
+              return new Response("error", { status: 500 });
+            }
+            return new Response("ok", { status: 200 });
+          }
+          if (event.event === "payment.captured" || event.event === "order.paid") {
+            try {
+              // Row-locked, amount-checked, idempotent — same guarantees as the
+              // employer credit-pack path, so the client verify call and this
+              // webhook can never double-grant a certificate.
+              const result = await fulfilCertificationOrder({
+                razorpayOrderId: orderId,
+                razorpayPaymentId: paymentId,
+                amountPaise: typeof payment?.amount === "number" ? payment.amount : null,
+                via: "webhook",
+                actor: null,
+              });
+              if (result.status === "amount_mismatch") {
+                console.error("Certification order amount mismatch", { orderId, paymentId });
+              }
+              return new Response("ok", { status: 200 });
+            } catch (e) {
+              const msg = e instanceof Error ? e.message : String(e);
+              if (msg.includes("order_not_found"))
+                return new Response("order not found", { status: 200 });
+              console.error("fulfil_certification_order failed", msg);
+              return new Response("error", { status: 500 });
+            }
+          }
+          return new Response("ignored", { status: 200 });
+        }
+
+        // Fallback to original logic for non-candidate orders
         if (event.event === "payment.failed") {
-          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
           const reason = [payment?.error_code, payment?.error_description]
             .filter(Boolean)
             .join(": ");
@@ -88,7 +139,7 @@ export const Route = createFileRoute("/api/public/webhooks/razorpay")({
           if (msg.includes("order_not_found"))
             return new Response("order not found", { status: 200 });
           // Anything else: 500 so Razorpay retries (fulfilment is idempotent).
-          console.error("fulfill_razorpay_order failed", msg);
+          console.error("fulfil_razorpay_order failed", msg);
           return new Response("error", { status: 500 });
         }
       },

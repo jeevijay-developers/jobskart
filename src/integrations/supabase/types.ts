@@ -328,6 +328,113 @@ export type Database = {
           },
         ]
       }
+      automation_rules: {
+        Row: {
+          action: Database["public"]["Enums"]["crm_action"]
+          action_payload: Json
+          company_id: string
+          conditions: Json
+          cooldown_hours: number
+          created_at: string
+          created_by: string
+          enabled: boolean
+          id: string
+          max_fires_per_lead: number
+          name: string
+          trigger: Database["public"]["Enums"]["crm_trigger"]
+          updated_at: string
+        }
+        Insert: {
+          action: Database["public"]["Enums"]["crm_action"]
+          action_payload?: Json
+          company_id: string
+          conditions?: Json
+          cooldown_hours?: number
+          created_at?: string
+          created_by: string
+          enabled?: boolean
+          id?: string
+          max_fires_per_lead?: number
+          name: string
+          trigger: Database["public"]["Enums"]["crm_trigger"]
+          updated_at?: string
+        }
+        Update: {
+          action?: Database["public"]["Enums"]["crm_action"]
+          action_payload?: Json
+          company_id?: string
+          conditions?: Json
+          cooldown_hours?: number
+          created_at?: string
+          created_by?: string
+          enabled?: boolean
+          id?: string
+          max_fires_per_lead?: number
+          name?: string
+          trigger?: Database["public"]["Enums"]["crm_trigger"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_rules_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      automation_runs: {
+        Row: {
+          application_id: string | null
+          candidate_id: string | null
+          company_id: string
+          detail: Json
+          fired_at: string
+          id: string
+          result: string
+          rule_id: string
+          trigger_key: string
+        }
+        Insert: {
+          application_id?: string | null
+          candidate_id?: string | null
+          company_id: string
+          detail?: Json
+          fired_at?: string
+          id?: string
+          result: string
+          rule_id: string
+          trigger_key: string
+        }
+        Update: {
+          application_id?: string | null
+          candidate_id?: string | null
+          company_id?: string
+          detail?: Json
+          fired_at?: string
+          id?: string
+          result?: string
+          rule_id?: string
+          trigger_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_runs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_runs_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "automation_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       benefit_reconciliation_checks: {
         Row: {
           checked_at: string
@@ -460,6 +567,70 @@ export type Database = {
           window_hours?: number
         }
         Relationships: []
+      }
+      call_logs: {
+        Row: {
+          application_id: string | null
+          caller_id: string
+          candidate_id: string
+          company_id: string
+          contact_source: string
+          created_at: string
+          duration_sec: number | null
+          id: string
+          job_id: string | null
+          notes: string | null
+          outcome: Database["public"]["Enums"]["call_outcome"]
+        }
+        Insert: {
+          application_id?: string | null
+          caller_id: string
+          candidate_id: string
+          company_id: string
+          contact_source: string
+          created_at?: string
+          duration_sec?: number | null
+          id?: string
+          job_id?: string | null
+          notes?: string | null
+          outcome: Database["public"]["Enums"]["call_outcome"]
+        }
+        Update: {
+          application_id?: string | null
+          caller_id?: string
+          candidate_id?: string
+          company_id?: string
+          contact_source?: string
+          created_at?: string
+          duration_sec?: number | null
+          id?: string
+          job_id?: string | null
+          notes?: string | null
+          outcome?: Database["public"]["Enums"]["call_outcome"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_logs_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_logs_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       candidate_assets_master: {
         Row: {
@@ -768,6 +939,98 @@ export type Database = {
         }
         Relationships: []
       }
+      candidate_orders: {
+        Row: {
+          amount: number | null
+          certification_id: string
+          created_at: string | null
+          currency: string | null
+          id: string
+          razorpay_order_id: string | null
+          razorpay_payment_id: string | null
+          status: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          amount?: number | null
+          certification_id: string
+          created_at?: string | null
+          currency?: string | null
+          id?: string
+          razorpay_order_id?: string | null
+          razorpay_payment_id?: string | null
+          status?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number | null
+          certification_id?: string
+          created_at?: string | null
+          currency?: string | null
+          id?: string
+          razorpay_order_id?: string | null
+          razorpay_payment_id?: string | null
+          status?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_orders_certification_id_fkey"
+            columns: ["certification_id"]
+            isOneToOne: false
+            referencedRelation: "certifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      candidate_preferences: {
+        Row: {
+          city_ids: string[]
+          created_at: string
+          job_types: string[]
+          max_experience_years: number | null
+          max_salary_monthly: number | null
+          min_experience_years: number | null
+          min_salary_monthly: number | null
+          skill_ids: string[]
+          source: string
+          updated_at: string
+          user_id: string
+          work_modes: string[]
+        }
+        Insert: {
+          city_ids?: string[]
+          created_at?: string
+          job_types?: string[]
+          max_experience_years?: number | null
+          max_salary_monthly?: number | null
+          min_experience_years?: number | null
+          min_salary_monthly?: number | null
+          skill_ids?: string[]
+          source?: string
+          updated_at?: string
+          user_id: string
+          work_modes?: string[]
+        }
+        Update: {
+          city_ids?: string[]
+          created_at?: string
+          job_types?: string[]
+          max_experience_years?: number | null
+          max_salary_monthly?: number | null
+          min_experience_years?: number | null
+          min_salary_monthly?: number | null
+          skill_ids?: string[]
+          source?: string
+          updated_at?: string
+          user_id?: string
+          work_modes?: string[]
+        }
+        Relationships: []
+      }
       candidate_profile_events: {
         Row: {
           candidate_id: string
@@ -939,132 +1202,6 @@ export type Database = {
         }
         Relationships: []
       }
-      automation_rules: {
-        Row: {
-          action: Database["public"]["Enums"]["crm_action"]
-          action_payload: Json
-          company_id: string
-          conditions: Json
-          cooldown_hours: number
-          created_at: string
-          created_by: string
-          enabled: boolean
-          id: string
-          max_fires_per_lead: number
-          name: string
-          trigger: Database["public"]["Enums"]["crm_trigger"]
-          updated_at: string
-        }
-        Insert: {
-          action: Database["public"]["Enums"]["crm_action"]
-          action_payload?: Json
-          company_id: string
-          conditions?: Json
-          cooldown_hours?: number
-          created_at?: string
-          created_by: string
-          enabled?: boolean
-          id?: string
-          max_fires_per_lead?: number
-          name: string
-          trigger: Database["public"]["Enums"]["crm_trigger"]
-          updated_at?: string
-        }
-        Update: {
-          action?: Database["public"]["Enums"]["crm_action"]
-          action_payload?: Json
-          company_id?: string
-          conditions?: Json
-          cooldown_hours?: number
-          created_at?: string
-          created_by?: string
-          enabled?: boolean
-          id?: string
-          max_fires_per_lead?: number
-          name?: string
-          trigger?: Database["public"]["Enums"]["crm_trigger"]
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      automation_runs: {
-        Row: {
-          application_id: string | null
-          candidate_id: string | null
-          company_id: string
-          detail: Json
-          fired_at: string
-          id: string
-          result: string
-          rule_id: string
-          trigger_key: string
-        }
-        Insert: {
-          application_id?: string | null
-          candidate_id?: string | null
-          company_id: string
-          detail?: Json
-          fired_at?: string
-          id?: string
-          result: string
-          rule_id: string
-          trigger_key: string
-        }
-        Update: {
-          application_id?: string | null
-          candidate_id?: string | null
-          company_id?: string
-          detail?: Json
-          fired_at?: string
-          id?: string
-          result?: string
-          rule_id?: string
-          trigger_key?: string
-        }
-        Relationships: []
-      }
-      call_logs: {
-        Row: {
-          application_id: string | null
-          caller_id: string
-          candidate_id: string
-          company_id: string
-          contact_source: string
-          created_at: string
-          duration_sec: number | null
-          id: string
-          job_id: string | null
-          notes: string | null
-          outcome: Database["public"]["Enums"]["call_outcome"]
-        }
-        Insert: {
-          application_id?: string | null
-          caller_id: string
-          candidate_id: string
-          company_id: string
-          contact_source: string
-          created_at?: string
-          duration_sec?: number | null
-          id?: string
-          job_id?: string | null
-          notes?: string | null
-          outcome: Database["public"]["Enums"]["call_outcome"]
-        }
-        Update: {
-          application_id?: string | null
-          caller_id?: string
-          candidate_id?: string
-          company_id?: string
-          contact_source?: string
-          created_at?: string
-          duration_sec?: number | null
-          id?: string
-          job_id?: string | null
-          notes?: string | null
-          outcome?: Database["public"]["Enums"]["call_outcome"]
-        }
-        Relationships: []
-      }
       candidate_unlocks: {
         Row: {
           candidate_user_id: string
@@ -1113,12 +1250,142 @@ export type Database = {
           },
         ]
       }
+      canonical_skills: {
+        Row: {
+          aliases: string[]
+          category: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          aliases?: string[]
+          category?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          aliases?: string[]
+          category?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cert_purchases: {
+        Row: {
+          certificate_no: string | null
+          certification_id: string
+          id: string
+          purchased_at: string | null
+          user_id: string
+        }
+        Insert: {
+          certificate_no?: string | null
+          certification_id: string
+          id?: string
+          purchased_at?: string | null
+          user_id: string
+        }
+        Update: {
+          certificate_no?: string | null
+          certification_id?: string
+          id?: string
+          purchased_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cert_purchases_certification_id_fkey"
+            columns: ["certification_id"]
+            isOneToOne: false
+            referencedRelation: "certifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cert_questions: {
+        Row: {
+          certification_id: string
+          id: string
+          question_jsonb: Json
+        }
+        Insert: {
+          certification_id: string
+          id?: string
+          question_jsonb: Json
+        }
+        Update: {
+          certification_id?: string
+          id?: string
+          question_jsonb?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cert_questions_certification_id_fkey"
+            columns: ["certification_id"]
+            isOneToOne: false
+            referencedRelation: "certifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      certifications: {
+        Row: {
+          id: string
+          max_attempts: number
+          partner_name: string | null
+          pass_mark: number
+          price_inr: number
+          provider: string
+          questions: Json | null
+          validity_months: number | null
+        }
+        Insert: {
+          id: string
+          max_attempts?: number
+          partner_name?: string | null
+          pass_mark?: number
+          price_inr?: number
+          provider?: string
+          questions?: Json | null
+          validity_months?: number | null
+        }
+        Update: {
+          id?: string
+          max_attempts?: number
+          partner_name?: string | null
+          pass_mark?: number
+          price_inr?: number
+          provider?: string
+          questions?: Json | null
+          validity_months?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "certifications_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "content_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cities: {
         Row: {
           created_at: string
           id: string
           is_active: boolean
           is_launched: boolean
+          is_metro: boolean
           name: string
           slug: string
           state: string | null
@@ -1129,6 +1396,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_launched?: boolean
+          is_metro?: boolean
           name: string
           slug: string
           state?: string | null
@@ -1139,6 +1407,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_launched?: boolean
+          is_metro?: boolean
           name?: string
           slug?: string
           state?: string | null
@@ -1511,6 +1780,195 @@ export type Database = {
           subject?: string | null
         }
         Relationships: []
+      }
+      content_items: {
+        Row: {
+          category: string | null
+          content_type: string
+          cover_url: string | null
+          created_at: string | null
+          excerpt: string | null
+          id: string
+          published_at: string | null
+          slug: string
+          status: string
+          tags: string[] | null
+          title: string
+          updated_at: string | null
+          views_count: number | null
+        }
+        Insert: {
+          category?: string | null
+          content_type: string
+          cover_url?: string | null
+          created_at?: string | null
+          excerpt?: string | null
+          id?: string
+          published_at?: string | null
+          slug: string
+          status?: string
+          tags?: string[] | null
+          title: string
+          updated_at?: string | null
+          views_count?: number | null
+        }
+        Update: {
+          category?: string | null
+          content_type?: string
+          cover_url?: string | null
+          created_at?: string | null
+          excerpt?: string | null
+          id?: string
+          published_at?: string | null
+          slug?: string
+          status?: string
+          tags?: string[] | null
+          title?: string
+          updated_at?: string | null
+          views_count?: number | null
+        }
+        Relationships: []
+      }
+      content_posts: {
+        Row: {
+          body_md: string | null
+          id: string
+          og_image_url: string | null
+          seo_description: string | null
+          seo_title: string | null
+        }
+        Insert: {
+          body_md?: string | null
+          id: string
+          og_image_url?: string | null
+          seo_description?: string | null
+          seo_title?: string | null
+        }
+        Update: {
+          body_md?: string | null
+          id?: string
+          og_image_url?: string | null
+          seo_description?: string | null
+          seo_title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_posts_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "content_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_settings: {
+        Row: {
+          key: string
+          value: Json | null
+        }
+        Insert: {
+          key: string
+          value?: Json | null
+        }
+        Update: {
+          key?: string
+          value?: Json | null
+        }
+        Relationships: []
+      }
+      course_lessons: {
+        Row: {
+          body_md: string | null
+          duration_minutes: number | null
+          free_preview: boolean | null
+          id: string
+          kind: string
+          module_id: string
+          position: number
+          quiz: Json | null
+          title: string
+          video_url: string | null
+        }
+        Insert: {
+          body_md?: string | null
+          duration_minutes?: number | null
+          free_preview?: boolean | null
+          id?: string
+          kind: string
+          module_id: string
+          position: number
+          quiz?: Json | null
+          title: string
+          video_url?: string | null
+        }
+        Update: {
+          body_md?: string | null
+          duration_minutes?: number | null
+          free_preview?: boolean | null
+          id?: string
+          kind?: string
+          module_id?: string
+          position?: number
+          quiz?: Json | null
+          title?: string
+          video_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_lessons_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "course_modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_modules: {
+        Row: {
+          body_md: string | null
+          course_id: string
+          duration_minutes: number | null
+          free_preview: boolean | null
+          id: string
+          kind: string
+          position: number
+          quiz: Json | null
+          title: string
+          video_url: string | null
+        }
+        Insert: {
+          body_md?: string | null
+          course_id: string
+          duration_minutes?: number | null
+          free_preview?: boolean | null
+          id?: string
+          kind: string
+          position: number
+          quiz?: Json | null
+          title: string
+          video_url?: string | null
+        }
+        Update: {
+          body_md?: string | null
+          course_id?: string
+          duration_minutes?: number | null
+          free_preview?: boolean | null
+          id?: string
+          kind?: string
+          position?: number
+          quiz?: Json | null
+          title?: string
+          video_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_modules_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "content_items"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       credit_packs: {
         Row: {
@@ -1914,7 +2372,29 @@ export type Database = {
           title?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "follow_up_tasks_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "follow_up_tasks_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "follow_up_tasks_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       industries: {
         Row: {
@@ -1940,6 +2420,382 @@ export type Database = {
           name?: string
           slug?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      interview_prep_answers: {
+        Row: {
+          answer_text: string
+          attempt: number
+          candidate_id: string
+          created_at: string
+          feedback: Json | null
+          feedback_source: string | null
+          id: string
+          model_info: string | null
+          prompt_version: string | null
+          rubric_version: number | null
+          session_question_id: string
+          source: string
+          voice_metrics: Json | null
+        }
+        Insert: {
+          answer_text: string
+          attempt?: number
+          candidate_id: string
+          created_at?: string
+          feedback?: Json | null
+          feedback_source?: string | null
+          id?: string
+          model_info?: string | null
+          prompt_version?: string | null
+          rubric_version?: number | null
+          session_question_id: string
+          source?: string
+          voice_metrics?: Json | null
+        }
+        Update: {
+          answer_text?: string
+          attempt?: number
+          candidate_id?: string
+          created_at?: string
+          feedback?: Json | null
+          feedback_source?: string | null
+          id?: string
+          model_info?: string | null
+          prompt_version?: string | null
+          rubric_version?: number | null
+          session_question_id?: string
+          source?: string
+          voice_metrics?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_prep_answers_session_question_id_fkey"
+            columns: ["session_question_id"]
+            isOneToOne: false
+            referencedRelation: "interview_prep_session_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interview_prep_question_prefs: {
+        Row: {
+          candidate_id: string
+          created_at: string
+          pref: string
+          template_id: string
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string
+          pref: string
+          template_id: string
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string
+          pref?: string
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_prep_question_prefs_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "interview_prep_question_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interview_prep_question_templates: {
+        Row: {
+          category: string
+          created_at: string
+          created_by: string | null
+          difficulty: string
+          framework: Json
+          id: string
+          language: string
+          question: string
+          reviewed_by: string | null
+          role_keywords: string[] | null
+          rubric_version: number
+          skill_tags: string[]
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          created_by?: string | null
+          difficulty?: string
+          framework?: Json
+          id?: string
+          language?: string
+          question: string
+          reviewed_by?: string | null
+          role_keywords?: string[] | null
+          rubric_version?: number
+          skill_tags?: string[]
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          difficulty?: string
+          framework?: Json
+          id?: string
+          language?: string
+          question?: string
+          reviewed_by?: string | null
+          role_keywords?: string[] | null
+          rubric_version?: number
+          skill_tags?: string[]
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      interview_prep_reminders_sent: {
+        Row: {
+          candidate_id: string
+          interview_id: string
+          sent_at: string
+        }
+        Insert: {
+          candidate_id: string
+          interview_id: string
+          sent_at?: string
+        }
+        Update: {
+          candidate_id?: string
+          interview_id?: string
+          sent_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_prep_reminders_sent_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: true
+            referencedRelation: "interviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interview_prep_reports: {
+        Row: {
+          answer_id: string | null
+          category: string
+          created_at: string
+          details: string | null
+          id: string
+          reporter_id: string
+          session_question_id: string | null
+          status: string
+          target_type: string
+          template_id: string | null
+        }
+        Insert: {
+          answer_id?: string | null
+          category: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          reporter_id: string
+          session_question_id?: string | null
+          status?: string
+          target_type: string
+          template_id?: string | null
+        }
+        Update: {
+          answer_id?: string | null
+          category?: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          reporter_id?: string
+          session_question_id?: string | null
+          status?: string
+          target_type?: string
+          template_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_prep_reports_answer_id_fkey"
+            columns: ["answer_id"]
+            isOneToOne: false
+            referencedRelation: "interview_prep_answers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_prep_reports_session_question_id_fkey"
+            columns: ["session_question_id"]
+            isOneToOne: false
+            referencedRelation: "interview_prep_session_questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_prep_reports_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "interview_prep_question_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interview_prep_session_questions: {
+        Row: {
+          candidate_id: string
+          category: string
+          framework: Json
+          id: string
+          position: number
+          question_text: string
+          rubric_version: number
+          session_id: string
+          state: string
+          template_id: string | null
+        }
+        Insert: {
+          candidate_id: string
+          category: string
+          framework?: Json
+          id?: string
+          position: number
+          question_text: string
+          rubric_version?: number
+          session_id: string
+          state?: string
+          template_id?: string | null
+        }
+        Update: {
+          candidate_id?: string
+          category?: string
+          framework?: Json
+          id?: string
+          position?: number
+          question_text?: string
+          rubric_version?: number
+          session_id?: string
+          state?: string
+          template_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_prep_session_questions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "interview_prep_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_prep_session_questions_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "interview_prep_question_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interview_prep_sessions: {
+        Row: {
+          candidate_id: string
+          context: Json
+          context_type: string
+          finished_at: string | null
+          id: string
+          interview_id: string | null
+          job_id: string | null
+          mode: string
+          role_title: string
+          self_check: number | null
+          started_at: string
+          status: string
+        }
+        Insert: {
+          candidate_id: string
+          context?: Json
+          context_type: string
+          finished_at?: string | null
+          id?: string
+          interview_id?: string | null
+          job_id?: string | null
+          mode?: string
+          role_title: string
+          self_check?: number | null
+          started_at?: string
+          status?: string
+        }
+        Update: {
+          candidate_id?: string
+          context?: Json
+          context_type?: string
+          finished_at?: string | null
+          id?: string
+          interview_id?: string | null
+          job_id?: string | null
+          mode?: string
+          role_title?: string
+          self_check?: number | null
+          started_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_prep_sessions_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "interviews"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_prep_sessions_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interview_prep_usage_ledger: {
+        Row: {
+          candidate_id: string
+          created_at: string
+          id: string
+          kind: string
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string
+          id?: string
+          kind: string
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string
+          id?: string
+          kind?: string
+        }
+        Relationships: []
+      }
+      interview_prep_voice_consent: {
+        Row: {
+          candidate_id: string
+          consented_at: string
+          version: number
+        }
+        Insert: {
+          candidate_id: string
+          consented_at?: string
+          version: number
+        }
+        Update: {
+          candidate_id?: string
+          consented_at?: string
+          version?: number
         }
         Relationships: []
       }
@@ -2875,11 +3731,52 @@ export type Database = {
         }
         Relationships: []
       }
+      otp_verifications: {
+        Row: {
+          attempts: number
+          channel: string
+          created_at: string
+          expires_at: string
+          id: string
+          metadata: Json | null
+          mobile: string
+          otp_hash: string
+          verified: boolean
+          verified_at: string | null
+        }
+        Insert: {
+          attempts?: number
+          channel?: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          metadata?: Json | null
+          mobile: string
+          otp_hash: string
+          verified?: boolean
+          verified_at?: string | null
+        }
+        Update: {
+          attempts?: number
+          channel?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          metadata?: Json | null
+          mobile?: string
+          otp_hash?: string
+          verified?: boolean
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
       plan_settings: {
         Row: {
           auto_renew_enabled: boolean
           auto_renew_max_times: number
           credits_per_unlock: number
+          crm_automation_enabled: boolean
+          crm_automation_rules_max: number
           custom_plan_min_amount: number
           db_rows_per_day: number
           db_searches_per_hour: number
@@ -2901,6 +3798,8 @@ export type Database = {
           auto_renew_enabled?: boolean
           auto_renew_max_times?: number
           credits_per_unlock?: number
+          crm_automation_enabled?: boolean
+          crm_automation_rules_max?: number
           custom_plan_min_amount?: number
           db_rows_per_day?: number
           db_searches_per_hour?: number
@@ -2922,6 +3821,8 @@ export type Database = {
           auto_renew_enabled?: boolean
           auto_renew_max_times?: number
           credits_per_unlock?: number
+          crm_automation_enabled?: boolean
+          crm_automation_rules_max?: number
           custom_plan_min_amount?: number
           db_rows_per_day?: number
           db_searches_per_hour?: number
@@ -3176,6 +4077,57 @@ export type Database = {
           },
         ]
       }
+      recommendation_settings: {
+        Row: {
+          boost_bonus_max: number
+          boost_weight: number
+          boost_window_hours: number
+          cold_start_min_applications: number
+          experience_weight: number
+          freshness_weight: number
+          id: number
+          location_weight: number
+          max_same_company_in_top: number
+          salary_weight: number
+          skill_weight: number
+          trending_bonus_max: number
+          trending_weight: number
+          updated_at: string
+        }
+        Insert: {
+          boost_bonus_max?: number
+          boost_weight?: number
+          boost_window_hours?: number
+          cold_start_min_applications?: number
+          experience_weight?: number
+          freshness_weight?: number
+          id?: number
+          location_weight?: number
+          max_same_company_in_top?: number
+          salary_weight?: number
+          skill_weight?: number
+          trending_bonus_max?: number
+          trending_weight?: number
+          updated_at?: string
+        }
+        Update: {
+          boost_bonus_max?: number
+          boost_weight?: number
+          boost_window_hours?: number
+          cold_start_min_applications?: number
+          experience_weight?: number
+          freshness_weight?: number
+          id?: number
+          location_weight?: number
+          max_same_company_in_top?: number
+          salary_weight?: number
+          skill_weight?: number
+          trending_bonus_max?: number
+          trending_weight?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       salary_bands: {
         Row: {
           category: string | null
@@ -3297,6 +4249,41 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      user_content_progress: {
+        Row: {
+          completed_at: string | null
+          content_id: string
+          content_type: string
+          last_accessed_at: string | null
+          progress_percent: number | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          content_id: string
+          content_type: string
+          last_accessed_at?: string | null
+          progress_percent?: number | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          content_id?: string
+          content_type?: string
+          last_accessed_at?: string | null
+          progress_percent?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_content_progress_content_id_fkey"
+            columns: ["content_id"]
+            isOneToOne: false
+            referencedRelation: "content_items"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       whatsapp_send_ledger: {
         Row: {
@@ -3445,8 +4432,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      claim_due_crm_tasks: { Args: never; Returns: Json }
       claim_due_expiry_reminders: { Args: never; Returns: Json }
       claim_due_purge_reminders: { Args: never; Returns: Json }
+      cleanup_expired_otps: { Args: never; Returns: number }
       company_auto_renew: {
         Args: { _company_id: string }
         Returns: {
@@ -3464,7 +4453,10 @@ export type Database = {
       }
       company_crm_entitlement: {
         Args: { _company_id: string }
-        Returns: { automation_enabled: boolean; rules_max: number }[]
+        Returns: {
+          automation_enabled: boolean
+          rules_max: number
+        }[]
       }
       compute_candidate_match: {
         Args: {
@@ -3489,6 +4481,14 @@ export type Database = {
         }
         Returns: number
       }
+      consume_interview_prep_quota: {
+        Args: { _kind: string }
+        Returns: undefined
+      }
+      create_certification_order: {
+        Args: { _actor: string; _certification_id: string }
+        Returns: Json
+      }
       create_company_with_owner: {
         Args: {
           _about: string
@@ -3510,6 +4510,83 @@ export type Database = {
         Args: { _actor: string; _company_id: string; _plan_id: string }
         Returns: Json
       }
+      crm_admin_update_settings: {
+        Args: { _outcome_hours: Json; _weights: Json }
+        Returns: undefined
+      }
+      crm_ensure_default_rules: {
+        Args: { _actor?: string; _company_id: string }
+        Returns: number
+      }
+      crm_log_call: {
+        Args: {
+          _actor?: string
+          _application_id?: string
+          _candidate_id: string
+          _company_id: string
+          _duration_sec?: number
+          _follow_up_at?: string
+          _job_id?: string
+          _notes?: string
+          _outcome: Database["public"]["Enums"]["call_outcome"]
+        }
+        Returns: Json
+      }
+      crm_rule_candidates: {
+        Args: {
+          _company_id: string
+          _conditions: Json
+          _limit: number
+          _trigger: Database["public"]["Enums"]["crm_trigger"]
+        }
+        Returns: {
+          application_id: string
+          candidate_id: string
+          trigger_key: string
+        }[]
+      }
+      crm_save_rule: {
+        Args: {
+          _action: Database["public"]["Enums"]["crm_action"]
+          _action_payload?: Json
+          _actor?: string
+          _company_id: string
+          _conditions?: Json
+          _cooldown_hours?: number
+          _enabled: boolean
+          _max_fires_per_lead?: number
+          _name: string
+          _rule_id?: string
+          _trigger: Database["public"]["Enums"]["crm_trigger"]
+        }
+        Returns: string
+      }
+      crm_save_task: {
+        Args: {
+          _actor?: string
+          _application_id?: string
+          _assignee_id?: string
+          _body?: string
+          _candidate_id: string
+          _company_id: string
+          _due_at: string
+          _job_id?: string
+          _priority?: number
+          _task_id?: string
+          _title: string
+        }
+        Returns: string
+      }
+      crm_set_task_status: {
+        Args: {
+          _actor?: string
+          _new_due_at?: string
+          _status: Database["public"]["Enums"]["followup_task_status"]
+          _task_id: string
+        }
+        Returns: undefined
+      }
+      crm_tick_automation: { Args: { _batch?: number }; Returns: Json }
       current_financial_year: { Args: never; Returns: string }
       dismiss_recommended_candidate: {
         Args: { _candidate_user_id: string; _job_id: string }
@@ -3597,6 +4674,8 @@ export type Database = {
           id: string
           job_type: string
           locality: string
+          match_score: number
+          matched_skills: number
           max_experience_years: number
           max_salary: number
           min_experience_years: number
@@ -3608,6 +4687,7 @@ export type Database = {
           state: string
           title: string
           total_count: number
+          total_required_skills: number
           work_mode: string
         }[]
       }
@@ -3619,6 +4699,16 @@ export type Database = {
           phone: string
         }[]
       }
+      fulfil_certification_order: {
+        Args: {
+          _actor: string
+          _amount_paise: number
+          _razorpay_order_id: string
+          _razorpay_payment_id: string
+          _via: string
+        }
+        Returns: Json
+      }
       fulfill_razorpay_order: {
         Args: {
           _actor: string
@@ -3629,69 +4719,6 @@ export type Database = {
         }
         Returns: Json
       }
-      crm_admin_update_settings: {
-        Args: { _weights: Json; _outcome_hours: Json }
-        Returns: undefined
-      }
-      crm_ensure_default_rules: {
-        Args: { _company_id: string; _actor?: string }
-        Returns: number
-      }
-      crm_log_call: {
-        Args: {
-          _company_id: string
-          _candidate_id: string
-          _outcome: Database["public"]["Enums"]["call_outcome"]
-          _application_id?: string
-          _job_id?: string
-          _notes?: string
-          _duration_sec?: number
-          _follow_up_at?: string
-          _actor?: string
-        }
-        Returns: Json
-      }
-      crm_save_rule: {
-        Args: {
-          _company_id: string
-          _name: string
-          _trigger: Database["public"]["Enums"]["crm_trigger"]
-          _action: Database["public"]["Enums"]["crm_action"]
-          _enabled: boolean
-          _rule_id?: string
-          _conditions?: Json
-          _action_payload?: Json
-          _cooldown_hours?: number
-          _max_fires_per_lead?: number
-          _actor?: string
-        }
-        Returns: string
-      }
-      crm_save_task: {
-        Args: {
-          _company_id: string
-          _candidate_id: string
-          _title: string
-          _due_at: string
-          _task_id?: string
-          _application_id?: string
-          _job_id?: string
-          _body?: string
-          _priority?: number
-          _assignee_id?: string
-          _actor?: string
-        }
-        Returns: string
-      }
-      crm_set_task_status: {
-        Args: {
-          _task_id: string
-          _status: Database["public"]["Enums"]["followup_task_status"]
-          _new_due_at?: string
-          _actor?: string
-        }
-        Returns: undefined
-      }
       get_company_entitlements: { Args: { _company_id: string }; Returns: Json }
       get_company_private: {
         Args: { _company_id: string }
@@ -3700,6 +4727,49 @@ export type Database = {
           pan_number: string
           spam_suspected: boolean
           verification_notes: string
+        }[]
+      }
+      get_crm_leads: {
+        Args: {
+          _company_id: string
+          _contacted?: boolean
+          _job_id?: string
+          _limit?: number
+          _offset?: number
+          _source?: string
+          _stage?: string
+        }
+        Returns: {
+          application_id: string
+          applied_at: string
+          avatar_url: string
+          candidate_id: string
+          city: string
+          contacted: boolean
+          full_name: string
+          headline: string
+          job_id: string
+          job_title: string
+          last_call_at: string
+          last_outcome: string
+          next_follow_up_at: string
+          open_tasks: number
+          source: string
+          stage: string
+          total_count: number
+          unlocked_at: string
+        }[]
+      }
+      get_crm_next_best_actions: {
+        Args: { _company_id: string; _limit?: number }
+        Returns: {
+          application_id: string
+          candidate_id: string
+          job_id: string
+          kind: string
+          link: string
+          reason: string
+          score: number
         }[]
       }
       get_invite_by_token: {
@@ -3750,49 +4820,6 @@ export type Database = {
           social_links: Json
           verification_status: string
           website: string
-        }[]
-      }
-      get_crm_leads: {
-        Args: {
-          _company_id: string
-          _job_id?: string
-          _source?: string
-          _stage?: string
-          _contacted?: boolean
-          _limit?: number
-          _offset?: number
-        }
-        Returns: {
-          candidate_id: string
-          application_id: string | null
-          source: string
-          stage: string
-          job_id: string | null
-          job_title: string | null
-          full_name: string | null
-          city: string | null
-          avatar_url: string | null
-          headline: string | null
-          applied_at: string | null
-          unlocked_at: string | null
-          contacted: boolean
-          last_call_at: string | null
-          last_outcome: string | null
-          open_tasks: number
-          next_follow_up_at: string | null
-          total_count: number
-        }[]
-      }
-      get_crm_next_best_actions: {
-        Args: { _company_id: string; _limit?: number }
-        Returns: {
-          kind: string
-          score: number
-          reason: string
-          application_id: string | null
-          candidate_id: string
-          job_id: string | null
-          link: string
         }[]
       }
       get_ranked_job_applicants: {
@@ -3946,7 +4973,14 @@ export type Database = {
         Args: { _company_id: string; _kind: string; _meta?: Json }
         Returns: undefined
       }
-      mark_application_viewed: { Args: { _application_id: string }; Returns: undefined }
+      mark_application_viewed: {
+        Args: { _application_id: string }
+        Returns: undefined
+      }
+      mark_certification_order_failed: {
+        Args: { _razorpay_order_id: string; _razorpay_payment_id: string }
+        Returns: undefined
+      }
       mark_razorpay_order_failed: {
         Args: {
           _razorpay_order_id: string
@@ -3956,6 +4990,10 @@ export type Database = {
         Returns: undefined
       }
       next_invoice_number: { Args: never; Returns: string }
+      normalize_candidate_skills: {
+        Args: { _skills: string[] }
+        Returns: string[]
+      }
       normalize_phone_e164: { Args: { _phone: string }; Returns: string }
       process_job_expiry_batch: { Args: never; Returns: Json }
       purge_expired_responses: { Args: never; Returns: Json }
@@ -3966,6 +5004,54 @@ export type Database = {
           _user_id: string
         }
         Returns: undefined
+      }
+      recommend_jobs_for_candidate: {
+        Args: {
+          _category?: string
+          _city?: string
+          _company?: string
+          _education?: string
+          _english_level?: string
+          _job_type?: string
+          _limit?: number
+          _max_exp?: number
+          _max_salary?: number
+          _min_exp?: number
+          _min_salary?: number
+          _offset?: number
+          _posted_after?: string
+          _q?: string
+          _shift?: string
+          _vehicle?: boolean
+          _verified_only?: boolean
+          _work_mode?: string
+        }
+        Returns: {
+          avg_incentive_monthly: number
+          boosted: boolean
+          city: string
+          company_id: string
+          company_is_verified: boolean
+          company_name: string
+          created_at: string
+          education: string
+          id: string
+          job_type: string
+          locality: string
+          max_experience_years: number
+          max_salary: number
+          min_experience_years: number
+          min_salary: number
+          pay_type: string
+          salary_period: string
+          score: number
+          score_breakdown: Json
+          skills: string[]
+          state: string
+          title: string
+          total_count: number
+          work_mode: string
+        }[]
       }
       refresh_computed_salary_bands: { Args: never; Returns: number }
       register_download: {
@@ -4095,11 +5181,23 @@ export type Database = {
           years_experience: number
         }[]
       }
+      send_interview_prep_reminders: { Args: never; Returns: number }
       set_job_auto_renew: {
         Args: { _enabled: boolean; _job_id: string }
         Returns: undefined
       }
       slugify: { Args: { _text: string }; Returns: string }
+      start_interview_prep_session: {
+        Args: {
+          _categories?: string[]
+          _context_type: string
+          _interview_id?: string
+          _job_id?: string
+          _question_count?: number
+          _role_title?: string
+        }
+        Returns: string
+      }
       suggest_skills_for_roles: {
         Args: { _roles: string[] }
         Returns: {
@@ -4348,6 +5446,14 @@ export const Constants = {
         "withdrawn",
       ],
       benefit_type: ["job_post", "contact", "boost"],
+      call_outcome: [
+        "connected_interested",
+        "connected_neutral",
+        "connected_not_interested",
+        "no_answer",
+        "switched_off",
+        "wrong_number",
+      ],
       company_size: ["1-10", "11-50", "51-200", "201-500", "500+"],
       company_type: [
         "proprietorship",
@@ -4368,8 +5474,17 @@ export const Constants = {
         "job_post",
         "repost",
       ],
+      crm_action: ["create_task", "notify", "move_stage"],
+      crm_trigger: [
+        "application_uncontacted_h",
+        "call_no_answer",
+        "stage_stalled_h",
+        "task_overdue_h",
+        "unlock_unused_h",
+      ],
       employer_role: ["super_admin", "hr_admin", "recruiter"],
       experience_status: ["fresher", "experienced", "student"],
+      followup_task_status: ["open", "done", "snoozed", "cancelled"],
       interview_mode: ["video", "phone", "onsite"],
       interview_provider: ["jobskart_zoom", "external_link"],
       interview_status: [
