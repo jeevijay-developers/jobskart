@@ -612,7 +612,7 @@ function ApplicantsPage() {
       <div className="mb-5 flex items-center gap-2 rounded-2xl border border-border bg-card p-1.5 shadow-[var(--shadow-card)]">
         <button
           onClick={() => setSource("applied")}
-          className={`flex h-10 flex-1 items-center justify-center gap-2 rounded-xl text-sm font-semibold transition-all ${
+          className={`flex h-10 min-w-0 flex-1 items-center justify-center gap-1 px-1 sm:gap-2 sm:px-0 rounded-xl text-sm font-semibold transition-all ${
             source === "applied"
               ? "bg-primary text-primary-foreground shadow-sm"
               : "text-foreground/70 hover:bg-surface"
@@ -621,14 +621,14 @@ function ApplicantsPage() {
           <Users className="h-4 w-4" />
           Applied Candidates
           {apps.length > 0 && (
-            <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${source === "applied" ? "bg-white/20" : "bg-primary-light text-primary"}`}>
+            <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-xs font-bold sm:px-2 ${source === "applied" ? "bg-white/20" : "bg-primary-light text-primary"}`}>
               {apps.length}
             </span>
           )}
         </button>
         <button
           onClick={() => setSource("recommended")}
-          className={`flex h-10 flex-1 items-center justify-center gap-2 rounded-xl text-sm font-semibold transition-all ${
+          className={`flex h-10 min-w-0 flex-1 items-center justify-center gap-1 px-1 sm:gap-2 sm:px-0 rounded-xl text-sm font-semibold transition-all ${
             source === "recommended"
               ? "bg-primary text-primary-foreground shadow-sm"
               : "text-foreground/70 hover:bg-surface"
@@ -637,12 +637,12 @@ function ApplicantsPage() {
           <Sparkles className="h-4 w-4" />
           AI Recommended Profiles
           {recTotal > 0 && source !== "recommended" && (
-            <span className="rounded-full bg-primary-light px-2 py-0.5 text-xs font-bold text-primary">
+            <span className="shrink-0 rounded-full bg-primary-light px-1.5 py-0.5 text-xs font-bold text-primary sm:px-2">
               {recTotal}
             </span>
           )}
           {source === "recommended" && recTotal > 0 && (
-            <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs font-bold">
+            <span className="shrink-0 rounded-full bg-white/20 px-1.5 py-0.5 text-xs font-bold sm:px-2">
               {recTotal}
             </span>
           )}

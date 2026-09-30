@@ -45,9 +45,21 @@ export function NotificationBell() {
     // so the name must be unique per instance.
     const channel = supabase
       .channel(`notif-${instanceIdRef.current}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications" }, (payload) => {
-        setItems((prev) => [payload.new as Notification, ...prev].slice(0, 15));
-      })
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "notifications" },
+        (payload) => {
+          setItems((prev) => [payload.new as Notification, ...prev].slice(0, 15));
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "notifications" },
+        (payload) => {
+          const updated = payload.new as Notification;
+          setItems((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+        },
+      )
       .subscribe();
     return () => {
       mounted = false;
@@ -60,14 +72,23 @@ export function NotificationBell() {
   const markAll = async () => {
     const ids = items.filter((i) => !i.read_at).map((i) => i.id);
     if (!ids.length) return;
-    await supabase.from("notifications").update({ read_at: new Date().toISOString() }).in("id", ids);
-    setItems((p) => p.map((i) => (ids.includes(i.id) ? { ...i, read_at: new Date().toISOString() } : i)));
+    const readAt = new Date().toISOString();
+    await supabase.from("notifications").update({ read_at: readAt }).in("id", ids);
+    setItems((p) => p.map((i) => (ids.includes(i.id) ? { ...i, read_at: readAt } : i)));
+  };
+
+  const toggleOpen = () => {
+    setOpen((wasOpen) => {
+      const nextOpen = !wasOpen;
+      if (nextOpen) void markAll();
+      return nextOpen;
+    });
   };
 
   return (
     <div className="relative">
       <button
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggleOpen}
         className="relative inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-card text-foreground hover:bg-surface"
         aria-label="Notifications"
       >

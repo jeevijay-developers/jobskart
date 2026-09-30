@@ -146,17 +146,22 @@ function TeamPage() {
     if (cid) await loadTeamData(cid);
   };
 
-  const reactivateMember = async (userId: string, name: string | null) => {
+  const reactivateMember = async (
+    userId: string,
+    memberRole: Member["role"],
+    name: string | null,
+  ) => {
     if (!cid) return;
     setBusyUserId(userId);
     try {
       const { error } = await supabase.rpc("reactivate_member", {
         _company_id: cid,
         _user_id: userId,
-        _role: "recruiter",
+        _role: memberRole,
       });
       if (error) throw error;
       await reload();
+      setShowRevoked(false);
       toast.success(`Access restored for ${name ?? "user"}`);
     } catch (error) {
       toast.error((error as Error)?.message ?? "Failed to restore access");
@@ -410,7 +415,7 @@ function TeamPage() {
                           </div>
                           {canManage && (
                             <button
-                              onClick={() => reactivateMember(m.user_id, name)}
+                              onClick={() => reactivateMember(m.user_id, m.role, name)}
                               disabled={busyUserId === m.user_id}
                               className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-card px-2 text-xs text-success hover:bg-success-light disabled:opacity-60"
                               title="Restore access"

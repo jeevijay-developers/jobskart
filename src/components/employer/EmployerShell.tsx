@@ -236,9 +236,25 @@ export function EmployerShell({
       </nav>
 
       <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
-        <SheetContent side="right" className="flex w-80 max-w-[85vw] flex-col">
+        <SheetContent
+          side="right"
+          className="flex w-80 max-w-[85vw] flex-col"
+          onClick={(e) => {
+            // Tapping blank drawer space (not a link/button) should close the
+            // drawer, same as tapping the dark overlay. Only close when the
+            // click lands directly on this wrapper, never when it bubbles up
+            // from an interactive child — otherwise every menu-item click
+            // would also trigger this handler after its own onClick runs.
+            if (e.target === e.currentTarget) setMoreOpen(false);
+          }}
+        >
           <SheetTitle className="sr-only">Employer navigation</SheetTitle>
-          <nav className="flex flex-col gap-1 overflow-y-auto pr-10">
+          <nav
+            className="flex flex-col gap-1 overflow-y-auto pr-10"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setMoreOpen(false);
+            }}
+          >
             {visibleOverflow.map((item) => {
               const Icon = item.icon;
               return (
@@ -253,7 +269,12 @@ export function EmployerShell({
               );
             })}
           </nav>
-          <div className="mt-auto pt-6">
+          <div
+            className="mt-auto pt-6"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setMoreOpen(false);
+            }}
+          >
             <button
               type="button"
               onClick={() => {

@@ -36,7 +36,7 @@ const sidePresets = {
 export function AuthShell({ children, side = "candidate" }: Props) {
   const preset = sidePresets[side];
   return (
-    <div className="grid min-h-screen lg:grid-cols-2">
+    <div className="grid min-h-screen grid-cols-1 lg:grid-cols-2">
       {/* Brand panel */}
       <aside className="relative hidden overflow-hidden bg-gradient-to-br from-primary-light via-background to-success-light p-12 lg:flex lg:flex-col">
         <div

@@ -17,6 +17,7 @@ export function StatCard({
   tone = "primary",
   icon: Icon,
   to,
+  search,
 }: {
   label: string;
   value: string | number;
@@ -27,6 +28,8 @@ export function StatCard({
   icon?: LucideIcon;
   /** Wraps the card in a Link when provided. */
   to?: string;
+  /** Optional search params forwarded to the Link (e.g. deep-linking a status filter). */
+  search?: Record<string, string>;
 }) {
   const content = (
     <>
@@ -62,7 +65,7 @@ export function StatCard({
 
   if (to) {
     return (
-      <Link to={to} className={className}>
+      <Link to={to} {...(search ? { search: search as never } : {})} className={className}>
         {content}
       </Link>
     );
