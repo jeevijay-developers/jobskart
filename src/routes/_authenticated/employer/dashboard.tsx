@@ -19,7 +19,6 @@ import {
   Check,
 } from "lucide-react";
 import { ActivityFeed, type ActivityItem } from "@/components/employer/ActivityFeed";
-import { RecommendedCandidatesWidget } from "@/components/employer/RecommendedCandidatesWidget";
 import { EmployerShell } from "@/components/employer/EmployerShell";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -434,8 +433,6 @@ function EmployerDashboard() {
           </div>
 
           <aside className="min-w-0 space-y-5 sm:space-y-6">
-            <RecommendedCandidatesWidget companyId={active.company_id} />
-
             <section className="overflow-hidden rounded-[1.375rem] border border-border bg-card shadow-[var(--shadow-card)]">
               <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-4 sm:px-5">
                 <h2 className="flex min-w-0 items-center gap-2 text-sm font-bold">

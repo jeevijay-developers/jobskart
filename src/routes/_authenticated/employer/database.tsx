@@ -1,6 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import {
   Search,
   MapPin,
@@ -55,8 +56,17 @@ import { pickNextSearchBroadening } from "@/lib/search-broaden.functions";
 
 const DATABASE_PAGE_SIZE = 20;
 
+// "mode" is pushed onto the URL (not replaced) when entering Active Hiring
+// Intelligence so browser Back has a real history entry to pop back to All
+// Database Search, instead of leaving the page entirely — see the searchMode
+// sync effect in DatabasePage for the read side of this.
+const databaseSearchSchema = z.object({
+  mode: z.enum(["all", "ai"]).optional(),
+});
+
 export const Route = createFileRoute("/_authenticated/employer/database")({
   head: () => ({ meta: [{ title: "Candidate database · JobsKart Employer" }] }),
+  validateSearch: databaseSearchSchema,
   component: DatabasePage,
 });
 
@@ -128,7 +138,22 @@ function DatabasePage() {
   >({});
 
   // Active Hiring Intelligence Mode & Filter States
-  const [searchMode, setSearchMode] = useState<"all" | "ai">("all");
+  //
+  // searchMode is mirrored to the "mode" URL search param (see
+  // databaseSearchSchema above) instead of being plain local state. Entering
+  // "ai" mode pushes a new history entry, so browser Back pops it and lands
+  // back on "all" (All Database Search) instead of leaving the page — plain
+  // useState here would never register with browser history at all.
+  const navigate = useNavigate();
+  const { mode: urlMode } = useSearch({ from: "/_authenticated/employer/database" });
+  const searchMode = urlMode ?? "all";
+  const setSearchMode = (next: "all" | "ai") => {
+    navigate({
+      to: "/employer/database",
+      search: (prev) => ({ ...prev, mode: next === "all" ? undefined : next }),
+      replace: next === "all",
+    });
+  };
   const [aiFilter, setAiFilter] = useState<"all" | "hot" | "nearby" | "active">("all");
   const [aiDigest, setAiDigest] = useState<AIDigest | null>(null);
   const [recommendedCandidates, setRecommendedCandidates] = useState<RecommendedCandidate[]>([]);
@@ -216,7 +241,7 @@ function DatabasePage() {
         _limit: 40,
         _offset: 0,
         _min_score: 40,
-        _filter: aiFilter === "all" ? null : aiFilter,
+        _filter: aiFilter === "all" ? undefined : aiFilter,
       })
       .then(({ data, error }) => {
         if (cancelled) return;
@@ -598,7 +623,7 @@ function DatabasePage() {
         </div>
       )}
 
-      {/* Mode Switcher Tabs (All Search vs ✨ Active Hiring Intelligence) */}
+      {/* Mode Switcher Tabs (All Search vs Active Hiring Intelligence) */}
       {selectedJobId && (
         <div className="mb-5 flex flex-wrap items-center gap-2 border-b border-border pb-3">
           <button
@@ -623,7 +648,7 @@ function DatabasePage() {
             }`}
           >
             <Sparkles className="h-4 w-4" />
-            ✨ Active Hiring Intelligence
+            Active Hiring Intelligence
             {visibleRecommended.length > 0 && (
               <span
                 className={`ml-1 rounded-full px-2 py-0.5 text-[11px] font-extrabold ${

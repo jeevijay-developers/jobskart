@@ -19,7 +19,7 @@ import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { EmployerShell } from "@/components/employer/EmployerShell";
 import { CallLogDrawer } from "@/components/employer/CallLogDrawer";
-import { ThemedSelect } from "@/components/ui/themed-form-controls";
+import { ThemedListDropdown } from "@/components/ui/themed-form-controls";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchMyCompanies, getActiveCompanyId } from "@/lib/employer";
 import {
@@ -491,50 +491,54 @@ function CrmHubPage() {
 
       {/* Filters */}
       <section className="mb-4 grid gap-2 rounded-xl border border-border bg-card p-3 shadow-[var(--shadow-card)] sm:grid-cols-2 lg:grid-cols-4">
-        <ThemedSelect
+        <ThemedListDropdown
+          label="Filter by job"
           value={jobFilter}
-          onChange={(e) => setJobFilter(e.target.value)}
-          aria-label="Filter by job"
-        >
-          <option value="">All jobs</option>
-          {jobs.map((j) => (
-            <option key={j.id} value={j.id}>
-              {j.title}
-            </option>
-          ))}
-        </ThemedSelect>
-        <ThemedSelect
+          onChange={setJobFilter}
+          selectedOptionClassName="bg-primary/10 font-medium text-primary hover:bg-primary/15"
+          options={[
+            { value: "", label: "All jobs" },
+            ...jobs.map((j) => ({ value: j.id, label: j.title })),
+          ]}
+        />
+        <ThemedListDropdown
+          label="Filter by source"
           value={sourceFilter}
-          onChange={(e) => setSourceFilter(e.target.value)}
-          aria-label="Filter by source"
-        >
-          <option value="">All sources</option>
-          <option value="application">Applicants</option>
-          <option value="unlock">Unlocked</option>
-          <option value="both">Applied + Unlocked</option>
-        </ThemedSelect>
-        <ThemedSelect
+          onChange={setSourceFilter}
+          selectedOptionClassName="bg-primary/10 font-medium text-primary hover:bg-primary/15"
+          options={[
+            { value: "", label: "All sources" },
+            { value: "application", label: "Applicants" },
+            { value: "unlock", label: "Unlocked" },
+            { value: "both", label: "Applied + Unlocked" },
+          ]}
+        />
+        <ThemedListDropdown
+          label="Filter by stage"
           value={stageFilter}
-          onChange={(e) => setStageFilter(e.target.value)}
-          aria-label="Filter by stage"
-        >
-          <option value="">All stages</option>
-          <option value="new">New lead</option>
-          <option value="applied">Applied</option>
-          <option value="shortlisted">Shortlisted</option>
-          <option value="interview">Interview</option>
-          <option value="hired">Hired</option>
-          <option value="rejected">Rejected</option>
-        </ThemedSelect>
-        <ThemedSelect
+          onChange={setStageFilter}
+          selectedOptionClassName="bg-primary/10 font-medium text-primary hover:bg-primary/15"
+          options={[
+            { value: "", label: "All stages" },
+            { value: "new", label: "New lead" },
+            { value: "applied", label: "Applied" },
+            { value: "shortlisted", label: "Shortlisted" },
+            { value: "interview", label: "Interview" },
+            { value: "hired", label: "Hired" },
+            { value: "rejected", label: "Rejected" },
+          ]}
+        />
+        <ThemedListDropdown
+          label="Filter by contacted"
           value={contactedFilter}
-          onChange={(e) => setContactedFilter(e.target.value)}
-          aria-label="Filter by contacted"
-        >
-          <option value="">Contacted: any</option>
-          <option value="yes">Contacted</option>
-          <option value="no">Not contacted</option>
-        </ThemedSelect>
+          onChange={setContactedFilter}
+          selectedOptionClassName="bg-primary/10 font-medium text-primary hover:bg-primary/15"
+          options={[
+            { value: "", label: "Contacted: any" },
+            { value: "yes", label: "Contacted" },
+            { value: "no", label: "Not contacted" },
+          ]}
+        />
       </section>
 
       {/* Leads table */}
