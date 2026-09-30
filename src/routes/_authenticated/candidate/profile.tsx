@@ -24,7 +24,7 @@ export const Route = createFileRoute("/_authenticated/candidate/profile")({
   component: ProfilePage,
 });
 
-type Profile = { full_name: string; mobile: string; city: string; avatar_url: string | null };
+type Profile = { full_name: string; mobile: string; city: string; state: string | null; avatar_url: string | null };
 type Candidate = {
   headline: string | null; bio: string | null; date_of_birth: string | null; gender: string | null;
   experience_status: string; years_experience: number; last_role: string | null;
@@ -64,7 +64,7 @@ function ProfilePage() {
     setUid(u);
     setEmail(sess.session?.user.email ?? null);
     const [{ data: pr }, { data: cp }, { data: ex }, { data: ed }, { data: lg }, { data: docs }, apps, ivs, saved] = await Promise.all([
-      supabase.from("profiles").select("full_name, mobile, city, avatar_url").eq("id", u).maybeSingle(),
+      supabase.from("profiles").select("full_name, mobile, city, state, avatar_url").eq("id", u).maybeSingle(),
       supabase.from("candidate_profiles").select("*").eq("user_id", u).maybeSingle(),
       supabase.from("candidate_experiences").select("*").eq("user_id", u).order("start_date", { ascending: false }),
       supabase.from("candidate_education").select("*").eq("user_id", u).order("year_of_passing", { ascending: false }),
@@ -930,14 +930,12 @@ function AvatarDialog({ open, onClose, uid, onSaved }: { open: boolean; onClose:
 function PersonalDialog({ open, onClose, uid, p, c, onSaved }: { open: boolean; onClose: () => void; uid: string; p: Profile; c: Candidate; onSaved: () => void }) {
   const to10 = (v: string) => { const d = (v ?? "").replace(/\D/g, ""); return d.length >= 10 ? d.slice(-10) : d; };
   const [full_name, setFn] = useState(p.full_name); const [mobile, setMo] = useState(to10(p.mobile)); const [city, setCity] = useState(p.city || "");
-  // State isn't in the profiles schema yet — kept in local form state only for now,
-  // same frontend-safe handling used in onboarding (see candidate.tsx TODOs).
-  const [state, setState] = useState("");
+  const [state, setState] = useState(p.state || "");
   const [dob, setDob] = useState(c.date_of_birth || ""); const [gender, setGender] = useState(c.gender || "");
   const [bio, setBio] = useState(c.bio || ""); const [headline, setHeadline] = useState(c.headline || "");
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{ full_name?: string; mobile?: string; state?: string; city?: string; dob?: string; gender?: string }>({});
-  useEffect(() => { if (open) { setFn(p.full_name); setMo(to10(p.mobile)); setCity(p.city || ""); setDob(c.date_of_birth || ""); setGender(c.gender || ""); setBio(c.bio || ""); setHeadline(c.headline || ""); setFieldErrors({}); } }, [open, p, c]);
+  useEffect(() => { if (open) { setFn(p.full_name); setMo(to10(p.mobile)); setCity(p.city || ""); setState(p.state || ""); setDob(c.date_of_birth || ""); setGender(c.gender || ""); setBio(c.bio || ""); setHeadline(c.headline || ""); setFieldErrors({}); } }, [open, p, c]);
   const save = async () => {
     const next: typeof fieldErrors = {};
     if (!full_name.trim()) next.full_name = "Please enter your full name.";
@@ -949,10 +947,9 @@ function PersonalDialog({ open, onClose, uid, p, c, onSaved }: { open: boolean; 
     setFieldErrors(next);
     if (Object.keys(next).length > 0) return;
     setSaving(true);
-    // TODO: include `state` here once profiles.state is added to the Supabase schema.
     await supabase
       .from("profiles")
-      .update({ full_name, mobile: to10(mobile).length === 10 ? `+91${to10(mobile)}` : null, city })
+      .update({ full_name, mobile: to10(mobile).length === 10 ? `+91${to10(mobile)}` : null, city, state })
       .eq("id", uid);
     await supabase.from("candidate_profiles").update({ date_of_birth: dob || null, gender: gender || null, bio: bio || null, headline: headline || null }).eq("user_id", uid);
     setSaving(false); toast.success("Saved"); onSaved(); onClose();

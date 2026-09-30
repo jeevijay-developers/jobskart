@@ -138,7 +138,7 @@ function AuthPage() {
                 role="tab"
                 aria-selected={active}
                 onClick={() => setTab(t)}
-                className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-all ${
+                className={`group relative flex min-w-0 items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-all ${
                   active
                     ? "bg-card shadow-sm ring-1 ring-primary/20"
                     : "hover:bg-card/60"
@@ -153,15 +153,15 @@ function AuthPage() {
                 >
                   <Meta.icon className="h-4 w-4" strokeWidth={2.25} />
                 </span>
-                <span className="flex flex-col leading-tight">
+                <span className="flex min-w-0 flex-col leading-tight">
                   <span
-                    className={`text-sm font-semibold ${
+                    className={`truncate text-sm font-semibold ${
                       active ? "text-foreground" : "text-foreground/80"
                     }`}
                   >
                     {Meta.label}
                   </span>
-                  <span className="text-[11px] font-medium text-muted-foreground">
+                  <span className="truncate text-[11px] font-medium text-muted-foreground">
                     {Meta.hint}
                   </span>
                 </span>
@@ -291,7 +291,7 @@ function MobileLoginForm({
               value={mobile}
               onChange={(e) => setMobile(e.target.value.replace(/\D/g, ""))}
               placeholder="98XXXXXXXX"
-              className="h-14 flex-1 bg-transparent px-4 text-lg font-semibold tracking-wide text-foreground outline-none placeholder:text-muted-foreground/50"
+              className="h-14 min-w-0 flex-1 bg-transparent px-4 text-lg font-semibold tracking-wide text-foreground outline-none placeholder:text-muted-foreground/50"
             />
           </div>
           <p className="mt-2 text-xs text-muted-foreground">

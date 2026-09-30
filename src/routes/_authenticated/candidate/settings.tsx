@@ -1,8 +1,9 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Loader2, LogOut, Bell, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { CandidateShell } from "@/components/candidate/CandidateShell";
+import { SignOutDialog } from "@/components/candidate/SignOutDialog";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/candidate/settings")({
@@ -11,9 +12,9 @@ export const Route = createFileRoute("/_authenticated/candidate/settings")({
 });
 
 function SettingsPage() {
-  const nav = useNavigate();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [signOutOpen, setSignOutOpen] = useState(false);
   const [prefs, setPrefs] = useState({
     email_alerts: true,
     whatsapp_alerts: false,
@@ -43,11 +44,6 @@ function SettingsPage() {
     setSaving(false);
     if (error) return toast.error(error.message);
     toast.success("Preferences saved");
-  };
-
-  const signOut = async () => {
-    await supabase.auth.signOut();
-    nav({ to: "/auth", replace: true });
   };
 
   const Row = ({ icon: Icon, title, desc, k }: { icon: typeof Bell; title: string; desc: string; k: keyof typeof prefs }) => (
@@ -92,12 +88,13 @@ function SettingsPage() {
           <section className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
             <h2 className="text-base font-semibold">Account</h2>
             <p className="mt-1 text-xs text-muted-foreground">Sign out on this device. Your data is safely stored on your JobsKart profile.</p>
-            <button onClick={signOut} className="mt-4 inline-flex h-10 items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/5 px-4 text-sm font-semibold text-destructive hover:bg-destructive/10">
+            <button onClick={() => setSignOutOpen(true)} className="mt-4 inline-flex h-10 items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/5 px-4 text-sm font-semibold text-destructive hover:bg-destructive/10">
               <LogOut className="h-4 w-4" /> Sign out
             </button>
           </section>
         </div>
       )}
+      <SignOutDialog open={signOutOpen} onOpenChange={setSignOutOpen} />
     </CandidateShell>
   );
 }
