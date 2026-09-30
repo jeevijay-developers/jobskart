@@ -19,9 +19,11 @@ import logoAsset from "@/assets/jobskart-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import { signOut } from "@/lib/auth";
 import { fetchMyCompanies, getActiveCompanyId } from "@/lib/employer";
-import { EMPLOYER_NAV_LINKS as nav, EMPLOYER_OVERFLOW_LINKS } from "@/lib/employer-nav";
+import { EMPLOYER_NAV_LINKS as nav, EMPLOYER_OVERFLOW_LINKS, isEmployerNavVisible } from "@/lib/employer-nav";
+import { useEmployerRole } from "@/hooks/use-employer-role";
 
 export function CreditChip() {
+  const { isSuperAdmin } = useEmployerRole();
   const [balance, setBalance] = useState<number | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -73,12 +75,18 @@ export function CreditChip() {
           style={{ width: `${creditProgress}%` }}
         />
       </div>
-      <Link
-        to="/employer/credits"
-        className="mt-3 flex h-9 w-full items-center justify-center rounded-lg border border-primary/30 bg-card px-3 text-xs font-semibold text-primary transition-colors hover:border-primary hover:bg-primary-light"
-      >
-        Buy Credits →
-      </Link>
+      {isSuperAdmin ? (
+        <Link
+          to="/employer/credits"
+          className="mt-3 flex h-9 w-full items-center justify-center rounded-lg border border-primary/30 bg-card px-3 text-xs font-semibold text-primary transition-colors hover:border-primary hover:bg-primary-light"
+        >
+          Buy Credits →
+        </Link>
+      ) : (
+        <p className="mt-3 text-center text-[11px] text-muted-foreground">
+          Managed by your Super Admin
+        </p>
+      )}
     </div>
   );
 }
@@ -102,6 +110,11 @@ export function EmployerShell({
 }) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  const { role } = useEmployerRole();
+  const visibleNav = nav.filter((item) => isEmployerNavVisible(item.minRole, role));
+  const visibleOverflow = EMPLOYER_OVERFLOW_LINKS.filter((item) =>
+    isEmployerNavVisible(item.minRole, role),
+  );
   const primary = nav.slice(0, 4);
   const [moreOpen, setMoreOpen] = useState(false);
   const [signOutConfirmOpen, setSignOutConfirmOpen] = useState(false);
@@ -128,7 +141,7 @@ export function EmployerShell({
               >
                 <Plus className="h-4 w-4" /> Post a job
               </Link>
-              {nav.map((item) => {
+              {visibleNav.map((item) => {
                 const active = pathname === item.to || pathname.startsWith(item.to + "/");
                 const Icon = item.icon;
                 return (
@@ -226,7 +239,7 @@ export function EmployerShell({
         <SheetContent side="right" className="flex w-80 max-w-[85vw] flex-col">
           <SheetTitle className="sr-only">Employer navigation</SheetTitle>
           <nav className="flex flex-col gap-1 overflow-y-auto pr-10">
-            {EMPLOYER_OVERFLOW_LINKS.map((item) => {
+            {visibleOverflow.map((item) => {
               const Icon = item.icon;
               return (
                 <Link

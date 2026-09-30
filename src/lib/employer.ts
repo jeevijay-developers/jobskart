@@ -23,7 +23,8 @@ export async function fetchMyCompanies(userId: string): Promise<EmployerMembersh
     .select(
       "company_id, role, companies (id, name, slug, logo_url, verification_status, industry, size, hq_city)",
     )
-    .eq("user_id", userId);
+    .eq("user_id", userId)
+    .eq("status", "active");
   if (error) throw error;
   return (data || []) as unknown as EmployerMembership[];
 }
@@ -40,6 +41,38 @@ export function setActiveCompanyId(id: string) {
   window.localStorage.setItem(KEY, id);
 }
 
-export function canEditCompany(role: EmployerRole) {
+export function canEditCompany(role: EmployerRole | null) {
+  return role === "super_admin" || role === "hr_admin";
+}
+
+export function isSuperAdmin(role: EmployerRole | null) {
+  return role === "super_admin";
+}
+
+export function isHrAdmin(role: EmployerRole | null) {
+  return role === "hr_admin";
+}
+
+export function isRecruiter(role: EmployerRole | null) {
+  return role === "recruiter";
+}
+
+export function canManageBilling(role: EmployerRole | null) {
+  return role === "super_admin";
+}
+
+export function canManageTeamMembers(role: EmployerRole | null) {
+  return role === "super_admin";
+}
+
+export function canInviteMembers(role: EmployerRole | null) {
+  return role === "super_admin" || role === "hr_admin";
+}
+
+export function canManageVerification(role: EmployerRole | null) {
+  return role === "super_admin" || role === "hr_admin";
+}
+
+export function canViewReports(role: EmployerRole | null) {
   return role === "super_admin" || role === "hr_admin";
 }

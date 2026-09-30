@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { BookOpen, GraduationCap, Award, Loader2 } from "lucide-react";
 import { Navbar } from "@/components/site/Navbar";
 import { Footer } from "@/components/site/Footer";
@@ -29,6 +29,7 @@ type Course = {
   title: string;
   excerpt: string | null;
   cover_url: string | null;
+  courses: { price_inr: number } | { price_inr: number }[] | null;
 };
 type Cert = {
   id: string;
@@ -60,11 +61,11 @@ function LearnHub() {
 
     supabase
       .from("content_items")
-      .select("id, slug, title, excerpt, cover_url")
+      .select("id, slug, title, excerpt, cover_url, courses(price_inr)")
       .eq("content_type", "course")
       .eq("status", "published")
       .order("published_at", { ascending: false })
-      .then(({ data }) => setCourses((data ?? []) as Course[]));
+      .then(({ data }) => setCourses((data ?? []) as unknown as Course[]));
 
     supabase
       .from("content_items")
@@ -97,7 +98,7 @@ function LearnHub() {
               items={posts}
               icon={BookOpen}
               empty="No articles published yet — check back soon."
-              linkTo={(p) => ({ to: "/learn/post/$slug", params: { slug: p.slug } })}
+              kind="post"
               linkLabel="Read more"
             />
           </TabsContent>
@@ -107,8 +108,12 @@ function LearnHub() {
               items={courses}
               icon={GraduationCap}
               empty="No courses published yet — check back soon."
-              linkTo={(c) => ({ to: "/learn/course/$slug", params: { slug: c.slug } })}
+              kind="course"
               linkLabel="View course"
+              badge={(c) => {
+                const price = one(c.courses)?.price_inr ?? 0;
+                return price > 0 ? `₹${price}` : "Free";
+              }}
             />
           </TabsContent>
 
@@ -117,7 +122,7 @@ function LearnHub() {
               items={certs}
               icon={Award}
               empty="No certifications published yet — check back soon."
-              linkTo={(c) => ({ to: "/learn/certification/$slug", params: { slug: c.slug } })}
+              kind="certification"
               linkLabel="View certification"
               badge={(c) => {
                 const price = one(c.certifications)?.price_inr ?? 0;
@@ -132,20 +137,66 @@ function LearnHub() {
   );
 }
 
+type LearnItemKind = "post" | "course" | "certification";
+
+/**
+ * Each branch below uses `to` as a literal, not a value computed and spread from a
+ * variable — TanStack Router only validates a route (existence, and the shape of
+ * `params`) against the registered route tree for a literal `to`; a `to: string`
+ * threaded through a prop or callback loses that checking entirely, silently
+ * accepting a typo'd or renamed route. Kept as its own component (not inlined in
+ * CardGrid) so each of the three `<Link>` calls stays a real literal.
+ */
+function ItemLink({
+  kind,
+  slug,
+  className,
+  children,
+}: {
+  kind: LearnItemKind;
+  slug: string;
+  className: string;
+  children: ReactNode;
+}) {
+  if (kind === "post")
+    return (
+      <Link to="/learn/post/$slug" params={{ slug }} className={className}>
+        {children}
+      </Link>
+    );
+  if (kind === "course")
+    return (
+      <Link to="/learn/course/$slug" params={{ slug }} className={className}>
+        {children}
+      </Link>
+    );
+  return (
+    <Link to="/learn/certification/$slug" params={{ slug }} className={className}>
+      {children}
+    </Link>
+  );
+}
+
 function CardGrid<
-  T extends { id: string; title: string; excerpt: string | null; cover_url: string | null },
+  T extends {
+    id: string;
+    slug: string;
+    title: string;
+    excerpt: string | null;
+    cover_url: string | null;
+  },
 >({
   items,
   icon: Icon,
   empty,
-  linkTo,
+  kind,
   linkLabel,
   badge,
 }: {
   items: T[] | null;
   icon: typeof BookOpen;
   empty: string;
-  linkTo: (item: T) => { to: string; params: Record<string, string> };
+  kind: LearnItemKind;
   linkLabel: string;
   badge?: (item: T) => string;
 }) {
@@ -179,12 +230,13 @@ function CardGrid<
           {item.excerpt && (
             <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{item.excerpt}</p>
           )}
-          <Link
-            {...linkTo(item)}
+          <ItemLink
+            kind={kind}
+            slug={item.slug}
             className="mt-3 inline-flex w-fit items-center text-sm font-semibold text-primary hover:underline"
           >
             {linkLabel}
-          </Link>
+          </ItemLink>
         </div>
       ))}
     </div>

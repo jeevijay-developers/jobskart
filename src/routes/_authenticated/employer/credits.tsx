@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { EmployerShell } from "@/components/employer/EmployerShell";
+import { RoleGate } from "@/components/employer/RoleGate";
+import { useEmployerRole } from "@/hooks/use-employer-role";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -163,6 +165,7 @@ declare global {
 }
 
 function CreditsPage() {
+  const { isSuperAdmin, isRecruiter, loading: roleLoading } = useEmployerRole();
   const [active, setActive] = useState<EmployerMembership | null>(null);
   const [loading, setLoading] = useState(true);
   const [jobPostBalance, setJobPostBalance] = useState(0);
@@ -437,7 +440,7 @@ function CreditsPage() {
     }
   };
 
-  if (loading) {
+  if (loading || roleLoading) {
     return (
       <EmployerShell title="Credits & usage">
         <div className="h-40 animate-pulse rounded-2xl bg-card" />
@@ -449,6 +452,14 @@ function CreditsPage() {
     return (
       <EmployerShell title="Credits & usage">
         <p className="text-sm text-muted-foreground">Set up a company first to buy credits.</p>
+      </EmployerShell>
+    );
+  }
+
+  if (isRecruiter) {
+    return (
+      <EmployerShell title="Credits & usage">
+        <RoleGate allowed={false}>{null}</RoleGate>
       </EmployerShell>
     );
   }
@@ -555,6 +566,10 @@ function CreditsPage() {
                   >
                     Current plan
                   </button>
+                ) : !isSuperAdmin ? (
+                  <p className="mt-4 rounded-lg bg-surface px-3 py-2 text-center text-xs text-muted-foreground">
+                    Only Super Admins can change the plan
+                  </p>
                 ) : isFree ? (
                   <button
                     onClick={() => setDowngradeConfirmOpen(true)}
@@ -656,19 +671,25 @@ function CreditsPage() {
                       ₹{formatInr(withGst(p.price_inr))} incl. 18% GST
                     </p>
                   </div>
-                  <button
-                    onClick={() => handleBuy(p)}
-                    disabled={buyingId !== null}
-                    className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-50"
-                  >
-                    {buyingId === p.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <>
-                        <CreditCard className="h-4 w-4" /> Buy now
-                      </>
-                    )}
-                  </button>
+                  {isSuperAdmin ? (
+                    <button
+                      onClick={() => handleBuy(p)}
+                      disabled={buyingId !== null}
+                      className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-50"
+                    >
+                      {buyingId === p.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>
+                          <CreditCard className="h-4 w-4" /> Buy now
+                        </>
+                      )}
+                    </button>
+                  ) : (
+                    <p className="mt-4 rounded-lg bg-surface px-3 py-2 text-center text-xs text-muted-foreground">
+                      Only Super Admins can purchase
+                    </p>
+                  )}
                 </div>
               ))}
             </div>

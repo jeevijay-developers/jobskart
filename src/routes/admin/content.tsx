@@ -20,6 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   createContentItem,
   deleteContentItem,
+  getContentItemForEdit,
   togglePublish,
   updateContentItem,
   uploadCoverImage,
@@ -54,6 +55,7 @@ type FormState = {
   seoDescription: string;
   ogImageUrl: string;
   modules: ModuleForm[];
+  coursePriceInr: string;
   priceInr: string;
   provider: "first_party" | "partner";
   partnerName: string;
@@ -86,6 +88,7 @@ const EMPTY_FORM: FormState = {
   seoDescription: "",
   ogImageUrl: "",
   modules: [],
+  coursePriceInr: "0",
   priceInr: "0",
   provider: "first_party",
   partnerName: "",
@@ -129,6 +132,7 @@ function Page() {
   const del = useServerFn(deleteContentItem);
   const toggle = useServerFn(togglePublish);
   const uploadCover = useServerFn(uploadCoverImage);
+  const getForEdit = useServerFn(getContentItemForEdit);
 
   const load = async () => {
     setLoading(true);
@@ -150,25 +154,21 @@ function Page() {
   }, []);
 
   const startEdit = async (row: ListRow) => {
-    const { data, error } = await supabase
-      .from("content_items")
-      .select(
-        "id, title, excerpt, category, tags, cover_url, content_type, " +
-          "content_posts(body_md, seo_title, seo_description, og_image_url), " +
-          "course_modules(id, title, kind, video_url, body_md, free_preview, duration_minutes, position, " +
-          "course_lessons(id, title, kind, video_url, body_md, free_preview, duration_minutes, position)), " +
-          "certifications(price_inr, provider, partner_name, pass_mark, max_attempts, validity_months, questions)",
-      )
-      .eq("id", row.id)
-      .single();
-    if (error || !data) {
-      toast.error(error?.message ?? "Could not load this item.");
+    // course_lessons body_md/video_url and certifications.questions are revoked
+    // from the browser client's role entirely (see 20260930150000/1) — this has
+    // to go through the admin-checked server function, not a direct table read.
+    let data;
+    try {
+      data = await getForEdit({ data: { id: row.id } });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not load this item.");
       return;
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const d = data as any;
     const post = Array.isArray(d.content_posts) ? d.content_posts[0] : d.content_posts;
     const cert = Array.isArray(d.certifications) ? d.certifications[0] : d.certifications;
+    const courseRow = Array.isArray(d.courses) ? d.courses[0] : d.courses;
     const modules: ModuleForm[] = (d.course_modules ?? [])
       .slice()
       .sort((a: { position: number }, b: { position: number }) => a.position - b.position)
@@ -207,6 +207,7 @@ function Page() {
       seoDescription: post?.seo_description ?? "",
       ogImageUrl: post?.og_image_url ?? "",
       modules,
+      coursePriceInr: courseRow ? String(courseRow.price_inr) : "0",
       priceInr: cert ? String(cert.price_inr) : "0",
       provider: cert?.provider ?? "first_party",
       partnerName: cert?.partner_name ?? "",
@@ -291,6 +292,7 @@ function Page() {
         seoDescription: form.type === "post" ? form.seoDescription || null : undefined,
         ogImageUrl: form.type === "post" ? form.ogImageUrl || null : undefined,
         courseModules: form.type === "course" ? courseModules : undefined,
+        coursePriceInr: form.type === "course" ? num(form.coursePriceInr) : undefined,
         certificationDetails:
           form.type === "certification"
             ? {
@@ -464,6 +466,18 @@ function Page() {
 
         {form.type === "course" && (
           <div className="mt-4 space-y-3 border-t border-border pt-4">
+            <div className="max-w-xs">
+              <Label>Price (₹, 0 = free)</Label>
+              <Input
+                type="number"
+                min={0}
+                value={form.coursePriceInr}
+                onChange={(e) => setForm((f) => ({ ...f, coursePriceInr: e.target.value }))}
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Free-preview lessons stay open to everyone even when the course is priced.
+              </p>
+            </div>
             <div className="flex items-center justify-between">
               <Label className="text-sm font-semibold">Modules</Label>
               <Button

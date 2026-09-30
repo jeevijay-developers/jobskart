@@ -81,8 +81,10 @@ import { Route as AuthenticatedEmployerCrmAutomationRouteImport } from './routes
 import { Route as AuthenticatedEmployerJobsBulkRouteImport } from './routes/_authenticated/employer/jobs.bulk'
 import { Route as AuthenticatedEmployerJobsNewRouteImport } from './routes/_authenticated/employer/jobs.new'
 import { Route as ApiPublicWebhooksRazorpayRouteImport } from './routes/api/public/webhooks/razorpay'
+import { Route as LearnCertificationSlugExamRouteImport } from './routes/learn.certification.$slug.exam'
 import { Route as AuthenticatedEmployerJobsJobIdApplicantsRouteImport } from './routes/_authenticated/employer/jobs.$jobId.applicants'
 import { Route as AuthenticatedEmployerJobsJobIdEditRouteImport } from './routes/_authenticated/employer/jobs.$jobId.edit'
+import { Route as LearnCourseSlugLessonLessonIdRouteImport } from './routes/learn.course.$slug.lesson.$lessonId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -476,6 +478,12 @@ const ApiPublicWebhooksRazorpayRoute =
     path: '/api/public/webhooks/razorpay',
     getParentRoute: () => rootRouteImport,
   } as any)
+const LearnCertificationSlugExamRoute =
+  LearnCertificationSlugExamRouteImport.update({
+    id: '/exam',
+    path: '/exam',
+    getParentRoute: () => LearnCertificationSlugRoute,
+  } as any)
 const AuthenticatedEmployerJobsJobIdApplicantsRoute =
   AuthenticatedEmployerJobsJobIdApplicantsRouteImport.update({
     id: '/$jobId/applicants',
@@ -487,6 +495,12 @@ const AuthenticatedEmployerJobsJobIdEditRoute =
     id: '/$jobId/edit',
     path: '/$jobId/edit',
     getParentRoute: () => AuthenticatedEmployerJobsRoute,
+  } as any)
+const LearnCourseSlugLessonLessonIdRoute =
+  LearnCourseSlugLessonLessonIdRouteImport.update({
+    id: '/lesson/$lessonId',
+    path: '/lesson/$lessonId',
+    getParentRoute: () => LearnCourseSlugRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -551,8 +565,8 @@ export interface FileRoutesByFullPath {
   '/employer/verification': typeof AuthenticatedEmployerVerificationRoute
   '/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
   '/onboarding/employer': typeof AuthenticatedOnboardingEmployerRoute
-  '/learn/certification/$slug': typeof LearnCertificationSlugRoute
-  '/learn/course/$slug': typeof LearnCourseSlugRoute
+  '/learn/certification/$slug': typeof LearnCertificationSlugRouteWithChildren
+  '/learn/course/$slug': typeof LearnCourseSlugRouteWithChildren
   '/learn/post/$slug': typeof LearnPostSlugRoute
   '/candidate/interview-prep/$sessionId': typeof AuthenticatedCandidateInterviewPrepSessionIdRoute
   '/candidate/jobs/$jobId': typeof AuthenticatedCandidateJobsJobIdRoute
@@ -560,9 +574,11 @@ export interface FileRoutesByFullPath {
   '/employer/jobs/bulk': typeof AuthenticatedEmployerJobsBulkRoute
   '/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
   '/api/public/webhooks/razorpay': typeof ApiPublicWebhooksRazorpayRoute
+  '/learn/certification/$slug/exam': typeof LearnCertificationSlugExamRoute
   '/candidate/interview-prep/': typeof AuthenticatedCandidateInterviewPrepIndexRoute
   '/employer/jobs/$jobId/applicants': typeof AuthenticatedEmployerJobsJobIdApplicantsRoute
   '/employer/jobs/$jobId/edit': typeof AuthenticatedEmployerJobsJobIdEditRoute
+  '/learn/course/$slug/lesson/$lessonId': typeof LearnCourseSlugLessonLessonIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -625,8 +641,8 @@ export interface FileRoutesByTo {
   '/employer/verification': typeof AuthenticatedEmployerVerificationRoute
   '/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
   '/onboarding/employer': typeof AuthenticatedOnboardingEmployerRoute
-  '/learn/certification/$slug': typeof LearnCertificationSlugRoute
-  '/learn/course/$slug': typeof LearnCourseSlugRoute
+  '/learn/certification/$slug': typeof LearnCertificationSlugRouteWithChildren
+  '/learn/course/$slug': typeof LearnCourseSlugRouteWithChildren
   '/learn/post/$slug': typeof LearnPostSlugRoute
   '/candidate/interview-prep/$sessionId': typeof AuthenticatedCandidateInterviewPrepSessionIdRoute
   '/candidate/jobs/$jobId': typeof AuthenticatedCandidateJobsJobIdRoute
@@ -634,9 +650,11 @@ export interface FileRoutesByTo {
   '/employer/jobs/bulk': typeof AuthenticatedEmployerJobsBulkRoute
   '/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
   '/api/public/webhooks/razorpay': typeof ApiPublicWebhooksRazorpayRoute
+  '/learn/certification/$slug/exam': typeof LearnCertificationSlugExamRoute
   '/candidate/interview-prep': typeof AuthenticatedCandidateInterviewPrepIndexRoute
   '/employer/jobs/$jobId/applicants': typeof AuthenticatedEmployerJobsJobIdApplicantsRoute
   '/employer/jobs/$jobId/edit': typeof AuthenticatedEmployerJobsJobIdEditRoute
+  '/learn/course/$slug/lesson/$lessonId': typeof LearnCourseSlugLessonLessonIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -702,8 +720,8 @@ export interface FileRoutesById {
   '/_authenticated/employer/verification': typeof AuthenticatedEmployerVerificationRoute
   '/_authenticated/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
   '/_authenticated/onboarding/employer': typeof AuthenticatedOnboardingEmployerRoute
-  '/learn/certification/$slug': typeof LearnCertificationSlugRoute
-  '/learn/course/$slug': typeof LearnCourseSlugRoute
+  '/learn/certification/$slug': typeof LearnCertificationSlugRouteWithChildren
+  '/learn/course/$slug': typeof LearnCourseSlugRouteWithChildren
   '/learn/post/$slug': typeof LearnPostSlugRoute
   '/_authenticated/candidate/interview-prep/$sessionId': typeof AuthenticatedCandidateInterviewPrepSessionIdRoute
   '/_authenticated/candidate/jobs/$jobId': typeof AuthenticatedCandidateJobsJobIdRoute
@@ -711,9 +729,11 @@ export interface FileRoutesById {
   '/_authenticated/employer/jobs/bulk': typeof AuthenticatedEmployerJobsBulkRoute
   '/_authenticated/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
   '/api/public/webhooks/razorpay': typeof ApiPublicWebhooksRazorpayRoute
+  '/learn/certification/$slug/exam': typeof LearnCertificationSlugExamRoute
   '/_authenticated/candidate/interview-prep/': typeof AuthenticatedCandidateInterviewPrepIndexRoute
   '/_authenticated/employer/jobs/$jobId/applicants': typeof AuthenticatedEmployerJobsJobIdApplicantsRoute
   '/_authenticated/employer/jobs/$jobId/edit': typeof AuthenticatedEmployerJobsJobIdEditRoute
+  '/learn/course/$slug/lesson/$lessonId': typeof LearnCourseSlugLessonLessonIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -788,9 +808,11 @@ export interface FileRouteTypes {
     | '/employer/jobs/bulk'
     | '/employer/jobs/new'
     | '/api/public/webhooks/razorpay'
+    | '/learn/certification/$slug/exam'
     | '/candidate/interview-prep/'
     | '/employer/jobs/$jobId/applicants'
     | '/employer/jobs/$jobId/edit'
+    | '/learn/course/$slug/lesson/$lessonId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -862,9 +884,11 @@ export interface FileRouteTypes {
     | '/employer/jobs/bulk'
     | '/employer/jobs/new'
     | '/api/public/webhooks/razorpay'
+    | '/learn/certification/$slug/exam'
     | '/candidate/interview-prep'
     | '/employer/jobs/$jobId/applicants'
     | '/employer/jobs/$jobId/edit'
+    | '/learn/course/$slug/lesson/$lessonId'
   id:
     | '__root__'
     | '/'
@@ -938,9 +962,11 @@ export interface FileRouteTypes {
     | '/_authenticated/employer/jobs/bulk'
     | '/_authenticated/employer/jobs/new'
     | '/api/public/webhooks/razorpay'
+    | '/learn/certification/$slug/exam'
     | '/_authenticated/candidate/interview-prep/'
     | '/_authenticated/employer/jobs/$jobId/applicants'
     | '/_authenticated/employer/jobs/$jobId/edit'
+    | '/learn/course/$slug/lesson/$lessonId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1474,6 +1500,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicWebhooksRazorpayRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/learn/certification/$slug/exam': {
+      id: '/learn/certification/$slug/exam'
+      path: '/exam'
+      fullPath: '/learn/certification/$slug/exam'
+      preLoaderRoute: typeof LearnCertificationSlugExamRouteImport
+      parentRoute: typeof LearnCertificationSlugRoute
+    }
     '/_authenticated/employer/jobs/$jobId/applicants': {
       id: '/_authenticated/employer/jobs/$jobId/applicants'
       path: '/$jobId/applicants'
@@ -1487,6 +1520,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/employer/jobs/$jobId/edit'
       preLoaderRoute: typeof AuthenticatedEmployerJobsJobIdEditRouteImport
       parentRoute: typeof AuthenticatedEmployerJobsRoute
+    }
+    '/learn/course/$slug/lesson/$lessonId': {
+      id: '/learn/course/$slug/lesson/$lessonId'
+      path: '/lesson/$lessonId'
+      fullPath: '/learn/course/$slug/lesson/$lessonId'
+      preLoaderRoute: typeof LearnCourseSlugLessonLessonIdRouteImport
+      parentRoute: typeof LearnCourseSlugRoute
     }
   }
 }
@@ -1662,15 +1702,41 @@ const JobsRouteChildren: JobsRouteChildren = {
 
 const JobsRouteWithChildren = JobsRoute._addFileChildren(JobsRouteChildren)
 
+interface LearnCertificationSlugRouteChildren {
+  LearnCertificationSlugExamRoute: typeof LearnCertificationSlugExamRoute
+}
+
+const LearnCertificationSlugRouteChildren: LearnCertificationSlugRouteChildren =
+  {
+    LearnCertificationSlugExamRoute: LearnCertificationSlugExamRoute,
+  }
+
+const LearnCertificationSlugRouteWithChildren =
+  LearnCertificationSlugRoute._addFileChildren(
+    LearnCertificationSlugRouteChildren,
+  )
+
+interface LearnCourseSlugRouteChildren {
+  LearnCourseSlugLessonLessonIdRoute: typeof LearnCourseSlugLessonLessonIdRoute
+}
+
+const LearnCourseSlugRouteChildren: LearnCourseSlugRouteChildren = {
+  LearnCourseSlugLessonLessonIdRoute: LearnCourseSlugLessonLessonIdRoute,
+}
+
+const LearnCourseSlugRouteWithChildren = LearnCourseSlugRoute._addFileChildren(
+  LearnCourseSlugRouteChildren,
+)
+
 interface LearnRouteChildren {
-  LearnCertificationSlugRoute: typeof LearnCertificationSlugRoute
-  LearnCourseSlugRoute: typeof LearnCourseSlugRoute
+  LearnCertificationSlugRoute: typeof LearnCertificationSlugRouteWithChildren
+  LearnCourseSlugRoute: typeof LearnCourseSlugRouteWithChildren
   LearnPostSlugRoute: typeof LearnPostSlugRoute
 }
 
 const LearnRouteChildren: LearnRouteChildren = {
-  LearnCertificationSlugRoute: LearnCertificationSlugRoute,
-  LearnCourseSlugRoute: LearnCourseSlugRoute,
+  LearnCertificationSlugRoute: LearnCertificationSlugRouteWithChildren,
+  LearnCourseSlugRoute: LearnCourseSlugRouteWithChildren,
   LearnPostSlugRoute: LearnPostSlugRoute,
 }
 

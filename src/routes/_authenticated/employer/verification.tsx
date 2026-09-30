@@ -6,6 +6,7 @@ import { EmployerShell } from "@/components/employer/EmployerShell";
 import { ConditionalField } from "@/components/forms/ConditionalField";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchMyCompanies, getActiveCompanyId } from "@/lib/employer";
+import { useEmployerRole } from "@/hooks/use-employer-role";
 
 export const Route = createFileRoute("/_authenticated/employer/verification")({
   head: () => ({ meta: [{ title: "KYC & Verification · JobsKart Employer" }] }),
@@ -16,6 +17,7 @@ type Row = { id: string; method: string; status: string; reference: string | nul
 type Method = "gst" | "email" | "manual";
 
 function VerificationPage() {
+  const { canManageVerification } = useEmployerRole();
   const [cid, setCid] = useState<string | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
   const [method, setMethod] = useState<Method>("gst");
@@ -75,6 +77,12 @@ function VerificationPage() {
     <EmployerShell title="KYC & Verification" subtitle="Verified employers get 4× more applications and higher search rank.">
       <div className="grid min-w-0 gap-6 lg:grid-cols-[1.2fr_1fr]">
         <section className="min-w-0 rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-6">
+          {!canManageVerification && (
+            <p className="mb-4 rounded-lg bg-surface px-3 py-2 text-xs text-muted-foreground">
+              Company KYC and verification can only be submitted by Super Admins or HR Admins.
+            </p>
+          )}
+          <fieldset disabled={!canManageVerification} className="contents disabled:opacity-60">
           <div className="mb-4 flex gap-1 sm:gap-2">
             {([
               { v: "gst", label: "GST / PAN / CIN", icon: Building2 },
@@ -131,6 +139,7 @@ function VerificationPage() {
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <BadgeCheck className="h-4 w-4" />}
             Submit for verification
           </button>
+          </fieldset>
         </section>
 
         <section className="min-w-0 rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-6">

@@ -64,24 +64,27 @@ export async function fulfilRazorpayOrder(args: {
   if (error) throw new Error(error.message);
   return data as unknown as FulfilResult;
 }
-// Grants a certification purchase exactly once. Safe to call from both the
-// client verify path and the webhook, in any order, any number of times —
-// mirrors fulfilRazorpayOrder() above, but for candidate_orders/cert_purchases.
-export type FulfilCertResult = {
+// Grants a certification-or-course purchase exactly once. Safe to call from
+// both the client verify path and the webhook, in any order, any number of
+// times — mirrors fulfilRazorpayOrder() above, but for candidate_orders,
+// which now covers both cert_purchases and course_purchases (the RPC itself
+// branches on the order's item_type).
+export type FulfilCandidateOrderResult = {
   status: "paid" | "amount_mismatch";
   already_applied: boolean;
+  item_type: "certification" | "course";
   certificate_no: string | null;
 };
 
-export async function fulfilCertificationOrder(args: {
+export async function fulfilCandidateOrder(args: {
   razorpayOrderId: string;
   razorpayPaymentId: string;
   amountPaise: number | null;
   via: "client" | "webhook";
   actor: string | null;
-}): Promise<FulfilCertResult> {
+}): Promise<FulfilCandidateOrderResult> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data, error } = await supabaseAdmin.rpc("fulfil_certification_order", {
+  const { data, error } = await supabaseAdmin.rpc("fulfil_candidate_order", {
     _razorpay_order_id: args.razorpayOrderId,
     _razorpay_payment_id: args.razorpayPaymentId,
     _amount_paise: args.amountPaise as number,
@@ -89,5 +92,5 @@ export async function fulfilCertificationOrder(args: {
     _actor: args.actor as string,
   });
   if (error) throw new Error(error.message);
-  return data as unknown as FulfilCertResult;
+  return data as unknown as FulfilCandidateOrderResult;
 }

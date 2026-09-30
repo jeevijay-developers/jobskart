@@ -942,10 +942,12 @@ export type Database = {
       candidate_orders: {
         Row: {
           amount: number | null
-          certification_id: string
+          certification_id: string | null
+          course_id: string | null
           created_at: string | null
           currency: string | null
           id: string
+          item_type: string
           razorpay_order_id: string | null
           razorpay_payment_id: string | null
           status: string
@@ -954,10 +956,12 @@ export type Database = {
         }
         Insert: {
           amount?: number | null
-          certification_id: string
+          certification_id?: string | null
+          course_id?: string | null
           created_at?: string | null
           currency?: string | null
           id?: string
+          item_type?: string
           razorpay_order_id?: string | null
           razorpay_payment_id?: string | null
           status?: string
@@ -966,10 +970,12 @@ export type Database = {
         }
         Update: {
           amount?: number | null
-          certification_id?: string
+          certification_id?: string | null
+          course_id?: string | null
           created_at?: string | null
           currency?: string | null
           id?: string
+          item_type?: string
           razorpay_order_id?: string | null
           razorpay_payment_id?: string | null
           status?: string
@@ -982,6 +988,13 @@ export type Database = {
             columns: ["certification_id"]
             isOneToOne: false
             referencedRelation: "certifications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_orders_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
             referencedColumns: ["id"]
           },
         ]
@@ -1279,6 +1292,47 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      cert_attempts: {
+        Row: {
+          answers: Json
+          attempt_number: number
+          certification_id: string
+          id: string
+          passed: boolean
+          score: number
+          submitted_at: string
+          user_id: string
+        }
+        Insert: {
+          answers: Json
+          attempt_number: number
+          certification_id: string
+          id?: string
+          passed: boolean
+          score: number
+          submitted_at?: string
+          user_id: string
+        }
+        Update: {
+          answers?: Json
+          attempt_number?: number
+          certification_id?: string
+          id?: string
+          passed?: boolean
+          score?: number
+          submitted_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cert_attempts_certification_id_fkey"
+            columns: ["certification_id"]
+            isOneToOne: false
+            referencedRelation: "certifications"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cert_purchases: {
         Row: {
@@ -1965,6 +2019,58 @@ export type Database = {
             foreignKeyName: "course_modules_course_id_fkey"
             columns: ["course_id"]
             isOneToOne: false
+            referencedRelation: "content_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_purchases: {
+        Row: {
+          course_id: string
+          id: string
+          purchased_at: string
+          user_id: string
+        }
+        Insert: {
+          course_id: string
+          id?: string
+          purchased_at?: string
+          user_id: string
+        }
+        Update: {
+          course_id?: string
+          id?: string
+          purchased_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_purchases_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      courses: {
+        Row: {
+          id: string
+          price_inr: number
+        }
+        Insert: {
+          id: string
+          price_inr?: number
+        }
+        Update: {
+          id?: string
+          price_inr?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courses_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
             referencedRelation: "content_items"
             referencedColumns: ["id"]
           },
@@ -4426,6 +4532,10 @@ export type Database = {
         Returns: string
       }
       can_access_job_responses: { Args: { _job_id: string }; Returns: boolean }
+      cancel_employer_invite: {
+        Args: { _company_id: string; _invite_id: string }
+        Returns: undefined
+      }
       cancel_video_interview: {
         Args: { _actor?: string; _interview_id: string; _reason?: string }
         Returns: {
@@ -4528,6 +4638,10 @@ export type Database = {
           _website: string
         }
         Returns: string
+      }
+      create_course_order: {
+        Args: { _actor: string; _course_id: string }
+        Returns: Json
       }
       create_credit_pack_order: {
         Args: { _actor: string; _company_id: string; _pack_id: string }
@@ -4726,7 +4840,7 @@ export type Database = {
           phone: string
         }[]
       }
-      fulfil_certification_order: {
+      fulfil_candidate_order: {
         Args: {
           _actor: string
           _amount_paise: number
@@ -4744,6 +4858,10 @@ export type Database = {
           _razorpay_payment_id: string
           _via: string
         }
+        Returns: Json
+      }
+      get_certification_exam: {
+        Args: { _certification_id: string }
         Returns: Json
       }
       get_company_entitlements: { Args: { _company_id: string }; Returns: Json }
@@ -4811,6 +4929,7 @@ export type Database = {
           role: Database["public"]["Enums"]["employer_role"]
         }[]
       }
+      get_lesson_content: { Args: { _lesson_id: string }; Returns: Json }
       get_public_candidate: {
         Args: { _slug: string }
         Returns: {
@@ -4916,6 +5035,13 @@ export type Database = {
         }
         Returns: Json
       }
+      get_unlocked_candidate_contact: {
+        Args: { _candidate_user_id: string; _company_id: string }
+        Returns: {
+          email: string
+          mobile: string
+        }[]
+      }
       grant_company_benefit:
         | {
             Args: {
@@ -5004,7 +5130,7 @@ export type Database = {
         Args: { _application_id: string }
         Returns: undefined
       }
-      mark_certification_order_failed: {
+      mark_candidate_order_failed: {
         Args: { _razorpay_order_id: string; _razorpay_payment_id: string }
         Returns: undefined
       }
@@ -5130,6 +5256,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      resend_employer_invite: {
+        Args: { _company_id: string; _invite_id: string }
+        Returns: Json
+      }
       reserve_video_interview_slot: {
         Args: {
           _actor?: string
@@ -5224,6 +5354,10 @@ export type Database = {
           _role_title?: string
         }
         Returns: string
+      }
+      submit_certification_exam: {
+        Args: { _answers: Json; _certification_id: string }
+        Returns: Json
       }
       suggest_skills_for_roles: {
         Args: { _roles: string[] }

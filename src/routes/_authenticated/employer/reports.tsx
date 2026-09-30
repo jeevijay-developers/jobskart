@@ -4,6 +4,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { BarChart3, Briefcase, Eye, TrendingUp, Users } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { EmployerShell } from "@/components/employer/EmployerShell";
+import { RoleGate } from "@/components/employer/RoleGate";
+import { useEmployerRole } from "@/hooks/use-employer-role";
 import { StatCard } from "@/components/shared/StatCard";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
 import { ThemedSelect } from "@/components/ui/themed-form-controls";
@@ -32,6 +34,7 @@ export const Route = createFileRoute("/_authenticated/employer/reports")({
 });
 
 function ReportsPage() {
+  const { canViewReports, loading: roleLoading } = useEmployerRole();
   const [cid, setCid] = useState<string | null>(null);
   const [range, setRange] = useState<7 | 30 | 90>(7);
   const [data, setData] = useState<EmployerAnalytics | null>(null);
@@ -60,7 +63,15 @@ function ReportsPage() {
       .finally(() => setLoading(false));
   }, [cid, range, fetchAnalytics]);
 
-  if (loading || !data) {
+  if (!roleLoading && !canViewReports) {
+    return (
+      <EmployerShell title="Reports">
+        <RoleGate allowed={false}>{null}</RoleGate>
+      </EmployerShell>
+    );
+  }
+
+  if (loading || roleLoading || !data) {
     return (
       <EmployerShell title="Reports">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

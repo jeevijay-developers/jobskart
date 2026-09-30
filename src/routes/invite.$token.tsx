@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Navbar } from "@/components/site/Navbar";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,6 +18,7 @@ function InvitePage() {
   const [invite, setInvite] = useState<Invite | null>(null);
   const [loading, setLoading] = useState(true);
   const [auth, setAuth] = useState<boolean>(false);
+  const [currentEmail, setCurrentEmail] = useState<string | null>(null);
   const [accepting, setAccepting] = useState(false);
 
   useEffect(() => {
@@ -29,9 +30,13 @@ function InvitePage() {
       const row = (iRes.data as unknown as Invite[] | null)?.[0] ?? null;
       setInvite(row);
       setAuth(!!uRes.data.user);
+      setCurrentEmail(uRes.data.user?.email ?? null);
       setLoading(false);
     })();
   }, [token]);
+
+  const emailMismatch =
+    !!invite && !!currentEmail && currentEmail.toLowerCase() !== invite.email.toLowerCase();
 
   const accept = async () => {
     setAccepting(true);
@@ -64,6 +69,17 @@ function InvitePage() {
               <p className="mt-1 text-2xl font-bold text-primary">{invite.company_name}</p>
               <p className="mt-2 text-sm text-muted-foreground">Role: <span className="font-semibold">{invite.role.replace("_", " ")}</span></p>
               <p className="text-sm text-muted-foreground">Invited email: <span className="font-medium">{invite.email}</span></p>
+
+              {auth && emailMismatch && (
+                <div className="mt-4 flex items-start gap-2 rounded-lg bg-warning-light px-3 py-2 text-left text-xs text-warning">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>
+                    You're signed in as <strong>{currentEmail}</strong>, but this invite was sent to{" "}
+                    <strong>{invite.email}</strong>. Accepting will join this company under your
+                    current account.
+                  </span>
+                </div>
+              )}
 
               {auth ? (
                 <button onClick={accept} disabled={accepting} className="mt-6 inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-60">

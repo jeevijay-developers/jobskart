@@ -1,22 +1,22 @@
 import { ThemedSelect } from "@/components/ui/themed-form-controls";
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Copy,
   Mail,
   RefreshCw,
-  ShieldCheck,
   Trash2,
   UserCheck,
   UserPlus,
-  Users,
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { EmployerShell } from "@/components/employer/EmployerShell";
+import { RoleGate } from "@/components/employer/RoleGate";
 import { Field } from "@/components/candidate/primitives";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchMyCompanies, getActiveCompanyId, setActiveCompanyId } from "@/lib/employer";
+import { useEmployerRole } from "@/hooks/use-employer-role";
+import type { EmployerRole } from "@/lib/employer";
 import { formatDistanceToNow } from "date-fns";
 
 export const Route = createFileRoute("/_authenticated/employer/team")({
@@ -26,7 +26,7 @@ export const Route = createFileRoute("/_authenticated/employer/team")({
 
 type Member = {
   user_id: string;
-  role: string;
+  role: EmployerRole;
   status: string;
   revoked_at: string | null;
   profiles: { full_name: string | null; email: string | null } | null;
@@ -35,11 +35,17 @@ type Member = {
 type Invite = {
   id: string;
   email: string;
-  role: string;
+  role: EmployerRole;
   token: string;
   expires_at: string;
   accepted_at: string | null;
   created_at: string;
+};
+
+const ROLE_LABELS: Record<EmployerRole, string> = {
+  super_admin: "Super Admin",
+  hr_admin: "HR Admin",
+  recruiter: "Recruiter",
 };
 
 function roleBadgeClass(role: string) {
@@ -53,135 +59,146 @@ function roleBadgeClass(role: string) {
   }
 }
 
+function inviteUrl(token: string) {
+  return typeof window === "undefined" ? "" : `${window.location.origin}/invite/${token}`;
+}
+
+async function copyToClipboard(text: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast.success("Link copied to clipboard");
+  } catch {
+    toast.error("Couldn't copy — copy it manually");
+  }
+}
+
 function TeamPage() {
-  const [cid, setCid] = useState<string | null>(null);
-  const [meId, setMeId] = useState<string | null>(null);
-  const [myRole, setMyRole] = useState<string | null>(null);
+  const {
+    loading: roleLoading,
+    userId,
+    companyId: cid,
+    accessMessage: roleAccessMessage,
+    isSuperAdmin,
+    canInviteMembers: canInvite,
+    canManageTeamMembers: canManage,
+    refresh,
+  } = useEmployerRole();
   const [members, setMembers] = useState<Member[]>([]);
   const [revokedMembers, setRevokedMembers] = useState<Member[]>([]);
   const [invites, setInvites] = useState<Invite[]>([]);
+  const [membersLoading, setMembersLoading] = useState(true);
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState("recruiter");
+  const [role, setRole] = useState<EmployerRole>("recruiter");
   const [sending, setSending] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [accessMessage, setAccessMessage] = useState<string | null>(null);
+  const [dataError, setDataError] = useState<string | null>(null);
   const [showRevoked, setShowRevoked] = useState(false);
+  const [lastInvite, setLastInvite] = useState<{ email: string; token: string } | null>(null);
+  const [busyUserId, setBusyUserId] = useState<string | null>(null);
+  const [busyInviteId, setBusyInviteId] = useState<string | null>(null);
 
-  const load = async () => {
-    setLoading(true);
-    const { data: u } = await supabase.auth.getUser();
-    setMeId(u.user?.id ?? null);
-    if (!u.user) {
-      setCid(null);
-      setMyRole(null);
-      setMembers([]);
-      setRevokedMembers([]);
-      setInvites([]);
-      setAccessMessage("Sign in with an employer account to manage a team.");
-      setLoading(false);
-      return;
-    }
+  const loadTeamData = async (companyId: string) => {
+    setMembersLoading(true);
+    const [mRes, iRes, rRes] = await Promise.all([
+      supabase
+        .from("employer_members")
+        .select(
+          "user_id, role, status, revoked_at, profiles:profiles!employer_members_user_id_profiles_fkey(full_name, email)",
+        )
+        .eq("company_id", companyId)
+        .eq("status", "active"),
+      supabase
+        .from("employer_invites")
+        .select("id, email, role, token, expires_at, accepted_at, created_at")
+        .eq("company_id", companyId)
+        .is("accepted_at", null)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("employer_members")
+        .select(
+          "user_id, role, status, revoked_at, profiles:profiles!employer_members_user_id_profiles_fkey(full_name, email)",
+        )
+        .eq("company_id", companyId)
+        .eq("status", "revoked"),
+    ]);
 
-    try {
-      const memberships = await fetchMyCompanies(u.user.id);
-      let membership = memberships.find((item) => item.company_id === getActiveCompanyId());
-      if (!membership) membership = memberships[0];
-      if (!membership) {
-        setCid(null);
-        setMyRole(null);
-        setMembers([]);
-        setRevokedMembers([]);
-        setInvites([]);
-        setAccessMessage("This account is not a member of an employer company yet.");
-        return;
-      }
-
-      const id = membership.company_id;
-      setActiveCompanyId(id);
-      setCid(id);
-      setMyRole(membership.role);
-      setAccessMessage(null);
-
-      // Fetch active members
-      const [mRes, iRes, rRes] = await Promise.all([
-        supabase
-          .from("employer_members")
-          .select("user_id, role, status, revoked_at, profiles:profiles!employer_members_user_id_profiles_fkey(full_name, email)")
-          .eq("company_id", id)
-          .eq("status", "active"),
-        supabase
-          .from("employer_invites")
-          .select("id, email, role, token, expires_at, accepted_at, created_at")
-          .eq("company_id", id)
-          .is("accepted_at", null)
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("employer_members")
-          .select("user_id, role, status, revoked_at, profiles:profiles!employer_members_user_id_profiles_fkey(full_name, email)")
-          .eq("company_id", id)
-          .eq("status", "revoked"),
-      ]);
-
-      if (mRes.error || iRes.error || rRes.error) {
-        setAccessMessage(
-          mRes.error?.message ||
-            iRes.error?.message ||
-            rRes.error?.message ||
-            "Couldn't load team details."
-        );
-      } else {
-        setMembers((mRes.data || []) as unknown as Member[]);
-        setRevokedMembers((rRes.data || []) as unknown as Member[]);
-        setInvites((iRes.data || []) as Invite[]);
-      }
-    } catch (error) {
-      setCid(null);
-      setMyRole(null);
-      setMembers([]);
-      setRevokedMembers([]);
-      setInvites([]);
-      setAccessMessage(
-        error instanceof Error ? error.message : "Couldn't load team access."
+    if (mRes.error || iRes.error || rRes.error) {
+      setDataError(
+        mRes.error?.message || iRes.error?.message || rRes.error?.message || "Couldn't load team details.",
       );
-    } finally {
-      setLoading(false);
+    } else {
+      setDataError(null);
+      setMembers((mRes.data || []) as unknown as Member[]);
+      setRevokedMembers((rRes.data || []) as unknown as Member[]);
+      setInvites((iRes.data || []) as Invite[]);
     }
+    setMembersLoading(false);
   };
-useEffect(() => {
-    load();
-  }, []);
+
+  // Fetch team data whenever the active company becomes known / changes.
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  if (!roleLoading && cid && loadedFor !== cid) {
+    setLoadedFor(cid);
+    void loadTeamData(cid);
+  }
+
+  const reload = async () => {
+    await refresh();
+    if (cid) await loadTeamData(cid);
+  };
 
   const reactivateMember = async (userId: string, name: string | null) => {
     if (!cid) return;
+    setBusyUserId(userId);
     try {
-      await supabase
-        .from("employer_members")
-        .update({ status: "active", revoked_at: null })
-        .eq("company_id", cid)
-        .eq("user_id", userId);
-      await load();
+      const { error } = await supabase.rpc("reactivate_member", {
+        _company_id: cid,
+        _user_id: userId,
+        _role: "recruiter",
+      });
+      if (error) throw error;
+      await reload();
       toast.success(`Access restored for ${name ?? "user"}`);
     } catch (error) {
-      toast.error(
-        (error as Error)?.message ?? "Failed to restore access"
-      );
+      toast.error((error as Error)?.message ?? "Failed to restore access");
+    } finally {
+      setBusyUserId(null);
     }
   };
 
   const revokeMember = async (userId: string, name: string | null) => {
     if (!cid) return;
+    setBusyUserId(userId);
     try {
-      await supabase
-        .from("employer_members")
-        .update({ status: "revoked", revoked_at: new Date().toISOString() })
-        .eq("company_id", cid)
-        .eq("user_id", userId);
-      await load();
+      const { error } = await supabase.rpc("remove_member", {
+        _company_id: cid,
+        _user_id: userId,
+      });
+      if (error) throw error;
+      await reload();
       toast.success(`Access revoked for ${name ?? "user"}`);
     } catch (error) {
-      toast.error(
-        (error as Error)?.message ?? "Failed to revoke access"
-      );
+      toast.error((error as Error)?.message ?? "Failed to revoke access");
+    } finally {
+      setBusyUserId(null);
+    }
+  };
+
+  const changeRole = async (userId: string, newRole: EmployerRole) => {
+    if (!cid) return;
+    setBusyUserId(userId);
+    try {
+      const { error } = await supabase.rpc("update_member_role", {
+        _company_id: cid,
+        _user_id: userId,
+        _role: newRole,
+      });
+      if (error) throw error;
+      await reload();
+      toast.success(`Role updated to ${ROLE_LABELS[newRole]}`);
+    } catch (error) {
+      toast.error((error as Error)?.message ?? "Failed to change role");
+    } finally {
+      setBusyUserId(null);
     }
   };
 
@@ -189,110 +206,171 @@ useEffect(() => {
     if (!cid || !email || !role) return;
     setSending(true);
     try {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) throw new Error("Not signed in");
+      // token, expires_at have secure DB defaults (see employer_invites DDL) — no need to generate client-side.
       const { data, error } = await supabase
         .from("employer_invites")
-        .insert({
-          company_id: cid,
-          email,
-          role,
-          token: Math.random().toString(36).substring(2, 15),
-          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
-        })
+        .insert({ company_id: cid, email, role, invited_by: u.user.id })
+        .select("token")
         .single();
       if (error) throw error;
+      setLastInvite({ email, token: data.token });
       setEmail("");
       setRole("recruiter");
-      await load();
-      toast.success("Invite sent!");
+      await reload();
+      toast.success("Invite created!");
     } catch (error) {
-      toast.error(
-        (error as Error)?.message ?? "Failed to send invite"
-      );
+      toast.error((error as Error)?.message ?? "Failed to send invite");
     } finally {
       setSending(false);
     }
   };
 
-  const canInvite = myRole === "hr_admin" || myRole === "super_admin";
-  const canManage = myRole === "hr_admin" || myRole === "super_admin";
-return (
-    <EmployerShell>
-      <div className="flex h-full w-full">
-        <aside className="w-64 border-r border-border">
-          <nav className="flex h-full flex-col p-4 space-y-4">
-            <button
-              onClick={() => {
-                // TODO: navigate to dashboard
-              }}
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
-            >
-              <Users className="h-4 w-4" />
-              <span>Team</span>
-            </button>
-            {/* Additional navigation items can be added here */}
-          </nav>
-        </aside>
-        <main className="flex-1 overflow-y-auto p-6 space-y-6">
-          <header className="flex flex-col space-y-4">
-            <div className="flex flex-col md:flex-row md:items-start md:justify-between">
-              <h1 className="text-2xl font-bold">Team</h1>
-              <div className="flex flex-wrap gap-3 mt-4 md:mt-0">
-                <button
-                  onClick={() => setShowRevoked(!showRevoked)}
-                  className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium ${
-                    showRevoked
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted hover:bg-muted/80"
-                  }`}
-                >
-                  <UserPlus className="h-3 w-3" />
-                  <span>Show Revoked</span>
-                </button>
-              </div>
-            </div>
-            {accessMessage && (
-              <p className="rounded-lg bg-destructive-light px-3 py-2 text-xs text-destructive">
-                {accessMessage}
-              </p>
-            )}
-          </header>
+  const cancelInvite = async (invite: Invite) => {
+    if (!cid) return;
+    setBusyInviteId(invite.id);
+    try {
+      const { error } = await supabase.rpc("cancel_employer_invite", {
+        _company_id: cid,
+        _invite_id: invite.id,
+      });
+      if (error) throw error;
+      if (lastInvite?.token === invite.token) setLastInvite(null);
+      await reload();
+      toast.success(`Invite for ${invite.email} cancelled`);
+    } catch (error) {
+      toast.error((error as Error)?.message ?? "Failed to cancel invite");
+    } finally {
+      setBusyInviteId(null);
+    }
+  };
 
-          {!showRevoked ? (
-            <>
+  const resendInvite = async (invite: Invite) => {
+    if (!cid) return;
+    setBusyInviteId(invite.id);
+    try {
+      const { data, error } = await supabase.rpc("resend_employer_invite", {
+        _company_id: cid,
+        _invite_id: invite.id,
+      });
+      if (error) throw error;
+      const refreshed = data as unknown as { token: string; email: string };
+      setLastInvite({ email: refreshed.email, token: refreshed.token });
+      await reload();
+      toast.success(`Invite for ${invite.email} refreshed`);
+    } catch (error) {
+      toast.error((error as Error)?.message ?? "Failed to resend invite");
+    } finally {
+      setBusyInviteId(null);
+    }
+  };
+
+  const accessMessage = roleAccessMessage ?? dataError;
+  const loading = roleLoading || membersLoading;
+
+  return (
+    <EmployerShell title="Team" subtitle="Manage who has access to your company on JobsKart.">
+      <div className="space-y-6">
+        {accessMessage && (
+          <p className="rounded-lg bg-destructive-light px-3 py-2 text-xs text-destructive">{accessMessage}</p>
+        )}
+
+        {!roleLoading && !canManage ? (
+          <RoleGate allowed={false} />
+        ) : (
+          <>
+            {lastInvite && (
+              <div className="rounded-xl border border-primary/30 bg-primary-light/30 p-4">
+                <p className="text-sm font-semibold text-primary">Invitation created!</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Share this link with {lastInvite.email}:
+                </p>
+                <div className="mt-2 flex items-center gap-2">
+                  <input
+                    readOnly
+                    value={inviteUrl(lastInvite.token)}
+                    className="flex-1 rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-foreground"
+                  />
+                  <button
+                    onClick={() => copyToClipboard(inviteUrl(lastInvite.token))}
+                    className="inline-flex h-8 items-center gap-1 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary-dark"
+                  >
+                    <Copy className="h-3.5 w-3.5" /> Copy
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <section className="flex items-center justify-between">
+              <h1 className="text-2xl font-bold">Team</h1>
+              <button
+                onClick={() => setShowRevoked(!showRevoked)}
+                className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium ${
+                  showRevoked ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-muted/80"
+                }`}
+              >
+                <UserPlus className="h-3 w-3" />
+                <span>Show revoked</span>
+              </button>
+            </section>
+
+            {!showRevoked ? (
               <section className="space-y-4">
-                <h2 className="text-lg font-semibold">Active Members ({members.length})</h2>
-                {members.length === 0 ? (
+                <h2 className="text-lg font-semibold">Active members ({members.length})</h2>
+                {loading ? (
+                  <p className="text-xs text-muted-foreground">Loading…</p>
+                ) : members.length === 0 ? (
                   <p className="text-xs text-muted-foreground">No active members.</p>
                 ) : (
                   <div className="space-y-2">
                     {members.map((m) => {
                       const name = m.profiles?.full_name ?? "Unnamed";
+                      const isSelf = m.user_id === userId;
                       return (
-                        <div key={m.user_id} className="flex items-center gap-3 px-3 py-2 rounded-lg border border-border bg-surface">
+                        <div
+                          key={m.user_id}
+                          className="flex flex-wrap items-center gap-3 px-3 py-2 rounded-lg border border-border bg-surface"
+                        >
                           <div className="flex-shrink-0">
                             {m.profiles?.full_name ? (
-                              <span className="">{m.profiles.full_name.charAt(0)}</span>
+                              <span>{m.profiles.full_name.charAt(0)}</span>
                             ) : (
-                              <span className="flex h-6 w-6 items-center justify-center bg-muted rounded-full text-xs">NA</span>
+                              <span className="flex h-6 w-6 items-center justify-center bg-muted rounded-full text-xs">
+                                NA
+                              </span>
                             )}
                           </div>
-                          <div className="flex-1 min-w-0 space-y-1">
+                          <div className="min-w-0 flex-1 space-y-1">
                             <p className="text-sm font-medium">{name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {roleBadgeClass(m.role)}
-                            </p>
+                            <span
+                              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${roleBadgeClass(m.role)}`}
+                            >
+                              {ROLE_LABELS[m.role] ?? m.role}
+                            </span>
                           </div>
+                          {isSuperAdmin && (
+                            <ThemedSelect
+                              value={m.role}
+                              onChange={(e) => changeRole(m.user_id, e.target.value as EmployerRole)}
+                              disabled={busyUserId === m.user_id || isSelf}
+                              className="form-input h-8 w-40 text-xs"
+                            >
+                              <option value="recruiter">Recruiter</option>
+                              <option value="hr_admin">HR Admin</option>
+                              <option value="super_admin">Super Admin</option>
+                            </ThemedSelect>
+                          )}
                           {canManage && (
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => revokeMember(m.user_id, name)}
-                                className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-card px-2 text-xs text-destructive hover:bg-destructive-light"
-                                title="Revoke access"
-                              >
-                                <XCircle className="h-3.5 w-3.5" />
-                                <span className="hidden sm:inline">Revoke</span>
-                              </button>
-                            </div>
+                            <button
+                              onClick={() => revokeMember(m.user_id, name)}
+                              disabled={busyUserId === m.user_id}
+                              className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-card px-2 text-xs text-destructive hover:bg-destructive-light disabled:opacity-60"
+                              title="Revoke access"
+                            >
+                              <XCircle className="h-3.5 w-3.5" />
+                              <span className="hidden sm:inline">Revoke</span>
+                            </button>
                           )}
                         </div>
                       );
@@ -300,124 +378,167 @@ return (
                   </div>
                 )}
               </section>
-            </>
-          ) : (
-<>
-                  <section className="space-y-4">
-                    <h2 className="text-lg font-semibold">Revoked Members ({revokedMembers.length})</h2>
-                    {revokedMembers.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">No revoked members.</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {revokedMembers.map((m) => {
-                          const name = m.profiles?.full_name ?? "Unnamed";
-                          return (
-                            <div key={m.user_id} className="flex items-center gap-3 px-3 py-2 rounded-lg border border-border bg-surface">
-                              <div className="flex-shrink-0">
-                                {m.profiles?.full_name ? (
-                                  <span className="">{m.profiles.full_name.charAt(0)}</span>
-                                ) : (
-                                  <span className="flex h-6 w-6 items-center justify-center bg-muted rounded-full text-xs">NA</span>
-                                )}
-                              </div>
-                              <div className="flex-1 min-w-0 space-y-1">
-                                <p className="text-sm font-medium">{name}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  Revoked {formatDistanceToNow(new Date(m.revoked_at ?? undefined), { addSuffix: true })}
-                                </p>
-                              </div>
-                              {canManage && (
-                                <div className="flex items-center gap-2">
-                                  <button
-                                    onClick={() => reactivateMember(m.userId, name)}
-                                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-card px-2 text-xs text-success hover:bg-success-light"
-                                    title="Restore access"
-                                  >
-                                    <RefreshCw className="h-3.5 w-3.5" />
-                                    <span className="hidden sm:inline">Restore</span>
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </section>
-                </>
-          )}
-
-              {/* Invite Form */}
-              <section className="min-w-0 rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
-                <h2 className="flex items-center gap-2 text-sm font-bold">
-                  <UserPlus className="h-4 w-4" /> Invite teammate
-                </h2>
-                {accessMessage && (
-                  <p className="mt-3 rounded-lg bg-destructive-light px-3 py-2 text-xs text-destructive">
-                    {accessMessage}
-                  </p>
-                )}
-                {!accessMessage && !canInvite && !loading && (
-                  <p className="mt-3 rounded-bg-warning-light px-3 py-2 text-xs text-warning">
-                    Only HR Admins and Super Admins can create invitations.
-                  </p>
-                )}
-
-                {/* Data ownership notice */}
-                {canManage && (
-                  <div className="mt-3 rounded-lg border border-border bg-surface p-3">
-                    <div className="flex items-start gap-2">
-                      <UserCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                      <p className="text-[11px] text-muted-foreground leading-relaxed">
-                        <strong className="text-foreground">Data Ownership:</strong> All candidate unlocks
-                        and hiring activity belong to your company — not to individual recruiters. Revoking
-                        a recruiter's access preserves all data for your team.
-                      </p>
-                    </div>
+            ) : (
+              <section className="space-y-4">
+                <h2 className="text-lg font-semibold">Revoked members ({revokedMembers.length})</h2>
+                {revokedMembers.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No revoked members.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {revokedMembers.map((m) => {
+                      const name = m.profiles?.full_name ?? "Unnamed";
+                      return (
+                        <div
+                          key={m.user_id}
+                          className="flex items-center gap-3 px-3 py-2 rounded-lg border border-border bg-surface"
+                        >
+                          <div className="flex-shrink-0">
+                            {m.profiles?.full_name ? (
+                              <span>{m.profiles.full_name.charAt(0)}</span>
+                            ) : (
+                              <span className="flex h-6 w-6 items-center justify-center bg-muted rounded-full text-xs">
+                                NA
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0 space-y-1">
+                            <p className="text-sm font-medium">{name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Revoked{" "}
+                              {formatDistanceToNow(new Date(m.revoked_at ?? Date.now()), { addSuffix: true })}
+                            </p>
+                          </div>
+                          {canManage && (
+                            <button
+                              onClick={() => reactivateMember(m.user_id, name)}
+                              disabled={busyUserId === m.user_id}
+                              className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-card px-2 text-xs text-success hover:bg-success-light disabled:opacity-60"
+                              title="Restore access"
+                            >
+                              <RefreshCw className="h-3.5 w-3.5" />
+                              <span className="hidden sm:inline">Restore</span>
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
+              </section>
+            )}
 
-                <div className="mt-4 space-y-3">
-                  <Field label="Email" required>
-                    <div className="flex">
-                      <span className="inline-flex items-center rounded-l-lg border border-r-0 border-border bg-surface px-3">
-                        <Mail className="h-4 w-4 text-muted-foreground" />
-                      </span>
-                      <input
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="form-input rounded-l-none"
-                        placeholder="teammate@company.com"
-                      />
-                    </div>
-                  </Field>
-                  <Field label="Role" required>
-                    <ThemedSelect
-                      value={role}
-                      onChange={(e) => setRole(e.target.value)}
-                      className="form-input"
-                      contentClassName="max-h-[min(15rem,var(--radix-select-content-available-height))] overflow-y-auto overflow-x-hidden"
-                      itemClassName="hover:bg-surface hover:text-foreground focus:bg-surface focus:text-foreground data-[state=checked]:bg-primary/10 data-[state=checked]:text-primary data-[state=checked]:hover:bg-primary/10 data-[state=checked]:hover:text-primary data-[state=checked]:focus:bg-primary/10 data-[state=checked]:focus:text-primary"
+            {invites.length > 0 && (
+              <section className="space-y-2">
+                <h2 className="text-lg font-semibold">Pending invites ({invites.length})</h2>
+                <div className="space-y-2">
+                  {invites.map((inv) => (
+                    <div
+                      key={inv.id}
+                      className="flex flex-wrap items-center gap-3 px-3 py-2 rounded-lg border border-border bg-surface"
                     >
-                      <option value="recruiter">Recruiter — post jobs, manage applicants</option>
-                      <option value="hr_admin">HR Admin — recruiter + edit company</option>
-                      <option value="super_admin">Super Admin — full access</option>
-                    </ThemedSelect>
-                  </Field>
-                  <button
-                    onClick={sendInvite}
-                    disabled={sending || !canInvite || !!accessMessage}
-                    className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-60"
-                  >
-                    <UserPlus className="h-4 w-4" /> Create invite
-                  </button>
-                  <p className="text-xs text-muted-foreground">
-                    You'll get a unique link to share with your teammate. They'll join after signing in.
-                  </p>
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <p className="text-sm font-medium">{inv.email}</p>
+                        <span
+                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${roleBadgeClass(inv.role)}`}
+                        >
+                          {ROLE_LABELS[inv.role] ?? inv.role}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => copyToClipboard(inviteUrl(inv.token))}
+                        className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-card px-2 text-xs hover:bg-surface"
+                        title="Copy invite link"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">Copy link</span>
+                      </button>
+                      <button
+                        onClick={() => resendInvite(inv)}
+                        disabled={busyInviteId === inv.id}
+                        className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-card px-2 text-xs hover:bg-surface disabled:opacity-60"
+                        title="Resend invite"
+                      >
+                        <RefreshCw className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">Resend</span>
+                      </button>
+                      <button
+                        onClick={() => cancelInvite(inv)}
+                        disabled={busyInviteId === inv.id}
+                        className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-card px-2 text-xs text-destructive hover:bg-destructive-light disabled:opacity-60"
+                        title="Cancel invite"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">Cancel</span>
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </section>
-            </main>
-          </div>
-        </EmployerShell>
-      );
+            )}
+
+            <section className="min-w-0 rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
+              <h2 className="flex items-center gap-2 text-sm font-bold">
+                <UserPlus className="h-4 w-4" /> Invite teammate
+              </h2>
+              {!canInvite && !loading && (
+                <p className="mt-3 rounded-lg bg-warning-light px-3 py-2 text-xs text-warning">
+                  Only HR Admins and Super Admins can create invitations.
+                </p>
+              )}
+
+              <div className="mt-3 rounded-lg border border-border bg-surface p-3">
+                <div className="flex items-start gap-2">
+                  <UserCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    <strong className="text-foreground">Data ownership:</strong> All candidate unlocks
+                    and hiring activity belong to your company — not to individual recruiters. Revoking
+                    a recruiter's access preserves all data for your team.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                <Field label="Email" required>
+                  <div className="flex">
+                    <span className="inline-flex items-center rounded-l-lg border border-r-0 border-border bg-surface px-3">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                    </span>
+                    <input
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="form-input rounded-l-none"
+                      placeholder="teammate@company.com"
+                    />
+                  </div>
+                </Field>
+                <Field label="Role" required>
+                  <ThemedSelect
+                    value={role}
+                    onChange={(e) => setRole(e.target.value as EmployerRole)}
+                    className="form-input"
+                    contentClassName="max-h-[min(15rem,var(--radix-select-content-available-height))] overflow-y-auto overflow-x-hidden"
+                    itemClassName="hover:bg-surface hover:text-foreground focus:bg-surface focus:text-foreground data-[state=checked]:bg-primary/10 data-[state=checked]:text-primary data-[state=checked]:hover:bg-primary/10 data-[state=checked]:hover:text-primary data-[state=checked]:focus:bg-primary/10 data-[state=checked]:focus:text-primary"
+                  >
+                    <option value="recruiter">Recruiter — post jobs, manage applicants</option>
+                    <option value="hr_admin">HR Admin — recruiter + edit company</option>
+                    <option value="super_admin">Super Admin — full access</option>
+                  </ThemedSelect>
+                </Field>
+                <button
+                  onClick={sendInvite}
+                  disabled={sending || !canInvite || !!accessMessage}
+                  className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-60"
+                >
+                  <UserPlus className="h-4 w-4" /> Create invite
+                </button>
+                <p className="text-xs text-muted-foreground">
+                  You'll get a link to share with your teammate. They'll join after signing in.
+                </p>
+              </div>
+            </section>
+          </>
+        )}
+      </div>
+    </EmployerShell>
+  );
 }

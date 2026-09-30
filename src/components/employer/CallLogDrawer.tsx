@@ -98,16 +98,17 @@ export function CallLogDrawer({
           if (m) setMobile(m);
         });
     } else if (source === "unlock" || source === "both") {
-      // 2. Unlocked lead (no application): read the already-revealed contact
-      //    from candidate_unlocks so the number shows without an extra credit spend.
+      // 2. Unlocked lead with no job context (e.g. legacy unlock rows from
+      //    before job_id was tracked): read back the contact this company
+      //    already paid to unlock, via a masked-column RPC — never a direct
+      //    profiles join, which RLS wouldn't allow for a non-applicant anyway.
       supabase
-        .from("candidate_unlocks")
-        .select("mobile")
-        .eq("company_id", companyId)
-        .eq("candidate_id", candidateId)
-        .maybeSingle()
+        .rpc("get_unlocked_candidate_contact", {
+          _company_id: companyId,
+          _candidate_user_id: candidateId,
+        })
         .then(({ data }) => {
-          const m = (data as { mobile: string | null } | null)?.mobile;
+          const m = (data as Array<{ mobile: string | null }> | null)?.[0]?.mobile;
           if (m) setMobile(m);
         });
     }

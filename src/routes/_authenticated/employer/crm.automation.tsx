@@ -18,6 +18,8 @@ import {
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { EmployerShell } from "@/components/employer/EmployerShell";
+import { RoleGate } from "@/components/employer/RoleGate";
+import { useEmployerRole } from "@/hooks/use-employer-role";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchMyCompanies, getActiveCompanyId } from "@/lib/employer";
 import {
@@ -96,6 +98,7 @@ function actionLabel(a: string) {
 }
 
 function CrmAutomationPage() {
+  const { canViewReports: canManageAutomation, loading: roleLoading } = useEmployerRole();
   const [cid, setCid] = useState<string | null>(null);
   const [entitlement, setEntitlement] = useState<{
     enabled: boolean;
@@ -231,6 +234,14 @@ function CrmAutomationPage() {
       );
     }
   };
+
+  if (!roleLoading && !canManageAutomation) {
+    return (
+      <EmployerShell title="CRM Automation">
+        <RoleGate allowed={false}>{null}</RoleGate>
+      </EmployerShell>
+    );
+  }
 
   return (
     <EmployerShell

@@ -15,106 +15,147 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 // ── Candidate: buy a certification ──────────────────────────────────────
 
-export const createCertificationOrder = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .validator((data: unknown) => z.object({ certificationId: z.string().uuid() }).parse(data))
-  .handler(async ({ data, context }) => {
-    const { getRazorpayKeys, RAZORPAY_API } = await import("@/lib/razorpay.server");
-    const { keyId, secret } = getRazorpayKeys();
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    // Price is frozen server-side inside the RPC — never trust a client-sent amount.
-    const { data: quoteRaw, error: quoteErr } = await supabaseAdmin.rpc(
-      "create_certification_order",
-      { _certification_id: data.certificationId, _actor: context.userId },
-    );
-    if (quoteErr) throw new Error(friendlyOrderError(quoteErr.message));
-    const quote = quoteRaw as unknown as {
-      order_id: string;
-      amount_paise: number;
-      amount_inr: number;
-      title: string;
-    };
-
-    // Order id is internal here — the Razorpay gateway order doesn't exist yet at
-    // this point (or its creation is exactly what failed), so this can't go
-    // through mark_certification_order_failed(), which is keyed by
-    // razorpay_order_id. Update the row directly by its own id instead,
-    // mirroring credits.functions.ts's markFailed for the pack/plan flow.
-    const markFailed = (reason: string) =>
-      supabaseAdmin
-        .from("candidate_orders")
-        .update({ status: "failed" })
-        .eq("id", quote.order_id)
-        .then(() => {
-          console.error(`[learning] order ${quote.order_id} failed: ${reason}`);
-        });
-
-    const auth = Buffer.from(`${keyId}:${secret}`).toString("base64");
-    let order: { id: string; amount: number; currency: string };
-    try {
-      const res = await fetch(`${RAZORPAY_API}/orders`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Basic ${auth}` },
-        body: JSON.stringify({
-          amount: quote.amount_paise,
-          currency: "INR",
-          receipt: `jk_cert_${quote.order_id}`,
-          notes: { jk_order_id: quote.order_id, certification_id: data.certificationId },
-        }),
-      });
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(`Razorpay order failed (${res.status}). ${text.slice(0, 200)}`);
-      }
-      order = (await res.json()) as { id: string; amount: number; currency: string };
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "Razorpay order failed.";
-      await markFailed(`gateway_error: ${msg}`);
-      throw new Error(msg);
-    }
-
-    const { error: attachErr } = await supabaseAdmin
-      .from("candidate_orders")
-      .update({ razorpay_order_id: order.id })
-      .eq("id", quote.order_id);
-    if (attachErr) {
-      await markFailed(`attach_failed: ${attachErr.message}`);
-      throw new Error("Could not start checkout. Please try again.");
-    }
-
-    const { data: profile } = await supabaseAdmin
-      .from("profiles")
-      .select("full_name, email, mobile")
-      .eq("id", context.userId)
-      .maybeSingle();
-
-    return {
-      orderId: order.id,
-      amount: order.amount,
-      currency: order.currency,
-      keyId,
-      title: quote.title,
-      prefill: {
-        name: profile?.full_name ?? "",
-        email: profile?.email ?? "",
-        contact: profile?.mobile ?? "",
-      },
-    };
-  });
-
-const CERT_ORDER_ERRORS: Record<string, string> = {
+const ORDER_ERRORS: Record<string, string> = {
   not_authenticated: "Please sign in again.",
   certification_unavailable: "This certification isn't available right now.",
   certification_free: "This certification doesn't require payment.",
-  already_purchased: "You already own this certification.",
+  course_unavailable: "This course isn't available right now.",
+  course_free: "This course doesn't require payment.",
+  already_purchased: "You already own this.",
 };
 function friendlyOrderError(raw: string) {
-  const code = Object.keys(CERT_ORDER_ERRORS).find((k) => raw.includes(k));
-  return code ? CERT_ORDER_ERRORS[code] : "Could not start checkout. Please try again.";
+  const code = Object.keys(ORDER_ERRORS).find((k) => raw.includes(k));
+  return code ? ORDER_ERRORS[code] : "Could not start checkout. Please try again.";
 }
 
-export const verifyCertificationPayment = createServerFn({ method: "POST" })
+type OrderQuote = { order_id: string; amount_paise: number; amount_inr: number; title: string };
+
+/**
+ * Shared by createCertificationOrder / createCourseOrder: call the RPC that
+ * freezes the price and opens a 'created' candidate_orders row, then open the
+ * matching Razorpay gateway order and attach its id. Both RPCs return the
+ * same {order_id, amount_paise, amount_inr, title} shape, so one function
+ * drives both — the only thing that differs per product is which RPC/receipt
+ * prefix/notes-key to use.
+ */
+async function openCandidateOrder(args: {
+  rpc: "create_certification_order" | "create_course_order";
+  itemIdKey: "_certification_id" | "_course_id";
+  itemId: string;
+  receiptPrefix: string;
+  noteKey: string;
+  actor: string;
+}) {
+  const { getRazorpayKeys, RAZORPAY_API } = await import("@/lib/razorpay.server");
+  const { keyId, secret } = getRazorpayKeys();
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  // Price is frozen server-side inside the RPC — never trust a client-sent amount.
+  const { data: quoteRaw, error: quoteErr } = await supabaseAdmin.rpc(args.rpc, {
+    [args.itemIdKey]: args.itemId,
+    _actor: args.actor,
+  } as never);
+  if (quoteErr) throw new Error(friendlyOrderError(quoteErr.message));
+  const quote = quoteRaw as unknown as OrderQuote;
+
+  // Order id is internal here — the Razorpay gateway order doesn't exist yet at
+  // this point (or its creation is exactly what failed), so this can't go
+  // through mark_candidate_order_failed(), which is keyed by razorpay_order_id.
+  // Update the row directly by its own id instead, mirroring credits.functions.ts.
+  const markFailed = (reason: string) =>
+    supabaseAdmin
+      .from("candidate_orders")
+      .update({ status: "failed" })
+      .eq("id", quote.order_id)
+      .then(() => {
+        console.error(`[learning] order ${quote.order_id} failed: ${reason}`);
+      });
+
+  const auth = Buffer.from(`${keyId}:${secret}`).toString("base64");
+  let order: { id: string; amount: number; currency: string };
+  try {
+    const res = await fetch(`${RAZORPAY_API}/orders`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Basic ${auth}` },
+      body: JSON.stringify({
+        amount: quote.amount_paise,
+        currency: "INR",
+        receipt: `jk_${args.receiptPrefix}_${quote.order_id}`,
+        notes: { jk_order_id: quote.order_id, [args.noteKey]: args.itemId },
+      }),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`Razorpay order failed (${res.status}). ${text.slice(0, 200)}`);
+    }
+    order = (await res.json()) as { id: string; amount: number; currency: string };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Razorpay order failed.";
+    await markFailed(`gateway_error: ${msg}`);
+    throw new Error(msg);
+  }
+
+  const { error: attachErr } = await supabaseAdmin
+    .from("candidate_orders")
+    .update({ razorpay_order_id: order.id })
+    .eq("id", quote.order_id);
+  if (attachErr) {
+    await markFailed(`attach_failed: ${attachErr.message}`);
+    throw new Error("Could not start checkout. Please try again.");
+  }
+
+  const { data: profile } = await supabaseAdmin
+    .from("profiles")
+    .select("full_name, email, mobile")
+    .eq("id", args.actor)
+    .maybeSingle();
+
+  return {
+    orderId: order.id,
+    amount: order.amount,
+    currency: order.currency,
+    keyId,
+    title: quote.title,
+    prefill: {
+      name: profile?.full_name ?? "",
+      email: profile?.email ?? "",
+      contact: profile?.mobile ?? "",
+    },
+  };
+}
+
+export const createCertificationOrder = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: unknown) => z.object({ certificationId: z.string().uuid() }).parse(data))
+  .handler(({ data, context }) =>
+    openCandidateOrder({
+      rpc: "create_certification_order",
+      itemIdKey: "_certification_id",
+      itemId: data.certificationId,
+      receiptPrefix: "cert",
+      noteKey: "certification_id",
+      actor: context.userId,
+    }),
+  );
+
+export const createCourseOrder = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: unknown) => z.object({ courseId: z.string().uuid() }).parse(data))
+  .handler(({ data, context }) =>
+    openCandidateOrder({
+      rpc: "create_course_order",
+      itemIdKey: "_course_id",
+      itemId: data.courseId,
+      receiptPrefix: "course",
+      noteKey: "course_id",
+      actor: context.userId,
+    }),
+  );
+
+/** Verifies a Razorpay Checkout success callback and grants the purchase — works for
+ * both certifications and courses; fulfil_candidate_order() itself reads which one
+ * the order was for. */
+export const verifyCandidatePayment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) =>
     z
@@ -126,7 +167,7 @@ export const verifyCertificationPayment = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { getRazorpayKeys, hmacSha256Matches, fulfilCertificationOrder } =
+    const { getRazorpayKeys, hmacSha256Matches, fulfilCandidateOrder } =
       await import("@/lib/razorpay.server");
     const { secret } = getRazorpayKeys();
 
@@ -137,7 +178,7 @@ export const verifyCertificationPayment = createServerFn({ method: "POST" })
 
     let result;
     try {
-      result = await fulfilCertificationOrder({
+      result = await fulfilCandidateOrder({
         razorpayOrderId: data.razorpayOrderId,
         razorpayPaymentId: data.razorpayPaymentId,
         amountPaise: null,
@@ -152,10 +193,14 @@ export const verifyCertificationPayment = createServerFn({ method: "POST" })
         `Payment amount didn't match the order. Contact support with payment ID ${data.razorpayPaymentId}.`,
       );
     }
-    return { certificateNo: result.certificate_no, alreadyApplied: result.already_applied };
+    return {
+      itemType: result.item_type,
+      certificateNo: result.certificate_no,
+      alreadyApplied: result.already_applied,
+    };
   });
 
-export const reportCertificationPaymentFailure = createServerFn({ method: "POST" })
+export const reportCandidateOrderFailure = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) =>
     z
@@ -176,7 +221,7 @@ export const reportCertificationPaymentFailure = createServerFn({ method: "POST"
     // alone — this RPC is service-role, so it would otherwise trust the id blindly.
     if (!order || order.user_id !== context.userId) return { ok: false };
 
-    const { error } = await supabaseAdmin.rpc("mark_certification_order_failed", {
+    const { error } = await supabaseAdmin.rpc("mark_candidate_order_failed", {
       _razorpay_order_id: data.razorpayOrderId,
       _razorpay_payment_id: (data.razorpayPaymentId ?? null) as string,
     });
@@ -196,11 +241,149 @@ export const getMyCertificatePurchases = createServerFn({ method: "POST" })
     return data;
   });
 
+/** Courses the signed-in candidate already owns — drives the "already purchased" UI. */
+export const getMyCoursePurchases = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("course_purchases")
+      .select("course_id, purchased_at")
+      .eq("user_id", context.userId);
+    if (error) throw new Error(error.message);
+    return data;
+  });
+
+// ── Course lesson content (purchase-gated) ────────────────────────────────
+// body_md/video_url are revoked from anon/authenticated at the column level
+// (see 20260930150000/1) — this RPC is the only way to read a locked
+// lesson's content, and it checks ownership before returning anything.
+
+const LESSON_ERRORS: Record<string, string> = {
+  lesson_not_found: "This lesson isn't available.",
+};
+
+/**
+ * Public route: works for a signed-out visitor viewing a free-preview lesson too,
+ * so it deliberately doesn't use requireSupabaseAuth (which throws without a
+ * token) — auth.uid() inside the RPC is simply NULL for a signed-out caller, and
+ * the RPC treats that as "not purchased". Mirrors auth-middleware.ts's JWT
+ * extraction, but falls back to an anonymous client instead of rejecting.
+ */
+async function optionalAuthSupabase() {
+  const { getRequest } = await import("@tanstack/react-start/server");
+  const { createClient } = await import("@supabase/supabase-js");
+  const SUPABASE_URL = process.env.SUPABASE_URL!;
+  const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY!;
+  const token = getRequest()
+    ?.headers?.get("authorization")
+    ?.replace(/^Bearer /, "");
+  return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+    global: token ? { headers: { Authorization: `Bearer ${token}` } } : {},
+    auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
+  });
+}
+
+export const getLessonContent = createServerFn({ method: "POST" })
+  .validator((data: unknown) => z.object({ lessonId: z.string().uuid() }).parse(data))
+  .handler(async ({ data }) => {
+    const supabase = await optionalAuthSupabase();
+    const { data: result, error } = await supabase.rpc("get_lesson_content", {
+      _lesson_id: data.lessonId,
+    });
+    if (error) {
+      const code = Object.keys(LESSON_ERRORS).find((k) => error.message.includes(k));
+      throw new Error(code ? LESSON_ERRORS[code] : "Could not load this lesson.");
+    }
+    return result as unknown as
+      | {
+          unlocked: true;
+          courseId: string;
+          title: string;
+          kind: string;
+          videoUrl: string | null;
+          bodyMd: string | null;
+        }
+      | { unlocked: false; courseId: string };
+  });
+
+// ── Certification exam ─────────────────────────────────────────────────
+
+const EXAM_ERRORS: Record<string, string> = {
+  not_authenticated: "Please sign in again.",
+  certification_unavailable: "This certification isn't available right now.",
+  not_purchased: "Buy this certification to take the exam.",
+  attempts_exhausted: "You've used all your attempts for this certification.",
+};
+function friendlyExamError(raw: string) {
+  const code = Object.keys(EXAM_ERRORS).find((k) => raw.includes(k));
+  return code ? EXAM_ERRORS[code] : "Could not load the exam. Please try again.";
+}
+
+export type ExamQuestion = { id: string; text: string; options: string[] };
+export type CertificationExam = {
+  questions: ExamQuestion[];
+  passMark: number;
+  maxAttempts: number;
+  attemptsUsed: number;
+};
+export type CertificationExamResult = {
+  score: number;
+  passed: boolean;
+  correctCount: number;
+  total: number;
+  attemptsUsed: number;
+  maxAttempts: number;
+};
+
+export const getCertificationExam = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: unknown) => z.object({ certificationId: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    const { data: result, error } = await context.supabase.rpc("get_certification_exam", {
+      _certification_id: data.certificationId,
+    });
+    if (error) throw new Error(friendlyExamError(error.message));
+    return result as unknown as CertificationExam;
+  });
+
+export const submitCertificationExam = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: unknown) =>
+    z
+      .object({
+        certificationId: z.string().uuid(),
+        // question id -> selected option index. Grading happens entirely server-side
+        // against the real answer key, which the browser never receives.
+        answers: z.record(z.string(), z.number().int().min(0)),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: result, error } = await context.supabase.rpc("submit_certification_exam", {
+      _certification_id: data.certificationId,
+      _answers: data.answers as Json,
+    });
+    if (error) throw new Error(friendlyExamError(error.message));
+    return result as unknown as CertificationExamResult;
+  });
+
 // ── Admin: author content ───────────────────────────────────────────────
 // Uses the caller's own (RLS-bound) client, not the service role — the
 // "Admins can manage ..." policies added in the schema migration are the
 // actual security boundary; a non-admin's write is rejected by Postgres,
 // not just by a role check in this file.
+
+// {id, text, options[], correct} — "correct" is an index into options.
+// Exam grading (submit_certification_exam) reads this shape directly, so it's
+// validated here rather than accepted as unknown() and hoped-for downstream.
+const certQuestionSchema = z
+  .object({
+    id: z.string().trim().min(1).max(60),
+    text: z.string().trim().min(1).max(1000),
+    options: z.array(z.string().trim().min(1).max(300)).min(2).max(8),
+    correct: z.number().int().min(0),
+  })
+  .refine((q) => q.correct < q.options.length, { message: "correct must be a valid option index" });
 
 const moduleSchema = z.object({
   title: z.string().trim().min(1).max(200),
@@ -238,6 +421,7 @@ const contentItemSchema = z.object({
   seoDescription: z.string().trim().max(160).nullish(),
   ogImageUrl: z.string().url().nullish(),
   courseModules: z.array(moduleSchema).max(50).default([]),
+  coursePriceInr: z.number().min(0).max(1_000_000).default(0),
   certificationDetails: z
     .object({
       priceInr: z.number().min(0).max(1_000_000).default(0),
@@ -246,7 +430,7 @@ const contentItemSchema = z.object({
       passMark: z.number().int().min(0).max(100).default(80),
       maxAttempts: z.number().int().min(1).max(10).default(3),
       validityMonths: z.number().int().min(1).max(120).nullish(),
-      questions: z.array(z.unknown()).max(200).default([]),
+      questions: z.array(certQuestionSchema).max(200).default([]),
     })
     .nullish(),
 });
@@ -293,6 +477,10 @@ export const createContentItem = createServerFn({ method: "POST" })
       });
       if (error) throw new Error(error.message);
     } else if (data.type === "course") {
+      const { error } = await supabase
+        .from("courses")
+        .insert({ id: item.id, price_inr: data.coursePriceInr });
+      if (error) throw new Error(error.message);
       await insertCourseModules(supabase, item.id, data.courseModules);
     } else {
       const c = data.certificationDetails;
@@ -373,6 +561,7 @@ const updateContentItemSchema = z.object({
   seoDescription: z.string().trim().max(160).nullish(),
   ogImageUrl: z.string().url().nullish(),
   courseModules: z.array(moduleSchema).max(50).optional(),
+  coursePriceInr: z.number().min(0).max(1_000_000).optional(),
   certificationDetails: z
     .object({
       priceInr: z.number().min(0).max(1_000_000).default(0),
@@ -381,7 +570,7 @@ const updateContentItemSchema = z.object({
       passMark: z.number().int().min(0).max(100).default(80),
       maxAttempts: z.number().int().min(1).max(10).default(3),
       validityMonths: z.number().int().min(1).max(120).nullish(),
-      questions: z.array(z.unknown()).max(200).default([]),
+      questions: z.array(certQuestionSchema).max(200).default([]),
     })
     .nullish(),
 });
@@ -434,8 +623,18 @@ export const updateContentItem = createServerFn({ method: "POST" })
           .eq("id", data.id);
         if (error) throw new Error(error.message);
       }
-    } else if (itemData.content_type === "course" && data.courseModules) {
-      await insertCourseModules(supabase, data.id, data.courseModules);
+    } else if (itemData.content_type === "course") {
+      // Price and modules are independent edits — update whichever was actually sent.
+      if (data.coursePriceInr !== undefined) {
+        const { error } = await supabase
+          .from("courses")
+          .update({ price_inr: data.coursePriceInr })
+          .eq("id", data.id);
+        if (error) throw new Error(error.message);
+      }
+      if (data.courseModules) {
+        await insertCourseModules(supabase, data.id, data.courseModules);
+      }
     } else if (itemData.content_type === "certification" && data.certificationDetails) {
       const c = data.certificationDetails;
       const { error } = await supabase
@@ -521,4 +720,38 @@ export const uploadCoverImage = createServerFn({ method: "POST" })
 
     const { data: urlData } = supabaseAdmin.storage.from("learning-media").getPublicUrl(path);
     return { url: urlData.publicUrl };
+  });
+
+/**
+ * Full content item for the admin editor, including the columns locked down
+ * for anon/authenticated (course lesson body_md/video_url, certification
+ * questions — see 20260930150000/1) — admin is a Postgres role check here,
+ * not implied by RLS, since RLS only controls row visibility and the column
+ * grant applies to the `authenticated` role regardless of admin status.
+ */
+export const getContentItemForEdit = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: unknown) => z.object({ id: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    const { data: isAdmin } = await context.supabase.rpc("has_platform_role", {
+      _user_id: context.userId,
+      _role: "super_admin",
+    });
+    if (!isAdmin) throw new Error("Admin access required.");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: item, error } = await supabaseAdmin
+      .from("content_items")
+      .select(
+        "id, title, excerpt, category, tags, cover_url, content_type, " +
+          "content_posts(body_md, seo_title, seo_description, og_image_url), " +
+          "courses(price_inr), " +
+          "course_modules(id, title, kind, video_url, body_md, free_preview, duration_minutes, position, " +
+          "course_lessons(id, title, kind, video_url, body_md, free_preview, duration_minutes, position)), " +
+          "certifications(price_inr, provider, partner_name, pass_mark, max_attempts, validity_months, questions)",
+      )
+      .eq("id", data.id)
+      .single();
+    if (error) throw new Error(error.message);
+    return item;
   });

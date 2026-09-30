@@ -1,17 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
-import { ArrowLeft, Award, CheckCircle2, Loader2, Lock } from "lucide-react";
-import { toast } from "sonner";
+import { ArrowLeft, Award, CheckCircle2, FileCheck2, Loader2, Lock } from "lucide-react";
 import { Navbar } from "@/components/site/Navbar";
 import { Footer } from "@/components/site/Footer";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  createCertificationOrder,
-  getMyCertificatePurchases,
-  reportCertificationPaymentFailure,
-  verifyCertificationPayment,
-} from "@/lib/learning.functions";
+import { useCandidateCheckout } from "@/hooks/use-candidate-checkout";
+import { createCertificationOrder, getMyCertificatePurchases } from "@/lib/learning.functions";
 
 export const Route = createFileRoute("/learn/certification/$slug")({
   component: CertificationPage,
@@ -48,11 +43,11 @@ function CertificationPage() {
   const { slug } = Route.useParams();
   const [cert, setCert] = useState<Cert | null | "not_found">(null);
   const [owned, setOwned] = useState<{ certificate_no: string } | null>(null);
-  const [buying, setBuying] = useState(false);
   const createOrder = useServerFn(createCertificationOrder);
-  const verify = useServerFn(verifyCertificationPayment);
-  const reportFailure = useServerFn(reportCertificationPaymentFailure);
   const myPurchases = useServerFn(getMyCertificatePurchases);
+  const { buying, buy } = useCandidateCheckout((r) =>
+    setOwned({ certificate_no: r.certificateNo ?? "" }),
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -87,73 +82,9 @@ function CertificationPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
 
-  const handleBuy = async () => {
+  const handleBuy = () => {
     if (cert === null || cert === "not_found") return;
-    const { data: sess } = await supabase.auth.getSession();
-    if (!sess.session) {
-      toast.error("Please sign in as a candidate to buy a certification.");
-      return;
-    }
-    if (typeof window === "undefined" || !window.Razorpay) {
-      toast.error("Checkout not loaded yet. Refresh and try again.");
-      return;
-    }
-    setBuying(true);
-    try {
-      const order = await createOrder({ data: { certificationId: cert.id } });
-      const rzp = new window.Razorpay({
-        key: order.keyId,
-        order_id: order.orderId,
-        amount: order.amount,
-        currency: order.currency,
-        name: "JobsKart",
-        description: order.title,
-        prefill: order.prefill,
-        theme: { color: "#1A55BD" },
-        handler: async (resp: {
-          razorpay_order_id: string;
-          razorpay_payment_id: string;
-          razorpay_signature: string;
-        }) => {
-          try {
-            const r = await verify({
-              data: {
-                razorpayOrderId: resp.razorpay_order_id,
-                razorpayPaymentId: resp.razorpay_payment_id,
-                razorpaySignature: resp.razorpay_signature,
-              },
-            });
-            toast.success("Certification purchased!");
-            setOwned({ certificate_no: r.certificateNo ?? "" });
-          } catch (e) {
-            toast.error(e instanceof Error ? e.message : "Verification failed.");
-          } finally {
-            setBuying(false);
-          }
-        },
-        modal: { ondismiss: () => setBuying(false) },
-      });
-      rzp.on(
-        "payment.failed",
-        (resp: {
-          error?: { description?: string; metadata?: { order_id?: string; payment_id?: string } };
-        }) => {
-          toast.error(resp.error?.description || "Payment failed. Try another method.");
-          void reportFailure({
-            data: {
-              razorpayOrderId: resp.error?.metadata?.order_id ?? order.orderId,
-              razorpayPaymentId: resp.error?.metadata?.payment_id,
-            },
-          }).catch(() => {
-            /* best-effort; the webhook records failures too */
-          });
-        },
-      );
-      rzp.open();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not start checkout.");
-      setBuying(false);
-    }
+    void buy(() => createOrder({ data: { certificationId: cert.id } }));
   };
 
   return (
@@ -221,17 +152,26 @@ function CertificationPage() {
 
                 <div className="mt-6 rounded-xl border border-border bg-card p-5">
                   {owned ? (
-                    <div className="flex items-center gap-2 text-success">
-                      <CheckCircle2 className="h-5 w-5" />
-                      <div>
-                        <p className="font-semibold">You own this certification</p>
-                        {owned.certificate_no && (
-                          <p className="text-xs text-muted-foreground">
-                            Certificate No. {owned.certificate_no}
-                          </p>
-                        )}
+                    <>
+                      <div className="flex items-center gap-2 text-success">
+                        <CheckCircle2 className="h-5 w-5" />
+                        <div>
+                          <p className="font-semibold">You own this certification</p>
+                          {owned.certificate_no && (
+                            <p className="text-xs text-muted-foreground">
+                              Certificate No. {owned.certificate_no}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                    </div>
+                      <Link
+                        to="/learn/certification/$slug/exam"
+                        params={{ slug }}
+                        className="mt-3 inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground"
+                      >
+                        <FileCheck2 className="h-4 w-4" /> Start exam
+                      </Link>
+                    </>
                   ) : price > 0 ? (
                     <>
                       <p className="text-lg font-bold text-foreground">₹{price}</p>

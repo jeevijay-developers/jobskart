@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Building2, Camera, ChevronDown, ChevronUp, Loader2, ShieldCheck, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { EmployerShell } from "@/components/employer/EmployerShell";
+import { useEmployerRole } from "@/hooks/use-employer-role";
 import { Field } from "@/components/candidate/primitives";
 import { Badge } from "@/components/ui/badge";
 import { StateDropdown } from "@/components/candidate/StateDropdown";
@@ -33,6 +34,7 @@ type Company = {
 type Doc = { id: string; doc_type: string; file_name: string | null; status: string; created_at: string };
 
 function CompanyPage() {
+  const { canEditCompany } = useEmployerRole();
   const [c, setC] = useState<Company | null>(null);
   const [docs, setDocs] = useState<Doc[]>([]);
   const [saving, setSaving] = useState(false);
@@ -132,9 +134,11 @@ function CompanyPage() {
                   {c.name.slice(0, 1)}
                 </div>
               )}
-              <button onClick={() => logoRef.current?.click()} className="absolute bottom-0 right-0 grid h-8 w-8 place-items-center rounded-full bg-primary text-primary-foreground shadow">
-                <Camera className="h-4 w-4" />
-              </button>
+              {canEditCompany && (
+                <button onClick={() => logoRef.current?.click()} className="absolute bottom-0 right-0 grid h-8 w-8 place-items-center rounded-full bg-primary text-primary-foreground shadow">
+                  <Camera className="h-4 w-4" />
+                </button>
+              )}
               <input ref={logoRef} type="file" hidden accept="image/*" onChange={(e) => e.target.files?.[0] && uploadLogo(e.target.files[0])} />
             </div>
             <h3 className="mt-3 text-lg font-bold">{c.name}</h3>
@@ -158,9 +162,11 @@ function CompanyPage() {
           <div className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
             <h3 className="text-sm font-bold">KYC documents</h3>
             <p className="mt-1 text-xs text-muted-foreground">Upload GST or PAN to get verified. Auto-verifies in seconds for demo.</p>
-            <button onClick={() => fileRef.current?.click()} className="mt-3 inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-dashed border-primary bg-primary-light text-sm font-semibold text-primary">
-              <Upload className="h-4 w-4" /> Upload document
-            </button>
+            {canEditCompany && (
+              <button onClick={() => fileRef.current?.click()} className="mt-3 inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-dashed border-primary bg-primary-light text-sm font-semibold text-primary">
+                <Upload className="h-4 w-4" /> Upload document
+              </button>
+            )}
             <input ref={fileRef} type="file" hidden accept=".pdf,.jpg,.png" onChange={(e) => e.target.files?.[0] && uploadDoc(e.target.files[0], "gst")} />
             <div className="mt-3 space-y-1.5">
               {docs.map((d) => (
@@ -176,26 +182,31 @@ function CompanyPage() {
         <div className="space-y-4 lg:col-span-2">
           <div className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
             <h3 className="text-sm font-bold mb-4 flex items-center gap-2"><Building2 className="h-4 w-4" /> Company details</h3>
+            {!canEditCompany && (
+              <p className="mb-4 rounded-lg bg-surface px-3 py-2 text-xs text-muted-foreground">
+                Viewing company details in read-only mode. Only Super Admins and HR Admins can edit company settings.
+              </p>
+            )}
             <div className="space-y-4">
               <Field label="Company name" required>
-                <input value={c.name} onChange={(e) => setC({ ...c, name: e.target.value })} className="form-input" />
+                <input disabled={!canEditCompany} value={c.name} onChange={(e) => setC({ ...c, name: e.target.value })} className="form-input disabled:opacity-60" />
               </Field>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field label="Industry">
-                  <input value={c.industry || ""} onChange={(e) => setC({ ...c, industry: e.target.value })} className="form-input" />
+                  <input disabled={!canEditCompany} value={c.industry || ""} onChange={(e) => setC({ ...c, industry: e.target.value })} className="form-input disabled:opacity-60" />
                 </Field>
                 <Field label="HQ city">
                   <StateDropdown
                     value={c.hq_city || ""}
                     options={INDIAN_CITIES}
                     placeholder="Select…"
-                    onChange={(v) => setC({ ...c, hq_city: v })}
+                    onChange={(v) => canEditCompany && setC({ ...c, hq_city: v })}
                   />
                 </Field>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field label="Website">
-                  <input value={c.website || ""} onChange={(e) => setC({ ...c, website: e.target.value })} className="form-input" placeholder="https://…" />
+                  <input disabled={!canEditCompany} value={c.website || ""} onChange={(e) => setC({ ...c, website: e.target.value })} className="form-input disabled:opacity-60" placeholder="https://…" />
                 </Field>
                 <Field label="Founded year">
                   {/* Desktop (sm: and up): unchanged native number input with its own
@@ -207,6 +218,7 @@ function CompanyPage() {
                   <div className="relative">
                     <input
                       type="number"
+                      disabled={!canEditCompany}
                       value={c.founded_year || 2000}
                       min={1900}
                       max={new Date().getFullYear()}
@@ -214,43 +226,47 @@ function CompanyPage() {
                         const raw = e.target.value.replace(/^-+/, "");
                         setC({ ...c, founded_year: raw ? Math.max(0, Number(raw)) : null });
                       }}
-                      className="form-input max-sm:appearance-none pr-9 sm:pr-3.5 [&::-webkit-inner-spin-button]:max-sm:appearance-none [&::-webkit-outer-spin-button]:max-sm:appearance-none"
+                      className="form-input max-sm:appearance-none pr-9 sm:pr-3.5 disabled:opacity-60 [&::-webkit-inner-spin-button]:max-sm:appearance-none [&::-webkit-outer-spin-button]:max-sm:appearance-none"
                     />
-                    <div className="absolute inset-y-0 right-1 flex flex-col justify-center gap-0.5 py-1 sm:hidden">
-                      <button
-                        type="button"
-                        aria-label="Increase founded year"
-                        onClick={() => setC({ ...c, founded_year: Math.min(new Date().getFullYear(), Math.max(1900, (c.founded_year || 2000) + 1)) })}
-                        className="grid h-4 w-6 place-items-center rounded-sm text-gray-700 active:bg-surface"
-                      >
-                        <ChevronUp className="h-3.5 w-3.5" strokeWidth={3} />
-                      </button>
-                      <button
-                        type="button"
-                        aria-label="Decrease founded year"
-                        onClick={() => setC({ ...c, founded_year: Math.max(1900, (c.founded_year || 2000) - 1) })}
-                        className="grid h-4 w-6 place-items-center rounded-sm text-gray-700 active:bg-surface"
-                      >
-                        <ChevronDown className="h-3.5 w-3.5" strokeWidth={3} />
-                      </button>
-                    </div>
+                    {canEditCompany && (
+                      <div className="absolute inset-y-0 right-1 flex flex-col justify-center gap-0.5 py-1 sm:hidden">
+                        <button
+                          type="button"
+                          aria-label="Increase founded year"
+                          onClick={() => setC({ ...c, founded_year: Math.min(new Date().getFullYear(), Math.max(1900, (c.founded_year || 2000) + 1)) })}
+                          className="grid h-4 w-6 place-items-center rounded-sm text-gray-700 active:bg-surface"
+                        >
+                          <ChevronUp className="h-3.5 w-3.5" strokeWidth={3} />
+                        </button>
+                        <button
+                          type="button"
+                          aria-label="Decrease founded year"
+                          onClick={() => setC({ ...c, founded_year: Math.max(1900, (c.founded_year || 2000) - 1) })}
+                          className="grid h-4 w-6 place-items-center rounded-sm text-gray-700 active:bg-surface"
+                        >
+                          <ChevronDown className="h-3.5 w-3.5" strokeWidth={3} />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </Field>
               </div>
               <Field label="About" hint={`${(c.about || "").length}/1000`}>
-                <textarea rows={5} maxLength={1000} value={c.about || ""} onChange={(e) => setC({ ...c, about: e.target.value })} className="form-input resize-none" placeholder="What you do, your mission, what makes you a great place to work." />
+                <textarea disabled={!canEditCompany} rows={5} maxLength={1000} value={c.about || ""} onChange={(e) => setC({ ...c, about: e.target.value })} className="form-input resize-none disabled:opacity-60" placeholder="What you do, your mission, what makes you a great place to work." />
               </Field>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field label="GST number">
-                  <input value={c.gst_number || ""} onChange={(e) => setC({ ...c, gst_number: e.target.value })} className="form-input" />
+                  <input disabled={!canEditCompany} value={c.gst_number || ""} onChange={(e) => setC({ ...c, gst_number: e.target.value })} className="form-input disabled:opacity-60" />
                 </Field>
                 <Field label="PAN number">
-                  <input value={c.pan_number || ""} onChange={(e) => setC({ ...c, pan_number: e.target.value })} className="form-input" />
+                  <input disabled={!canEditCompany} value={c.pan_number || ""} onChange={(e) => setC({ ...c, pan_number: e.target.value })} className="form-input disabled:opacity-60" />
                 </Field>
               </div>
-              <button onClick={save} disabled={saving} className="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-60">
-                {saving && <Loader2 className="h-4 w-4 animate-spin" />} Save changes
-              </button>
+              {canEditCompany && (
+                <button onClick={save} disabled={saving} className="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-60">
+                  {saving && <Loader2 className="h-4 w-4 animate-spin" />} Save changes
+                </button>
+              )}
             </div>
           </div>
         </div>

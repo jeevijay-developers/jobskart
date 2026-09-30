@@ -28,7 +28,7 @@ export const Route = createFileRoute("/api/public/webhooks/razorpay")({
         const body = await request.text();
         if (!signature) return new Response("Missing signature", { status: 401 });
 
-        const { hmacSha256Matches, fulfilRazorpayOrder, fulfilCertificationOrder } =
+        const { hmacSha256Matches, fulfilRazorpayOrder, fulfilCandidateOrder } =
           await import("@/lib/razorpay.server");
         if (!hmacSha256Matches(secret, body, signature)) {
           return new Response("Invalid signature", { status: 401 });
@@ -59,12 +59,12 @@ export const Route = createFileRoute("/api/public/webhooks/razorpay")({
 
         if (candidateOrder) {
           if (event.event === "payment.failed") {
-            const { error } = await supabaseAdmin.rpc("mark_certification_order_failed", {
+            const { error } = await supabaseAdmin.rpc("mark_candidate_order_failed", {
               _razorpay_order_id: orderId,
               _razorpay_payment_id: paymentId,
             });
             if (error) {
-              console.error("mark_certification_order_failed failed", error.message);
+              console.error("mark_candidate_order_failed failed", error.message);
               return new Response("error", { status: 500 });
             }
             return new Response("ok", { status: 200 });
@@ -74,7 +74,7 @@ export const Route = createFileRoute("/api/public/webhooks/razorpay")({
               // Row-locked, amount-checked, idempotent — same guarantees as the
               // employer credit-pack path, so the client verify call and this
               // webhook can never double-grant a certificate.
-              const result = await fulfilCertificationOrder({
+              const result = await fulfilCandidateOrder({
                 razorpayOrderId: orderId,
                 razorpayPaymentId: paymentId,
                 amountPaise: typeof payment?.amount === "number" ? payment.amount : null,
@@ -89,7 +89,7 @@ export const Route = createFileRoute("/api/public/webhooks/razorpay")({
               const msg = e instanceof Error ? e.message : String(e);
               if (msg.includes("order_not_found"))
                 return new Response("order not found", { status: 200 });
-              console.error("fulfil_certification_order failed", msg);
+              console.error("fulfil_candidate_order failed", msg);
               return new Response("error", { status: 500 });
             }
           }
