@@ -43,8 +43,13 @@ import { useShareJob } from "@/hooks/use-share-job";
 
 export const Route = createFileRoute("/jobs/$jobId")({
   head: () => ({ meta: [{ title: "Job · JobsKart" }] }),
-  component: JobDetailPage,
+  component: PublicJobDetailRoute,
 });
+
+function PublicJobDetailRoute() {
+  const { jobId } = Route.useParams();
+  return <JobDetailPage jobId={jobId} />;
+}
 
 type JobDetail = {
   id: string;
@@ -95,8 +100,39 @@ type JobDetail = {
   industry?: string | null;
 };
 
-function JobDetailPage() {
-  const { jobId } = Route.useParams();
+/**
+ * Reused verbatim by the authenticated candidate section's own job-detail
+ * route (src/routes/_authenticated/candidate/jobs.$jobId.tsx) so a signed-in
+ * candidate clicking a job from /candidate/browse stays inside /candidate/*
+ * instead of being sent to this public route — same UI/data/actions, just a
+ * different URL prefix for its internal links.
+ */
+export function JobDetailPage({
+  jobId,
+  basePath = "/jobs",
+  listPath = basePath,
+  embedded = false,
+}: {
+  jobId: string;
+  /** Prefix for this specific job's own URL (used to build the post-sign-in redirect back to it). */
+  basePath?: string;
+  /**
+   * Route for "All jobs" / back / "Browse all jobs" links — the jobs
+   * *listing*. Defaults to `basePath` (the public route's listing and detail
+   * prefix are both "/jobs"), but the candidate route's listing lives at a
+   * different path ("/candidate/browse") than its detail prefix
+   * ("/candidate/jobs"), so it passes this separately.
+   */
+  listPath?: string;
+  /**
+   * True when rendered inside the candidate app's own layout route
+   * (_authenticated/candidate/route.tsx already renders CandidateAppLayout,
+   * which supplies its own header/sidebar/tab bar), same convention as
+   * JobsList's `embeddedInCandidateApp` — skips this view's own public
+   * Navbar/Footer so they don't stack on top of the candidate shell's chrome.
+   */
+  embedded?: boolean;
+}) {
   const navigate = useNavigate();
   const router = useRouter();
 
@@ -198,7 +234,7 @@ function JobDetailPage() {
     if (router.history?.canGoBack?.()) {
       router.history.back();
     } else {
-      navigate({ to: "/jobs" });
+      navigate({ to: listPath as never });
     }
   };
 
@@ -223,7 +259,7 @@ function JobDetailPage() {
       toast.info("Sign in to save this job to your list");
       navigate({
         to: "/auth",
-        search: { tab: "candidate", redirect: `/jobs/${job.id}` } as never,
+        search: { tab: "candidate", redirect: `${basePath}/${job.id}` } as never,
       });
       return;
     }
@@ -274,15 +310,15 @@ function JobDetailPage() {
   if (!job) {
     return (
       <div className="flex min-h-screen flex-col bg-surface">
-        <Navbar />
+        {!embedded && <Navbar />}
         <div className="mx-auto max-w-2xl px-4 py-16 text-center">
           <h1 className="text-2xl font-bold text-foreground">Job unavailable</h1>
           <p className="mt-2 text-sm text-muted-foreground">This job may have been closed or removed.</p>
-          <Link to="/jobs" className="mt-6 inline-flex h-11 items-center rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground">
+          <Link to={listPath as never} className="mt-6 inline-flex h-11 items-center rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground">
             Browse all jobs
           </Link>
         </div>
-        <Footer />
+        {!embedded && <Footer />}
       </div>
     );
   }
@@ -299,7 +335,7 @@ function JobDetailPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-surface">
-      <Navbar />
+      {!embedded && <Navbar />}
       <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-28 sm:px-6 lg:px-8 lg:pb-10">
         <nav aria-label="Job navigation" className="flex items-center gap-1 text-sm">
           {canGoBack && (
@@ -315,7 +351,7 @@ function JobDetailPage() {
             </>
           )}
           <Link
-            to="/jobs"
+            to={listPath as never}
             className={`inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-muted-foreground transition-colors hover:bg-surface hover:text-primary ${canGoBack ? "" : "-ml-2"}`}
           >
             {canGoBack ? <LayoutGrid className="h-4 w-4" /> : <ArrowLeft className="h-4 w-4" />} All jobs
@@ -604,7 +640,7 @@ function JobDetailPage() {
                 <h2 className="mb-3 text-lg font-bold text-foreground">Similar jobs you may like</h2>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {similar.map((s) => (
-                    <JobCard key={s.id} job={s} />
+                    <JobCard key={s.id} job={s} detailBasePath={basePath} />
                   ))}
                 </div>
               </section>
@@ -770,7 +806,7 @@ function JobDetailPage() {
         <ReportJobDialog jobId={job.id} open={reportOpen} onOpenChange={setReportOpen} />
       )}
 
-      <Footer />
+      {!embedded && <Footer />}
     </div>
   );
 }
