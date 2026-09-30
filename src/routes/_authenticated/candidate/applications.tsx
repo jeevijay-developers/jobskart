@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Briefcase, Eye, Loader2, MapPin } from "lucide-react";
 import { toast } from "sonner";
+import { z } from "zod";
 import { CandidateShell } from "@/components/candidate/CandidateShell";
 import { supabase } from "@/integrations/supabase/client";
 import { timeAgo, formatSalary } from "@/lib/format";
@@ -9,13 +10,18 @@ import { InterviewInfo, type Interview } from "@/components/candidate/InterviewI
 import { ViewApplicationDialog } from "@/components/candidate/ViewApplicationDialog";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 
+const TOP_TABS = ["all", "shortlisted", "interview"] as const;
+type TopTab = (typeof TOP_TABS)[number];
+
+const applicationsSearchSchema = z.object({
+  tab: z.enum(TOP_TABS).optional(),
+});
+
 export const Route = createFileRoute("/_authenticated/candidate/applications")({
+  validateSearch: applicationsSearchSchema,
   head: () => ({ meta: [{ title: "My Applications · JobsKart" }] }),
   component: ApplicationsPage,
 });
-
-const TOP_TABS = ["all", "shortlisted", "interview"] as const;
-type TopTab = (typeof TOP_TABS)[number];
 const TOP_TAB_LABELS: Record<TopTab, string> = {
   all: "All",
   shortlisted: "Shortlisted",
@@ -66,7 +72,12 @@ type Row = {
 };
 
 function ApplicationsPage() {
-  const [tab, setTab] = useState<TopTab>("all");
+  // Lets dashboard's Shortlisted/Interviews stat cards deep-link straight
+  // into that tab (?tab=shortlisted / ?tab=interview) instead of always
+  // landing on "All" — manual tab clicks within this page still work purely
+  // via local state, unchanged.
+  const search = Route.useSearch();
+  const [tab, setTab] = useState<TopTab>(search.tab ?? "all");
   const [interviewSubTab, setInterviewSubTab] = useState<InterviewSubTab>("in_progress");
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);

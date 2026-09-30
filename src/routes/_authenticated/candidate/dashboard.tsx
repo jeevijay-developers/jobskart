@@ -21,7 +21,7 @@ import { Pagination } from "@/components/site/Pagination";
 import { StatCard } from "@/components/shared/StatCard";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { supabase } from "@/integrations/supabase/client";
-import { strengthLabel } from "@/lib/profileStrength";
+import { computeProfileStrength, strengthLabel } from "@/lib/profileStrength";
 import { upsertNudgeShown } from "@/lib/candidate.functions";
 import { useBackToHome } from "@/hooks/use-back-to-home";
 import { usePaginatedQuery } from "@/hooks/use-paginated-query";
@@ -81,10 +81,10 @@ function CandidateDashboard() {
         return;
       }
 
-      const [{ data: profile }, apps, expRes, eduRes, learn] = await Promise.all([
+      const [{ data: profile }, apps, expRes, eduRes, langRes, learn] = await Promise.all([
         supabase
           .from("profiles")
-          .select("full_name, city, mobile_verified")
+          .select("full_name, mobile, city, avatar_url, mobile_verified")
           .eq("id", uid)
           .maybeSingle(),
         supabase
@@ -102,6 +102,10 @@ function CandidateDashboard() {
           .select("id", { head: true, count: "exact" })
           .eq("user_id", uid),
         supabase
+          .from("candidate_languages")
+          .select("id", { head: true, count: "exact" })
+          .eq("user_id", uid),
+        supabase
           .from("learning_resources")
           .select("id, title, slug, cover_url, kind, category")
           .eq("is_published", true)
@@ -110,7 +114,34 @@ function CandidateDashboard() {
       ]);
 
       setName(profile?.full_name || "there");
-      setStrength(cand?.profile_strength || 0);
+      // Same source of truth as /candidate/profile's `strengthInput` +
+      // computeProfileStrength (src/lib/profileStrength.ts) — computed live
+      // from the current profile/experience/education/language rows instead
+      // of trusting the stored candidate_profiles.profile_strength column,
+      // which only gets refreshed as a side effect of visiting the profile
+      // page and can go stale (the cause of the two pages showing different
+      // percentages for the same candidate).
+      setStrength(
+        computeProfileStrength({
+          full_name: profile?.full_name,
+          mobile: profile?.mobile,
+          city: profile?.city,
+          avatar_url: profile?.avatar_url,
+          headline: cand?.headline,
+          last_role: cand?.last_role,
+          bio: cand?.bio,
+          skills: cand?.skills,
+          years_experience: cand?.years_experience,
+          preferred_job_types: cand?.preferred_job_types,
+          preferred_cities: cand?.preferred_cities,
+          expected_salary: cand?.expected_salary,
+          resume_url: cand?.resume_url,
+          experiences_count: expRes.count ?? 0,
+          education_count: eduRes.count ?? 0,
+          languages_count: langRes.count ?? 0,
+          kyc_verified: cand?.kyc_status === "verified",
+        }),
+      );
       setVerified(!!profile?.mobile_verified);
 
       const appsList = apps.data || [];
@@ -219,6 +250,7 @@ function CandidateDashboard() {
                 key={j.id}
                 job={j}
                 variant="discovery"
+                detailBasePath="/candidate/jobs"
                 onApplied={() => {
                   void refreshApplicationTotals();
                   void refetchRecommended();
@@ -322,6 +354,7 @@ function CandidateDashboard() {
           tone="success"
           icon={CheckCircle2}
           to="/candidate/applications"
+          search={{ tab: "shortlisted" }}
         />
         <StatCard
           label="Interviews"
@@ -329,6 +362,7 @@ function CandidateDashboard() {
           tone="warning"
           icon={Calendar}
           to="/candidate/applications"
+          search={{ tab: "interview" }}
         />
         <StatCard
           label="Profile views"

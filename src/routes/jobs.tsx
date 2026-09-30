@@ -12,6 +12,7 @@ import type { Session } from "@supabase/supabase-js";
 import { Navbar } from "@/components/site/Navbar";
 import { JobCard, type JobCardData } from "@/components/site/JobCard";
 import { AutocompleteInput } from "@/components/site/AutocompleteInput";
+import { Pagination } from "@/components/site/Pagination";
 import { CandidateAppLayout } from "@/components/candidate/CandidateShell";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { OptionalSection } from "@/components/forms/OptionalSection";
@@ -26,14 +27,12 @@ import {
   INDIAN_CITIES,
 } from "@/lib/options";
 import { useJobTitleSuggestions } from "@/lib/useJobTitleSuggestions";
+import { usePaginatedQuery } from "@/hooks/use-paginated-query";
 import { fetchCandidateJobFeed, fetchPublicJobFeed, type JobFeedFilters } from "@/lib/job-feed";
 import { jobsSearchSchema, type JobsSearch } from "@/lib/jobs-search";
 
-// "Load More Jobs" batch size (mirrors the employer Activity page's pattern):
-// reveal BATCH_SIZE more jobs per click, buffered from a larger server chunk
-// so most clicks don't need a fresh network round-trip.
-const BATCH_SIZE = 5;
-const FETCH_CHUNK = 50;
+// Same page size the previous "Load More Jobs" button revealed per click.
+const JOBS_PAGE_SIZE = 5;
 const SORT_OPTIONS = ["recommended", "newest", "oldest", "salary_high", "salary_low"] as const;
 type SortKey = (typeof SORT_OPTIONS)[number];
 
@@ -250,18 +249,6 @@ export function JobsList({ embeddedInCandidateApp = false }: { embeddedInCandida
     urlSearch.verifiedOnly,
   ]);
 
-  // "Load More Jobs": `jobs` is the full buffer fetched so far for the
-  // current filters/sort, `visibleCount` is how many of those are actually
-  // shown. Load More only ever increases `visibleCount` (by BATCH_SIZE) — it
-  // re-fetches more rows from the server only once the buffer runs out.
-  // Mirrors the employer Activity page's Load More pattern.
-  const [jobs, setJobs] = useState<JobCardData[]>([]);
-  const [visibleCount, setVisibleCount] = useState(0);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMoreOnServer, setHasMoreOnServer] = useState(false);
-
   // Shared feed-adapter filter shape (src/lib/job-feed.ts) built once per
   // filters change — `datePosted` (a UI key like "7d") resolves to an ISO
   // cutoff here so job-feed.ts stays decoupled from that encoding.
@@ -362,65 +349,29 @@ export function JobsList({ embeddedInCandidateApp = false }: { embeddedInCandida
     return { data: (data as unknown as JobCardData[]) ?? null, count, error };
   };
 
-  // Filters/sort change: reset the buffer and visible count back to the
-  // first BATCH_SIZE, then fetch a fresh chunk for the new query. Waits on
-  // roleReady so a signed-in candidate never briefly sees the public
-  // (non-excluding) feed before the candidate-aware one replaces it.
-  useEffect(() => {
-    if (!roleReady) return;
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      const { data, count, error } = await runQuery(0, FETCH_CHUNK);
-      if (cancelled) return;
-      if (error) {
-        setLoading(false);
-        return;
-      }
-      const rows = data || [];
-      const page = rows.slice(0, FETCH_CHUNK);
-      setJobs(page);
-      setTotal(count ?? 0);
-      setVisibleCount(Math.min(BATCH_SIZE, page.length));
-      setHasMoreOnServer(rows.length > FETCH_CHUNK);
-      setLoading(false);
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters, sort, roleReady, isCandidateFeed]);
-
-  const loadMore = async () => {
-    if (loadingMore) return;
-    const nextVisible = visibleCount + BATCH_SIZE;
-
-    // Enough already buffered to reveal the next batch — no network call needed.
-    if (nextVisible <= jobs.length) {
-      setVisibleCount(Math.min(nextVisible, jobs.length));
-      return;
-    }
-
-    if (!hasMoreOnServer) {
-      setVisibleCount(jobs.length);
-      return;
-    }
-    setLoadingMore(true);
-    const { data, count, error } = await runQuery(jobs.length, jobs.length + FETCH_CHUNK);
-    if (!error) {
-      const rows = data || [];
-      const page = rows.slice(0, FETCH_CHUNK);
-      const merged = [...jobs, ...page];
-      setJobs(merged);
-      setTotal(count ?? 0);
-      setHasMoreOnServer(rows.length > FETCH_CHUNK);
-      setVisibleCount(Math.min(nextVisible, merged.length));
-    }
-    setLoadingMore(false);
-  };
-
-  const visibleJobs = jobs.slice(0, visibleCount);
-  const hasMore = visibleCount < jobs.length || hasMoreOnServer;
+  // Page-based loading: usePaginatedQuery owns page state, limit/offset math
+  // and total-count tracking (same hook + <Pagination> pairing already used
+  // by the employer Jobs list, Candidate Database and Responses inbox) —
+  // only how a page is fetched (the existing runQuery above) is provided
+  // here. Waits on roleReady so a signed-in candidate never briefly sees the
+  // public (non-excluding) feed before the candidate-aware one replaces it.
+  const {
+    rows: visibleJobs,
+    total,
+    totalPages,
+    page: jobsPage,
+    setPage: setJobsPage,
+    isLoading: loading,
+  } = usePaginatedQuery<JobCardData>({
+    queryKey: ["jobs-list", filters, sort, isCandidateFeed],
+    pageSize: JOBS_PAGE_SIZE,
+    enabled: roleReady,
+    fetchPage: async ({ from, to }) => {
+      const { data, count, error } = await runQuery(from, to);
+      if (error) return { rows: [], total: 0 };
+      return { rows: data || [], total: count ?? 0 };
+    },
+  });
 
   // Distinguish "nothing matches" from "you've applied to everything that
   // matches" (copy rule: never imply the applications failed). Only probes
@@ -610,7 +561,7 @@ export function JobsList({ embeddedInCandidateApp = false }: { embeddedInCandida
                 ? "Loading…"
                 : total === 0
                   ? "No jobs found"
-                  : `${total.toLocaleString("en-IN")} job${total === 1 ? "" : "s"} · showing ${Math.min(visibleCount, total).toLocaleString("en-IN")}`}
+                  : `${total.toLocaleString("en-IN")} job${total === 1 ? "" : "s"} · showing ${visibleJobs.length.toLocaleString("en-IN")}`}
             </p>
             <label className="flex items-center gap-2 text-sm">
               <span className="text-muted-foreground">Sort by</span>
@@ -709,18 +660,14 @@ export function JobsList({ embeddedInCandidateApp = false }: { embeddedInCandida
                   />
                 ))}
               </div>
-              {hasMore && (
-                <div className="mt-6 flex justify-center">
-                  <button
-                    type="button"
-                    onClick={loadMore}
-                    disabled={loadingMore}
-                    className="inline-flex h-10 max-w-full items-center justify-center gap-2 rounded-lg border border-primary px-5 text-sm font-semibold text-primary hover:bg-primary-light disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {loadingMore ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                    Load More Jobs
-                  </button>
-                </div>
+              {totalPages > 1 && (
+                <Pagination
+                  page={jobsPage}
+                  totalPages={totalPages}
+                  onChange={setJobsPage}
+                  ariaLabel="Jobs pagination"
+                  className="mt-6"
+                />
               )}
             </>
           )}
