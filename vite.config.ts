@@ -15,5 +15,17 @@ export default defineConfig({
   },
   vite: {
     plugins: [mcpPlugin()],
+    // pdfkit is a Node.js-only package (uses Buffer, stream, fs).
+    // Exclude it from the client dependency scanner so Vite never tries
+    // to bundle it for the browser, which causes ECONNRESET on startup.
+    optimizeDeps: {
+      exclude: ["pdfkit"],
+    },
+    // Mark pdfkit as server-side external so it's loaded via Node require()
+    // in the SSR context rather than being inlined/bundled by Vite.
+    ssr: {
+      external: ["pdfkit"],
+    },
   },
 });
+

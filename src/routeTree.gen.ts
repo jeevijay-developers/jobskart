@@ -51,12 +51,14 @@ import { Route as AuthenticatedCandidateDashboardRouteImport } from './routes/_a
 import { Route as AuthenticatedCandidateDocumentsRouteImport } from './routes/_authenticated/candidate/documents'
 import { Route as AuthenticatedCandidateNotificationsRouteImport } from './routes/_authenticated/candidate/notifications'
 import { Route as AuthenticatedCandidateProfileRouteImport } from './routes/_authenticated/candidate/profile'
+import { Route as AuthenticatedCandidateResumeBuilderRouteImport } from './routes/_authenticated/candidate/resume-builder'
 import { Route as AuthenticatedCandidateSavedRouteImport } from './routes/_authenticated/candidate/saved'
 import { Route as AuthenticatedCandidateSettingsRouteImport } from './routes/_authenticated/candidate/settings'
 import { Route as AuthenticatedEmployerActivityRouteImport } from './routes/_authenticated/employer/activity'
 import { Route as AuthenticatedEmployerCompanyRouteImport } from './routes/_authenticated/employer/company'
 import { Route as AuthenticatedEmployerCreditsRouteImport } from './routes/_authenticated/employer/credits'
 import { Route as AuthenticatedEmployerCrmRouteImport } from './routes/_authenticated/employer/crm'
+import { Route as AuthenticatedEmployerCrmAutomationRouteImport } from './routes/_authenticated/employer/crm.automation'
 import { Route as AuthenticatedEmployerDashboardRouteImport } from './routes/_authenticated/employer/dashboard'
 import { Route as AuthenticatedEmployerDatabaseRouteImport } from './routes/_authenticated/employer/database'
 import { Route as AuthenticatedEmployerInterviewsRouteImport } from './routes/_authenticated/employer/interviews'
@@ -291,6 +293,12 @@ const AuthenticatedCandidateProfileRoute =
     path: '/profile',
     getParentRoute: () => AuthenticatedCandidateRouteRoute,
   } as any)
+const AuthenticatedCandidateResumeBuilderRoute =
+  AuthenticatedCandidateResumeBuilderRouteImport.update({
+    id: '/resume-builder',
+    path: '/resume-builder',
+    getParentRoute: () => AuthenticatedCandidateRouteRoute,
+  } as any)
 const AuthenticatedCandidateSavedRoute =
   AuthenticatedCandidateSavedRouteImport.update({
     id: '/saved',
@@ -325,6 +333,12 @@ const AuthenticatedEmployerCrmRoute =
   AuthenticatedEmployerCrmRouteImport.update({
     id: '/employer/crm',
     path: '/employer/crm',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedEmployerCrmAutomationRoute =
+  AuthenticatedEmployerCrmAutomationRouteImport.update({
+    id: '/employer/crm/automation',
+    path: '/employer/crm/automation',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedEmployerDashboardRoute =
@@ -460,12 +474,14 @@ export interface FileRoutesByFullPath {
   '/candidate/documents': typeof AuthenticatedCandidateDocumentsRoute
   '/candidate/notifications': typeof AuthenticatedCandidateNotificationsRoute
   '/candidate/profile': typeof AuthenticatedCandidateProfileRoute
+  '/candidate/resume-builder': typeof AuthenticatedCandidateResumeBuilderRoute
   '/candidate/saved': typeof AuthenticatedCandidateSavedRoute
   '/candidate/settings': typeof AuthenticatedCandidateSettingsRoute
   '/employer/activity': typeof AuthenticatedEmployerActivityRoute
   '/employer/company': typeof AuthenticatedEmployerCompanyRoute
   '/employer/credits': typeof AuthenticatedEmployerCreditsRoute
   '/employer/crm': typeof AuthenticatedEmployerCrmRoute
+  '/employer/crm/automation': typeof AuthenticatedEmployerCrmAutomationRoute
   '/employer/dashboard': typeof AuthenticatedEmployerDashboardRoute
   '/employer/database': typeof AuthenticatedEmployerDatabaseRoute
   '/employer/interviews': typeof AuthenticatedEmployerInterviewsRoute
@@ -523,12 +539,14 @@ export interface FileRoutesByTo {
   '/candidate/documents': typeof AuthenticatedCandidateDocumentsRoute
   '/candidate/notifications': typeof AuthenticatedCandidateNotificationsRoute
   '/candidate/profile': typeof AuthenticatedCandidateProfileRoute
+  '/candidate/resume-builder': typeof AuthenticatedCandidateResumeBuilderRoute
   '/candidate/saved': typeof AuthenticatedCandidateSavedRoute
   '/candidate/settings': typeof AuthenticatedCandidateSettingsRoute
   '/employer/activity': typeof AuthenticatedEmployerActivityRoute
   '/employer/company': typeof AuthenticatedEmployerCompanyRoute
   '/employer/credits': typeof AuthenticatedEmployerCreditsRoute
   '/employer/crm': typeof AuthenticatedEmployerCrmRoute
+  '/employer/crm/automation': typeof AuthenticatedEmployerCrmAutomationRoute
   '/employer/dashboard': typeof AuthenticatedEmployerDashboardRoute
   '/employer/database': typeof AuthenticatedEmployerDatabaseRoute
   '/employer/interviews': typeof AuthenticatedEmployerInterviewsRoute
@@ -589,12 +607,14 @@ export interface FileRoutesById {
   '/_authenticated/candidate/documents': typeof AuthenticatedCandidateDocumentsRoute
   '/_authenticated/candidate/notifications': typeof AuthenticatedCandidateNotificationsRoute
   '/_authenticated/candidate/profile': typeof AuthenticatedCandidateProfileRoute
+  '/_authenticated/candidate/resume-builder': typeof AuthenticatedCandidateResumeBuilderRoute
   '/_authenticated/candidate/saved': typeof AuthenticatedCandidateSavedRoute
   '/_authenticated/candidate/settings': typeof AuthenticatedCandidateSettingsRoute
   '/_authenticated/employer/activity': typeof AuthenticatedEmployerActivityRoute
   '/_authenticated/employer/company': typeof AuthenticatedEmployerCompanyRoute
   '/_authenticated/employer/credits': typeof AuthenticatedEmployerCreditsRoute
   '/_authenticated/employer/crm': typeof AuthenticatedEmployerCrmRoute
+  '/_authenticated/employer/crm/automation': typeof AuthenticatedEmployerCrmAutomationRoute
   '/_authenticated/employer/dashboard': typeof AuthenticatedEmployerDashboardRoute
   '/_authenticated/employer/database': typeof AuthenticatedEmployerDatabaseRoute
   '/_authenticated/employer/interviews': typeof AuthenticatedEmployerInterviewsRoute
@@ -655,12 +675,14 @@ export interface FileRouteTypes {
     | '/candidate/documents'
     | '/candidate/notifications'
     | '/candidate/profile'
+    | '/candidate/resume-builder'
     | '/candidate/saved'
     | '/candidate/settings'
     | '/employer/activity'
     | '/employer/company'
     | '/employer/credits'
     | '/employer/crm'
+    | '/employer/crm/automation'
     | '/employer/dashboard'
     | '/employer/database'
     | '/employer/interviews'
@@ -718,12 +740,14 @@ export interface FileRouteTypes {
     | '/candidate/documents'
     | '/candidate/notifications'
     | '/candidate/profile'
+    | '/candidate/resume-builder'
     | '/candidate/saved'
     | '/candidate/settings'
     | '/employer/activity'
     | '/employer/company'
     | '/employer/credits'
     | '/employer/crm'
+    | '/employer/crm/automation'
     | '/employer/dashboard'
     | '/employer/database'
     | '/employer/interviews'
@@ -783,12 +807,14 @@ export interface FileRouteTypes {
     | '/_authenticated/candidate/documents'
     | '/_authenticated/candidate/notifications'
     | '/_authenticated/candidate/profile'
+    | '/_authenticated/candidate/resume-builder'
     | '/_authenticated/candidate/saved'
     | '/_authenticated/candidate/settings'
     | '/_authenticated/employer/activity'
     | '/_authenticated/employer/company'
     | '/_authenticated/employer/credits'
     | '/_authenticated/employer/crm'
+    | '/_authenticated/employer/crm/automation'
     | '/_authenticated/employer/dashboard'
     | '/_authenticated/employer/database'
     | '/_authenticated/employer/interviews'
@@ -1126,6 +1152,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCandidateProfileRouteImport
       parentRoute: typeof AuthenticatedCandidateRouteRoute
     }
+    '/_authenticated/candidate/resume-builder': {
+      id: '/_authenticated/candidate/resume-builder'
+      path: '/resume-builder'
+      fullPath: '/candidate/resume-builder'
+      preLoaderRoute: typeof AuthenticatedCandidateResumeBuilderRouteImport
+      parentRoute: typeof AuthenticatedCandidateRouteRoute
+    }
     '/_authenticated/candidate/saved': {
       id: '/_authenticated/candidate/saved'
       path: '/saved'
@@ -1166,6 +1199,13 @@ declare module '@tanstack/react-router' {
       path: '/employer/crm'
       fullPath: '/employer/crm'
       preLoaderRoute: typeof AuthenticatedEmployerCrmRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/employer/crm/automation': {
+      id: '/_authenticated/employer/crm/automation'
+      path: '/employer/crm/automation'
+      fullPath: '/employer/crm/automation'
+      preLoaderRoute: typeof AuthenticatedEmployerCrmAutomationRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/employer/dashboard': {
@@ -1284,6 +1324,7 @@ interface AuthenticatedCandidateRouteRouteChildren {
   AuthenticatedCandidateDocumentsRoute: typeof AuthenticatedCandidateDocumentsRoute
   AuthenticatedCandidateNotificationsRoute: typeof AuthenticatedCandidateNotificationsRoute
   AuthenticatedCandidateProfileRoute: typeof AuthenticatedCandidateProfileRoute
+  AuthenticatedCandidateResumeBuilderRoute: typeof AuthenticatedCandidateResumeBuilderRoute
   AuthenticatedCandidateSavedRoute: typeof AuthenticatedCandidateSavedRoute
   AuthenticatedCandidateSettingsRoute: typeof AuthenticatedCandidateSettingsRoute
 }
@@ -1299,6 +1340,8 @@ const AuthenticatedCandidateRouteRouteChildren: AuthenticatedCandidateRouteRoute
     AuthenticatedCandidateNotificationsRoute:
       AuthenticatedCandidateNotificationsRoute,
     AuthenticatedCandidateProfileRoute: AuthenticatedCandidateProfileRoute,
+    AuthenticatedCandidateResumeBuilderRoute:
+      AuthenticatedCandidateResumeBuilderRoute,
     AuthenticatedCandidateSavedRoute: AuthenticatedCandidateSavedRoute,
     AuthenticatedCandidateSettingsRoute: AuthenticatedCandidateSettingsRoute,
   }
@@ -1336,6 +1379,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedEmployerCompanyRoute: typeof AuthenticatedEmployerCompanyRoute
   AuthenticatedEmployerCreditsRoute: typeof AuthenticatedEmployerCreditsRoute
   AuthenticatedEmployerCrmRoute: typeof AuthenticatedEmployerCrmRoute
+  AuthenticatedEmployerCrmAutomationRoute: typeof AuthenticatedEmployerCrmAutomationRoute
   AuthenticatedEmployerDashboardRoute: typeof AuthenticatedEmployerDashboardRoute
   AuthenticatedEmployerDatabaseRoute: typeof AuthenticatedEmployerDatabaseRoute
   AuthenticatedEmployerInterviewsRoute: typeof AuthenticatedEmployerInterviewsRoute
@@ -1355,6 +1399,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedEmployerCompanyRoute: AuthenticatedEmployerCompanyRoute,
   AuthenticatedEmployerCreditsRoute: AuthenticatedEmployerCreditsRoute,
   AuthenticatedEmployerCrmRoute: AuthenticatedEmployerCrmRoute,
+  AuthenticatedEmployerCrmAutomationRoute:
+    AuthenticatedEmployerCrmAutomationRoute,
   AuthenticatedEmployerDashboardRoute: AuthenticatedEmployerDashboardRoute,
   AuthenticatedEmployerDatabaseRoute: AuthenticatedEmployerDatabaseRoute,
   AuthenticatedEmployerInterviewsRoute: AuthenticatedEmployerInterviewsRoute,

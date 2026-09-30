@@ -15,6 +15,7 @@ import { unlockCandidateContact } from "@/lib/credits.functions";
 import {
   CALL_OUTCOMES,
   getCalls,
+  getOutcomeBadgeClass,
   logCall,
   mapCrmError,
 } from "@/lib/crm.functions";
@@ -83,6 +84,8 @@ export function CallLogDrawer({
     setFollowUpAt("");
     setMobile(null);
     loadCalls();
+
+    // 1. Applicant: fetch mobile via the application → profile join.
     if (jobId) {
       supabase
         .from("applications")
@@ -94,9 +97,22 @@ export function CallLogDrawer({
           const m = (data as { profiles: { mobile: string | null } | null } | null)?.profiles?.mobile;
           if (m) setMobile(m);
         });
+    } else if (source === "unlock" || source === "both") {
+      // 2. Unlocked lead (no application): read the already-revealed contact
+      //    from candidate_unlocks so the number shows without an extra credit spend.
+      supabase
+        .from("candidate_unlocks")
+        .select("mobile")
+        .eq("company_id", companyId)
+        .eq("candidate_id", candidateId)
+        .maybeSingle()
+        .then(({ data }) => {
+          const m = (data as { mobile: string | null } | null)?.mobile;
+          if (m) setMobile(m);
+        });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, candidateId, jobId]);
+  }, [open, candidateId, jobId, source]);
 
   const revealContact = async () => {
     if (!jobId) return;
@@ -143,7 +159,7 @@ export function CallLogDrawer({
   };
 
   const outcomeMeta = (id: string) =>
-    CALL_OUTCOMES.find((o) => o.id === id) ?? { label: id, tone: "bg-surface text-muted-foreground" };
+    CALL_OUTCOMES.find((o) => o.id === id) ?? { label: id };
 
   const canReveal = !mobile && !!jobId && (source === "unlock" || source === "both" || !source);
 
@@ -172,6 +188,7 @@ export function CallLogDrawer({
               </a>
             ) : canReveal ? (
               <button
+                type="button"
                 onClick={revealContact}
                 disabled={revealing}
                 className="inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-60"
@@ -194,6 +211,7 @@ export function CallLogDrawer({
               {CALL_OUTCOMES.map((o) => (
                 <button
                   key={o.id}
+                  type="button"
                   onClick={() => setOutcome(o.id)}
                   className={`rounded-lg border px-3 py-2 text-xs font-semibold transition-colors ${
                     outcome === o.id
@@ -262,7 +280,7 @@ export function CallLogDrawer({
                   return (
                     <li key={c.id} className="rounded-lg border border-border bg-card p-2.5">
                       <div className="flex items-center justify-between gap-2">
-                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${meta.tone}`}>
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${getOutcomeBadgeClass(c.outcome)}`}>
                           {meta.label}
                         </span>
                         <span className="text-[10px] text-muted-foreground">

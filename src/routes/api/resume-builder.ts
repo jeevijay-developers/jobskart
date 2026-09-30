@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { CandidateProfile, CandidateExperience, CandidateEducation, CandidateCertification, CandidateLanguage, CandidateLink, ResumeVersion } from "@/lib/resumeBuilder/types";
 import { buildResumeSnapshot } from "@/lib/resumeBuilder/snapshot";
-import { renderResumeToPdf } from "@/lib/resumeBuilder/pdfRenderer";
+import { renderResumeToPdf } from "@/lib/resumeBuilder/pdfRenderer.server";
 import { uploadResumePdf } from "@/lib/resumeBuilder/storage";
 
 export const Route = createFileRoute("/api/resume-builder")({
