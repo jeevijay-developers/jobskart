@@ -68,6 +68,7 @@ import { Route as AuthenticatedEmployerTeamRouteImport } from './routes/_authent
 import { Route as AuthenticatedEmployerVerificationRouteImport } from './routes/_authenticated/employer/verification'
 import { Route as AuthenticatedOnboardingCandidateRouteImport } from './routes/_authenticated/onboarding/candidate'
 import { Route as AuthenticatedOnboardingEmployerRouteImport } from './routes/_authenticated/onboarding/employer'
+import { Route as AuthenticatedCandidateJobsJobIdRouteImport } from './routes/_authenticated/candidate/jobs.$jobId'
 import { Route as AuthenticatedEmployerCrmAutomationRouteImport } from './routes/_authenticated/employer/crm.automation'
 import { Route as AuthenticatedEmployerJobsBulkRouteImport } from './routes/_authenticated/employer/jobs.bulk'
 import { Route as AuthenticatedEmployerJobsNewRouteImport } from './routes/_authenticated/employer/jobs.new'
@@ -395,6 +396,12 @@ const AuthenticatedOnboardingEmployerRoute =
     path: '/onboarding/employer',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedCandidateJobsJobIdRoute =
+  AuthenticatedCandidateJobsJobIdRouteImport.update({
+    id: '/jobs/$jobId',
+    path: '/jobs/$jobId',
+    getParentRoute: () => AuthenticatedCandidateRouteRoute,
+  } as any)
 const AuthenticatedEmployerCrmAutomationRoute =
   AuthenticatedEmployerCrmAutomationRouteImport.update({
     id: '/automation',
@@ -491,6 +498,7 @@ export interface FileRoutesByFullPath {
   '/employer/verification': typeof AuthenticatedEmployerVerificationRoute
   '/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
   '/onboarding/employer': typeof AuthenticatedOnboardingEmployerRoute
+  '/candidate/jobs/$jobId': typeof AuthenticatedCandidateJobsJobIdRoute
   '/employer/crm/automation': typeof AuthenticatedEmployerCrmAutomationRoute
   '/employer/jobs/bulk': typeof AuthenticatedEmployerJobsBulkRoute
   '/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
@@ -556,6 +564,7 @@ export interface FileRoutesByTo {
   '/employer/verification': typeof AuthenticatedEmployerVerificationRoute
   '/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
   '/onboarding/employer': typeof AuthenticatedOnboardingEmployerRoute
+  '/candidate/jobs/$jobId': typeof AuthenticatedCandidateJobsJobIdRoute
   '/employer/crm/automation': typeof AuthenticatedEmployerCrmAutomationRoute
   '/employer/jobs/bulk': typeof AuthenticatedEmployerJobsBulkRoute
   '/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
@@ -624,6 +633,7 @@ export interface FileRoutesById {
   '/_authenticated/employer/verification': typeof AuthenticatedEmployerVerificationRoute
   '/_authenticated/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
   '/_authenticated/onboarding/employer': typeof AuthenticatedOnboardingEmployerRoute
+  '/_authenticated/candidate/jobs/$jobId': typeof AuthenticatedCandidateJobsJobIdRoute
   '/_authenticated/employer/crm/automation': typeof AuthenticatedEmployerCrmAutomationRoute
   '/_authenticated/employer/jobs/bulk': typeof AuthenticatedEmployerJobsBulkRoute
   '/_authenticated/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
@@ -692,6 +702,7 @@ export interface FileRouteTypes {
     | '/employer/verification'
     | '/onboarding/candidate'
     | '/onboarding/employer'
+    | '/candidate/jobs/$jobId'
     | '/employer/crm/automation'
     | '/employer/jobs/bulk'
     | '/employer/jobs/new'
@@ -757,6 +768,7 @@ export interface FileRouteTypes {
     | '/employer/verification'
     | '/onboarding/candidate'
     | '/onboarding/employer'
+    | '/candidate/jobs/$jobId'
     | '/employer/crm/automation'
     | '/employer/jobs/bulk'
     | '/employer/jobs/new'
@@ -824,6 +836,7 @@ export interface FileRouteTypes {
     | '/_authenticated/employer/verification'
     | '/_authenticated/onboarding/candidate'
     | '/_authenticated/onboarding/employer'
+    | '/_authenticated/candidate/jobs/$jobId'
     | '/_authenticated/employer/crm/automation'
     | '/_authenticated/employer/jobs/bulk'
     | '/_authenticated/employer/jobs/new'
@@ -1271,6 +1284,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedOnboardingEmployerRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/candidate/jobs/$jobId': {
+      id: '/_authenticated/candidate/jobs/$jobId'
+      path: '/jobs/$jobId'
+      fullPath: '/candidate/jobs/$jobId'
+      preLoaderRoute: typeof AuthenticatedCandidateJobsJobIdRouteImport
+      parentRoute: typeof AuthenticatedCandidateRouteRoute
+    }
     '/_authenticated/employer/crm/automation': {
       id: '/_authenticated/employer/crm/automation'
       path: '/automation'
@@ -1327,6 +1347,7 @@ interface AuthenticatedCandidateRouteRouteChildren {
   AuthenticatedCandidateResumeBuilderRoute: typeof AuthenticatedCandidateResumeBuilderRoute
   AuthenticatedCandidateSavedRoute: typeof AuthenticatedCandidateSavedRoute
   AuthenticatedCandidateSettingsRoute: typeof AuthenticatedCandidateSettingsRoute
+  AuthenticatedCandidateJobsJobIdRoute: typeof AuthenticatedCandidateJobsJobIdRoute
 }
 
 const AuthenticatedCandidateRouteRouteChildren: AuthenticatedCandidateRouteRouteChildren =
@@ -1344,6 +1365,7 @@ const AuthenticatedCandidateRouteRouteChildren: AuthenticatedCandidateRouteRoute
       AuthenticatedCandidateResumeBuilderRoute,
     AuthenticatedCandidateSavedRoute: AuthenticatedCandidateSavedRoute,
     AuthenticatedCandidateSettingsRoute: AuthenticatedCandidateSettingsRoute,
+    AuthenticatedCandidateJobsJobIdRoute: AuthenticatedCandidateJobsJobIdRoute,
   }
 
 const AuthenticatedCandidateRouteRouteWithChildren =
