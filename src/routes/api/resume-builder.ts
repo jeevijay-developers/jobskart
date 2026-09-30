@@ -5,6 +5,56 @@ import { buildResumeSnapshot } from "@/lib/resumeBuilder/snapshot";
 import { renderResumeToPdf } from "@/lib/resumeBuilder/pdfRenderer.server";
 import { uploadResumePdf } from "@/lib/resumeBuilder/storage";
 
+/**
+ * Fetches the candidate profile + relations the same way the candidate
+ * profile page (src/routes/_authenticated/candidate/profile.tsx) does:
+ * separate per-table queries filtered by user_id, not a single PostgREST
+ * embedded select. The previous embedded select
+ * (`candidate_profiles.select("*, candidate_experiences(*), candidate_education(*),
+ * candidate_certifications(*), candidate_languages(*), candidate_links(*)")`)
+ * always failed — candidate_certifications and candidate_links were never
+ * created as tables (see the commented-out `Database[...]` types in
+ * resumeBuilder/types.ts), so PostgREST rejected the whole query with a
+ * "relationship not found" error for every candidate, even ones with a
+ * perfectly valid profile. That surfaced to the UI as "Unable to fetch
+ * candidate profile" / "No profile data found".
+ */
+async function fetchCandidateProfileForResume(userId: string) {
+  const [profileRes, expRes, eduRes, langRes] = await Promise.all([
+    supabaseAdmin.from("candidate_profiles").select("*").eq("user_id", userId).maybeSingle(),
+    supabaseAdmin
+      .from("candidate_experiences")
+      .select("*")
+      .eq("user_id", userId)
+      .order("start_date", { ascending: false }),
+    supabaseAdmin
+      .from("candidate_education")
+      .select("*")
+      .eq("user_id", userId)
+      .order("year_of_passing", { ascending: false }),
+    supabaseAdmin.from("candidate_languages").select("*").eq("user_id", userId),
+  ]);
+
+  if (profileRes.error || !profileRes.data) {
+    return { profile: null, error: profileRes.error };
+  }
+
+  return {
+    profile: {
+      ...profileRes.data,
+      experiences: expRes.data ?? [],
+      educations: eduRes.data ?? [],
+      // No candidate_certifications / candidate_links tables exist yet —
+      // buildResumeSnapshot already treats these as optional and simply
+      // omits the section when empty.
+      certifications: [] as CandidateCertification[],
+      languages: langRes.data ?? [],
+      links: [] as CandidateLink[],
+    },
+    error: null,
+  };
+}
+
 export const Route = createFileRoute("/api/resume-builder")({
   server: {
     handlers: {
@@ -23,18 +73,7 @@ export const Route = createFileRoute("/api/resume-builder")({
           return new Response(JSON.stringify({ error: "Missing or invalid userId" }), { status: 400, headers: { "Content-Type": "application/json" } });
         }
 
-        const { data: profile, error } = await supabaseAdmin
-          .from("candidate_profiles")
-          .select(`
-            *,
-            candidate_experiences (*),
-            candidate_education (*),
-            candidate_certifications (*),
-            candidate_languages (*),
-            candidate_links (*)
-          `)
-          .eq("user_id", userId)
-          .single();
+        const { profile, error } = await fetchCandidateProfileForResume(userId);
 
         if (error || !profile) {
           console.error("Failed to fetch profile:", error);
@@ -71,18 +110,7 @@ POST: async ({ request }) => {
           return new Response(JSON.stringify({ error: "Missing or invalid userId" }), { status: 400, headers: { "Content-Type": "application/json" } });
         }
 
-        const { data: profile, error: profileError } = await supabaseAdmin
-          .from("candidate_profiles")
-          .select(`
-            *,
-            candidate_experiences (*),
-            candidate_education (*),
-            candidate_certifications (*),
-            candidate_languages (*),
-            candidate_links (*)
-          `)
-          .eq("user_id", userId)
-          .single();
+        const { profile, error: profileError } = await fetchCandidateProfileForResume(userId);
 
         if (profileError || !profile) {
           console.error("Failed to fetch profile for POST:", profileError);

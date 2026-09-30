@@ -701,7 +701,12 @@ export function JobsList({ embeddedInCandidateApp = false }: { embeddedInCandida
             <>
               <div className="grid gap-4">
                 {visibleJobs.map((j) => (
-                  <JobCard key={j.id} job={j} variant={isCandidateFeed ? "discovery" : "full"} />
+                  <JobCard
+                    key={j.id}
+                    job={j}
+                    variant={isCandidateFeed ? "discovery" : "full"}
+                    detailBasePath={embeddedInCandidateApp ? "/candidate/jobs" : "/jobs"}
+                  />
                 ))}
               </div>
               {hasMore && (
