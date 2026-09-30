@@ -4128,6 +4128,33 @@ export type Database = {
         }
         Relationships: []
       }
+      resume_versions: {
+        Row: {
+          created_at: string
+          id: string
+          snapshot: Json
+          template_id: string
+          user_id: string
+          version_number: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          snapshot: Json
+          template_id: string
+          user_id: string
+          version_number: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          snapshot?: Json
+          template_id?: string
+          user_id?: string
+          version_number?: number
+        }
+        Relationships: []
+      }
       salary_bands: {
         Row: {
           category: string | null

@@ -1,6 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import {
   Search,
   MapPin,
@@ -12,6 +13,12 @@ import {
   Coins,
   X,
   ChevronDown,
+  Sparkles,
+  Flame,
+  Zap,
+  Ban,
+  Send,
+  Check,
 } from "lucide-react";
 import { toast } from "sonner";
 import { EmployerShell } from "@/components/employer/EmployerShell";
@@ -49,8 +56,17 @@ import { pickNextSearchBroadening } from "@/lib/search-broaden.functions";
 
 const DATABASE_PAGE_SIZE = 20;
 
+// "mode" is pushed onto the URL (not replaced) when entering Active Hiring
+// Intelligence so browser Back has a real history entry to pop back to All
+// Database Search, instead of leaving the page entirely — see the searchMode
+// sync effect in DatabasePage for the read side of this.
+const databaseSearchSchema = z.object({
+  mode: z.enum(["all", "ai"]).optional(),
+});
+
 export const Route = createFileRoute("/_authenticated/employer/database")({
   head: () => ({ meta: [{ title: "Candidate database · JobsKart Employer" }] }),
+  validateSearch: databaseSearchSchema,
   component: DatabasePage,
 });
 
@@ -69,6 +85,35 @@ type Candidate = {
   match_score: number | null;
   match_breakdown: Record<string, number> | null;
   tags: string[] | null;
+};
+
+type RecommendedCandidate = {
+  user_id: string;
+  profile_slug: string | null;
+  headline: string | null;
+  last_role: string | null;
+  years_experience: number | null;
+  skills: string[] | null;
+  preferred_cities: string[] | null;
+  preferred_work_mode: string | null;
+  city: string | null;
+  match_score: number | null;
+  match_breakdown: Record<string, number> | null;
+  tags: string[] | null;
+  is_unlocked: boolean;
+  full_name: string | null;
+  avatar_url: string | null;
+  total_count: number;
+};
+
+type AIDigest = {
+  total_matches: number;
+  hot_count: number;
+  nearby_count: number;
+  active_count: number;
+  top_job_id: string | null;
+  top_job_title: string | null;
+  top_job_matches: number | null;
 };
 
 function maskName(name: string | null) {
@@ -92,9 +137,33 @@ function DatabasePage() {
     Record<string, { full_name: string; mobile: string; email: string }>
   >({});
 
+  // Active Hiring Intelligence Mode & Filter States
+  //
+  // searchMode is mirrored to the "mode" URL search param (see
+  // databaseSearchSchema above) instead of being plain local state. Entering
+  // "ai" mode pushes a new history entry, so browser Back pops it and lands
+  // back on "all" (All Database Search) instead of leaving the page — plain
+  // useState here would never register with browser history at all.
+  const navigate = useNavigate();
+  const { mode: urlMode } = useSearch({ from: "/_authenticated/employer/database" });
+  const searchMode = urlMode ?? "all";
+  const setSearchMode = (next: "all" | "ai") => {
+    navigate({
+      to: "/employer/database",
+      search: (prev) => ({ ...prev, mode: next === "all" ? undefined : next }),
+      replace: next === "all",
+    });
+  };
+  const [aiFilter, setAiFilter] = useState<"all" | "hot" | "nearby" | "active">("all");
+  const [aiDigest, setAiDigest] = useState<AIDigest | null>(null);
+  const [recommendedCandidates, setRecommendedCandidates] = useState<RecommendedCandidate[]>([]);
+  const [loadingRecommended, setLoadingRecommended] = useState(false);
+  const [invitingId, setInvitingId] = useState<string | null>(null);
+  const [invitedSet, setInvitedSet] = useState<Set<string>>(new Set());
+  const [dismissingId, setDismissingId] = useState<string | null>(null);
+  const [dismissedSet, setDismissedSet] = useState<Set<string>>(new Set());
+
   // Draft filters (live as the employer types/picks) vs. submitted filters
-  // (what's actually searched) — city/query only take effect on Search;
-  // experience narrows immediately, matching the dropdown's existing UX.
   const [q, setQ] = useState("");
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [minExp, setMinExp] = useState<number | "">("");
@@ -135,8 +204,6 @@ function DatabasePage() {
           getUnlockState({ data: { companyId: chosen.company_id } }),
           listUnlockedCandidateIds({ data: { companyId: chosen.company_id } }),
         ]);
-        // Gate: require ≥1 active, non-expired job — DB search is a job-scoped
-        // product, never a standalone unlock product (deck rule).
         if (state.jobs.length === 0) {
           setGated(true);
           setLoading(false);
@@ -149,6 +216,45 @@ function DatabasePage() {
       setLoading(false);
     })();
   }, []);
+
+  // Fetch AI Digest summary
+  useEffect(() => {
+    if (!active?.company_id) return;
+    supabase
+      .rpc("get_recommended_candidates_digest", { _company_id: active.company_id })
+      .then(({ data, error }) => {
+        if (!error && data && data.length > 0) {
+          setAiDigest(data[0] as AIDigest);
+        }
+      });
+  }, [active?.company_id]);
+
+  // Fetch Active Hiring Intelligence recommended candidates when job or filter changes
+  useEffect(() => {
+    if (!selectedJobId || !active) return;
+    let cancelled = false;
+    setLoadingRecommended(true);
+
+    supabase
+      .rpc("get_recommended_candidates_for_job", {
+        _job_id: selectedJobId,
+        _limit: 40,
+        _offset: 0,
+        _min_score: 40,
+        _filter: aiFilter === "all" ? undefined : aiFilter,
+      })
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (!error && data) {
+          setRecommendedCandidates(data as unknown as RecommendedCandidate[]);
+        }
+        setLoadingRecommended(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedJobId, active, aiFilter]);
 
   const {
     rows: results,
@@ -170,7 +276,7 @@ function DatabasePage() {
       sortBy,
     ],
     pageSize: DATABASE_PAGE_SIZE,
-    enabled: !!active && !gated && !!selectedJobId,
+    enabled: !!active && !gated && !!selectedJobId && searchMode === "all",
     fetchPage: async ({ from }) => {
       if (!active || !selectedJobId) return { rows: [], total: 0 };
       const { data, error } = await supabase.rpc("search_candidates_for_company", {
@@ -210,7 +316,7 @@ function DatabasePage() {
   }, [submitted.query, submitted.cities, submitted.minExp]);
 
   useEffect(() => {
-    if (!active || gated || searching || isFetching) return;
+    if (!active || gated || searching || isFetching || searchMode !== "all") return;
     if (total > 0) return;
     const remaining = remainingBroadenDims(effective);
     if (!remaining.length) return;
@@ -241,11 +347,49 @@ function DatabasePage() {
     return () => {
       cancelled = true;
     };
-  }, [active, gated, searching, isFetching, total, effective, pickNext]);
+  }, [active, gated, searching, isFetching, total, effective, pickNext, searchMode]);
 
   const runSearch = () => setSubmitted({ query: q, cities: selectedCities, minExp });
 
-  const handleUnlock = async (c: Candidate) => {
+  const handleInvite = async (candidateUserId: string) => {
+    if (!selectedJobId || !active) return;
+    setInvitingId(candidateUserId);
+    try {
+      const { error } = await supabase.rpc("invite_candidate_to_apply", {
+        _job_id: selectedJobId,
+        _candidate_user_id: candidateUserId,
+      });
+      if (error) throw error;
+      setInvitedSet((prev) => new Set(prev).add(candidateUserId));
+      toast.success("Invitation sent to candidate!");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to send invitation";
+      toast.error(msg);
+    } finally {
+      setInvitingId(null);
+    }
+  };
+
+  const handleDismiss = async (candidateUserId: string) => {
+    if (!selectedJobId || !active) return;
+    setDismissingId(candidateUserId);
+    try {
+      const { error } = await supabase.rpc("dismiss_recommended_candidate", {
+        _job_id: selectedJobId,
+        _candidate_user_id: candidateUserId,
+      });
+      if (error) throw error;
+      setDismissedSet((prev) => new Set(prev).add(candidateUserId));
+      toast.success("Candidate removed from recommendations.");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to dismiss candidate";
+      toast.error(msg);
+    } finally {
+      setDismissingId(null);
+    }
+  };
+
+  const handleUnlock = async (c: { user_id: string }) => {
     if (!active || !selectedJobId) return;
     setUnlockingId(c.user_id);
     try {
@@ -287,12 +431,7 @@ function DatabasePage() {
     }
   };
 
-  // Unlocked candidates open the same review panel used on Responses/applicants.
-  // Most database-search candidates haven't applied to a job at this company, so
-  // there's no application row to seed it with — open immediately with what's
-  // already known (search result + unlocked contact), then upgrade in place if a
-  // real application to one of this company's jobs turns up.
-  const openProfile = (c: Candidate) => {
+  const openProfile = (c: Candidate | RecommendedCandidate) => {
     const contact = contacts[c.user_id];
     setReviewHasApplication(false);
     setReviewApplicant({
@@ -393,10 +532,20 @@ function DatabasePage() {
     );
   }
 
+  const selectedJobMeta = activeJobs.find((j) => j.id === selectedJobId);
+  const unlockCopy =
+    selectedJobMeta &&
+    selectedJobMeta.allowanceTotal != null &&
+    (selectedJobMeta.allowanceLeft ?? 0) > 0
+      ? `Unlock · uses 1 of ${selectedJobMeta.allowanceLeft} left on this job`
+      : "Unlock · job allowance used up, costs credits";
+
+  const visibleRecommended = recommendedCandidates.filter((c) => !dismissedSet.has(c.user_id));
+
   return (
     <EmployerShell
       title="Candidate database"
-      subtitle="Search verified candidates. Unlock contact details with credits."
+      subtitle="Discover AI recommended talent & search verified candidates."
       actions={
         <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-sm font-semibold text-foreground shadow-sm">
           <Coins className="h-4 w-4 text-primary" />
@@ -405,359 +554,645 @@ function DatabasePage() {
         </div>
       }
     >
+      {/* Top Bar: Job Selector & Unlock Status */}
       {activeJobs.length > 0 && (
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          <ThemedSelect
-            value={selectedJobId}
-            onChange={(e) => setSelectedJobId(e.target.value)}
-            className="h-10 w-full max-w-[22rem] rounded-lg border border-border bg-card px-3 text-sm"
-            contentClassName="max-h-[min(17rem,var(--radix-select-content-available-height))] overflow-y-auto overflow-x-hidden"
-            itemClassName="hover:bg-surface hover:text-foreground focus:bg-surface focus:text-foreground data-[state=checked]:bg-primary/10 data-[state=checked]:text-primary data-[state=checked]:hover:bg-primary/10 data-[state=checked]:hover:text-primary data-[state=checked]:focus:bg-primary/10 data-[state=checked]:focus:text-primary"
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <ThemedSelect
+              value={selectedJobId}
+              onChange={(e) => setSelectedJobId(e.target.value)}
+              className="h-10 w-full max-w-[22rem] rounded-lg border border-border bg-card px-3 text-sm font-medium"
+              contentClassName="max-h-[min(17rem,var(--radix-select-content-available-height))] overflow-y-auto overflow-x-hidden"
+              itemClassName="hover:bg-surface hover:text-foreground focus:bg-surface focus:text-foreground data-[state=checked]:bg-primary/10 data-[state=checked]:text-primary"
+            >
+              <option value="">Select an active job to source against…</option>
+              {activeJobs.map((j) => (
+                <option key={j.id} value={j.id}>
+                  {j.title}
+                </option>
+              ))}
+            </ThemedSelect>
+            {selectedJobId && (
+              <>
+                {(() => {
+                  const j = activeJobs.find((x) => x.id === selectedJobId);
+                  if (!j || j.allowanceTotal == null) return null;
+                  return (
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground">
+                      {j.allowanceLeft}/{j.allowanceTotal} unlocks left on this job
+                    </span>
+                  );
+                })()}
+                {searchMode === "all" && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-sm font-semibold hover:bg-surface"
+                      >
+                        Sort:{" "}
+                        {sortBy === "match"
+                          ? "Best Match"
+                          : sortBy === "experience"
+                            ? "Experience"
+                            : "Relevance"}
+                        <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      <DropdownMenuRadioGroup
+                        value={sortBy}
+                        onValueChange={(v) => setSortBy(v as typeof sortBy)}
+                      >
+                        <DropdownMenuRadioItem value="match">Best Match</DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="relevance">Relevance</DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="experience">Experience</DropdownMenuRadioItem>
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {!selectedJobId && (
+        <div className="mb-4 rounded-xl border border-dashed border-border bg-surface/40 px-4 py-3 text-sm text-muted-foreground">
+          Select an active job above to search candidates or view AI Hiring Intelligence recommendations.
+        </div>
+      )}
+
+      {/* Mode Switcher Tabs (All Search vs Active Hiring Intelligence) */}
+      {selectedJobId && (
+        <div className="mb-5 flex flex-wrap items-center gap-2 border-b border-border pb-3">
+          <button
+            type="button"
+            onClick={() => setSearchMode("all")}
+            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition-all ${
+              searchMode === "all"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "bg-surface text-muted-foreground hover:bg-card hover:text-foreground"
+            }`}
           >
-            <option value="">Select an active job to search against…</option>
-            {activeJobs.map((j) => (
-              <option key={j.id} value={j.id}>
-                {j.title}
-              </option>
-            ))}
-          </ThemedSelect>
-          {selectedJobId && (
-            <>
-              {(() => {
-                const j = activeJobs.find((x) => x.id === selectedJobId);
-                if (!j || j.allowanceTotal == null) return null;
-                return (
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground">
-                    {j.allowanceLeft}/{j.allowanceTotal} unlocks left on this job
-                  </span>
-                );
-              })()}
+            <Search className="h-4 w-4" />
+            All Database Search
+          </button>
+          <button
+            type="button"
+            onClick={() => setSearchMode("ai")}
+            className={`relative inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition-all ${
+              searchMode === "ai"
+                ? "bg-gradient-to-r from-primary via-primary-dark to-emerald-700 text-white shadow-md"
+                : "bg-primary-light/50 text-primary hover:bg-primary-light dark:bg-primary/20"
+            }`}
+          >
+            <Sparkles className="h-4 w-4" />
+            Active Hiring Intelligence
+            {visibleRecommended.length > 0 && (
+              <span
+                className={`ml-1 rounded-full px-2 py-0.5 text-[11px] font-extrabold ${
+                  searchMode === "ai"
+                    ? "bg-white/20 text-white"
+                    : "bg-primary text-primary-foreground"
+                }`}
+              >
+                {visibleRecommended.length}
+              </span>
+            )}
+          </button>
+        </div>
+      )}
+
+      {/* Active Hiring Intelligence Spotlight Banner */}
+      {selectedJobId && (
+        <div className="mb-5 rounded-2xl border border-primary/25 bg-gradient-to-r from-primary-light/40 via-card to-emerald-50/30 p-4 shadow-[var(--shadow-card)] sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 text-sm font-bold text-foreground">
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+                <Sparkles className="h-4 w-4" />
+              </span>
+              <span>Active Hiring Intelligence</span>
+              <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-extrabold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                AI Powered
+              </span>
+            </div>
+            {searchMode === "all" && visibleRecommended.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setSearchMode("ai")}
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:underline"
+              >
+                View {visibleRecommended.length} AI matches →
+              </button>
+            )}
+          </div>
+          <p className="mt-2 text-sm text-foreground">
+            <strong>{visibleRecommended.length} candidates</strong> match your selected job criteria but haven't applied yet.
+          </p>
+
+          {/* Quick AI Filter Pills */}
+          <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
+            <button
+              type="button"
+              onClick={() => {
+                setSearchMode("ai");
+                setAiFilter("all");
+              }}
+              className={`rounded-full px-3 py-1 transition-all ${
+                searchMode === "ai" && aiFilter === "all"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "bg-card border border-border text-foreground hover:bg-surface"
+              }`}
+            >
+              All Matches ({visibleRecommended.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSearchMode("ai");
+                setAiFilter("hot");
+              }}
+              className={`inline-flex items-center gap-1 rounded-full px-3 py-1 transition-all ${
+                searchMode === "ai" && aiFilter === "hot"
+                  ? "bg-orange-600 text-white shadow-sm"
+                  : "bg-[#fff3e0] text-orange-600 hover:bg-orange-100"
+              }`}
+            >
+              <Flame className="h-3 w-3" /> Hot Profiles ({aiDigest?.hot_count ?? 0})
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSearchMode("ai");
+                setAiFilter("nearby");
+              }}
+              className={`inline-flex items-center gap-1 rounded-full px-3 py-1 transition-all ${
+                searchMode === "ai" && aiFilter === "nearby"
+                  ? "bg-blue-600 text-white shadow-sm"
+                  : "bg-blue-50 text-blue-600 hover:bg-blue-100"
+              }`}
+            >
+              <MapPin className="h-3 w-3" /> Nearby ({aiDigest?.nearby_count ?? 0})
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSearchMode("ai");
+                setAiFilter("active");
+              }}
+              className={`inline-flex items-center gap-1 rounded-full px-3 py-1 transition-all ${
+                searchMode === "ai" && aiFilter === "active"
+                  ? "bg-emerald-600 text-white shadow-sm"
+                  : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
+              }`}
+            >
+              <Zap className="h-3 w-3" /> Recently Active ({aiDigest?.active_count ?? 0})
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Mode 1: All Database Manual Search View */}
+      {searchMode === "all" && (
+        <>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              runSearch();
+            }}
+            className="rounded-2xl border border-border bg-card p-4 shadow-sm"
+          >
+            <div className="grid gap-3 sm:grid-cols-[1fr_220px_auto]">
+              <label className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="search"
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder="Search role, headline or skill (e.g. driver)"
+                  className="h-11 w-full rounded-lg border border-border bg-surface pl-9 pr-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+                />
+              </label>
+              <CityMultiSelect
+                options={INDIAN_CITIES}
+                selected={selectedCities}
+                onAdd={(city) => {
+                  setSelectedCities((prev) => (prev.includes(city) ? prev : [...prev, city]));
+                }}
+              />
+              <button
+                type="submit"
+                disabled={searching || !selectedJobId}
+                title={!selectedJobId ? "Select an active job first" : undefined}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-50"
+              >
+                {searching ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Search className="h-4 w-4" />
+                )}
+                Search
+              </button>
+            </div>
+
+            <div className="mt-3">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
                     className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-sm font-semibold hover:bg-surface"
                   >
-                    Sort:{" "}
-                    {sortBy === "match"
-                      ? "Best Match"
-                      : sortBy === "experience"
-                        ? "Experience"
-                        : "Relevance"}
+                    {typeof minExp === "number" ? experienceLabel(minExp) : "Any experience"}
                     <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start">
                   <DropdownMenuRadioGroup
-                    value={sortBy}
-                    onValueChange={(v) => setSortBy(v as typeof sortBy)}
+                    value={minExp === "" ? "any" : String(minExp)}
+                    onValueChange={(v) => {
+                      const next = v === "any" ? "" : Number(v);
+                      setMinExp(next);
+                      setSubmitted((s) => ({ ...s, minExp: next }));
+                    }}
                   >
-                    <DropdownMenuRadioItem value="match">Best Match</DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="relevance">Relevance</DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="experience">Experience</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="any">Any experience</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="0">Fresher (0+)</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="1">1+ years</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="3">3+ years</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="5">5+ years</DropdownMenuRadioItem>
                   </DropdownMenuRadioGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
-            </>
-          )}
-        </div>
-      )}
-      {!selectedJobId && (
-        <div className="mb-3 rounded-xl border border-dashed border-border bg-surface/40 px-4 py-3 text-sm text-muted-foreground">
-          Select an active job above to search the candidate database against it.
-        </div>
-      )}
+            </div>
 
-      {/* filters */}
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          runSearch();
-        }}
-        className="rounded-2xl border border-border bg-card p-4 shadow-sm"
-      >
-        <div className="grid gap-3 sm:grid-cols-[1fr_220px_auto]">
-          <label className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="search"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search role, headline or skill (e.g. driver)"
-              className="h-11 w-full rounded-lg border border-border bg-surface pl-9 pr-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
-            />
-          </label>
-          <CityMultiSelect
-            options={INDIAN_CITIES}
-            selected={selectedCities}
-            onAdd={(city) => {
-              setSelectedCities((prev) => (prev.includes(city) ? prev : [...prev, city]));
-            }}
-          />
-          <button
-            type="submit"
-            disabled={searching || !selectedJobId}
-            title={!selectedJobId ? "Select an active job first" : undefined}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-50"
-          >
-            {searching ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Search className="h-4 w-4" />
-            )}
-            Search
-          </button>
-        </div>
-
-        <div className="mt-3">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-sm font-semibold hover:bg-surface"
-              >
-                {typeof minExp === "number" ? experienceLabel(minExp) : "Any experience"}
-                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuRadioGroup
-                value={minExp === "" ? "any" : String(minExp)}
-                onValueChange={(v) => {
-                  const next = v === "any" ? "" : Number(v);
-                  setMinExp(next);
-                  setSubmitted((s) => ({ ...s, minExp: next }));
-                }}
-              >
-                <DropdownMenuRadioItem value="any">Any experience</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="0">Fresher (0+)</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="1">1+ years</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="3">3+ years</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="5">5+ years</DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-
-        {selectedCities.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {selectedCities.map((c) => (
-              <span
-                key={c}
-                className="inline-flex items-center gap-1.5 rounded-full bg-primary-light px-3 py-1 text-xs font-semibold text-primary"
-              >
-                <MapPin className="h-3 w-3" /> {c}
+            {selectedCities.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {selectedCities.map((c) => (
+                  <span
+                    key={c}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-primary-light px-3 py-1 text-xs font-semibold text-primary"
+                  >
+                    <MapPin className="h-3 w-3" /> {c}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCities(selectedCities.filter((x) => x !== c))}
+                      className="ml-0.5 rounded-full p-0.5 hover:bg-primary/10"
+                      aria-label={`Remove ${c}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
                 <button
                   type="button"
-                  onClick={() => setSelectedCities(selectedCities.filter((x) => x !== c))}
-                  className="ml-0.5 rounded-full p-0.5 hover:bg-primary/10"
-                  aria-label={`Remove ${c}`}
+                  onClick={() => setSelectedCities([])}
+                  className="text-xs font-semibold text-muted-foreground hover:text-foreground"
                 >
-                  <X className="h-3 w-3" />
+                  Clear all
                 </button>
-              </span>
-            ))}
-            <button
-              type="button"
-              onClick={() => setSelectedCities([])}
-              className="text-xs font-semibold text-muted-foreground hover:text-foreground"
-            >
-              Clear all
-            </button>
-          </div>
-        )}
-      </form>
+              </div>
+            )}
+          </form>
 
-      {/* results */}
-      <div className="mt-6 space-y-3">
-        {widenLabels.length > 0 && (
-          <div className="rounded-xl border border-primary/20 bg-primary-light/40 px-4 py-3 text-sm text-foreground">
-            <p className="font-semibold">Widened search</p>
-            <ul className="mt-1 list-disc space-y-0.5 pl-5 text-muted-foreground">
-              {widenLabels.map((line) => (
-                <li key={line}>{line}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-        {results.length === 0 && !searching && remainingBroadenDims(effective).length === 0 && (
-          <div className="rounded-2xl border border-dashed border-border bg-surface/40 p-10 text-center">
-            <UserRound className="mx-auto h-10 w-10 text-muted-foreground/50" />
-            <p className="mt-3 text-sm font-semibold text-foreground">
-              {widenLabels.length > 0
-                ? "Still no candidates after widening filters"
-                : "No matching candidates"}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {widenLabels.length > 0
-                ? "We did not pad the list with unrelated profiles."
-                : "Try a different role, city, or experience range."}
-            </p>
-          </div>
-        )}
+          {/* Results List */}
+          <div className="mt-6 space-y-3">
+            {widenLabels.length > 0 && (
+              <div className="rounded-xl border border-primary/20 bg-primary-light/40 px-4 py-3 text-sm text-foreground">
+                <p className="font-semibold">Widened search</p>
+                <ul className="mt-1 list-disc space-y-0.5 pl-5 text-muted-foreground">
+                  {widenLabels.map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {results.length === 0 && !searching && remainingBroadenDims(effective).length === 0 && (
+              <div className="rounded-2xl border border-dashed border-border bg-surface/40 p-10 text-center">
+                <UserRound className="mx-auto h-10 w-10 text-muted-foreground/50" />
+                <p className="mt-3 text-sm font-semibold text-foreground">
+                  {widenLabels.length > 0
+                    ? "Still no candidates after widening filters"
+                    : "No matching candidates"}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {widenLabels.length > 0
+                    ? "We did not pad the list with unrelated profiles."
+                    : "Try a different role, city, or experience range."}
+                </p>
+              </div>
+            )}
 
-        {(() => {
-          const selectedJobMeta = activeJobs.find((j) => j.id === selectedJobId);
-          const unlockCopy =
-            selectedJobMeta &&
-            selectedJobMeta.allowanceTotal != null &&
-            (selectedJobMeta.allowanceLeft ?? 0) > 0
-              ? `Unlock · uses 1 of ${selectedJobMeta.allowanceLeft} left on this job`
-              : "Unlock · job allowance used up, costs credits";
-          return results.map((c) => {
-            const isUnlocked = unlocked.has(c.user_id);
-            const contact = contacts[c.user_id];
-            return (
-              <article
-                key={c.user_id}
-                onClick={isUnlocked ? () => openProfile(c) : undefined}
-                role={isUnlocked ? "button" : undefined}
-                tabIndex={isUnlocked ? 0 : undefined}
-                onKeyDown={
-                  isUnlocked
-                    ? (e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          openProfile(c);
+            {results.map((c) => {
+              const isUnlocked = unlocked.has(c.user_id);
+              const contact = contacts[c.user_id];
+              return (
+                <article
+                  key={c.user_id}
+                  onClick={isUnlocked ? () => openProfile(c) : undefined}
+                  role={isUnlocked ? "button" : undefined}
+                  tabIndex={isUnlocked ? 0 : undefined}
+                  onKeyDown={
+                    isUnlocked
+                      ? (e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            openProfile(c);
+                          }
                         }
-                      }
-                    : undefined
-                }
-                className={`relative rounded-2xl border border-border bg-card p-4 shadow-sm sm:flex sm:flex-wrap sm:items-center sm:gap-4 ${
-                  isUnlocked ? "cursor-pointer hover:border-primary/40" : ""
-                }`}
-              >
-                {/*
-                Mobile (below sm:): the masked-mobile/Unlock block is
-                absolutely positioned to the card's top-right, since the
-                original side-by-side grid vertically centered it next to
-                the *whole* left column — including the skills chips, which
-                could grow taller than the button and end up overlapped by
-                it. Only the name/headline/location row reserves right-side
-                `pr-*` space for the button — skills sit in their own
-                full-width row below, clear of the button vertically, so
-                they get the full card width to wrap horizontally instead of
-                being squeezed into a narrow leftover column. Desktop
-                (sm: and up) is untouched — same sm:flex sm:flex-wrap as
-                before, `sm:static`/`sm:pr-0` cancel the mobile-only changes.
-              */}
-                <div className="flex min-w-0 items-center gap-3 sm:flex-1">
-                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-primary-light text-primary font-bold">
-                    {(c.full_name?.[0] ?? "C").toUpperCase()}
-                  </div>
-                  <div className="min-w-0 flex-1 pr-32 sm:pr-0">
-                    <p className="truncate font-semibold text-foreground">
-                      {isUnlocked ? (c.full_name ?? contact?.full_name) : maskName(c.full_name)}
-                    </p>
-                    <p className="truncate text-sm text-muted-foreground">
-                      {c.headline || c.last_role || "Candidate"}
-                    </p>
-                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                      {c.city && (
-                        <span className="inline-flex items-center gap-1">
-                          <MapPin className="h-3 w-3" /> {c.city}
-                        </span>
-                      )}
-                      {typeof c.years_experience === "number" && (
-                        <span className="inline-flex items-center gap-1">
-                          <Briefcase className="h-3 w-3" /> {c.years_experience} yrs
-                        </span>
+                      : undefined
+                  }
+                  className={`relative rounded-2xl border border-border bg-card p-4 shadow-sm sm:flex sm:flex-wrap sm:items-center sm:gap-4 ${
+                    isUnlocked ? "cursor-pointer hover:border-primary/40" : ""
+                  }`}
+                >
+                  <div className="flex min-w-0 items-center gap-3 sm:flex-1">
+                    <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-primary-light text-primary font-bold">
+                      {(c.full_name?.[0] ?? "C").toUpperCase()}
+                    </div>
+                    <div className="min-w-0 flex-1 pr-32 sm:pr-0">
+                      <p className="truncate font-semibold text-foreground">
+                        {isUnlocked ? (c.full_name ?? contact?.full_name) : maskName(c.full_name)}
+                      </p>
+                      <p className="truncate text-sm text-muted-foreground">
+                        {c.headline || c.last_role || "Candidate"}
+                      </p>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                        {c.city && (
+                          <span className="inline-flex items-center gap-1">
+                            <MapPin className="h-3 w-3" /> {c.city}
+                          </span>
+                        )}
+                        {typeof c.years_experience === "number" && (
+                          <span className="inline-flex items-center gap-1">
+                            <Briefcase className="h-3 w-3" /> {c.years_experience} yrs
+                          </span>
+                        )}
+                      </div>
+                      {c.skills && c.skills.length > 0 && (
+                        <div className="mt-2 hidden flex-wrap gap-1.5 sm:flex">
+                          {c.skills.slice(0, 4).map((s) => (
+                            <span
+                              key={s}
+                              className="rounded-full bg-surface px-2 py-0.5 text-[11px] font-medium text-foreground"
+                            >
+                              {s}
+                            </span>
+                          ))}
+                        </div>
                       )}
                     </div>
-                    {c.skills && c.skills.length > 0 && (
-                      <div className="mt-2 hidden flex-wrap gap-1.5 sm:flex">
-                        {c.skills.slice(0, 4).map((s) => (
-                          <span
-                            key={s}
-                            className="rounded-full bg-surface px-2 py-0.5 text-[11px] font-medium text-foreground"
-                          >
-                            {s}
-                          </span>
-                        ))}
-                      </div>
-                    )}
                   </div>
-                </div>
 
-                {/* Mobile-only: skills get their own full-width row below the
-                  info block (not squeezed into the pr-32-constrained
-                  column), so chips actually wrap side-by-side instead of
-                  stacking one per line. Desktop keeps the original chips
-                  block above, inside the info column. */}
-                {c.skills && c.skills.length > 0 && (
-                  <div className="mt-2 flex w-full flex-wrap gap-1.5 sm:hidden">
-                    {c.skills.slice(0, 4).map((s) => (
-                      <span
-                        key={s}
-                        className="rounded-full bg-surface px-2 py-0.5 text-[11px] font-medium text-foreground"
-                      >
-                        {s}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                <div className="absolute right-4 top-4 flex shrink-0 flex-col items-end gap-2 sm:static sm:items-end">
-                  {selectedJobId && c.match_score != null && (
-                    <div className="flex flex-wrap items-center justify-end gap-1">
-                      <span
-                        className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
-                          c.match_score >= 80
-                            ? "border-success/30 bg-success-light text-success"
-                            : c.match_score >= 60
-                              ? "border-warning/30 bg-warning-light text-warning"
-                              : "border-border bg-surface text-muted-foreground"
-                        }`}
-                        title={c.match_breakdown ? JSON.stringify(c.match_breakdown) : undefined}
-                      >
-                        {c.match_score}% Match
-                      </span>
-                      {(c.tags ?? []).slice(0, 3).map((t) => (
+                  {c.skills && c.skills.length > 0 && (
+                    <div className="mt-2 flex w-full flex-wrap gap-1.5 sm:hidden">
+                      {c.skills.slice(0, 4).map((s) => (
                         <span
-                          key={t}
-                          className="rounded-full bg-primary-light px-2 py-0.5 text-[10px] font-medium text-primary"
+                          key={s}
+                          className="rounded-full bg-surface px-2 py-0.5 text-[11px] font-medium text-foreground"
                         >
-                          {t}
+                          {s}
                         </span>
                       ))}
                     </div>
                   )}
-                  {isUnlocked ? (
-                    <div className="space-y-1 text-right text-sm">
-                      <p className="font-semibold text-foreground">{contact?.mobile}</p>
-                      {contact?.email && (
-                        <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <Mail className="h-3 w-3" /> {contact.email}
+
+                  <div className="absolute right-4 top-4 flex shrink-0 flex-col items-end gap-2 sm:static sm:items-end">
+                    {selectedJobId && c.match_score != null && (
+                      <div className="flex flex-wrap items-center justify-end gap-1">
+                        <span
+                          className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
+                            c.match_score >= 80
+                              ? "border-success/30 bg-success-light text-success"
+                              : c.match_score >= 60
+                                ? "border-warning/30 bg-warning-light text-warning"
+                                : "border-border bg-surface text-muted-foreground"
+                          }`}
+                        >
+                          {c.match_score}% Match
+                        </span>
+                        {(c.tags ?? []).slice(0, 3).map((t) => (
+                          <span
+                            key={t}
+                            className="rounded-full bg-primary-light px-2 py-0.5 text-[10px] font-medium text-primary"
+                          >
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {isUnlocked ? (
+                      <div className="space-y-1 text-right text-sm">
+                        <p className="font-semibold text-foreground">{contact?.mobile}</p>
+                        {contact?.email && (
+                          <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <Mail className="h-3 w-3" /> {contact.email}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-right text-xs text-muted-foreground">{MASKED_MOBILE}</p>
+                        <button
+                          onClick={() => handleUnlock(c)}
+                          disabled={unlockingId === c.user_id}
+                          title={unlockCopy}
+                          aria-label={unlockCopy}
+                          className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-foreground/90 text-background hover:bg-foreground disabled:opacity-50 sm:inline-flex sm:h-9 sm:w-auto sm:gap-1.5 sm:px-3 sm:text-xs sm:font-semibold"
+                        >
+                          {unlockingId === c.user_id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Lock className="h-3.5 w-3.5" />
+                          )}
+                          <span className="hidden sm:inline">{unlockCopy}</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+
+          {totalPages > 1 && (
+            <Pagination page={page} totalPages={totalPages} onChange={setPage} className="mt-6" />
+          )}
+        </>
+      )}
+
+      {/* Mode 2: Active Hiring Intelligence View */}
+      {searchMode === "ai" && (
+        <div className="mt-4 space-y-3">
+          {loadingRecommended ? (
+            <div className="h-32 animate-pulse rounded-2xl bg-card" />
+          ) : visibleRecommended.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-border bg-surface/40 p-10 text-center">
+              <Sparkles className="mx-auto h-10 w-10 text-muted-foreground/50" />
+              <p className="mt-3 text-sm font-semibold text-foreground">
+                No recommended candidates found for this filter
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                All matching candidates may have already applied or been reviewed.
+              </p>
+            </div>
+          ) : (
+            visibleRecommended.map((c) => {
+              const isUnlocked = unlocked.has(c.user_id);
+              const contact = contacts[c.user_id];
+              const isInvited = invitedSet.has(c.user_id);
+
+              return (
+                <article
+                  key={c.user_id}
+                  className="relative overflow-hidden rounded-2xl border border-primary/30 bg-card p-4 shadow-sm transition-all hover:border-primary/50 hover:shadow-md sm:flex sm:flex-wrap sm:items-center sm:gap-4"
+                >
+                  {/* Visual Ribbon Badge */}
+                  <div className="absolute left-0 top-0 h-full w-1.5 bg-gradient-to-b from-primary via-emerald-500 to-primary-dark" />
+
+                  <div className="flex min-w-0 items-center gap-3 pl-1 sm:flex-1">
+                    <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary-light to-emerald-100 text-primary font-bold shadow-sm">
+                      {(c.full_name?.[0] ?? "C").toUpperCase()}
+                    </div>
+                    <div className="min-w-0 flex-1 pr-32 sm:pr-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p
+                          onClick={isUnlocked ? () => openProfile(c) : undefined}
+                          className={`font-bold text-foreground ${
+                            isUnlocked ? "cursor-pointer hover:text-primary hover:underline" : ""
+                          }`}
+                        >
+                          {isUnlocked ? (c.full_name ?? contact?.full_name) : maskName(c.full_name)}
                         </p>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-primary-light px-2 py-0.5 text-[10px] font-extrabold text-primary">
+                          <Sparkles className="h-3 w-3" /> AI Recommended
+                        </span>
+                      </div>
+                      <p className="truncate text-sm text-muted-foreground">
+                        {c.headline || c.last_role || "Candidate"}
+                      </p>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                        {c.city && (
+                          <span className="inline-flex items-center gap-1">
+                            <MapPin className="h-3 w-3" /> {c.city}
+                          </span>
+                        )}
+                        {typeof c.years_experience === "number" && (
+                          <span className="inline-flex items-center gap-1">
+                            <Briefcase className="h-3 w-3" /> {c.years_experience} yrs
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Skills Chips */}
+                      {c.skills && c.skills.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {c.skills.slice(0, 4).map((s) => (
+                            <span
+                              key={s}
+                              className="rounded-full bg-surface px-2.5 py-0.5 text-[11px] font-medium text-foreground border border-border/50"
+                            >
+                              {s}
+                            </span>
+                          ))}
+                        </div>
                       )}
                     </div>
-                  ) : (
-                    <>
-                      <p className="text-right text-xs text-muted-foreground">{MASKED_MOBILE}</p>
+                  </div>
+
+                  {/* Actions Column */}
+                  <div className="mt-3 flex shrink-0 flex-col items-end gap-2 sm:mt-0 sm:items-end">
+                    {/* Match Score Pill */}
+                    {c.match_score != null && (
+                      <div className="flex items-center gap-1">
+                        <span
+                          className={`rounded-full px-2.5 py-0.5 text-xs font-black shadow-sm ${
+                            c.match_score >= 80
+                              ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                              : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                          }`}
+                        >
+                          {c.match_score}% Match
+                        </span>
+                        {(c.tags ?? []).map((t) => (
+                          <span
+                            key={t}
+                            className="rounded-full bg-surface border border-border px-2 py-0.5 text-[10px] font-bold text-muted-foreground"
+                          >
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      {/* Invite to Apply Button */}
                       <button
-                        onClick={() => handleUnlock(c)}
-                        disabled={unlockingId === c.user_id}
-                        title={unlockCopy}
-                        aria-label={unlockCopy}
-                        className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-foreground/90 text-background hover:bg-foreground disabled:opacity-50 sm:inline-flex sm:h-9 sm:w-auto sm:gap-1.5 sm:px-3 sm:text-xs sm:font-semibold"
+                        type="button"
+                        onClick={() => handleInvite(c.user_id)}
+                        disabled={invitingId === c.user_id || isInvited}
+                        className={`inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-bold transition-all ${
+                          isInvited
+                            ? "bg-emerald-50 text-emerald-700 border border-emerald-300"
+                            : "bg-primary text-primary-foreground hover:bg-primary-dark shadow-sm"
+                        }`}
                       >
-                        {unlockingId === c.user_id ? (
+                        {invitingId === c.user_id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : isInvited ? (
+                          <>
+                            <Check className="h-3.5 w-3.5 text-emerald-600" /> Invited ✓
+                          </>
+                        ) : (
+                          <>
+                            <Send className="h-3.5 w-3.5" /> Invite to Apply
+                          </>
+                        )}
+                      </button>
+
+                      {/* Dismiss Button */}
+                      <button
+                        type="button"
+                        onClick={() => handleDismiss(c.user_id)}
+                        disabled={dismissingId === c.user_id}
+                        title="Dismiss candidate from recommendations"
+                        aria-label="Dismiss candidate"
+                        className="grid h-9 w-9 place-items-center rounded-lg border border-border bg-surface text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-all"
+                      >
+                        {dismissingId === c.user_id ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
                         ) : (
-                          <Lock className="h-3.5 w-3.5" />
+                          <Ban className="h-3.5 w-3.5" />
                         )}
-                        <span className="hidden sm:inline">{unlockCopy}</span>
                       </button>
-                    </>
-                  )}
-                </div>
-              </article>
-            );
-          });
-        })()}
-      </div>
-      {totalPages > 1 && (
-        <Pagination page={page} totalPages={totalPages} onChange={setPage} className="mt-6" />
+
+                      {/* Unlock Contact / View Details */}
+                      {isUnlocked ? (
+                        <div className="text-right text-xs font-semibold text-foreground">
+                          {contact?.mobile}
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleUnlock(c)}
+                          disabled={unlockingId === c.user_id}
+                          title={unlockCopy}
+                          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold hover:bg-surface"
+                        >
+                          {unlockingId === c.user_id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+                          )}
+                          Unlock
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </article>
+              );
+            })
+          )}
+        </div>
       )}
 
       {reviewApplicant && (
@@ -770,3 +1205,4 @@ function DatabasePage() {
     </EmployerShell>
   );
 }
+

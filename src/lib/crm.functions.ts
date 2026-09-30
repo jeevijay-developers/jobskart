@@ -14,14 +14,32 @@ export type ApplicationStatus = Database["public"]["Enums"]["application_status"
 // (Record<string, unknown> does not).
 export type JsonRecord = Record<string, string | number | boolean | null>;
 
-export const CALL_OUTCOMES: { id: CallOutcome; label: string; tone: string }[] = [
-  { id: "connected_interested", label: "Interested", tone: "bg-success text-success-foreground" },
-  { id: "connected_neutral", label: "Connected", tone: "bg-primary text-primary-foreground" },
-  { id: "connected_not_interested", label: "Not interested", tone: "bg-surface text-muted-foreground" },
-  { id: "no_answer", label: "No answer", tone: "bg-warning-light text-warning" },
-  { id: "switched_off", label: "Switched off", tone: "bg-warning-light text-warning" },
-  { id: "wrong_number", label: "Wrong number", tone: "bg-surface text-muted-foreground" },
+// Static badge class map — all strings must be written in full so Tailwind JIT
+// can detect them at build time (dynamic template strings are NOT scanned).
+const OUTCOME_TONE_MAP: Record<string, { bg: string; text: string }> = {
+  connected_interested:     { bg: "bg-emerald-100 dark:bg-emerald-900/40", text: "text-emerald-700 dark:text-emerald-300" },
+  connected_neutral:        { bg: "bg-blue-100 dark:bg-blue-900/40",       text: "text-blue-700 dark:text-blue-300" },
+  connected_not_interested: { bg: "bg-slate-100 dark:bg-slate-800",        text: "text-slate-500 dark:text-slate-400" },
+  no_answer:                { bg: "bg-amber-100 dark:bg-amber-900/40",     text: "text-amber-700 dark:text-amber-400" },
+  switched_off:             { bg: "bg-amber-100 dark:bg-amber-900/40",     text: "text-amber-700 dark:text-amber-400" },
+  wrong_number:             { bg: "bg-slate-100 dark:bg-slate-800",        text: "text-slate-500 dark:text-slate-400" },
+};
+
+/** Returns a combined Tailwind class string for a call outcome badge. */
+export function getOutcomeBadgeClass(outcomeId: string): string {
+  const t = OUTCOME_TONE_MAP[outcomeId] ?? { bg: "bg-slate-100", text: "text-slate-500" };
+  return `${t.bg} ${t.text}`;
+}
+
+export const CALL_OUTCOMES: { id: CallOutcome; label: string }[] = [
+  { id: "connected_interested",     label: "Interested" },
+  { id: "connected_neutral",        label: "Connected" },
+  { id: "connected_not_interested", label: "Not interested" },
+  { id: "no_answer",                label: "No answer" },
+  { id: "switched_off",             label: "Switched off" },
+  { id: "wrong_number",             label: "Wrong number" },
 ];
+
 
 // Stable error codes raised by the CRM RPCs in
 // supabase/migrations/20260929090000_employer_crm_automation.sql (plus the

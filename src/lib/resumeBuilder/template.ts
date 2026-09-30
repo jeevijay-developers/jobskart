@@ -104,3 +104,12 @@ export const classicAtsTemplate: ResumeTemplate = {
 export const resumeTemplates: Record<string, ResumeTemplate> = {
   [classicAtsTemplate.id]: classicAtsTemplate,
 };
+
+/**
+ * Render a resume schema to HTML string for browser preview.
+ * Browser-safe: no Node.js APIs used.
+ */
+export function renderResumeToHtml(resume: { templateId: string; title: string; sections: any[] }): string {
+  const template = resumeTemplates[resume.templateId] ?? resumeTemplates['classic-ats'];
+  return template.render(resume);
+}

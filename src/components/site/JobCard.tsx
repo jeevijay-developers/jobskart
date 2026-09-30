@@ -41,6 +41,7 @@ export function JobCard({
   job,
   onApplied,
   variant = "full",
+  detailBasePath = "/jobs",
 }: {
   job: JobCardData;
   onApplied?: () => void | Promise<void>;
@@ -54,6 +55,8 @@ export function JobCard({
    * jobs) and still needs to show that state.
    */
   variant?: "discovery" | "full";
+  /** Base path for this card's job-detail link — defaults to the public "/jobs" route. */
+  detailBasePath?: string;
 }) {
   const navigate = useNavigate();
   const location = [job.locality, job.city].filter(Boolean).join(", ") || job.city || "India";
@@ -123,7 +126,11 @@ export function JobCard({
   return (
     <div className="group rounded-xl border border-border bg-card p-5 transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-[var(--shadow-card)]">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <Link to="/jobs/$jobId" params={{ jobId: job.id }} className="min-w-0 flex-1">
+        <Link
+          to={`${detailBasePath}/$jobId` as never}
+          params={{ jobId: job.id } as never}
+          className="min-w-0 flex-1"
+        >
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="flex flex-wrap items-baseline gap-x-2">

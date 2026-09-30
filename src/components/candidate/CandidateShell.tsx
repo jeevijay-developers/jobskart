@@ -2,6 +2,7 @@ import { Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import {
   Bell,
   Bookmark,
+  FileEdit,
   FileText,
   FolderOpen,
   LayoutDashboard,
@@ -36,6 +37,7 @@ const navItems = [
   { to: "/candidate/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/candidate/browse", label: "Browse jobs", icon: Search },
   { to: "/candidate/applications", label: "Applications", icon: FileText },
+  { to: "/candidate/resume-builder", label: "Resume Builder", icon: FileEdit },
   { to: "/candidate/saved", label: "Saved jobs", icon: Bookmark },
   { to: "/candidate/interview-prep", label: "Interview prep", icon: MessagesSquare },
   { to: "/candidate/alerts", label: "Job alerts", icon: Zap },
