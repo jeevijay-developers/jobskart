@@ -29,7 +29,17 @@ function NotificationsPage() {
       .order("created_at", { ascending: false })
       .limit(100);
     if (error) toast.error(error.message);
-    setRows((data as Notif[]) || []);
+    const loaded = (data as Notif[]) || [];
+    const unreadIds = loaded.filter((row) => !row.read_at).map((row) => row.id);
+    if (unreadIds.length) {
+      const readAt = new Date().toISOString();
+      await supabase.from("notifications").update({ read_at: readAt }).in("id", unreadIds);
+      setRows(
+        loaded.map((row) => (unreadIds.includes(row.id) ? { ...row, read_at: readAt } : row)),
+      );
+    } else {
+      setRows(loaded);
+    }
     setLoading(false);
   };
 

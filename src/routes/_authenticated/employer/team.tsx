@@ -26,7 +26,7 @@ export const Route = createFileRoute("/_authenticated/employer/team")({
 
 type Member = {
   user_id: string;
-  role: string;
+  role: "super_admin" | "hr_admin" | "recruiter";
   status: string;
   revoked_at: string | null;
   profiles: { full_name: string | null; email: string | null } | null;
@@ -151,15 +151,21 @@ useEffect(() => {
     load();
   }, []);
 
-  const reactivateMember = async (userId: string, name: string | null) => {
+  const reactivateMember = async (
+    userId: string,
+    memberRole: Member["role"],
+    name: string | null,
+  ) => {
     if (!cid) return;
     try {
-      await supabase
-        .from("employer_members")
-        .update({ status: "active", revoked_at: null })
-        .eq("company_id", cid)
-        .eq("user_id", userId);
+      const { error } = await supabase.rpc("reactivate_member", {
+        _company_id: cid,
+        _user_id: userId,
+        _role: memberRole,
+      });
+      if (error) throw error;
       await load();
+      setShowRevoked(false);
       toast.success(`Access restored for ${name ?? "user"}`);
     } catch (error) {
       toast.error(
@@ -171,11 +177,11 @@ useEffect(() => {
   const revokeMember = async (userId: string, name: string | null) => {
     if (!cid) return;
     try {
-      await supabase
-        .from("employer_members")
-        .update({ status: "revoked", revoked_at: new Date().toISOString() })
-        .eq("company_id", cid)
-        .eq("user_id", userId);
+      const { error } = await supabase.rpc("remove_member", {
+        _company_id: cid,
+        _user_id: userId,
+      });
+      if (error) throw error;
       await load();
       toast.success(`Access revoked for ${name ?? "user"}`);
     } catch (error) {
@@ -329,7 +335,7 @@ return (
                               {canManage && (
                                 <div className="flex items-center gap-2">
                                   <button
-                                    onClick={() => reactivateMember(m.userId, name)}
+                                    onClick={() => reactivateMember(m.user_id, m.role, name)}
                                     className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-card px-2 text-xs text-success hover:bg-success-light"
                                     title="Restore access"
                                   >
