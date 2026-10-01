@@ -640,3 +640,98 @@ export function interviewReminderEmail(info: InterviewReminderInfo): {
 
   return { subject, html, text };
 }
+
+// ---------------------------------------------------------------------------
+// Template 6 -- Employer team invite
+// ---------------------------------------------------------------------------
+export type EmployerInviteInfo = {
+  companyName: string;
+  inviterName: string | null;
+  role: "recruiter" | "hr_admin" | "super_admin";
+  acceptUrl: string;
+  expiresAtIso: string;
+};
+
+// Mirrors ROLE_LABELS in src/routes/_authenticated/employer/team.tsx.
+const EMPLOYER_ROLE_LABEL: Record<EmployerInviteInfo["role"], string> = {
+  recruiter: "Recruiter",
+  hr_admin: "HR Admin",
+  super_admin: "Super Admin",
+};
+
+export function employerInviteEmail(info: EmployerInviteInfo): {
+  subject: string;
+  html: string;
+  text: string;
+} {
+  const companyName = escapeHtml(info.companyName);
+  const inviterName = escapeHtml(info.inviterName || "A teammate");
+  const roleLabel = EMPLOYER_ROLE_LABEL[info.role] ?? info.role;
+  const expiresBy = formatIst(info.expiresAtIso);
+  const subject = inviterName + " invited you to join " + info.companyName + " on JobsKart";
+
+  const body =
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;">' +
+    "<tr>" +
+    '<td style="width:48px;vertical-align:top;padding-right:14px;">' +
+    '<div style="width:48px;height:48px;background-color:#EEF3FF;border-radius:12px;text-align:center;line-height:48px;font-size:22px;">&#128101;</div>' +
+    "</td>" +
+    '<td style="vertical-align:middle;">' +
+    '<h1 style="margin:0 0 4px;font-size:22px;font-weight:700;color:#111827;line-height:1.2;">You\'re invited!</h1>' +
+    '<p style="margin:0;font-size:14px;color:#6B7280;line-height:1.5;">' +
+    inviterName +
+    " has invited you to join <strong>" +
+    companyName +
+    "</strong> on JobsKart." +
+    "</p>" +
+    "</td></tr></table>" +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#F9FAFB;border:1px solid #E5E7EB;border-radius:12px;margin-bottom:28px;">' +
+    '<tr><td style="padding:20px 24px;">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">' +
+    '<tr><td style="font-size:13px;color:#6B7280;padding-bottom:8px;width:120px;">Company</td>' +
+    '<td style="font-size:13px;font-weight:600;color:#111827;padding-bottom:8px;">' +
+    companyName +
+    "</td></tr>" +
+    '<tr><td style="font-size:13px;color:#6B7280;">Role</td>' +
+    '<td style="font-size:13px;font-weight:600;color:#111827;">' +
+    escapeHtml(roleLabel) +
+    "</td></tr>" +
+    "</table>" +
+    "</td></tr></table>" +
+    '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:16px;">' +
+    '<tr><td style="background-color:#1A55BD;border-radius:8px;">' +
+    '<a href="' +
+    info.acceptUrl +
+    '" style="display:inline-block;padding:13px 28px;font-size:14px;font-weight:700;color:#FFFFFF;text-decoration:none;letter-spacing:0.01em;">Accept invitation &rarr;</a>' +
+    "</td></tr></table>" +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#EEF3FF;border-radius:10px;">' +
+    '<tr><td style="padding:16px 20px;font-size:13px;color:#1A55BD;line-height:1.6;">' +
+    "<strong>&#128274; How it works:</strong> Click the button above, verify your mobile number with a one-time code, and you'll be added to " +
+    companyName +
+    " as " +
+    escapeHtml(roleLabel) +
+    ". This invite expires on " +
+    escapeHtml(expiresBy) +
+    "." +
+    "</td></tr></table>";
+
+  const html = layout(inviterName + " invited you to join " + info.companyName + " on JobsKart.", body, {
+    eyebrow: "Team Invite",
+    footerHtml:
+      "You're receiving this because someone invited this email address to a company on JobsKart.<br>\n" +
+      "If you weren't expecting this, you can safely ignore it.",
+  });
+
+  const text = [
+    "JobsKart \u2014 You're invited!",
+    "",
+    inviterName + " has invited you to join " + info.companyName + " as " + roleLabel + ".",
+    "",
+    "Accept your invitation: " + info.acceptUrl,
+    "This invite expires on " + expiresBy + ".",
+    "\u2014",
+    "JobsKart \u00b7 " + getPublicAppUrl(),
+  ].join("\n");
+
+  return { subject, html, text };
+}

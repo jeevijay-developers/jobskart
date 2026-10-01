@@ -70,6 +70,15 @@ function AuthPage() {
       return;
     }
 
+    // A redirect back to an invite-acceptance link is always safe to honor
+    // immediately, bypassing the onboarding-completion check below — an
+    // invitee joins an EXISTING company via accept_invite, they don't need
+    // (and shouldn't be routed into) the "create your own company" wizard.
+    if (search.redirect?.startsWith("/invite/")) {
+      window.location.assign(search.redirect);
+      return;
+    }
+
     // Employer: always resolve onboarding state BEFORE navigating anywhere,
     // including when a `redirect` search param is present. Honoring
     // `search.redirect` unconditionally (as before) sent a brand-new employer

@@ -17,6 +17,7 @@ import { Field } from "@/components/candidate/primitives";
 import { supabase } from "@/integrations/supabase/client";
 import { useEmployerRole } from "@/hooks/use-employer-role";
 import type { EmployerRole } from "@/lib/employer";
+import { emailSchema } from "@/lib/validators";
 import { formatDistanceToNow } from "date-fns";
 
 export const Route = createFileRoute("/_authenticated/employer/team")({
@@ -63,11 +64,60 @@ function inviteUrl(token: string) {
   return typeof window === "undefined" ? "" : `${window.location.origin}/invite/${token}`;
 }
 
+// navigator.clipboard is only available in secure contexts (https:// or
+// localhost) — this app is also served over plain http:// on LAN IPs during
+// testing, where it's undefined/throws. Fall back to the legacy
+// execCommand('copy') path, which works regardless of secure-context.
+function copyWithFallback(text: string): boolean {
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.position = "fixed";
+  ta.style.opacity = "0";
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  let ok = false;
+  try {
+    ok = document.execCommand("copy");
+  } catch {
+    ok = false;
+  }
+  document.body.removeChild(ta);
+  return ok;
+}
+
+// supabase.functions.invoke() rejects a non-2xx response as a FunctionsHttpError
+// whose .context is the raw Response — our function's body ({ok:false,error})
+// is only reachable by reading it back out, otherwise all the admin sees is a
+// generic "non-2xx status code" with no indication of *why* the email failed
+// (e.g. the sending domain isn't verified with Resend, or isn't allowed to
+// mail this recipient yet).
+async function describeInviteSendError(err: unknown): Promise<string> {
+  const context = (err as { context?: Response })?.context;
+  if (context instanceof Response) {
+    try {
+      const body = await context.json();
+      if (body?.error) return String(body.error);
+    } catch {
+      /* body wasn't JSON — fall through to the generic message */
+    }
+  }
+  return (err as Error)?.message ?? "Unknown error";
+}
+
 async function copyToClipboard(text: string) {
   try {
-    await navigator.clipboard.writeText(text);
-    toast.success("Link copied to clipboard");
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      toast.success("Link copied to clipboard");
+      return;
+    }
   } catch {
+    // Fall through to the legacy fallback below.
+  }
+  if (copyWithFallback(text)) {
+    toast.success("Link copied to clipboard");
+  } else {
     toast.error("Couldn't copy — copy it manually");
   }
 }
@@ -209,6 +259,11 @@ function TeamPage() {
 
   const sendInvite = async () => {
     if (!cid || !email || !role) return;
+    const parsedEmail = emailSchema.safeParse(email);
+    if (!parsedEmail.success) {
+      toast.error(parsedEmail.error.issues[0]?.message || "Enter a valid email address");
+      return;
+    }
     setSending(true);
     try {
       const { data: u } = await supabase.auth.getUser();
@@ -216,15 +271,24 @@ function TeamPage() {
       // token, expires_at have secure DB defaults (see employer_invites DDL) — no need to generate client-side.
       const { data, error } = await supabase
         .from("employer_invites")
-        .insert({ company_id: cid, email, role, invited_by: u.user.id })
-        .select("token")
+        .insert({ company_id: cid, email: parsedEmail.data, role, invited_by: u.user.id })
+        .select("id, token")
         .single();
       if (error) throw error;
-      setLastInvite({ email, token: data.token });
+      setLastInvite({ email: parsedEmail.data, token: data.token });
       setEmail("");
       setRole("recruiter");
       await reload();
       toast.success("Invite created!");
+      // Fire-and-forget: a failed invite email must never block invite creation
+      // itself (CLAUDE.md: no third-party failure blocks a core flow) — the
+      // copyable link above still works as a fallback either way.
+      supabase.functions.invoke("send-employer-invite", { body: { inviteId: data.id } }).then(async ({ error: sendErr }) => {
+        if (sendErr) {
+          const reason = await describeInviteSendError(sendErr);
+          toast.error(`Invite created, but the email couldn't be sent (${reason}). Share the copy link instead.`);
+        }
+      });
     } catch (error) {
       toast.error((error as Error)?.message ?? "Failed to send invite");
     } finally {
@@ -260,10 +324,16 @@ function TeamPage() {
         _invite_id: invite.id,
       });
       if (error) throw error;
-      const refreshed = data as unknown as { token: string; email: string };
+      const refreshed = data as unknown as { id: string; token: string; email: string };
       setLastInvite({ email: refreshed.email, token: refreshed.token });
       await reload();
       toast.success(`Invite for ${invite.email} refreshed`);
+      supabase.functions.invoke("send-employer-invite", { body: { inviteId: refreshed.id } }).then(async ({ error: sendErr }) => {
+        if (sendErr) {
+          const reason = await describeInviteSendError(sendErr);
+          toast.error(`Invite refreshed, but the email couldn't be sent (${reason}). Share the copy link instead.`);
+        }
+      });
     } catch (error) {
       toast.error((error as Error)?.message ?? "Failed to resend invite");
     } finally {
@@ -537,7 +607,7 @@ function TeamPage() {
                   <UserPlus className="h-4 w-4" /> Create invite
                 </button>
                 <p className="text-xs text-muted-foreground">
-                  You'll get a link to share with your teammate. They'll join after signing in.
+                  We'll email them an invite link. They'll join after verifying their mobile number — you can also copy the link below and share it yourself.
                 </p>
               </div>
             </section>
