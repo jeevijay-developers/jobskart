@@ -179,6 +179,7 @@ function ThemedListDropdown({
   maxHeight = 192,
   selectedOptionClassName,
   menuClassName,
+  disabled,
 }: {
   label: string;
   value: string;
@@ -192,6 +193,7 @@ function ThemedListDropdown({
    * shrinks to fit the selected value, not the longest option). Panel stays
    * left/right-anchored to the trigger by default; this only adds width. */
   menuClassName?: string;
+  disabled?: boolean;
 }) {
   const [open, setOpen] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -218,9 +220,10 @@ function ThemedListDropdown({
       <button
         type="button"
         aria-label={label}
+        disabled={disabled}
         onClick={() => setOpen((o) => !o)}
         className={cn(
-          "form-input flex h-9 w-full items-center justify-between rounded-lg bg-card text-left text-sm",
+          "form-input flex h-9 w-full items-center justify-between rounded-lg bg-card text-left text-sm disabled:cursor-not-allowed disabled:opacity-50",
           className,
         )}
       >
