@@ -46,6 +46,19 @@ function one<T>(v: T | T[] | null): T | null {
 }
 
 function LearnHub() {
+  return (
+    <div className="min-h-screen bg-surface">
+      <Navbar />
+      <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
+        <LearnContent />
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
+/** Learning hub body, shared by the public /learn page and the candidate dashboard. */
+export function LearnContent({ inCandidate }: { inCandidate?: boolean }) {
   const [posts, setPosts] = useState<Post[] | null>(null);
   const [courses, setCourses] = useState<Course[] | null>(null);
   const [certs, setCerts] = useState<Cert[] | null>(null);
@@ -77,63 +90,62 @@ function LearnHub() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-surface">
-      <Navbar />
-      <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
-        <h1 className="text-2xl font-bold text-foreground sm:text-3xl">Learning &amp; Content</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Free articles and courses to help you get hired, plus paid certifications you can add to
-          your profile.
-        </p>
+    <>
+      <h1 className="text-2xl font-bold text-foreground sm:text-3xl">Learning &amp; Content</h1>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Free articles and courses to help you get hired, plus paid certifications you can add to
+        your profile.
+      </p>
 
-        <Tabs defaultValue="posts" className="mt-6 w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="posts">Articles</TabsTrigger>
-            <TabsTrigger value="courses">Courses</TabsTrigger>
-            <TabsTrigger value="certifications">Certifications</TabsTrigger>
-          </TabsList>
+      <Tabs defaultValue="posts" className="mt-6 w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="posts">Articles</TabsTrigger>
+          <TabsTrigger value="courses">Courses</TabsTrigger>
+          <TabsTrigger value="certifications">Certifications</TabsTrigger>
+        </TabsList>
 
-          <TabsContent value="posts" className="mt-4">
-            <CardGrid
-              items={posts}
-              icon={BookOpen}
-              empty="No articles published yet — check back soon."
-              kind="post"
-              linkLabel="Read more"
-            />
-          </TabsContent>
+        <TabsContent value="posts" className="mt-4">
+          <CardGrid
+            items={posts}
+            icon={BookOpen}
+            empty="No articles published yet — check back soon."
+            kind="post"
+            inCandidate={inCandidate}
+            linkLabel="Read more"
+          />
+        </TabsContent>
 
-          <TabsContent value="courses" className="mt-4">
-            <CardGrid
-              items={courses}
-              icon={GraduationCap}
-              empty="No courses published yet — check back soon."
-              kind="course"
-              linkLabel="View course"
-              badge={(c) => {
-                const price = one(c.courses)?.price_inr ?? 0;
-                return price > 0 ? `₹${price}` : "Free";
-              }}
-            />
-          </TabsContent>
+        <TabsContent value="courses" className="mt-4">
+          <CardGrid
+            items={courses}
+            icon={GraduationCap}
+            empty="No courses published yet — check back soon."
+            kind="course"
+            inCandidate={inCandidate}
+            linkLabel="View course"
+            badge={(c) => {
+              const price = one(c.courses)?.price_inr ?? 0;
+              return price > 0 ? `₹${price}` : "Free";
+            }}
+          />
+        </TabsContent>
 
-          <TabsContent value="certifications" className="mt-4">
-            <CardGrid
-              items={certs}
-              icon={Award}
-              empty="No certifications published yet — check back soon."
-              kind="certification"
-              linkLabel="View certification"
-              badge={(c) => {
-                const price = one(c.certifications)?.price_inr ?? 0;
-                return price > 0 ? `₹${price}` : "Free";
-              }}
-            />
-          </TabsContent>
-        </Tabs>
-      </main>
-      <Footer />
-    </div>
+        <TabsContent value="certifications" className="mt-4">
+          <CardGrid
+            items={certs}
+            icon={Award}
+            empty="No certifications published yet — check back soon."
+            kind="certification"
+            inCandidate={inCandidate}
+            linkLabel="View certification"
+            badge={(c) => {
+              const price = one(c.certifications)?.price_inr ?? 0;
+              return price > 0 ? `₹${price}` : "Free";
+            }}
+          />
+        </TabsContent>
+      </Tabs>
+    </>
   );
 }
 
@@ -152,12 +164,33 @@ function ItemLink({
   slug,
   className,
   children,
+  inCandidate,
 }: {
   kind: LearnItemKind;
   slug: string;
+  inCandidate?: boolean;
   className: string;
   children: ReactNode;
 }) {
+  if (inCandidate) {
+    if (kind === "post")
+      return (
+        <Link to="/candidate/learning/post/$slug" params={{ slug }} className={className}>
+          {children}
+        </Link>
+      );
+    if (kind === "course")
+      return (
+        <Link to="/candidate/learning/course/$slug" params={{ slug }} className={className}>
+          {children}
+        </Link>
+      );
+    return (
+      <Link to="/candidate/learning/certification/$slug" params={{ slug }} className={className}>
+        {children}
+      </Link>
+    );
+  }
   if (kind === "post")
     return (
       <Link to="/learn/post/$slug" params={{ slug }} className={className}>
@@ -191,6 +224,7 @@ function CardGrid<
   empty,
   kind,
   linkLabel,
+  inCandidate,
   badge,
 }: {
   items: T[] | null;
@@ -198,6 +232,7 @@ function CardGrid<
   empty: string;
   kind: LearnItemKind;
   linkLabel: string;
+  inCandidate?: boolean;
   badge?: (item: T) => string;
 }) {
   if (items === null)
@@ -233,6 +268,7 @@ function CardGrid<
           <ItemLink
             kind={kind}
             slug={item.slug}
+            inCandidate={inCandidate}
             className="mt-3 inline-flex w-fit items-center text-sm font-semibold text-primary hover:underline"
           >
             {linkLabel}

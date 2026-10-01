@@ -1061,9 +1061,7 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                   )}
 
                   <div>
-                    <p className="mb-1.5 text-sm font-medium">
-                      Compensation · Pay type <span className="text-destructive">*</span>
-                    </p>
+                    <p className="mb-1.5 text-sm font-medium">Compensation · Pay type</p>
                     <div className="flex flex-wrap gap-2">
                       {PAY_TYPES.map((p) => (
                         <button
