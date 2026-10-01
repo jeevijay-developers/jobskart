@@ -467,34 +467,46 @@ export const createContentItem = createServerFn({ method: "POST" })
       .single();
     if (itemError) throw new Error(itemError.message);
 
-    if (data.type === "post") {
-      const { error } = await supabase.from("content_posts").insert({
-        id: item.id,
-        body_md: data.bodyMd ?? "",
-        seo_title: data.seoTitle ?? "",
-        seo_description: data.seoDescription ?? "",
-        og_image_url: data.ogImageUrl ?? "",
-      });
-      if (error) throw new Error(error.message);
-    } else if (data.type === "course") {
-      const { error } = await supabase
-        .from("courses")
-        .insert({ id: item.id, price_inr: data.coursePriceInr });
-      if (error) throw new Error(error.message);
-      await insertCourseModules(supabase, item.id, data.courseModules);
-    } else {
-      const c = data.certificationDetails;
-      const { error } = await supabase.from("certifications").insert({
-        id: item.id,
-        price_inr: c?.priceInr ?? 0,
-        provider: c?.provider ?? "first_party",
-        partner_name: c?.partnerName ?? null,
-        pass_mark: c?.passMark ?? 80,
-        max_attempts: c?.maxAttempts ?? 3,
-        validity_months: c?.validityMonths ?? null,
-        questions: (c?.questions ?? []) as Json,
-      });
-      if (error) throw new Error(error.message);
+    // content_items and its type-specific extension row (courses/certifications/
+    // content_posts) are separate insert statements, not one transaction — if the
+    // second insert throws, the content_items row from above is already committed.
+    // Left alone, that produces a permanently orphaned content_item with no price
+    // row: every later price edit silently no-ops (UPDATE matches zero rows, no
+    // error), which is exactly the "price never saves" bug this comment is here
+    // to prevent recurring. Compensate manually: delete the orphan before rethrowing.
+    try {
+      if (data.type === "post") {
+        const { error } = await supabase.from("content_posts").insert({
+          id: item.id,
+          body_md: data.bodyMd ?? "",
+          seo_title: data.seoTitle ?? "",
+          seo_description: data.seoDescription ?? "",
+          og_image_url: data.ogImageUrl ?? "",
+        });
+        if (error) throw new Error(error.message);
+      } else if (data.type === "course") {
+        const { error } = await supabase
+          .from("courses")
+          .insert({ id: item.id, price_inr: data.coursePriceInr });
+        if (error) throw new Error(error.message);
+        await insertCourseModules(supabase, item.id, data.courseModules);
+      } else {
+        const c = data.certificationDetails;
+        const { error } = await supabase.from("certifications").insert({
+          id: item.id,
+          price_inr: c?.priceInr ?? 0,
+          provider: c?.provider ?? "first_party",
+          partner_name: c?.partnerName ?? null,
+          pass_mark: c?.passMark ?? 80,
+          max_attempts: c?.maxAttempts ?? 3,
+          validity_months: c?.validityMonths ?? null,
+          questions: (c?.questions ?? []) as Json,
+        });
+        if (error) throw new Error(error.message);
+      }
+    } catch (e) {
+      await supabase.from("content_items").delete().eq("id", item.id);
+      throw e;
     }
 
     return item;
@@ -625,11 +637,13 @@ export const updateContentItem = createServerFn({ method: "POST" })
       }
     } else if (itemData.content_type === "course") {
       // Price and modules are independent edits — update whichever was actually sent.
+      // upsert, not update: a course whose `courses` row never got created (e.g. a
+      // prior createContentItem that partially failed) would otherwise have every
+      // price edit silently match zero rows and appear to succeed while doing nothing.
       if (data.coursePriceInr !== undefined) {
         const { error } = await supabase
           .from("courses")
-          .update({ price_inr: data.coursePriceInr })
-          .eq("id", data.id);
+          .upsert({ id: data.id, price_inr: data.coursePriceInr });
         if (error) throw new Error(error.message);
       }
       if (data.courseModules) {
@@ -637,18 +651,17 @@ export const updateContentItem = createServerFn({ method: "POST" })
       }
     } else if (itemData.content_type === "certification" && data.certificationDetails) {
       const c = data.certificationDetails;
-      const { error } = await supabase
-        .from("certifications")
-        .update({
-          price_inr: c.priceInr,
-          provider: c.provider,
-          partner_name: c.partnerName ?? null,
-          pass_mark: c.passMark,
-          max_attempts: c.maxAttempts,
-          validity_months: c.validityMonths ?? null,
-          questions: c.questions as Json,
-        })
-        .eq("id", data.id);
+      // upsert for the same reason as the course branch above.
+      const { error } = await supabase.from("certifications").upsert({
+        id: data.id,
+        price_inr: c.priceInr,
+        provider: c.provider,
+        partner_name: c.partnerName ?? null,
+        pass_mark: c.passMark,
+        max_attempts: c.maxAttempts,
+        validity_months: c.validityMonths ?? null,
+        questions: c.questions as Json,
+      });
       if (error) throw new Error(error.message);
     }
 

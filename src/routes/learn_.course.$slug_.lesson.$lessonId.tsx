@@ -8,7 +8,7 @@ import { useCandidateCheckout } from "@/hooks/use-candidate-checkout";
 import { FormattedMarkdown } from "@/lib/markdownLite";
 import { createCourseOrder, getLessonContent } from "@/lib/learning.functions";
 
-export const Route = createFileRoute("/learn/course/$slug/lesson/$lessonId")({
+export const Route = createFileRoute("/learn_/course/$slug_/lesson/$lessonId")({
   component: LessonPage,
 });
 

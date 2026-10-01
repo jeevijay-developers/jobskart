@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCandidateCheckout } from "@/hooks/use-candidate-checkout";
 import { createCertificationOrder, getMyCertificatePurchases } from "@/lib/learning.functions";
 
-export const Route = createFileRoute("/learn/certification/$slug")({
+export const Route = createFileRoute("/learn_/certification/$slug")({
   component: CertificationPage,
 });
 

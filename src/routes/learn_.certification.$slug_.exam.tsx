@@ -13,7 +13,7 @@ import {
   type CertificationExamResult,
 } from "@/lib/learning.functions";
 
-export const Route = createFileRoute("/learn/certification/$slug/exam")({
+export const Route = createFileRoute("/learn_/certification/$slug_/exam")({
   head: () => ({ meta: [{ title: "Certification exam · JobsKart" }] }),
   component: ExamPage,
 });

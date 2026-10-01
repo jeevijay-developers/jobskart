@@ -6,7 +6,7 @@ import { Footer } from "@/components/site/Footer";
 import { supabase } from "@/integrations/supabase/client";
 import { FormattedMarkdown } from "@/lib/markdownLite";
 
-export const Route = createFileRoute("/learn/post/$slug")({
+export const Route = createFileRoute("/learn_/post/$slug")({
   component: PostPage,
 });
 

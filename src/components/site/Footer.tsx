@@ -1,19 +1,39 @@
+import { Link } from "@tanstack/react-router";
 import { Facebook, Instagram, Linkedin, Twitter, Youtube } from "lucide-react";
 import logoAsset from "@/assets/jobskart-logo.png";
 
+type FooterLink = { label: string; to?: "/learn" };
 
-const cols = [
+const cols: { title: string; links: FooterLink[] }[] = [
   {
     title: "For Candidates",
-    links: ["Browse Jobs", "Job Categories", "Career Advice", "Resume Tips", "Salary Guide"],
+    links: [
+      { label: "Browse Jobs" },
+      { label: "Job Categories" },
+      { label: "Career Advice", to: "/learn" },
+      { label: "Resume Tips" },
+      { label: "Salary Guide" },
+    ],
   },
   {
     title: "For Employers",
-    links: ["Post a Job", "Browse Candidates", "Pricing & Plans", "Hiring Solutions", "Enterprise"],
+    links: [
+      { label: "Post a Job" },
+      { label: "Browse Candidates" },
+      { label: "Pricing & Plans" },
+      { label: "Hiring Solutions" },
+      { label: "Enterprise" },
+    ],
   },
   {
     title: "Company",
-    links: ["About Us", "Careers", "Press", "Contact", "Help Center"],
+    links: [
+      { label: "About Us" },
+      { label: "Careers" },
+      { label: "Press" },
+      { label: "Contact" },
+      { label: "Help Center" },
+    ],
   },
 ];
 
@@ -51,16 +71,27 @@ export function Footer() {
                 {c.title}
               </h4>
               <ul className="mt-4 space-y-3">
-                {c.links.map((l) => (
-                  <li key={l}>
-                    <a
-                      href="#"
-                      className="text-sm text-white/70 transition-colors hover:text-white"
-                    >
-                      {l}
-                    </a>
-                  </li>
-                ))}
+                {c.links.map((l) =>
+                  l.to ? (
+                    <li key={l.label}>
+                      <Link
+                        to={l.to}
+                        className="text-sm text-white/70 transition-colors hover:text-white"
+                      >
+                        {l.label}
+                      </Link>
+                    </li>
+                  ) : (
+                    <li key={l.label}>
+                      <a
+                        href="#"
+                        className="text-sm text-white/70 transition-colors hover:text-white"
+                      >
+                        {l.label}
+                      </a>
+                    </li>
+                  ),
+                )}
               </ul>
             </div>
           ))}

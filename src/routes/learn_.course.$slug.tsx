@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCandidateCheckout } from "@/hooks/use-candidate-checkout";
 import { createCourseOrder, getMyCoursePurchases } from "@/lib/learning.functions";
 
-export const Route = createFileRoute("/learn/course/$slug")({
+export const Route = createFileRoute("/learn_/course/$slug")({
   component: CoursePage,
 });
 
