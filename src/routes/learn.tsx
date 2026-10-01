@@ -98,7 +98,9 @@ export function LearnContent({ inCandidate }: { inCandidate?: boolean }) {
       </p>
 
       <Tabs defaultValue="posts" className="mt-6 w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList
+          className={`grid w-full grid-cols-3 ${inCandidate ? "h-auto max-w-2xl rounded-xl bg-card p-1 shadow-sm" : ""}`}
+        >
           <TabsTrigger value="posts">Articles</TabsTrigger>
           <TabsTrigger value="courses">Courses</TabsTrigger>
           <TabsTrigger value="certifications">Certifications</TabsTrigger>
@@ -248,31 +250,73 @@ function CardGrid<
       </div>
     );
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className={inCandidate ? "grid gap-4 lg:grid-cols-2" : "grid gap-4 sm:grid-cols-2"}>
       {items.map((item) => (
-        <div key={item.id} className="flex flex-col rounded-xl border border-border bg-card p-4">
-          {item.cover_url && (
-            <img src={item.cover_url} alt="" className="mb-3 h-32 w-full rounded-lg object-cover" />
-          )}
-          <div className="flex items-start justify-between gap-2">
-            <h2 className="font-semibold text-foreground">{item.title}</h2>
-            {badge && (
-              <span className="shrink-0 rounded-full bg-primary-light px-2 py-0.5 text-xs font-bold text-primary">
-                {badge(item)}
-              </span>
+        <div
+          key={item.id}
+          className={
+            inCandidate
+              ? "flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md sm:flex-row sm:items-center"
+              : "flex flex-col rounded-xl border border-border bg-card p-4"
+          }
+        >
+          {item.cover_url &&
+            (inCandidate ? (
+              <div className="relative h-44 w-full shrink-0 overflow-hidden rounded-xl bg-surface sm:h-32 sm:w-64">
+                <img
+                  src={item.cover_url}
+                  alt=""
+                  className="absolute inset-0 h-full w-full object-contain object-center"
+                />
+              </div>
+            ) : (
+              <img
+                src={item.cover_url}
+                alt=""
+                className="mb-3 h-32 w-full rounded-lg object-cover"
+              />
+            ))}
+          <div className={inCandidate ? "flex min-w-0 flex-1 flex-col justify-center" : "contents"}>
+            <div className="flex items-start justify-between gap-2">
+              <h2
+                className={
+                  inCandidate
+                    ? "text-lg font-bold text-foreground"
+                    : "font-semibold text-foreground"
+                }
+              >
+                {item.title}
+              </h2>
+              {badge && (
+                <span className="shrink-0 rounded-full bg-primary-light px-2 py-0.5 text-xs font-bold text-primary">
+                  {badge(item)}
+                </span>
+              )}
+            </div>
+            {item.excerpt && (
+              <p
+                className={
+                  inCandidate
+                    ? "mt-1.5 line-clamp-2 text-[15px] text-muted-foreground"
+                    : "mt-1 line-clamp-2 text-sm text-muted-foreground"
+                }
+              >
+                {item.excerpt}
+              </p>
             )}
+            <ItemLink
+              kind={kind}
+              slug={item.slug}
+              inCandidate={inCandidate}
+              className={
+                inCandidate
+                  ? "mt-3 inline-flex w-fit items-center text-base font-semibold text-primary hover:underline"
+                  : "mt-3 inline-flex w-fit items-center text-sm font-semibold text-primary hover:underline"
+              }
+            >
+              {linkLabel}
+            </ItemLink>
           </div>
-          {item.excerpt && (
-            <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{item.excerpt}</p>
-          )}
-          <ItemLink
-            kind={kind}
-            slug={item.slug}
-            inCandidate={inCandidate}
-            className="mt-3 inline-flex w-fit items-center text-sm font-semibold text-primary hover:underline"
-          >
-            {linkLabel}
-          </ItemLink>
         </div>
       ))}
     </div>
