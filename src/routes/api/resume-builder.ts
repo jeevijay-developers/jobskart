@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { Json } from "@/integrations/supabase/types";
 import type { CandidateProfile, CandidateExperience, CandidateEducation, CandidateCertification, CandidateLanguage, CandidateLink, ResumeVersion } from "@/lib/resumeBuilder/types";
-import { buildResumeSnapshot } from "@/lib/resumeBuilder/snapshot";
-import { renderResumeToPdf } from "@/lib/resumeBuilder/pdfRenderer.server";
+import { buildResumeSnapshot, applyResumeExtras } from "@/lib/resumeBuilder/snapshot";
+import type { ResumeExtras } from "@/lib/resumeBuilder/schema";
+import { renderResumeToPdf } from "@/lib/resumeBuilder/renderResumePdf.server";
 import { uploadResumePdf } from "@/lib/resumeBuilder/storage";
 
 /**
@@ -20,7 +22,9 @@ import { uploadResumePdf } from "@/lib/resumeBuilder/storage";
  * candidate profile" / "No profile data found".
  */
 async function fetchCandidateProfileForResume(userId: string) {
-  const [profileRes, expRes, eduRes, langRes] = await Promise.all([
+  const [identityRes, profileRes, expRes, eduRes, langRes] = await Promise.all([
+    // full_name/mobile/email/city live on `profiles`, not `candidate_profiles`.
+    supabaseAdmin.from("profiles").select("full_name, mobile, email, city").eq("id", userId).maybeSingle(),
     supabaseAdmin.from("candidate_profiles").select("*").eq("user_id", userId).maybeSingle(),
     supabaseAdmin
       .from("candidate_experiences")
@@ -36,7 +40,7 @@ async function fetchCandidateProfileForResume(userId: string) {
   ]);
 
   if (profileRes.error || !profileRes.data) {
-    return { profile: null, error: profileRes.error };
+    return { profile: null, identity: null, error: profileRes.error };
   }
 
   return {
@@ -50,6 +54,12 @@ async function fetchCandidateProfileForResume(userId: string) {
       certifications: [] as CandidateCertification[],
       languages: langRes.data ?? [],
       links: [] as CandidateLink[],
+    },
+    identity: {
+      fullName: identityRes.data?.full_name ?? "",
+      mobile: identityRes.data?.mobile ?? null,
+      email: identityRes.data?.email ?? null,
+      city: identityRes.data?.city ?? null,
     },
     error: null,
   };
@@ -73,9 +83,9 @@ export const Route = createFileRoute("/api/resume-builder")({
           return new Response(JSON.stringify({ error: "Missing or invalid userId" }), { status: 400, headers: { "Content-Type": "application/json" } });
         }
 
-        const { profile, error } = await fetchCandidateProfileForResume(userId);
+        const { profile, identity, error } = await fetchCandidateProfileForResume(userId);
 
-        if (error || !profile) {
+        if (error || !profile || !identity) {
           console.error("Failed to fetch profile:", error);
           return new Response(JSON.stringify({ error: "Unable to fetch candidate profile" }), { status: 500, headers: { "Content-Type": "application/json" } });
         }
@@ -86,7 +96,7 @@ export const Route = createFileRoute("/api/resume-builder")({
           certifications?: CandidateCertification[];
           languages?: CandidateLanguage[];
           links?: CandidateLink[];
-        });
+        }, identity);
         return new Response(JSON.stringify(snapshot), { status: 200, headers: { "Content-Type": "application/json" } });
       },
 POST: async ({ request }) => {
@@ -110,9 +120,9 @@ POST: async ({ request }) => {
           return new Response(JSON.stringify({ error: "Missing or invalid userId" }), { status: 400, headers: { "Content-Type": "application/json" } });
         }
 
-        const { profile, error: profileError } = await fetchCandidateProfileForResume(userId);
+        const { profile, identity, error: profileError } = await fetchCandidateProfileForResume(userId);
 
-        if (profileError || !profile) {
+        if (profileError || !profile || !identity) {
           console.error("Failed to fetch profile for POST:", profileError);
           return new Response(JSON.stringify({ error: "Unable to fetch candidate profile" }), { status: 500, headers: { "Content-Type": "application/json" } });
         }
@@ -123,8 +133,24 @@ POST: async ({ request }) => {
           certifications?: CandidateCertification[];
           languages?: CandidateLanguage[];
           links?: CandidateLink[];
-        });
+        }, identity);
         const finalTemplateId = templateId ?? "classic-ats";
+
+        // Candidate-authored extras (hobbies, certifications, rich-text
+        // overrides…) live in resume_drafts and are merged here so the saved
+        // version and its PDF include exactly what the live preview showed.
+        const { data: draftRow } = await supabaseAdmin
+          .from("resume_drafts")
+          .select("extras")
+          .eq("user_id", userId)
+          .maybeSingle();
+        const withExtras = applyResumeExtras(snapshot, (draftRow?.extras ?? {}) as ResumeExtras);
+
+        // buildResumeSnapshot() always sets templateId internally to the
+        // default — overwrite it with the actually-selected template before
+        // persisting, so a re-preview of this saved version later renders
+        // with the template the candidate picked, not always Classic ATS.
+        const finalSnapshot = { ...withExtras, templateId: finalTemplateId };
 
         const { data: versionData, error: versionError } = await supabaseAdmin
           .from("resume_versions")
@@ -142,7 +168,7 @@ POST: async ({ request }) => {
           .from("resume_versions")
           .insert({
             user_id: userId,
-            snapshot,
+            snapshot: finalSnapshot as unknown as Json,
             template_id: finalTemplateId,
             version_number: nextVersion,
             created_at: new Date().toISOString(),
@@ -156,10 +182,7 @@ POST: async ({ request }) => {
 
         let pdfUrl: string | null = null;
         try {
-          const pdfBuffer = await renderResumeToPdf({
-            ...snapshot,
-            templateId: finalTemplateId,
-          });
+          const pdfBuffer = await renderResumeToPdf(finalSnapshot);
           pdfUrl = await uploadResumePdf(userId, nextVersion, pdfBuffer);
         } catch (pdfError) {
           console.error("PDF generation/upload failed:", pdfError);

@@ -15,16 +15,23 @@ export default defineConfig({
   },
   vite: {
     plugins: [mcpPlugin()],
-    // pdfkit is a Node.js-only package (uses Buffer, stream, fs).
-    // Exclude it from the client dependency scanner so Vite never tries
-    // to bundle it for the browser, which causes ECONNRESET on startup.
+    // @react-pdf/renderer runs in the browser (live resume preview) and pulls in
+    // CommonJS-only deps (e.g. base64-js via @react-pdf/image). Force it into the
+    // dependency pre-bundle so Vite converts those to ESM up front — otherwise
+    // they're served raw and the page crashes with "does not provide an export
+    // named 'default'".
+    //
+    // The @tanstack/router-core + seroval entries are deps Vite otherwise only
+    // discovers mid-session on a cold cache; its late re-optimize reshuffles
+    // cache hashes and leaves already-served modules pointing at 404s.
     optimizeDeps: {
-      exclude: ["pdfkit"],
-    },
-    // Mark pdfkit as server-side external so it's loaded via Node require()
-    // in the SSR context rather than being inlined/bundled by Vite.
-    ssr: {
-      external: ["pdfkit"],
+      include: [
+        "@react-pdf/renderer",
+        "@tanstack/router-core",
+        "@tanstack/router-core/isServer",
+        "@tanstack/router-core/ssr/client",
+        "seroval",
+      ],
     },
   },
 });

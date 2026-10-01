@@ -1,5 +1,5 @@
 // src/lib/resumeBuilder/snapshot.ts
-import { ResumeSchema, ResumeSection, ResumeSectionContent, ExperienceItem, EducationItem, CertificationItem, LinkItem } from './schema';
+import { ResumeSchema, ResumeExtras, ResumeSection, ResumeSectionContent, ExperienceItem, EducationItem, CertificationItem, LinkItem } from './schema';
 import type { CandidateProfile, CandidateExperience, CandidateEducation, CandidateCertification, CandidateLanguage, CandidateLink } from './types';
 
 /**
@@ -14,7 +14,11 @@ export function buildResumeSnapshot(
     certifications?: CandidateCertification[];
     languages?: CandidateLanguage[];
     links?: CandidateLink[];
-  }
+  },
+  // full_name/mobile/email/city live on `profiles`, not `candidate_profiles` —
+  // candidate_profiles has no identity columns of its own. Passed in
+  // separately so this function doesn't need to know which table they came from.
+  identity: { fullName: string; mobile?: string | null; email?: string | null; city?: string | null },
 ): ResumeSchema {
   const now = new Date().toISOString();
   const sections: ResumeSection[] = [];
@@ -99,7 +103,7 @@ export function buildResumeSnapshot(
   }
 
   // Languages section
-  const languageItems: any = (profile.languages ?? []).map(lang => ({
+  const languageItems = (profile.languages ?? []).map(lang => ({
     id: lang.id,
     language: lang.language ?? '',
     proficiency: lang.proficiency ?? '',
@@ -131,17 +135,98 @@ export function buildResumeSnapshot(
   // Default template (could be configurable)
   const templateId = 'classic-ats';
 
-  // Determine name: we don't have name in candidate_profiles; placeholder
-  const name = '';
+  const name = identity.fullName.trim();
 
   return {
     version: 1,
     userId: profile.user_id,
-    title: `${name} Resume`.trim() || 'Resume',
-    targetJobRole: null, // not available
+    title: name ? `${name} — Resume` : 'Resume',
+    candidateName: name,
+    contact: {
+      mobile: identity.mobile ?? undefined,
+      email: identity.email ?? undefined,
+      city: identity.city ?? undefined,
+    },
+    targetJobRole: undefined, // not available
     templateId,
     sections,
     createdAt: now,
     updatedAt: now,
   };
+}
+
+/**
+ * Merge candidate-authored extras (resume_drafts.extras) into a base snapshot.
+ * Pure + browser-safe so the live preview and the server-side version save
+ * produce identical sections from identical inputs.
+ */
+export function applyResumeExtras(base: ResumeSchema, extras: ResumeExtras): ResumeSchema {
+  let sections: ResumeSection[] = base.sections.map((s) => ({ ...s }));
+
+  const summaryText = extras.summary?.trim();
+  if (summaryText) {
+    const summarySection: ResumeSection = {
+      id: 'summary',
+      type: 'summary',
+      title: 'Summary',
+      content: { kind: 'text', value: summaryText },
+      overridden: true,
+    };
+    const idx = sections.findIndex((s) => s.type === 'summary');
+    if (idx >= 0) sections[idx] = summarySection;
+    else sections.unshift(summarySection);
+  }
+
+  const overrides = extras.experienceOverrides ?? {};
+  sections = sections.map((s) => {
+    if (s.content.kind !== 'experience') return s;
+    return {
+      ...s,
+      content: {
+        kind: 'experience',
+        items: s.content.items.map((item) =>
+          overrides[item.id] !== undefined ? { ...item, description: overrides[item.id] } : item,
+        ),
+      },
+    };
+  });
+
+  const certs = (extras.certifications ?? []).filter((c) => c.name.trim());
+  if (certs.length > 0) {
+    const certSection: ResumeSection = {
+      id: 'certifications',
+      type: 'certifications',
+      title: 'Certifications',
+      content: { kind: 'certification', items: certs },
+    };
+    const existing = sections.findIndex((s) => s.type === 'certifications');
+    if (existing >= 0) sections[existing] = certSection;
+    else {
+      const afterEducation = sections.findIndex((s) => s.type === 'education');
+      sections.splice(afterEducation >= 0 ? afterEducation + 1 : sections.length, 0, certSection);
+    }
+  }
+
+  const hobbies = (extras.hobbies ?? []).map((h) => h.trim()).filter(Boolean);
+  if (hobbies.length > 0) {
+    sections.push({
+      id: 'hobbies',
+      type: 'custom',
+      title: 'Hobbies & Interests',
+      content: { kind: 'list', items: hobbies },
+    });
+  }
+
+  for (const custom of extras.customSections ?? []) {
+    if (!custom.title.trim() || !custom.text.trim()) continue;
+    sections.push({
+      id: `custom-${custom.id}`,
+      type: 'custom',
+      title: custom.title.trim(),
+      content: { kind: 'text', value: custom.text },
+    });
+  }
+
+  const targetJobRole = extras.targetJobRole?.trim() || base.targetJobRole;
+  return { ...base, targetJobRole, sections };
 }

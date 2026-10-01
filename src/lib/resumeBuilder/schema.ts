@@ -3,11 +3,33 @@ export interface ResumeSchema {
   version: number; // immutable version identifier
   userId: string; // owner
   title: string; // e.g., "Software Engineer Resume"
+  candidateName: string; // full name, shown as the resume header — was previously dropped entirely
+  contact: ResumeContact;
   targetJobRole?: string; // optional target role for tailoring
   templateId: string; // reference to resume_template_catalog
   sections: ResumeSection[];
   createdAt: string; // ISO timestamp
   updatedAt: string; // ISO timestamp
+}
+
+// Candidate-authored content that has no home on the profile. Stored in
+// resume_drafts.extras and merged into the snapshot — never written back to
+// candidate_profiles. Free-text fields use the constrained rich-text markup
+// parsed by templates/richText.tsx (**bold**, *italic*, "- " bullets).
+export interface ResumeExtras {
+  summary?: string;
+  targetJobRole?: string;
+  hobbies?: string[];
+  certifications?: CertificationItem[];
+  customSections?: { id: string; title: string; text: string }[];
+  experienceOverrides?: Record<string, string>;
+  snippets?: string[];
+}
+
+export interface ResumeContact {
+  mobile?: string;
+  email?: string;
+  city?: string;
 }
 
 export interface ResumeSection {

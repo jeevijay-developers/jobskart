@@ -4284,6 +4284,24 @@ export type Database = {
         }
         Relationships: []
       }
+      resume_drafts: {
+        Row: {
+          extras: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          extras?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          extras?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       resume_versions: {
         Row: {
           created_at: string

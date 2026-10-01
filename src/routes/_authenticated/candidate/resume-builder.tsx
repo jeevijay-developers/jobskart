@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
+import { PDFViewer } from "@react-pdf/renderer";
 import {
   Download,
   FileText,
@@ -9,13 +11,28 @@ import {
   Sparkles,
   Clock,
   CheckCircle2,
-  ChevronDown,
+  Circle,
   Eye,
+  X,
 } from "lucide-react";
 import { CandidateShell } from "@/components/candidate/CandidateShell";
+import { ResumeExtrasEditor } from "@/components/candidate/ResumeExtrasEditor";
+import { JobMatchPanel } from "@/components/candidate/JobMatchPanel";
 import { supabase } from "@/integrations/supabase/client";
-import { renderResumeToHtml } from "@/lib/resumeBuilder/template";
-import type { ResumeSchema } from "@/lib/resumeBuilder/schema";
+import { getResumeTemplate, RESUME_TEMPLATE_LIST } from "@/lib/resumeBuilder/templates/registry";
+import { getResumeVersionPdfUrl } from "@/lib/resumeBuilder.functions";
+import { applyResumeExtras } from "@/lib/resumeBuilder/snapshot";
+import { validateResume } from "@/lib/resumeBuilder/validateResume";
+import type { ExperienceItem, ResumeExtras, ResumeSchema } from "@/lib/resumeBuilder/schema";
+
+function useDebounced<T>(value: T, ms: number): T {
+  const [v, setV] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setV(value), ms);
+    return () => clearTimeout(t);
+  }, [value, ms]);
+  return v;
+}
 
 export const Route = createFileRoute(
   "/_authenticated/candidate/resume-builder"
@@ -23,16 +40,6 @@ export const Route = createFileRoute(
   ssr: false,
   component: ResumeBuilderPage,
 });
-
-// ─── Template options ─────────────────────────────────────────────────────────
-const TEMPLATES = [
-  {
-    id: "classic-ats",
-    label: "Classic ATS",
-    description: "Clean, ATS-friendly, widely accepted",
-    color: "from-blue-500 to-blue-700",
-  },
-];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 async function getAuthToken() {
@@ -75,6 +82,7 @@ type VersionRow = {
   version_number: number;
   template_id: string;
   created_at: string;
+  snapshot: ResumeSchema;
 };
 
 // ─── Main page component ──────────────────────────────────────────────────────
@@ -83,13 +91,60 @@ function ResumeBuilderPage() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState("classic-ats");
-  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const [versions, setVersions] = useState<VersionRow[]>([]);
   const [versionsLoading, setVersionsLoading] = useState(false);
   const [lastPdfUrl, setLastPdfUrl] = useState<string | null>(null);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [previewVersion, setPreviewVersion] = useState<VersionRow | null>(null);
+  const [downloadingVersionId, setDownloadingVersionId] = useState<string | null>(null);
+  const getVersionPdfUrl = useServerFn(getResumeVersionPdfUrl);
 
-  // ── Load snapshot + version history ──────────────────────────────────────
+  // Builder-authored content (hobbies, certifications, rich-text overrides…).
+  // Autosaved to resume_drafts; the live preview merges it onto the profile
+  // snapshot exactly like the server does when a version is saved.
+  const [extras, setExtras] = useState<ResumeExtras>({});
+  const [extrasLoaded, setExtrasLoaded] = useState(false);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const userIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) return;
+      userIdRef.current = u.user.id;
+      const { data } = await supabase.from("resume_drafts").select("extras").eq("user_id", u.user.id).maybeSingle();
+      setExtras((data?.extras ?? {}) as ResumeExtras);
+      setExtrasLoaded(true);
+    })();
+  }, []);
+
+  const debouncedExtras = useDebounced(extras, 700);
+  const firstSave = useRef(true);
+  useEffect(() => {
+    if (!extrasLoaded) return;
+    if (firstSave.current) {
+      firstSave.current = false;
+      return;
+    }
+    const uid = userIdRef.current;
+    if (!uid) return;
+    setSaveState("saving");
+    supabase
+      .from("resume_drafts")
+      .upsert({ user_id: uid, extras: debouncedExtras as never }, { onConflict: "user_id" })
+      .then(({ error }) => {
+        if (error) toast.error("Couldn't save your changes");
+        setSaveState(error ? "idle" : "saved");
+      });
+  }, [debouncedExtras, extrasLoaded]);
+
+  const merged = useMemo(() => (snapshot ? applyResumeExtras(snapshot, debouncedExtras) : null), [snapshot, debouncedExtras]);
+  const checklist = useMemo(() => (merged ? validateResume(merged) : []), [merged]);
+  const baseExperiences = useMemo(() => {
+    const sec = snapshot?.sections.find((s) => s.content.kind === "experience");
+    return sec && sec.content.kind === "experience" ? (sec.content.items as ExperienceItem[]) : [];
+  }, [snapshot]);
+
+  // ── Load snapshot ──────────────────────────────────────────────────────────
   useEffect(() => {
     (async () => {
       setLoading(true);
@@ -101,7 +156,6 @@ function ResumeBuilderPage() {
         }
         const snap = await fetchSnapshot(token);
         setSnapshot(snap);
-        setPreviewHtml(renderResumeToHtml({ ...snap, templateId: selectedTemplate }));
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Failed to load resume data");
       } finally {
@@ -110,7 +164,9 @@ function ResumeBuilderPage() {
     })();
   }, []);
 
-  // ── Load version history ──────────────────────────────────────────────────
+  // ── Load version history (includes each version's own snapshot, so Preview
+  //    can re-render an old version exactly as it was saved, not the current
+  //    live profile data) ───────────────────────────────────────────────────
   const loadVersions = async () => {
     setVersionsLoading(true);
     try {
@@ -118,11 +174,11 @@ function ResumeBuilderPage() {
       if (!user) return;
       const { data } = await supabase
         .from("resume_versions")
-        .select("id, version_number, template_id, created_at")
+        .select("id, version_number, template_id, created_at, snapshot")
         .eq("user_id", user.id)
         .order("version_number", { ascending: false })
         .limit(10);
-      setVersions((data as VersionRow[]) ?? []);
+      setVersions((data as unknown as VersionRow[]) ?? []);
     } catch {
       // silently ignore
     } finally {
@@ -132,31 +188,20 @@ function ResumeBuilderPage() {
 
   useEffect(() => { loadVersions(); }, []);
 
-  // ── Update preview when template changes ──────────────────────────────────
-  useEffect(() => {
-    if (snapshot) {
-      setPreviewHtml(renderResumeToHtml({ ...snapshot, templateId: selectedTemplate }));
-    }
-  }, [selectedTemplate, snapshot]);
-
-  // ── Sync preview HTML into iframe ─────────────────────────────────────────
-  useEffect(() => {
-    if (iframeRef.current && previewHtml) {
-      const doc = iframeRef.current.contentDocument;
-      if (doc) {
-        doc.open();
-        doc.write(previewHtml);
-        doc.close();
-      }
-    }
-  }, [previewHtml]);
-
   // ── Generate & save PDF version ───────────────────────────────────────────
   const handleGenerate = async () => {
     setGenerating(true);
     try {
       const token = await getAuthToken();
       if (!token) { toast.error("Not signed in"); return; }
+      // Flush un-debounced edits first: the server merges the saved draft, so a
+      // version generated right after typing must not miss the latest changes.
+      if (userIdRef.current) {
+        const { error } = await supabase
+          .from("resume_drafts")
+          .upsert({ user_id: userIdRef.current, extras: extras as never }, { onConflict: "user_id" });
+        if (error) throw new Error("Couldn't save your latest changes — try again");
+      }
       const { version, pdfUrl } = await generateVersion(token, selectedTemplate);
       toast.success(`Resume v${(version as VersionRow).version_number} saved!`);
       if (pdfUrl) setLastPdfUrl(pdfUrl);
@@ -167,6 +212,20 @@ function ResumeBuilderPage() {
       setGenerating(false);
     }
   };
+
+  const handleDownloadVersion = async (v: VersionRow) => {
+    setDownloadingVersionId(v.id);
+    try {
+      const { url } = await getVersionPdfUrl({ data: { versionNumber: v.version_number } });
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't get a download link");
+    } finally {
+      setDownloadingVersionId(null);
+    }
+  };
+
+  const LivePreviewTemplate = getResumeTemplate(selectedTemplate);
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
@@ -193,7 +252,7 @@ function ResumeBuilderPage() {
                 Choose Template
               </h2>
               <div className="flex flex-col gap-3">
-                {TEMPLATES.map((t) => (
+                {RESUME_TEMPLATE_LIST.map((t) => (
                   <button
                     key={t.id}
                     type="button"
@@ -204,10 +263,8 @@ function ResumeBuilderPage() {
                         : "border-border bg-background hover:border-primary/40 hover:bg-surface"
                     }`}
                   >
-                    <div
-                      className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ${t.color}`}
-                    >
-                      <FileText className="h-4 w-4 text-white" />
+                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                      <FileText className="h-4 w-4 text-primary" />
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-foreground">{t.label}</p>
@@ -221,13 +278,69 @@ function ResumeBuilderPage() {
               </div>
             </section>
 
+            {/* Completeness checklist — asks for what's missing instead of silently leaving gaps */}
+            <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                Resume Checklist
+              </h2>
+              {checklist.length === 0 ? (
+                <p className="flex items-center gap-2 text-sm text-success">
+                  <CheckCircle2 className="h-4 w-4" /> Your resume looks complete.
+                </p>
+              ) : (
+                <ul className="space-y-2">
+                  {checklist.map((item) => (
+                    <li key={item.key} className="flex items-start gap-2 text-xs">
+                      <Circle className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${item.severity === "required" ? "text-destructive" : "text-muted-foreground"}`} />
+                      {item.fix === "profile" ? (
+                        <a href="/candidate/profile" className="text-foreground hover:text-primary hover:underline">{item.message}</a>
+                      ) : (
+                        <button
+                          type="button"
+                          className="text-left text-foreground hover:text-primary hover:underline"
+                          onClick={() => document.getElementById(item.anchor ?? "")?.scrollIntoView({ behavior: "smooth", block: "center" })}
+                        >
+                          {item.message}
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            {/* Builder-only fields: not on the profile, never written back to it */}
+            <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                  Edit Your Resume
+                </h2>
+                <span className="text-[11px] text-muted-foreground">
+                  {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : ""}
+                </span>
+              </div>
+              {extrasLoaded ? (
+                <ResumeExtrasEditor extras={extras} onChange={setExtras} experiences={baseExperiences} />
+              ) : (
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              )}
+            </section>
+
+            {/* Tailor to a specific JobsKart job */}
+            <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                Tailor to a Job
+              </h2>
+              {merged && <JobMatchPanel resume={merged} />}
+            </section>
+
             {/* Profile summary */}
             <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
               <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                 Profile Data
               </h2>
               <div className="space-y-2 text-sm text-foreground">
-                <InfoRow label="Title" value={snapshot.title} />
+                <InfoRow label="Name" value={snapshot.candidateName || "Not set"} />
                 {snapshot.targetJobRole && (
                   <InfoRow label="Target Role" value={snapshot.targetJobRole} />
                 )}
@@ -277,7 +390,7 @@ function ResumeBuilderPage() {
               )}
             </div>
 
-            {/* Version history */}
+            {/* Version history — every version now gets its own Preview + Download */}
             <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
@@ -301,7 +414,7 @@ function ResumeBuilderPage() {
                   {versions.map((v) => (
                     <div
                       key={v.id}
-                      className="flex items-center gap-3 rounded-lg border border-border bg-background px-3 py-2"
+                      className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2"
                     >
                       <Clock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                       <div className="min-w-0 flex-1">
@@ -317,6 +430,27 @@ function ResumeBuilderPage() {
                           {v.template_id}
                         </p>
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => setPreviewVersion(v)}
+                        className="rounded p-1.5 text-muted-foreground hover:bg-surface hover:text-foreground"
+                        title="Preview this version"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadVersion(v)}
+                        disabled={downloadingVersionId === v.id}
+                        className="rounded p-1.5 text-muted-foreground hover:bg-surface hover:text-foreground disabled:opacity-50"
+                        title="Download this version"
+                      >
+                        {downloadingVersionId === v.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Download className="h-3.5 w-3.5" />
+                        )}
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -324,39 +458,35 @@ function ResumeBuilderPage() {
             </section>
           </div>
 
-          {/* ── Right panel: live preview ── */}
-          <div className="flex flex-col gap-3">
+          {/* ── Right panel: live preview — this IS the real PDF engine
+              (react-pdf), the exact same component tree used server-side for
+              the download, so preview and download can never drift apart. ── */}
+          <div className="flex flex-col gap-3 lg:sticky lg:top-4 lg:self-start">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                 <Eye className="h-4 w-4 text-primary" />
                 Live Preview
               </div>
               <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium text-primary">
-                {TEMPLATES.find((t) => t.id === selectedTemplate)?.label}
+                {RESUME_TEMPLATE_LIST.find((t) => t.id === selectedTemplate)?.label}
               </span>
             </div>
             <div className="relative min-h-[700px] overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
-              {previewHtml ? (
-                <iframe
-                  ref={iframeRef}
-                  title="Resume Preview"
-                  className="h-full w-full"
-                  style={{ minHeight: 700, border: "none" }}
-                  sandbox="allow-same-origin"
-                />
-              ) : (
-                <div className="flex h-full min-h-[700px] items-center justify-center text-muted-foreground">
-                  <Loader2 className="h-6 w-6 animate-spin" />
-                </div>
-              )}
+              <PDFViewer key={selectedTemplate} style={{ width: "100%", height: 700, border: "none" }} showToolbar={false}>
+                <LivePreviewTemplate resume={{ ...(merged ?? snapshot), templateId: selectedTemplate }} />
+              </PDFViewer>
             </div>
             <p className="text-xs text-muted-foreground">
               Preview is generated from your profile data. Click{" "}
               <strong>Generate &amp; Save</strong> to lock in this version and
-              optionally download a PDF.
+              download the exact same PDF shown above.
             </p>
           </div>
         </div>
+      )}
+
+      {previewVersion && (
+        <VersionPreviewModal version={previewVersion} onClose={() => setPreviewVersion(null)} />
       )}
     </CandidateShell>
   );
@@ -368,6 +498,29 @@ function InfoRow({ label, value }: { label: string; value: string }) {
     <div className="flex items-baseline gap-2">
       <span className="w-20 shrink-0 text-xs text-muted-foreground">{label}</span>
       <span className="truncate font-medium">{value}</span>
+    </div>
+  );
+}
+
+function VersionPreviewModal({ version, onClose }: { version: VersionRow; onClose: () => void }) {
+  const Template = getResumeTemplate(version.template_id);
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="flex h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-card shadow-xl">
+        <div className="flex items-center justify-between border-b border-border px-5 py-3">
+          <p className="text-sm font-semibold text-foreground">
+            Version {version.version_number} — {version.template_id}
+          </p>
+          <button onClick={onClose} className="rounded p-1 text-muted-foreground hover:text-foreground">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="flex-1">
+          <PDFViewer style={{ width: "100%", height: "100%", border: "none" }} showToolbar={false}>
+            <Template resume={version.snapshot} />
+          </PDFViewer>
+        </div>
+      </div>
     </div>
   );
 }
@@ -394,4 +547,3 @@ function EmptyState() {
     </div>
   );
 }
-
