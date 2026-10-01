@@ -6,7 +6,9 @@ import {
   Bookmark,
   BookmarkCheck,
   Mic,
+  Volume1,
   Volume2,
+  VolumeX,
   ExternalLink,
   EyeOff,
   Flag,
@@ -86,6 +88,28 @@ function SpeedPicker({ value, onChange }: { value: number; onChange: (rate: numb
   );
 }
 
+/** Volume control for the TTS voice (question / answer read-aloud). Web Speech
+ *  API utterances aren't a <audio> element, so there's no native volume slider
+ *  to reuse — this gives the same control by setting SpeechSynthesisUtterance.volume. */
+function VolumePicker({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const Icon = value === 0 ? VolumeX : value < 0.5 ? Volume1 : Volume2;
+  return (
+    <div className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2 py-1">
+      <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+      <input
+        type="range"
+        min={0}
+        max={1}
+        step={0.1}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        aria-label="Voice volume"
+        className="h-1.5 w-20 accent-primary"
+      />
+    </div>
+  );
+}
+
 /** Plays back the candidate's own in-memory recording at the shared speech rate
  *  (native <audio> has no `playbackRate` JSX prop — it has to be set imperatively). */
 function RecordingPlayer({ src, rate }: { src: string; rate: number }) {
@@ -125,6 +149,7 @@ function PrepSessionPage() {
   // Shared between "read question aloud" and "read my answer aloud" — both are
   // plain client-side speechSynthesis, so one rate control covers both.
   const [speechRate, setSpeechRate] = useState(1);
+  const [speechVolume, setSpeechVolume] = useState(1);
   // Per-question Object URL for the candidate's own recording, kept only in this
   // tab's memory for this visit — never uploaded or persisted anywhere. Keyed by
   // sessionQuestionId; re-recording a question replaces (and revokes) its entry.
@@ -248,6 +273,7 @@ function PrepSessionPage() {
     const u = new SpeechSynthesisUtterance(t);
     u.lang = ttsLang;
     u.rate = speechRate;
+    u.volume = speechVolume;
     window.speechSynthesis.speak(u);
   };
 
@@ -448,6 +474,7 @@ function PrepSessionPage() {
                   <Volume2 className="h-3.5 w-3.5" /> Read question aloud
                 </button>
                 <SpeedPicker value={speechRate} onChange={setSpeechRate} />
+                <VolumePicker value={speechVolume} onChange={setSpeechVolume} />
               </div>
             )}
             {framework.steps && framework.steps.length > 0 && (
@@ -598,6 +625,7 @@ function PrepSessionPage() {
                       <Volume2 className="h-3.5 w-3.5" /> Read my answer aloud
                     </button>
                     <SpeedPicker value={speechRate} onChange={setSpeechRate} />
+                    <VolumePicker value={speechVolume} onChange={setSpeechVolume} />
                   </div>
                 )}
               {q && recordings[q.id] && (
