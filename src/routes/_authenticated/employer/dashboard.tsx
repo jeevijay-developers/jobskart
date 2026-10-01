@@ -89,15 +89,17 @@ function DashboardMetricCard({
   value,
   hint,
   tone,
+  to,
 }: {
   icon: typeof Briefcase;
   label: string;
   value: number;
   hint?: string;
   tone: keyof typeof metricTones;
+  to: "/employer/jobs" | "/employer/responses" | "/employer/interviews" | "/employer/reports";
 }) {
   return (
-    <div className="group flex min-h-32 min-w-0 flex-col justify-between rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-card-hover)] sm:p-5 min-[1180px]:!min-h-28 min-[1180px]:!p-4">
+    <Link to={to} className="group flex min-h-32 min-w-0 flex-col justify-between rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-card-hover)] sm:p-5 min-[1180px]:!min-h-28 min-[1180px]:!p-4">
       <div className="flex items-start justify-between gap-3">
         <p className="min-w-0 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
           {label}
@@ -120,7 +122,7 @@ function DashboardMetricCard({
           </span>
         ) : null}
       </div>
-    </div>
+    </Link>
   );
 }
 
@@ -392,20 +394,29 @@ function EmployerDashboard() {
             value={stats.activeJobs}
             hint={stats.activeJobs > 0 ? "Live now" : "Post your first"}
             tone="success"
+            to="/employer/jobs"
           />
           <DashboardMetricCard
             icon={Users}
             label="Total applicants"
             value={stats.totalApplications}
             tone="primary"
+            to="/employer/responses"
           />
           <DashboardMetricCard
             icon={CalendarCheck2}
             label="In interview"
             value={stats.interviews}
             tone="warning"
+            to="/employer/interviews"
           />
-          <DashboardMetricCard icon={Eye} label="Job views" value={stats.views} tone="muted" />
+          <DashboardMetricCard
+            icon={Eye}
+            label="Job views"
+            value={stats.views}
+            tone="muted"
+            to="/employer/reports"
+          />
         </div>
 
         {/* Primary workspace and supporting rail */}
