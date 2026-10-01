@@ -58,6 +58,8 @@ const startSchema = z.object({
   roleTitle: z.string().trim().max(80).optional(),
   questionCount: z.number().int().min(3).max(10).default(6),
   categories: z.array(z.enum(CATEGORY_KEYS)).min(1).max(7).optional(),
+  /** Content language for this session's questions/TTS/feedback — locked for its lifetime. */
+  language: z.enum(["en", "hi"]).default("en"),
 });
 export type StartPrepInput = z.input<typeof startSchema>;
 
@@ -72,6 +74,7 @@ export const startPrepSession = createServerFn({ method: "POST" })
       _role_title: data.roleTitle ?? undefined,
       _question_count: data.questionCount,
       _categories: data.categories ?? undefined,
+      _language: data.language,
     });
     if (error) throw friendly(error.message);
     return { sessionId: id };
@@ -121,7 +124,7 @@ export const submitPrepAnswer = createServerFn({ method: "POST" })
     const { data: q, error: qErr } = await supabase
       .from("interview_prep_session_questions")
       .select(
-        "id, category, question_text, framework, session_id, interview_prep_sessions(role_title, context)",
+        "id, category, question_text, framework, session_id, interview_prep_sessions(role_title, context, language)",
       )
       .eq("id", data.sessionQuestionId)
       .maybeSingle();
@@ -129,7 +132,9 @@ export const submitPrepAnswer = createServerFn({ method: "POST" })
     const session = q.interview_prep_sessions as {
       role_title: string;
       context: { skills?: string[] };
+      language: "en" | "hi";
     };
+    const language = session.language ?? "en";
 
     const check = checkAnswer(data.answerText, q.category);
     if (!check.ok) return { status: "needs_more", message: check.reason };
@@ -161,9 +166,10 @@ export const submitPrepAnswer = createServerFn({ method: "POST" })
           framework,
           answer: data.answerText,
           fromSpeech: !!data.voice,
+          language,
         });
     const source = feedback ? "ai" : "fallback";
-    feedback ??= fallbackFeedback(data.answerText, q.category, framework);
+    feedback ??= fallbackFeedback(data.answerText, q.category, framework, language);
 
     const { data: last } = await supabase
       .from("interview_prep_answers")
@@ -185,6 +191,7 @@ export const submitPrepAnswer = createServerFn({ method: "POST" })
         voice_metrics: metrics ?? undefined,
         feedback,
         feedback_source: source,
+        feedback_language: language,
         rubric_version: 1,
         prompt_version: PROMPT_VERSION,
       })
@@ -229,7 +236,7 @@ export const getPrepSession = createServerFn({ method: "POST" })
     const { data: session } = await supabase
       .from("interview_prep_sessions")
       .select(
-        "id, context_type, role_title, context, status, self_check, started_at, finished_at, interview_id",
+        "id, context_type, role_title, context, status, self_check, started_at, finished_at, interview_id, language",
       )
       .eq("id", data.sessionId)
       .maybeSingle();
@@ -253,7 +260,7 @@ export const getPrepSession = createServerFn({ method: "POST" })
     const { data: answers } = await supabase
       .from("interview_prep_answers")
       .select(
-        "id, session_question_id, attempt, answer_text, source, voice_metrics, feedback, feedback_source, created_at",
+        "id, session_question_id, attempt, answer_text, source, voice_metrics, feedback, feedback_source, feedback_language, created_at",
       )
       .in(
         "session_question_id",
@@ -267,6 +274,7 @@ export const getPrepSession = createServerFn({ method: "POST" })
       answer_text: string;
       feedback: Feedback | null;
       feedback_source: "ai" | "fallback" | null;
+      feedback_language: "en" | "hi" | null;
       created_at: string;
     };
     const all = (answers ?? []) as A[];
@@ -581,4 +589,71 @@ export const transcribePrepAnswer = createServerFn({ method: "POST" })
         "We couldn't hear any speech in that recording. Check your microphone and try again.",
       );
     return { transcript: text };
+  });
+
+// ── Admin: question translations (content, not UI chrome) ───────────────────
+// AI drafts once, here, at admin-trigger time only — never at session start. A
+// human reviews/edits before `saveQuestionTranslation` can mark it published;
+// nothing here is shown to a candidate until that happens (RLS has no candidate
+// SELECT policy on the translations table at all — see the migration).
+const TranslationDraftSchema = z.object({
+  question: z.string().trim().min(1).max(500),
+  steps: z.array(z.string().trim().min(1).max(200)).max(10),
+});
+
+export const draftQuestionTranslation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: unknown) =>
+    z.object({ templateId: z.string().uuid(), language: z.literal("hi") }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: isAdmin } = await context.supabase.rpc("has_platform_role", {
+      _user_id: context.userId,
+      _role: "super_admin",
+    });
+    if (!isAdmin) throw new Error("Admin access required.");
+
+    const { data: tmpl, error: tmplErr } = await context.supabase
+      .from("interview_prep_question_templates")
+      .select("question, framework")
+      .eq("id", data.templateId)
+      .maybeSingle();
+    if (tmplErr || !tmpl) throw new Error("Template not found.");
+    const framework = (tmpl.framework ?? {}) as Framework;
+    const steps = framework.steps ?? [];
+
+    const system =
+      "You are a professional Hindi translator for a job-interview coaching product aimed at blue-collar and grey-collar job seekers in India. Translate plainly and simply — this is a draft a human will review before anyone sees it.";
+    const user = `Translate this interview question and its outline steps into simple, plain Hindi (Devanagari script). Return exactly the same number of steps, in the same order, as a translation (not a rewrite) of each.
+Return JSON only: {"question": string, "steps": string[]}
+
+Question: ${tmpl.question}
+Steps: ${JSON.stringify(steps)}`;
+
+    let translated: { question: string; steps: string[] };
+    try {
+      // Generous headroom: Devanagari output + this model's hidden "thinking"
+      // tokens can eat a tight budget and truncate the JSON (see chatJSON's
+      // retry logic in provider.ts for the full explanation).
+      translated = await chatJSON(
+        { system, user, temperature: 0.2, maxTokens: 2000 },
+        TranslationDraftSchema,
+      );
+    } catch (e) {
+      throw friendly(e instanceof Error ? e.message : "translation_failed");
+    }
+
+    const { error: upErr } = await context.supabase
+      .from("interview_prep_question_template_translations")
+      .upsert({
+        template_id: data.templateId,
+        language: data.language,
+        question: translated.question,
+        framework: { ...framework, steps: translated.steps },
+        status: "draft",
+        created_by: context.userId,
+      });
+    if (upErr) throw friendly(upErr.message);
+
+    return translated;
   });

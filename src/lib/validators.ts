@@ -63,6 +63,25 @@ export const cityTownSchema = z
       .regex(CITY_TOWN_RE, "Only letters, spaces, hyphens and apostrophes are allowed"),
   );
 
+// Matches the CHECK constraint on profiles.email / contact_messages.email in supabase/migrations.
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[a-zA-Z]{2,}$/;
+const SYNTHETIC_EMAIL_RE = /^m\d+@jobskart\.app$/i;
+
+export const isSyntheticEmail = (email: string | null | undefined) =>
+  !!email && SYNTHETIC_EMAIL_RE.test(email);
+
+export const emailSchema = z
+  .string()
+  .transform((v) => v.trim().toLowerCase())
+  .pipe(
+    z
+      .string()
+      .min(1, "Please enter your email")
+      .max(200, "Email must be under 200 characters")
+      .regex(EMAIL_RE, "Enter a valid email address")
+      .refine((v) => !isSyntheticEmail(v), "Enter a valid email address"),
+  );
+
 export const headlineSchema = z
   .string()
   .transform(sanitizeText)

@@ -15,6 +15,7 @@ type Props = {
   /** Classes for the <input> itself — carry the existing visual styling. */
   inputClassName?: string;
   "aria-label"?: string;
+  maxLength?: number;
 };
 
 /**

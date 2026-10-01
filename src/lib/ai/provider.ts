@@ -205,12 +205,33 @@ function decodeB64(b64: string): Uint8Array {
 
 /**
  * Speech-to-text for interview practice. Audio is processed in memory and sent only to the
- * configured provider; it is never written to storage. Follows AI_PROVIDER like every other call:
+ * configured provider; it is never written to storage. Follows AI_PROVIDER like every other call,
+ * except that "a chat provider's generic multimodal path" isn't actually a valid way to send audio:
  *  - openai: dedicated transcription endpoint (AI_STT_MODEL overrides the default).
- *  - gemini / lovable / openrouter: the configured multimodal model reads the audio directly
- *    (AI_STT_MODEL overrides AI_MODEL).
+ *  - gemini: native API, called directly — its `inline_data` part genuinely accepts arbitrary
+ *    browser-recorded mime types (webm/opus, ogg, mp4), unlike the other two below.
+ *  - lovable / openrouter: these route through chatOpenAICompatible()'s `files` handling, which
+ *    emits a `type: "file"` content part — that's the OpenAI *document* (PDF) format, not audio;
+ *    neither gateway treats it as speech to transcribe, so sending audio through it silently fails
+ *    or returns nothing. If a Gemini key is configured, use it directly for STT regardless of which
+ *    provider handles chat (same reasoning as the dedicated openai path above); only fall back to
+ *    the generic multimodal attempt when no Gemini key is available at all.
  */
 export async function transcribeAudio(args: TranscribeArgs): Promise<string> {
+  // One retry: transient provider overload (503 "high demand") is common enough
+  // in practice to be worth a second attempt before making the candidate re-record.
+  try {
+    return await attemptTranscribe(args);
+  } catch (firstErr) {
+    try {
+      return await attemptTranscribe(args);
+    } catch {
+      throw firstErr;
+    }
+  }
+}
+
+async function attemptTranscribe(args: TranscribeArgs): Promise<string> {
   const { provider, model } = cfg();
   const language = args.language ?? "en";
 
@@ -234,6 +255,21 @@ export async function transcribeAudio(args: TranscribeArgs): Promise<string> {
     return (json.text ?? "").trim();
   }
 
+  if (process.env.GEMINI_API_KEY) {
+    // Reuse the already-configured chat model (AI_MODEL) rather than a separately
+    // hardcoded Gemini model string — a literal here would silently rot the next
+    // time Google retires a model version (confirmed live: gemini-2.5-flash was
+    // retired and started 404ing with no code change on this end).
+    const raw = await chatGemini(process.env.AI_STT_MODEL ?? model, {
+      system: TRANSCRIBE_SYSTEM,
+      user: transcribeUserPrompt(language),
+      files: [{ mime: args.mime, b64: args.b64, name: "answer" }],
+      temperature: 0,
+      maxTokens: 2048,
+    });
+    return raw.replace(/^```[a-z]*|```$/gim, "").trim();
+  }
+
   const raw = await chatWithModel(process.env.AI_STT_MODEL ?? model, {
     system: TRANSCRIBE_SYSTEM,
     user: transcribeUserPrompt(language),
@@ -244,14 +280,62 @@ export async function transcribeAudio(args: TranscribeArgs): Promise<string> {
   return raw.replace(/^```[a-z]*|```$/gim, "").trim();
 }
 
-export async function chatJSON<T>(args: ChatArgs, schema: ZodType<T>): Promise<T> {
-  const raw = await chat({
-    ...args,
-    json: true,
-    system: (args.system ?? "") + "\nRespond with JSON only. No markdown fences, no preamble.",
-  });
+/**
+ * Strips code fences, then parses. If the model ignored "JSON only" and wrapped
+ * the object in prose (seen in practice: some responses describe the schema —
+ * e.g. a stray "constraints" field — instead of filling it), fall back to
+ * extracting the outermost {...} or [...] slice before parsing. Only ever
+ * widens what's accepted; never silently accepts malformed JSON.
+ */
+function parseJsonLoose(raw: string): unknown {
   const cleaned = raw.replace(/```json|```/g, "").trim();
-  return schema.parse(JSON.parse(cleaned || "{}"));
+  try {
+    return JSON.parse(cleaned || "{}");
+  } catch (firstErr) {
+    const objStart = cleaned.indexOf("{");
+    const objEnd = cleaned.lastIndexOf("}");
+    const arrStart = cleaned.indexOf("[");
+    const arrEnd = cleaned.lastIndexOf("]");
+    const useArray = arrStart !== -1 && (objStart === -1 || arrStart < objStart);
+    const start = useArray ? arrStart : objStart;
+    const end = useArray ? arrEnd : objEnd;
+    if (start === -1 || end === -1 || end <= start) throw firstErr;
+    return JSON.parse(cleaned.slice(start, end + 1));
+  }
+}
+
+/**
+ * Confirmed in practice (debugged live): the dominant failure mode isn't the
+ * model ignoring "JSON only" — it's outright truncation. Reasoning-capable
+ * models (the default here, google/gemini-3.6-flash) spend part of maxTokens
+ * on hidden "thinking" tokens before the visible answer; for non-English
+ * output especially (Devanagari tokenizes less efficiently than English),
+ * that can eat the whole budget and cut the JSON off mid-string — producing
+ * "Unterminated string" / "Unexpected identifier" errors on an otherwise
+ * well-formed prompt. This is non-deterministic: the exact same call can
+ * succeed or truncate from one attempt to the next. No single retry count
+ * eliminates it, so chatJSON retries a bounded number of times rather than
+ * once — same "AI hiccup never blocks the flow" principle as everywhere else
+ * here, just budgeted for a flakier-than-usual failure mode.
+ */
+const CHAT_JSON_MAX_ATTEMPTS = 3;
+
+export async function chatJSON<T>(args: ChatArgs, schema: ZodType<T>): Promise<T> {
+  const call = () =>
+    chat({
+      ...args,
+      json: true,
+      system: (args.system ?? "") + "\nRespond with JSON only. No markdown fences, no preamble.",
+    });
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < CHAT_JSON_MAX_ATTEMPTS; attempt++) {
+    try {
+      return schema.parse(parseJsonLoose(await call()));
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
 }
 
 /**

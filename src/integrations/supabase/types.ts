@@ -2536,6 +2536,7 @@ export type Database = {
           candidate_id: string
           created_at: string
           feedback: Json | null
+          feedback_language: string
           feedback_source: string | null
           id: string
           model_info: string | null
@@ -2551,6 +2552,7 @@ export type Database = {
           candidate_id: string
           created_at?: string
           feedback?: Json | null
+          feedback_language?: string
           feedback_source?: string | null
           id?: string
           model_info?: string | null
@@ -2566,6 +2568,7 @@ export type Database = {
           candidate_id?: string
           created_at?: string
           feedback?: Json | null
+          feedback_language?: string
           feedback_source?: string | null
           id?: string
           model_info?: string | null
@@ -2607,6 +2610,50 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "interview_prep_question_prefs_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "interview_prep_question_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interview_prep_question_template_translations: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          framework: Json
+          language: string
+          question: string
+          reviewed_by: string | null
+          status: string
+          template_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          framework?: Json
+          language: string
+          question: string
+          reviewed_by?: string | null
+          status?: string
+          template_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          framework?: Json
+          language?: string
+          question?: string
+          reviewed_by?: string | null
+          status?: string
+          template_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_prep_question_template_translations_template_id_fkey"
             columns: ["template_id"]
             isOneToOne: false
             referencedRelation: "interview_prep_question_templates"
@@ -2815,6 +2862,7 @@ export type Database = {
           id: string
           interview_id: string | null
           job_id: string | null
+          language: string
           mode: string
           role_title: string
           self_check: number | null
@@ -2829,6 +2877,7 @@ export type Database = {
           id?: string
           interview_id?: string | null
           job_id?: string | null
+          language?: string
           mode?: string
           role_title: string
           self_check?: number | null
@@ -2843,6 +2892,7 @@ export type Database = {
           id?: string
           interview_id?: string | null
           job_id?: string | null
+          language?: string
           mode?: string
           role_title?: string
           self_check?: number | null
@@ -5350,6 +5400,7 @@ export type Database = {
           _context_type: string
           _interview_id?: string
           _job_id?: string
+          _language?: string
           _question_count?: number
           _role_title?: string
         }
