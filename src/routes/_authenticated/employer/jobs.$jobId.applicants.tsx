@@ -596,7 +596,12 @@ function ApplicantsPage() {
   };
 
   const empty = emptyStateCopy(tab);
-  const showInterviewSubTabs = tab === "interview" || tab === "hired" || tab === "rejected";
+  // Mobile only: Hired/Rejected (and the "In progress" alias for Interview)
+  // render as a second row nested under Interview, matching the candidate-side
+  // applications page pattern — the row stays visible across all three since
+  // they're all reached from/through the Interview stage. Desktop keeps all
+  // six as one flat always-visible row (sm:contents below), unaffected by this.
+  const showMobileInterviewSubRow = tab === "interview" || tab === "hired" || tab === "rejected";
 
   return (
     <EmployerShell
@@ -659,12 +664,14 @@ function ApplicantsPage() {
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 {!boardView && (
                 <div className="w-full rounded-xl border border-border bg-card p-1 sm:flex sm:w-auto sm:flex-wrap sm:gap-1">
-                  <div className="grid grid-cols-4 gap-1 sm:contents">
+                  <div className="grid grid-cols-3 gap-1 sm:contents">
                     {TABS.filter((t) => t.id !== "hired" && t.id !== "rejected").map((t) => (
                       <button
                         key={t.id}
                         onClick={() => setTab(t.id)}
                         className={`rounded-lg px-2 py-2 text-sm font-medium transition-colors sm:px-3 ${
+                          t.id === "applied" ? "hidden sm:block" : ""
+                        } ${
                           tab === t.id ? "bg-primary text-primary-foreground" : "text-foreground/70 hover:bg-surface"
                         }`}
                       >
@@ -672,7 +679,22 @@ function ApplicantsPage() {
                       </button>
                     ))}
                   </div>
-                  <div className={`${showInterviewSubTabs ? "mt-1 grid grid-cols-2 gap-1" : "hidden"} sm:contents sm:mt-0`}>
+                  {/* Mobile-only second row nested under the Interview stage — "In progress"
+                      is an alias for the Interview tab itself, shown alongside Hired/Rejected
+                      so all three interview-stage outcomes sit together. Hidden on desktop,
+                      which keeps Interview/Hired/Rejected as three independent, always-visible
+                      top-level tabs (rendered via the sm:contents below, unchanged). */}
+                  <div
+                    className={`${showMobileInterviewSubRow ? "mt-1 grid grid-cols-3 gap-1" : "hidden"} sm:contents sm:mt-0`}
+                  >
+                    <button
+                      onClick={() => setTab("interview")}
+                      className={`rounded-lg px-2 py-2 text-sm font-medium transition-colors sm:hidden ${
+                        tab === "interview" ? "bg-primary text-primary-foreground" : "text-foreground/70 hover:bg-surface"
+                      }`}
+                    >
+                      In progress {counts.interview > 0 && <span className="ml-1 opacity-80">({counts.interview})</span>}
+                    </button>
                     {TABS.filter((t) => t.id === "hired" || t.id === "rejected").map((t) => (
                       <button
                         key={t.id}

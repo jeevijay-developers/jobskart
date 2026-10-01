@@ -54,7 +54,7 @@ export function PostContent({ slug, inCandidate }: { slug: string; inCandidate?:
   }, [slug]);
 
   return (
-    <>
+    <div className={inCandidate ? "w-full rounded-3xl bg-card p-4 shadow-sm sm:p-8" : undefined}>
       <Link
         to={inCandidate ? "/candidate/learning" : "/learn"}
         className="inline-flex items-center gap-1 text-sm font-semibold text-primary"
@@ -72,11 +72,38 @@ export function PostContent({ slug, inCandidate }: { slug: string; inCandidate?:
         </div>
       ) : (
         <article className="mt-6">
-          {post.cover_url && (
-            <img src={post.cover_url} alt="" className="mb-6 w-full rounded-xl object-cover" />
+          {post.cover_url &&
+            (inCandidate ? (
+              <div className="relative mb-6 aspect-[16/9] w-full sm:aspect-[3/1] overflow-hidden rounded-2xl bg-surface">
+                <img
+                  src={post.cover_url}
+                  alt=""
+                  className="absolute inset-0 h-full w-full object-contain object-center"
+                />
+              </div>
+            ) : (
+              <img src={post.cover_url} alt="" className="mb-6 w-full rounded-xl object-cover" />
+            ))}
+          <h1
+            className={
+              inCandidate
+                ? "text-2xl font-bold tracking-tight text-foreground sm:text-3xl"
+                : "text-2xl font-bold text-foreground sm:text-3xl"
+            }
+          >
+            {post.title}
+          </h1>
+          {inCandidate && post.excerpt && (
+            <p className="mt-2 text-lg text-muted-foreground">{post.excerpt}</p>
           )}
-          <h1 className="text-2xl font-bold text-foreground sm:text-3xl">{post.title}</h1>
-          <div className="mt-6 max-w-none">
+          {inCandidate && <hr className="mt-6 border-border" />}
+          <div
+            className={
+              inCandidate
+                ? "mt-6 max-w-none [&_li]:text-base [&_li]:leading-7 [&_p]:text-base [&_p]:leading-7"
+                : "mt-6 max-w-none"
+            }
+          >
             <FormattedMarkdown
               text={
                 (Array.isArray(post.content_posts) ? post.content_posts[0] : post.content_posts)
@@ -86,6 +113,6 @@ export function PostContent({ slug, inCandidate }: { slug: string; inCandidate?:
           </div>
         </article>
       )}
-    </>
+    </div>
   );
 }

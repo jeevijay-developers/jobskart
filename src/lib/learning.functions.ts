@@ -458,6 +458,7 @@ export const createContentItem = createServerFn({ method: "POST" })
         slug: slugify(data.title),
         title: data.title,
         excerpt: data.excerpt ?? null,
+        cover_url: data.coverUrl ?? null,
         category: data.category ?? null,
         tags: data.tags,
         status: "draft",

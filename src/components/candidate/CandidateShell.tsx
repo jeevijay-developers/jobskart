@@ -2,6 +2,8 @@ import { Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import {
   Bell,
   Bookmark,
+  ChevronLeft,
+  ChevronRight,
   FileEdit,
   FileText,
   FolderOpen,
@@ -95,6 +97,7 @@ export function CandidateAppLayout({ children }: { children?: ReactNode }) {
   const navigate = useNavigate();
   const [signOutOpen, setSignOutOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
   const handleSignOut = async () => {
     try {
@@ -109,9 +112,25 @@ export function CandidateAppLayout({ children }: { children?: ReactNode }) {
   return (
     <div className="min-h-screen bg-surface pb-20 lg:pb-0">
       <div className="flex min-h-screen w-full min-w-0 overflow-x-hidden">
-        <aside className="fixed bottom-0 left-0 top-0 z-40 hidden w-64 border-r border-border bg-card lg:block">
+        <aside
+          className={`fixed bottom-0 left-0 top-0 z-40 hidden border-r border-border bg-card transition-[width] lg:block ${
+            collapsed ? "w-[72px]" : "w-64"
+          }`}
+        >
+          <button
+            type="button"
+            onClick={() => setCollapsed((c) => !c)}
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className="absolute -right-3 top-6 z-50 grid h-6 w-6 place-items-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:text-foreground"
+          >
+            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          </button>
           <nav className="flex h-full min-h-0 flex-col">
-            <div className="min-h-0 flex-1 space-y-1 overflow-y-auto px-4 pb-6 pt-8">
+            <div
+              className={`min-h-0 flex-1 space-y-1 overflow-y-auto pb-6 pt-8 ${collapsed ? "px-3" : "px-4"}`}
+            >
               {navItems.map((item) => {
                 const active = pathname === item.to || pathname.startsWith(item.to + "/");
                 const Icon = item.icon;
@@ -119,27 +138,31 @@ export function CandidateAppLayout({ children }: { children?: ReactNode }) {
                   <Link
                     key={item.to}
                     to={item.to}
+                    title={collapsed ? item.label : undefined}
+                    aria-label={collapsed ? item.label : undefined}
                     className={`flex h-11 items-center gap-3 whitespace-nowrap rounded-lg px-3 text-[15px] font-medium leading-none transition-colors ${
                       active
                         ? "bg-primary-light text-primary"
                         : "text-foreground/80 hover:bg-surface"
-                    }`}
+                    } ${collapsed ? "justify-center px-0" : ""}`}
                   >
                     <Icon className="h-[18px] w-[18px] shrink-0" />
-                    {item.label}
+                    {!collapsed && item.label}
                   </Link>
                 );
               })}
             </div>
-            <div className="shrink-0 border-t border-border p-4">
+            <div className={`shrink-0 border-t border-border ${collapsed ? "p-3" : "p-4"}`}>
               <AlertDialog open={signOutOpen} onOpenChange={setSignOutOpen}>
                 <AlertDialogTrigger asChild>
                   <button
                     type="button"
-                    className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-border px-3 text-sm font-semibold text-foreground/80 transition-colors hover:border-destructive/40 hover:bg-destructive-light hover:text-destructive"
+                    title={collapsed ? "Sign out" : undefined}
+                    aria-label={collapsed ? "Sign out" : undefined}
+                    className={`flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-border text-sm font-semibold text-foreground/80 transition-colors hover:border-destructive/40 hover:bg-destructive-light hover:text-destructive ${collapsed ? "px-0" : "px-3"}`}
                   >
                     <LogOut className="h-4 w-4 shrink-0" />
-                    Sign out
+                    {!collapsed && "Sign out"}
                   </button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
@@ -179,7 +202,11 @@ export function CandidateAppLayout({ children }: { children?: ReactNode }) {
           </div>
         </div>
 
-        <main className="min-w-0 flex-1 px-4 pb-6 pt-20 sm:px-6 lg:ml-64 lg:px-8 lg:py-6 xl:px-10 2xl:px-12">
+        <main
+          className={`min-w-0 flex-1 px-4 pb-6 pt-20 transition-[margin] sm:px-6 lg:px-8 lg:py-6 xl:px-10 2xl:px-12 ${
+            collapsed ? "lg:ml-[72px]" : "lg:ml-64"
+          }`}
+        >
           {children ?? <Outlet />}
         </main>
       </div>
