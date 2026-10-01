@@ -282,9 +282,10 @@ function CandidateDashboard() {
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         {learning.slice(0, 2).map((l) => (
-          <a
+          <Link
             key={l.id}
-            href={`/learning/${l.slug}`}
+            to="/candidate/learning-corner/$slug"
+            params={{ slug: l.slug }}
             className="group block overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card)] transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-[var(--shadow-card-hover)]"
           >
             <div className="relative aspect-[16/9] overflow-hidden bg-primary-light">
@@ -326,7 +327,7 @@ function CandidateDashboard() {
                 {l.title}
               </h3>
             </div>
-          </a>
+          </Link>
         ))}
       </div>
     </section>
