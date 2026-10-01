@@ -218,6 +218,20 @@ function decodeB64(b64: string): Uint8Array {
  *    the generic multimodal attempt when no Gemini key is available at all.
  */
 export async function transcribeAudio(args: TranscribeArgs): Promise<string> {
+  // One retry: transient provider overload (503 "high demand") is common enough
+  // in practice to be worth a second attempt before making the candidate re-record.
+  try {
+    return await attemptTranscribe(args);
+  } catch (firstErr) {
+    try {
+      return await attemptTranscribe(args);
+    } catch {
+      throw firstErr;
+    }
+  }
+}
+
+async function attemptTranscribe(args: TranscribeArgs): Promise<string> {
   const { provider, model } = cfg();
   const language = args.language ?? "en";
 
@@ -242,7 +256,11 @@ export async function transcribeAudio(args: TranscribeArgs): Promise<string> {
   }
 
   if (process.env.GEMINI_API_KEY) {
-    const raw = await chatGemini(process.env.AI_STT_MODEL ?? "google/gemini-2.5-flash", {
+    // Reuse the already-configured chat model (AI_MODEL) rather than a separately
+    // hardcoded Gemini model string — a literal here would silently rot the next
+    // time Google retires a model version (confirmed live: gemini-2.5-flash was
+    // retired and started 404ing with no code change on this end).
+    const raw = await chatGemini(process.env.AI_STT_MODEL ?? model, {
       system: TRANSCRIBE_SYSTEM,
       user: transcribeUserPrompt(language),
       files: [{ mime: args.mime, b64: args.b64, name: "answer" }],

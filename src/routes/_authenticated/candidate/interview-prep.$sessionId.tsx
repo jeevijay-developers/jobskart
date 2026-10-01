@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { differenceInCalendarDays } from "date-fns";
 import {
   Bookmark,
@@ -86,6 +86,20 @@ function SpeedPicker({ value, onChange }: { value: number; onChange: (rate: numb
   );
 }
 
+/** Plays back the candidate's own in-memory recording at the shared speech rate
+ *  (native <audio> has no `playbackRate` JSX prop — it has to be set imperatively). */
+function RecordingPlayer({ src, rate }: { src: string; rate: number }) {
+  const ref = useRef<HTMLAudioElement>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.playbackRate = rate;
+  }, [rate, src]);
+  return (
+    <audio ref={ref} controls src={src} className="h-9 max-w-full" preload="metadata">
+      Your browser doesn't support audio playback.
+    </audio>
+  );
+}
+
 function PrepSessionPage() {
   const { sessionId } = Route.useParams();
   const navigate = useNavigate();
@@ -111,6 +125,18 @@ function PrepSessionPage() {
   // Shared between "read question aloud" and "read my answer aloud" — both are
   // plain client-side speechSynthesis, so one rate control covers both.
   const [speechRate, setSpeechRate] = useState(1);
+  // Per-question Object URL for the candidate's own recording, kept only in this
+  // tab's memory for this visit — never uploaded or persisted anywhere. Keyed by
+  // sessionQuestionId; re-recording a question replaces (and revokes) its entry.
+  const [recordings, setRecordings] = useState<Record<string, string>>({});
+  const recordingsRef = useRef(recordings);
+  recordingsRef.current = recordings;
+  useEffect(
+    () => () => {
+      Object.values(recordingsRef.current).forEach((url) => URL.revokeObjectURL(url));
+    },
+    [],
+  );
   const [result, setResult] = useState<{
     answerId: string;
     feedback: Feedback;
@@ -353,6 +379,8 @@ function PrepSessionPage() {
     return (
       <Results
         detail={detail}
+        recordings={recordings}
+        speechRate={speechRate}
         onRetry={(i) => {
           setIdx(i);
           setResult(null);
@@ -506,12 +534,19 @@ function PrepSessionPage() {
                   <VoiceRecorder
                     defaultLanguage={session.language === "hi" ? "hi" : "en"}
                     onCancel={() => setMode("type")}
-                    onTranscript={(t, sec) => {
+                    onTranscript={(t, sec, audioUrl) => {
                       setText(t);
                       setVoiceSec(sec);
                       setTranscriptNotice(true);
                       setHint(null);
                       setMode("type");
+                      if (q) {
+                        setRecordings((r) => {
+                          const prev = r[q.id];
+                          if (prev) URL.revokeObjectURL(prev);
+                          return { ...r, [q.id]: audioUrl };
+                        });
+                      }
                     }}
                   />
                 </div>
@@ -565,6 +600,14 @@ function PrepSessionPage() {
                     <SpeedPicker value={speechRate} onChange={setSpeechRate} />
                   </div>
                 )}
+              {q && recordings[q.id] && (
+                <div className="mt-2">
+                  <p className="mb-1 text-xs font-semibold text-muted-foreground">
+                    Your recording (this session only)
+                  </p>
+                  <RecordingPlayer src={recordings[q.id]} rate={speechRate} />
+                </div>
+              )}
               {hint && (
                 <p role="alert" className="mt-3 rounded-lg bg-amber/10 p-3 text-sm text-foreground">
                   {hint}
@@ -731,11 +774,16 @@ function FeedbackCard({
 
 function Results({
   detail,
+  recordings,
+  speechRate,
   onRetry,
   onSelfCheck,
   onDelete,
 }: {
   detail: Detail;
+  /** Candidate's own in-memory recordings from this visit, keyed by sessionQuestionId. */
+  recordings: Record<string, string>;
+  speechRate: number;
   onRetry: (i: number) => void;
   onSelfCheck: (n: number) => Promise<void>;
   onDelete: () => Promise<void>;
@@ -841,6 +889,14 @@ function Results({
                       Attempt {a.attempt} · {a.feedback.improvements[0]}
                     </summary>
                     <p className="mt-2 rounded-lg bg-surface p-3">{a.answer_text}</p>
+                    {recordings[x.id] && (
+                      <div className="mt-2">
+                        <p className="mb-1 text-xs font-semibold text-muted-foreground">
+                          Your recording (this session only)
+                        </p>
+                        <RecordingPlayer src={recordings[x.id]} rate={speechRate} />
+                      </div>
+                    )}
                     <div className="mt-2">
                       <FeedbackCard
                         feedback={a.feedback}

@@ -46,7 +46,7 @@ export function VoiceRecorder({
   onCancel,
   defaultLanguage = "en",
 }: {
-  onTranscript: (text: string, durationSec: number) => void;
+  onTranscript: (text: string, durationSec: number, audioUrl: string) => void;
   onCancel: () => void;
   /** What language the candidate is likely to speak — independent of STT's own
    *  override below, this just seeds a sensible default (e.g. match the session's
@@ -127,7 +127,11 @@ export function VoiceRecorder({
       const { transcript } = await transcribe({
         data: { audioB64, mime: mimeRef.current, durationSec, language },
       });
-      onTranscript(transcript, durationSec);
+      // The blob itself is never uploaded anywhere beyond the transcription
+      // call above — this Object URL just lets the candidate play back their
+      // own recording for the rest of this browser tab's session; the caller
+      // owns its lifetime (revoke on replace/unmount).
+      onTranscript(transcript, durationSec, URL.createObjectURL(blob));
     } catch (e) {
       setError(
         e instanceof Error
@@ -287,8 +291,9 @@ export function VoiceRecorder({
             </p>
           )}
           <p className="mt-2 text-xs text-muted-foreground">
-            Up to 2 minutes. You'll review and can edit the text before feedback. The recording
-            isn't saved.
+            Up to 2 minutes. You'll review and can edit the text before feedback. You can play
+            your recording back during this session — it's never saved anywhere and disappears
+            when you leave or refresh this page.
           </p>
           {error && (
             <p role="alert" className="mt-2 text-sm text-destructive">
