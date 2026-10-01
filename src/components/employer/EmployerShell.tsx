@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
-import { LogOut, Menu, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, LogOut, Menu, Plus } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -118,6 +118,7 @@ export function EmployerShell({
   const primary = nav.slice(0, 4);
   const [moreOpen, setMoreOpen] = useState(false);
   const [signOutConfirmOpen, setSignOutConfirmOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
   const handleSignOut = async () => {
     try {
@@ -132,14 +133,35 @@ export function EmployerShell({
   return (
     <div className="min-h-screen bg-surface pb-24 lg:pb-0">
       <div className="flex min-h-screen w-full min-w-0 overflow-x-hidden">
-        <aside className="fixed bottom-0 left-0 top-0 z-40 hidden w-64 border-r border-border bg-card lg:block">
+        <aside
+          className={`fixed bottom-0 left-0 top-0 z-40 hidden border-r border-border bg-card transition-[width] lg:block ${
+            collapsed ? "w-[72px]" : "w-64"
+          }`}
+        >
+          <button
+            type="button"
+            onClick={() => setCollapsed((c) => !c)}
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className="absolute -right-3 top-6 z-50 grid h-6 w-6 place-items-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:text-foreground"
+          >
+            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          </button>
           <nav className="flex h-full min-h-0 flex-col">
-            <div className="min-h-0 flex-1 space-y-1 overflow-y-auto px-4 py-6">
+            <div
+              className={`min-h-0 flex-1 space-y-1 overflow-y-auto pb-6 pt-10 ${collapsed ? "px-3" : "px-4"}`}
+            >
               <Link
                 to="/employer/jobs/new"
-                className="mb-3 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark"
+                title={collapsed ? "Post a job" : undefined}
+                aria-label={collapsed ? "Post a job" : undefined}
+                className={`mb-3 flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground hover:bg-primary-dark ${
+                  collapsed ? "px-0" : "px-3"
+                }`}
               >
-                <Plus className="h-4 w-4" /> Post a job
+                <Plus className="h-4 w-4 shrink-0" />
+                {!collapsed && "Post a job"}
               </Link>
               {visibleNav.map((item) => {
                 const active = pathname === item.to || pathname.startsWith(item.to + "/");
@@ -148,32 +170,42 @@ export function EmployerShell({
                   <Link
                     key={item.to}
                     to={item.to}
-                    className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                    title={collapsed ? item.label : undefined}
+                    aria-label={collapsed ? item.label : undefined}
+                    className={`flex items-center gap-3 whitespace-nowrap rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                       active
                         ? "bg-primary-light text-primary"
                         : "text-foreground/80 hover:bg-surface"
-                    }`}
+                    } ${collapsed ? "justify-center px-0" : ""}`}
                   >
-                    <Icon className="h-4 w-4" />
-                    {item.label}
+                    <Icon className="h-4 w-4 shrink-0" />
+                    {!collapsed && item.label}
                   </Link>
                 );
               })}
             </div>
-            <div className="shrink-0 space-y-3 border-t border-border p-4">
-              <CreditChip />
+            <div className={`shrink-0 space-y-3 border-t border-border ${collapsed ? "p-3" : "p-4"}`}>
+              {!collapsed && <CreditChip />}
               <button
                 type="button"
                 onClick={() => setSignOutConfirmOpen(true)}
-                className="flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-border px-3 text-xs font-semibold text-foreground/80 transition-colors hover:border-destructive/40 hover:bg-destructive-light hover:text-destructive"
+                title={collapsed ? "Sign out" : undefined}
+                aria-label={collapsed ? "Sign out" : undefined}
+                className={`flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-border text-xs font-semibold text-foreground/80 transition-colors hover:border-destructive/40 hover:bg-destructive-light hover:text-destructive ${
+                  collapsed ? "px-0" : "px-3"
+                }`}
               >
-                <LogOut className="h-3.5 w-3.5" />
-                Sign out
+                <LogOut className="h-3.5 w-3.5 shrink-0" />
+                {!collapsed && "Sign out"}
               </button>
             </div>
           </nav>
         </aside>
-        <main className="min-w-0 flex-1 px-3 pb-6 pt-20 sm:px-6 lg:ml-64 lg:px-8 lg:py-6 xl:px-10 2xl:px-12">
+        <main
+          className={`min-w-0 flex-1 px-3 pb-6 pt-20 transition-[margin] sm:px-6 lg:px-8 lg:py-6 xl:px-10 2xl:px-12 ${
+            collapsed ? "lg:ml-[72px]" : "lg:ml-64"
+          }`}
+        >
           <div className="fixed inset-x-0 top-0 z-40 flex h-14 items-center justify-between border-b border-border bg-surface px-3 lg:hidden">
             <Link to="/employer/dashboard" className="flex items-center">
               <img src={logoAsset} alt="JobsKart" className="h-7 w-auto" />

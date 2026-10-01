@@ -298,6 +298,7 @@ function EmployerDashboard() {
         <ThemedListDropdown
           label="Active company"
           className="h-9 w-full max-w-[220px] text-sm sm:w-auto"
+          menuClassName="left-auto right-0 min-w-[220px] max-w-[min(20rem,calc(100vw-2rem))]"
           value={active.company_id}
           options={companies.map((c) => ({ value: c.company_id, label: c.companies.name }))}
           selectedOptionClassName="bg-primary/10 font-medium text-primary hover:bg-primary/15"

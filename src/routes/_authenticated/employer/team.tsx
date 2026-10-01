@@ -1,4 +1,4 @@
-import { ThemedSelect } from "@/components/ui/themed-form-controls";
+import { ThemedListDropdown } from "@/components/ui/themed-form-controls";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import {
@@ -425,16 +425,19 @@ function TeamPage() {
                             </span>
                           </div>
                           {isSuperAdmin && (
-                            <ThemedSelect
+                            <ThemedListDropdown
+                              label="Role"
                               value={m.role}
-                              onChange={(e) => changeRole(m.user_id, e.target.value as EmployerRole)}
+                              onChange={(value) => changeRole(m.user_id, value as EmployerRole)}
                               disabled={busyUserId === m.user_id || isSelf}
-                              className="form-input h-8 w-40 text-xs"
-                            >
-                              <option value="recruiter">Recruiter</option>
-                              <option value="hr_admin">HR Admin</option>
-                              <option value="super_admin">Super Admin</option>
-                            </ThemedSelect>
+                              className="h-8 w-40 text-xs"
+                              selectedOptionClassName="bg-primary/10 font-medium text-primary hover:bg-primary/15"
+                              options={[
+                                { value: "recruiter", label: "Recruiter" },
+                                { value: "hr_admin", label: "HR Admin" },
+                                { value: "super_admin", label: "Super Admin" },
+                              ]}
+                            />
                           )}
                           {canManage && (
                             <button
@@ -587,17 +590,17 @@ function TeamPage() {
                   </div>
                 </Field>
                 <Field label="Role" required>
-                  <ThemedSelect
+                  <ThemedListDropdown
+                    label="Role"
                     value={role}
-                    onChange={(e) => setRole(e.target.value as EmployerRole)}
-                    className="form-input"
-                    contentClassName="max-h-[min(15rem,var(--radix-select-content-available-height))] overflow-y-auto overflow-x-hidden"
-                    itemClassName="hover:bg-surface hover:text-foreground focus:bg-surface focus:text-foreground data-[state=checked]:bg-primary/10 data-[state=checked]:text-primary data-[state=checked]:hover:bg-primary/10 data-[state=checked]:hover:text-primary data-[state=checked]:focus:bg-primary/10 data-[state=checked]:focus:text-primary"
-                  >
-                    <option value="recruiter">Recruiter — post jobs, manage applicants</option>
-                    <option value="hr_admin">HR Admin — recruiter + edit company</option>
-                    <option value="super_admin">Super Admin — full access</option>
-                  </ThemedSelect>
+                    onChange={(value) => setRole(value as EmployerRole)}
+                    selectedOptionClassName="bg-primary/10 font-medium text-primary hover:bg-primary/15"
+                    options={[
+                      { value: "recruiter", label: "Recruiter — post jobs, manage applicants" },
+                      { value: "hr_admin", label: "HR Admin — recruiter + edit company" },
+                      { value: "super_admin", label: "Super Admin — full access" },
+                    ]}
+                  />
                 </Field>
                 <button
                   onClick={sendInvite}

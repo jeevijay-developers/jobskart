@@ -78,6 +78,7 @@ import { Route as LearnPostSlugRouteImport } from './routes/learn_.post.$slug'
 import { Route as AuthenticatedCandidateInterviewPrepIndexRouteImport } from './routes/_authenticated/candidate/interview-prep.index'
 import { Route as AuthenticatedCandidateInterviewPrepSessionIdRouteImport } from './routes/_authenticated/candidate/interview-prep.$sessionId'
 import { Route as AuthenticatedCandidateJobsJobIdRouteImport } from './routes/_authenticated/candidate/jobs.$jobId'
+import { Route as AuthenticatedCandidateLearningCornerSlugRouteImport } from './routes/_authenticated/candidate/learning-corner.$slug'
 import { Route as AuthenticatedEmployerCrmAutomationRouteImport } from './routes/_authenticated/employer/crm.automation'
 import { Route as AuthenticatedEmployerJobsBulkRouteImport } from './routes/_authenticated/employer/jobs.bulk'
 import { Route as AuthenticatedEmployerJobsNewRouteImport } from './routes/_authenticated/employer/jobs.new'
@@ -464,6 +465,12 @@ const AuthenticatedCandidateJobsJobIdRoute =
     path: '/jobs/$jobId',
     getParentRoute: () => AuthenticatedCandidateRouteRoute,
   } as any)
+const AuthenticatedCandidateLearningCornerSlugRoute =
+  AuthenticatedCandidateLearningCornerSlugRouteImport.update({
+    id: '/learning-corner/$slug',
+    path: '/learning-corner/$slug',
+    getParentRoute: () => AuthenticatedCandidateRouteRoute,
+  } as any)
 const AuthenticatedEmployerCrmAutomationRoute =
   AuthenticatedEmployerCrmAutomationRouteImport.update({
     id: '/automation',
@@ -599,6 +606,7 @@ export interface FileRoutesByFullPath {
   '/learn/post/$slug': typeof LearnPostSlugRoute
   '/candidate/interview-prep/$sessionId': typeof AuthenticatedCandidateInterviewPrepSessionIdRoute
   '/candidate/jobs/$jobId': typeof AuthenticatedCandidateJobsJobIdRoute
+  '/candidate/learning-corner/$slug': typeof AuthenticatedCandidateLearningCornerSlugRoute
   '/employer/crm/automation': typeof AuthenticatedEmployerCrmAutomationRoute
   '/employer/jobs/bulk': typeof AuthenticatedEmployerJobsBulkRoute
   '/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
@@ -679,6 +687,7 @@ export interface FileRoutesByTo {
   '/learn/post/$slug': typeof LearnPostSlugRoute
   '/candidate/interview-prep/$sessionId': typeof AuthenticatedCandidateInterviewPrepSessionIdRoute
   '/candidate/jobs/$jobId': typeof AuthenticatedCandidateJobsJobIdRoute
+  '/candidate/learning-corner/$slug': typeof AuthenticatedCandidateLearningCornerSlugRoute
   '/employer/crm/automation': typeof AuthenticatedEmployerCrmAutomationRoute
   '/employer/jobs/bulk': typeof AuthenticatedEmployerJobsBulkRoute
   '/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
@@ -762,6 +771,7 @@ export interface FileRoutesById {
   '/learn_/post/$slug': typeof LearnPostSlugRoute
   '/_authenticated/candidate/interview-prep/$sessionId': typeof AuthenticatedCandidateInterviewPrepSessionIdRoute
   '/_authenticated/candidate/jobs/$jobId': typeof AuthenticatedCandidateJobsJobIdRoute
+  '/_authenticated/candidate/learning-corner/$slug': typeof AuthenticatedCandidateLearningCornerSlugRoute
   '/_authenticated/employer/crm/automation': typeof AuthenticatedEmployerCrmAutomationRoute
   '/_authenticated/employer/jobs/bulk': typeof AuthenticatedEmployerJobsBulkRoute
   '/_authenticated/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
@@ -845,6 +855,7 @@ export interface FileRouteTypes {
     | '/learn/post/$slug'
     | '/candidate/interview-prep/$sessionId'
     | '/candidate/jobs/$jobId'
+    | '/candidate/learning-corner/$slug'
     | '/employer/crm/automation'
     | '/employer/jobs/bulk'
     | '/employer/jobs/new'
@@ -925,6 +936,7 @@ export interface FileRouteTypes {
     | '/learn/post/$slug'
     | '/candidate/interview-prep/$sessionId'
     | '/candidate/jobs/$jobId'
+    | '/candidate/learning-corner/$slug'
     | '/employer/crm/automation'
     | '/employer/jobs/bulk'
     | '/employer/jobs/new'
@@ -1007,6 +1019,7 @@ export interface FileRouteTypes {
     | '/learn_/post/$slug'
     | '/_authenticated/candidate/interview-prep/$sessionId'
     | '/_authenticated/candidate/jobs/$jobId'
+    | '/_authenticated/candidate/learning-corner/$slug'
     | '/_authenticated/employer/crm/automation'
     | '/_authenticated/employer/jobs/bulk'
     | '/_authenticated/employer/jobs/new'
@@ -1536,6 +1549,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCandidateJobsJobIdRouteImport
       parentRoute: typeof AuthenticatedCandidateRouteRoute
     }
+    '/_authenticated/candidate/learning-corner/$slug': {
+      id: '/_authenticated/candidate/learning-corner/$slug'
+      path: '/learning-corner/$slug'
+      fullPath: '/candidate/learning-corner/$slug'
+      preLoaderRoute: typeof AuthenticatedCandidateLearningCornerSlugRouteImport
+      parentRoute: typeof AuthenticatedCandidateRouteRoute
+    }
     '/_authenticated/employer/crm/automation': {
       id: '/_authenticated/employer/crm/automation'
       path: '/automation'
@@ -1630,6 +1650,7 @@ interface AuthenticatedCandidateRouteRouteChildren {
   AuthenticatedCandidateSettingsRoute: typeof AuthenticatedCandidateSettingsRoute
   AuthenticatedCandidateInterviewPrepSessionIdRoute: typeof AuthenticatedCandidateInterviewPrepSessionIdRoute
   AuthenticatedCandidateJobsJobIdRoute: typeof AuthenticatedCandidateJobsJobIdRoute
+  AuthenticatedCandidateLearningCornerSlugRoute: typeof AuthenticatedCandidateLearningCornerSlugRoute
   AuthenticatedCandidateInterviewPrepIndexRoute: typeof AuthenticatedCandidateInterviewPrepIndexRoute
   AuthenticatedCandidateLearningCertificationSlugRoute: typeof AuthenticatedCandidateLearningCertificationSlugRoute
   AuthenticatedCandidateLearningCourseSlugRoute: typeof AuthenticatedCandidateLearningCourseSlugRoute
@@ -1655,6 +1676,8 @@ const AuthenticatedCandidateRouteRouteChildren: AuthenticatedCandidateRouteRoute
     AuthenticatedCandidateInterviewPrepSessionIdRoute:
       AuthenticatedCandidateInterviewPrepSessionIdRoute,
     AuthenticatedCandidateJobsJobIdRoute: AuthenticatedCandidateJobsJobIdRoute,
+    AuthenticatedCandidateLearningCornerSlugRoute:
+      AuthenticatedCandidateLearningCornerSlugRoute,
     AuthenticatedCandidateInterviewPrepIndexRoute:
       AuthenticatedCandidateInterviewPrepIndexRoute,
     AuthenticatedCandidateLearningCertificationSlugRoute:
