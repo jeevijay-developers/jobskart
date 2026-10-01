@@ -178,6 +178,7 @@ function ThemedListDropdown({
   className,
   maxHeight = 192,
   selectedOptionClassName,
+  menuClassName,
 }: {
   label: string;
   value: string;
@@ -186,6 +187,11 @@ function ThemedListDropdown({
   className?: string;
   maxHeight?: number;
   selectedOptionClassName?: string;
+  /** Extra classes for the open menu panel — e.g. a min-width so option
+   * labels don't wrap just because the trigger itself is narrow (sm:w-auto
+   * shrinks to fit the selected value, not the longest option). Panel stays
+   * left/right-anchored to the trigger by default; this only adds width. */
+  menuClassName?: string;
 }) {
   const [open, setOpen] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -218,12 +224,17 @@ function ThemedListDropdown({
           className,
         )}
       >
-        <span>{selectedLabel}</span>
+        <span className="min-w-0 truncate" title={selectedLabel}>
+          {selectedLabel}
+        </span>
         <ChevronDown className="pointer-events-none h-3.5 w-3.5 shrink-0 text-muted-foreground" />
       </button>
       {open && (
         <div
-          className="absolute left-0 right-0 top-full z-[80] mt-1 overflow-y-auto overflow-x-hidden rounded-xl border border-primary/15 bg-popover shadow-xl shadow-primary/10 [scrollbar-width:thin]"
+          className={cn(
+            "absolute left-0 top-full z-[80] mt-1 overflow-y-auto overflow-x-hidden rounded-xl border border-primary/15 bg-popover shadow-xl shadow-primary/10 [scrollbar-width:thin]",
+            menuClassName ?? "right-0",
+          )}
           style={{ maxHeight: MENU_MAX_HEIGHT }}
         >
           {options.map((option) => {
@@ -238,9 +249,10 @@ function ThemedListDropdown({
                   setOpen(false);
                 }}
                 className={cn(
-                  "block w-full px-3 py-2 text-left text-sm hover:bg-surface",
+                  "block w-full overflow-hidden text-ellipsis whitespace-nowrap px-3 py-2 text-left text-sm hover:bg-surface",
                   isSelected && (selectedOptionClassName ?? "bg-primary text-primary-foreground hover:bg-primary"),
                 )}
+                title={option.label}
               >
                 {option.label}
               </button>
