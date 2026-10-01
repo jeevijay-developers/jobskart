@@ -41,7 +41,7 @@ const navItems = [
   { to: "/candidate/resume-builder", label: "Resume Builder", icon: FileEdit },
   { to: "/candidate/saved", label: "Saved jobs", icon: Bookmark },
   { to: "/candidate/interview-prep", label: "Interview prep", icon: MessagesSquare },
-  { to: "/learn", label: "Learning", icon: GraduationCap },
+  { to: "/candidate/learning", label: "Learning", icon: GraduationCap },
   { to: "/candidate/alerts", label: "Job alerts", icon: Zap },
   { to: "/candidate/notifications", label: "Notifications", icon: Bell },
   { to: "/candidate/documents", label: "Documents", icon: FolderOpen },

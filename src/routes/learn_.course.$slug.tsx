@@ -42,6 +42,19 @@ function one<T>(v: T | T[] | null): T | null {
 
 function CoursePage() {
   const { slug } = Route.useParams();
+  return (
+    <div className="min-h-screen bg-surface">
+      <Navbar />
+      <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
+        <CourseContent slug={slug} />
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
+/** Detail body, shared by the public page and the candidate dashboard. */
+export function CourseContent({ slug, inCandidate }: { slug: string; inCandidate?: boolean }) {
   const [course, setCourse] = useState<Course | null | "not_found">(null);
   const [owned, setOwned] = useState(false);
   const createOrder = useServerFn(createCourseOrder);
@@ -89,114 +102,110 @@ function CoursePage() {
   };
 
   return (
-    <div className="min-h-screen bg-surface">
-      <Navbar />
-      <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
-        <Link
-          to="/learn"
-          className="inline-flex items-center gap-1 text-sm font-semibold text-primary"
-        >
-          <ArrowLeft className="h-4 w-4" /> Back to Learning
-        </Link>
+    <>
+      <Link
+        to={inCandidate ? "/candidate/learning" : "/learn"}
+        className="inline-flex items-center gap-1 text-sm font-semibold text-primary"
+      >
+        <ArrowLeft className="h-4 w-4" /> Back to Learning
+      </Link>
 
-        {course === null ? (
-          <div className="mt-8 grid place-items-center rounded-xl border border-border bg-card p-12">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
-          </div>
-        ) : course === "not_found" ? (
-          <div className="mt-8 rounded-xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
-            This course isn't available.
-          </div>
-        ) : (
-          (() => {
-            const price = one(course.courses)?.price_inr ?? 0;
-            const unlocked = owned || price <= 0;
-            return (
-              <div className="mt-6">
-                {course.cover_url && (
-                  <img
-                    src={course.cover_url}
-                    alt=""
-                    className="mb-6 w-full rounded-xl object-cover"
-                  />
-                )}
-                <div className="flex items-center gap-2">
-                  <GraduationCap className="h-6 w-6 text-primary" />
-                  <h1 className="text-2xl font-bold text-foreground sm:text-3xl">{course.title}</h1>
-                </div>
-                {course.excerpt && <p className="mt-2 text-muted-foreground">{course.excerpt}</p>}
-
-                <div className="mt-4 rounded-xl border border-border bg-card p-5">
-                  {owned ? (
-                    <div className="flex items-center gap-2 text-success">
-                      <CheckCircle2 className="h-5 w-5" />
-                      <p className="font-semibold">You own this course</p>
-                    </div>
-                  ) : price > 0 ? (
-                    <>
-                      <p className="text-lg font-bold text-foreground">₹{price}</p>
-                      <button
-                        onClick={handleBuy}
-                        disabled={buying}
-                        className="mt-3 inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
-                      >
-                        {buying && <Loader2 className="h-4 w-4 animate-spin" />}
-                        Buy now
-                      </button>
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        Free-preview lessons below are open to everyone.
-                      </p>
-                    </>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">This course is free.</p>
-                  )}
-                </div>
-
-                <h2 className="mt-8 text-lg font-semibold text-foreground">Modules</h2>
-                <div className="mt-3 space-y-3">
-                  {(course.course_modules ?? []).map((m, idx) => (
-                    <div key={m.id} className="rounded-xl border border-border bg-card p-4">
-                      <h3 className="font-semibold text-foreground">
-                        Module {idx + 1}: {m.title}
-                      </h3>
-                      <ul className="mt-2 space-y-1.5">
-                        {(m.course_lessons ?? []).map((l) => {
-                          const lessonUnlocked = unlocked || !!l.free_preview;
-                          return (
-                            <li key={l.id}>
-                              <Link
-                                to="/learn/course/$slug/lesson/$lessonId"
-                                params={{ slug, lessonId: l.id }}
-                                className="flex items-center gap-2 rounded-lg p-1.5 text-sm text-foreground/90 hover:bg-surface"
-                              >
-                                {lessonUnlocked ? (
-                                  <PlayCircle className="h-4 w-4 shrink-0 text-primary" />
-                                ) : (
-                                  <Lock className="h-4 w-4 shrink-0 text-muted-foreground" />
-                                )}
-                                {l.title}
-                                {l.duration_minutes ? (
-                                  <span className="text-xs text-muted-foreground">
-                                    · {l.duration_minutes} min
-                                  </span>
-                                ) : null}
-                              </Link>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </div>
-                  ))}
-                  {(course.course_modules ?? []).length === 0 && (
-                    <p className="text-sm text-muted-foreground">Modules coming soon.</p>
-                  )}
-                </div>
+      {course === null ? (
+        <div className="mt-8 grid place-items-center rounded-xl border border-border bg-card p-12">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        </div>
+      ) : course === "not_found" ? (
+        <div className="mt-8 rounded-xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
+          This course isn't available.
+        </div>
+      ) : (
+        (() => {
+          const price = one(course.courses)?.price_inr ?? 0;
+          const unlocked = owned || price <= 0;
+          return (
+            <div className="mt-6">
+              {course.cover_url && (
+                <img
+                  src={course.cover_url}
+                  alt=""
+                  className="mb-6 w-full rounded-xl object-cover"
+                />
+              )}
+              <div className="flex items-center gap-2">
+                <GraduationCap className="h-6 w-6 text-primary" />
+                <h1 className="text-2xl font-bold text-foreground sm:text-3xl">{course.title}</h1>
               </div>
-            );
-          })()
-        )}
-      </main>
-      <Footer />
-    </div>
+              {course.excerpt && <p className="mt-2 text-muted-foreground">{course.excerpt}</p>}
+
+              <div className="mt-4 rounded-xl border border-border bg-card p-5">
+                {owned ? (
+                  <div className="flex items-center gap-2 text-success">
+                    <CheckCircle2 className="h-5 w-5" />
+                    <p className="font-semibold">You own this course</p>
+                  </div>
+                ) : price > 0 ? (
+                  <>
+                    <p className="text-lg font-bold text-foreground">₹{price}</p>
+                    <button
+                      onClick={handleBuy}
+                      disabled={buying}
+                      className="mt-3 inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+                    >
+                      {buying && <Loader2 className="h-4 w-4 animate-spin" />}
+                      Buy now
+                    </button>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Free-preview lessons below are open to everyone.
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">This course is free.</p>
+                )}
+              </div>
+
+              <h2 className="mt-8 text-lg font-semibold text-foreground">Modules</h2>
+              <div className="mt-3 space-y-3">
+                {(course.course_modules ?? []).map((m, idx) => (
+                  <div key={m.id} className="rounded-xl border border-border bg-card p-4">
+                    <h3 className="font-semibold text-foreground">
+                      Module {idx + 1}: {m.title}
+                    </h3>
+                    <ul className="mt-2 space-y-1.5">
+                      {(m.course_lessons ?? []).map((l) => {
+                        const lessonUnlocked = unlocked || !!l.free_preview;
+                        return (
+                          <li key={l.id}>
+                            <Link
+                              to="/learn/course/$slug/lesson/$lessonId"
+                              params={{ slug, lessonId: l.id }}
+                              className="flex items-center gap-2 rounded-lg p-1.5 text-sm text-foreground/90 hover:bg-surface"
+                            >
+                              {lessonUnlocked ? (
+                                <PlayCircle className="h-4 w-4 shrink-0 text-primary" />
+                              ) : (
+                                <Lock className="h-4 w-4 shrink-0 text-muted-foreground" />
+                              )}
+                              {l.title}
+                              {l.duration_minutes ? (
+                                <span className="text-xs text-muted-foreground">
+                                  · {l.duration_minutes} min
+                                </span>
+                              ) : null}
+                            </Link>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                ))}
+                {(course.course_modules ?? []).length === 0 && (
+                  <p className="text-sm text-muted-foreground">Modules coming soon.</p>
+                )}
+              </div>
+            </div>
+          );
+        })()
+      )}
+    </>
   );
 }

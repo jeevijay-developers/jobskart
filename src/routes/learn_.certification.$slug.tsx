@@ -41,6 +41,25 @@ function one<T>(v: T | T[] | null): T | null {
 
 function CertificationPage() {
   const { slug } = Route.useParams();
+  return (
+    <div className="min-h-screen bg-surface">
+      <Navbar />
+      <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
+        <CertificationContent slug={slug} />
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
+/** Detail body, shared by the public page and the candidate dashboard. */
+export function CertificationContent({
+  slug,
+  inCandidate,
+}: {
+  slug: string;
+  inCandidate?: boolean;
+}) {
   const [cert, setCert] = useState<Cert | null | "not_found">(null);
   const [owned, setOwned] = useState<{ certificate_no: string } | null>(null);
   const createOrder = useServerFn(createCertificationOrder);
@@ -88,115 +107,107 @@ function CertificationPage() {
   };
 
   return (
-    <div className="min-h-screen bg-surface">
-      <Navbar />
-      <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
-        <Link
-          to="/learn"
-          className="inline-flex items-center gap-1 text-sm font-semibold text-primary"
-        >
-          <ArrowLeft className="h-4 w-4" /> Back to Learning
-        </Link>
+    <>
+      <Link
+        to={inCandidate ? "/candidate/learning" : "/learn"}
+        className="inline-flex items-center gap-1 text-sm font-semibold text-primary"
+      >
+        <ArrowLeft className="h-4 w-4" /> Back to Learning
+      </Link>
 
-        {cert === null ? (
-          <div className="mt-8 grid place-items-center rounded-xl border border-border bg-card p-12">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
-          </div>
-        ) : cert === "not_found" ? (
-          <div className="mt-8 rounded-xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
-            This certification isn't available.
-          </div>
-        ) : (
-          (() => {
-            const details = one(cert.certifications);
-            const price = details?.price_inr ?? 0;
-            return (
-              <div className="mt-6">
-                {cert.cover_url && (
-                  <img
-                    src={cert.cover_url}
-                    alt=""
-                    className="mb-6 w-full rounded-xl object-cover"
-                  />
-                )}
-                <div className="flex items-center gap-2">
-                  <Award className="h-6 w-6 text-primary" />
-                  <h1 className="text-2xl font-bold text-foreground sm:text-3xl">{cert.title}</h1>
-                </div>
-                {cert.excerpt && <p className="mt-2 text-muted-foreground">{cert.excerpt}</p>}
-
-                {details && (
-                  <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <dt className="text-xs font-semibold uppercase text-muted-foreground">
-                        Pass mark
-                      </dt>
-                      <dd className="text-foreground">{details.pass_mark}%</dd>
-                    </div>
-                    <div>
-                      <dt className="text-xs font-semibold uppercase text-muted-foreground">
-                        Attempts
-                      </dt>
-                      <dd className="text-foreground">{details.max_attempts}</dd>
-                    </div>
-                    {details.provider === "partner" && details.partner_name && (
-                      <div className="col-span-2">
-                        <dt className="text-xs font-semibold uppercase text-muted-foreground">
-                          Issued with
-                        </dt>
-                        <dd className="text-foreground">{details.partner_name}</dd>
-                      </div>
-                    )}
-                  </dl>
-                )}
-
-                <div className="mt-6 rounded-xl border border-border bg-card p-5">
-                  {owned ? (
-                    <>
-                      <div className="flex items-center gap-2 text-success">
-                        <CheckCircle2 className="h-5 w-5" />
-                        <div>
-                          <p className="font-semibold">You own this certification</p>
-                          {owned.certificate_no && (
-                            <p className="text-xs text-muted-foreground">
-                              Certificate No. {owned.certificate_no}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <Link
-                        to="/learn/certification/$slug/exam"
-                        params={{ slug }}
-                        className="mt-3 inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground"
-                      >
-                        <FileCheck2 className="h-4 w-4" /> Start exam
-                      </Link>
-                    </>
-                  ) : price > 0 ? (
-                    <>
-                      <p className="text-lg font-bold text-foreground">₹{price}</p>
-                      <button
-                        onClick={handleBuy}
-                        disabled={buying}
-                        className="mt-3 inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
-                      >
-                        {buying && <Loader2 className="h-4 w-4 animate-spin" />}
-                        Buy now
-                      </button>
-                      <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-                        <Lock className="h-3 w-3" /> Secure checkout via Razorpay.
-                      </p>
-                    </>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">This certification is free.</p>
-                  )}
-                </div>
+      {cert === null ? (
+        <div className="mt-8 grid place-items-center rounded-xl border border-border bg-card p-12">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        </div>
+      ) : cert === "not_found" ? (
+        <div className="mt-8 rounded-xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
+          This certification isn't available.
+        </div>
+      ) : (
+        (() => {
+          const details = one(cert.certifications);
+          const price = details?.price_inr ?? 0;
+          return (
+            <div className="mt-6">
+              {cert.cover_url && (
+                <img src={cert.cover_url} alt="" className="mb-6 w-full rounded-xl object-cover" />
+              )}
+              <div className="flex items-center gap-2">
+                <Award className="h-6 w-6 text-primary" />
+                <h1 className="text-2xl font-bold text-foreground sm:text-3xl">{cert.title}</h1>
               </div>
-            );
-          })()
-        )}
-      </main>
-      <Footer />
-    </div>
+              {cert.excerpt && <p className="mt-2 text-muted-foreground">{cert.excerpt}</p>}
+
+              {details && (
+                <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <dt className="text-xs font-semibold uppercase text-muted-foreground">
+                      Pass mark
+                    </dt>
+                    <dd className="text-foreground">{details.pass_mark}%</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-semibold uppercase text-muted-foreground">
+                      Attempts
+                    </dt>
+                    <dd className="text-foreground">{details.max_attempts}</dd>
+                  </div>
+                  {details.provider === "partner" && details.partner_name && (
+                    <div className="col-span-2">
+                      <dt className="text-xs font-semibold uppercase text-muted-foreground">
+                        Issued with
+                      </dt>
+                      <dd className="text-foreground">{details.partner_name}</dd>
+                    </div>
+                  )}
+                </dl>
+              )}
+
+              <div className="mt-6 rounded-xl border border-border bg-card p-5">
+                {owned ? (
+                  <>
+                    <div className="flex items-center gap-2 text-success">
+                      <CheckCircle2 className="h-5 w-5" />
+                      <div>
+                        <p className="font-semibold">You own this certification</p>
+                        {owned.certificate_no && (
+                          <p className="text-xs text-muted-foreground">
+                            Certificate No. {owned.certificate_no}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <Link
+                      to="/learn/certification/$slug/exam"
+                      params={{ slug }}
+                      className="mt-3 inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground"
+                    >
+                      <FileCheck2 className="h-4 w-4" /> Start exam
+                    </Link>
+                  </>
+                ) : price > 0 ? (
+                  <>
+                    <p className="text-lg font-bold text-foreground">₹{price}</p>
+                    <button
+                      onClick={handleBuy}
+                      disabled={buying}
+                      className="mt-3 inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+                    >
+                      {buying && <Loader2 className="h-4 w-4 animate-spin" />}
+                      Buy now
+                    </button>
+                    <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+                      <Lock className="h-3 w-3" /> Secure checkout via Razorpay.
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">This certification is free.</p>
+                )}
+              </div>
+            </div>
+          );
+        })()
+      )}
+    </>
   );
 }

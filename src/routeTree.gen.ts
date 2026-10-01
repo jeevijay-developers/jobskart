@@ -52,6 +52,7 @@ import { Route as AuthenticatedCandidateApplicationsRouteImport } from './routes
 import { Route as AuthenticatedCandidateBrowseRouteImport } from './routes/_authenticated/candidate/browse'
 import { Route as AuthenticatedCandidateDashboardRouteImport } from './routes/_authenticated/candidate/dashboard'
 import { Route as AuthenticatedCandidateDocumentsRouteImport } from './routes/_authenticated/candidate/documents'
+import { Route as AuthenticatedCandidateLearningRouteImport } from './routes/_authenticated/candidate/learning'
 import { Route as AuthenticatedCandidateNotificationsRouteImport } from './routes/_authenticated/candidate/notifications'
 import { Route as AuthenticatedCandidateProfileRouteImport } from './routes/_authenticated/candidate/profile'
 import { Route as AuthenticatedCandidateResumeBuilderRouteImport } from './routes/_authenticated/candidate/resume-builder'
@@ -82,6 +83,9 @@ import { Route as AuthenticatedEmployerJobsBulkRouteImport } from './routes/_aut
 import { Route as AuthenticatedEmployerJobsNewRouteImport } from './routes/_authenticated/employer/jobs.new'
 import { Route as ApiPublicWebhooksRazorpayRouteImport } from './routes/api/public/webhooks/razorpay'
 import { Route as LearnCertificationSlugExamRouteImport } from './routes/learn_.certification.$slug_.exam'
+import { Route as AuthenticatedCandidateLearningCertificationSlugRouteImport } from './routes/_authenticated/candidate/learning_.certification.$slug'
+import { Route as AuthenticatedCandidateLearningCourseSlugRouteImport } from './routes/_authenticated/candidate/learning_.course.$slug'
+import { Route as AuthenticatedCandidateLearningPostSlugRouteImport } from './routes/_authenticated/candidate/learning_.post.$slug'
 import { Route as AuthenticatedEmployerJobsJobIdApplicantsRouteImport } from './routes/_authenticated/employer/jobs.$jobId.applicants'
 import { Route as AuthenticatedEmployerJobsJobIdEditRouteImport } from './routes/_authenticated/employer/jobs.$jobId.edit'
 import { Route as LearnCourseSlugLessonLessonIdRouteImport } from './routes/learn_.course.$slug_.lesson.$lessonId'
@@ -307,6 +311,12 @@ const AuthenticatedCandidateDocumentsRoute =
     path: '/documents',
     getParentRoute: () => AuthenticatedCandidateRouteRoute,
   } as any)
+const AuthenticatedCandidateLearningRoute =
+  AuthenticatedCandidateLearningRouteImport.update({
+    id: '/learning',
+    path: '/learning',
+    getParentRoute: () => AuthenticatedCandidateRouteRoute,
+  } as any)
 const AuthenticatedCandidateNotificationsRoute =
   AuthenticatedCandidateNotificationsRouteImport.update({
     id: '/notifications',
@@ -484,6 +494,24 @@ const LearnCertificationSlugExamRoute =
     path: '/learn/certification/$slug/exam',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AuthenticatedCandidateLearningCertificationSlugRoute =
+  AuthenticatedCandidateLearningCertificationSlugRouteImport.update({
+    id: '/learning_/certification/$slug',
+    path: '/learning/certification/$slug',
+    getParentRoute: () => AuthenticatedCandidateRouteRoute,
+  } as any)
+const AuthenticatedCandidateLearningCourseSlugRoute =
+  AuthenticatedCandidateLearningCourseSlugRouteImport.update({
+    id: '/learning_/course/$slug',
+    path: '/learning/course/$slug',
+    getParentRoute: () => AuthenticatedCandidateRouteRoute,
+  } as any)
+const AuthenticatedCandidateLearningPostSlugRoute =
+  AuthenticatedCandidateLearningPostSlugRouteImport.update({
+    id: '/learning_/post/$slug',
+    path: '/learning/post/$slug',
+    getParentRoute: () => AuthenticatedCandidateRouteRoute,
+  } as any)
 const AuthenticatedEmployerJobsJobIdApplicantsRoute =
   AuthenticatedEmployerJobsJobIdApplicantsRouteImport.update({
     id: '/$jobId/applicants',
@@ -546,6 +574,7 @@ export interface FileRoutesByFullPath {
   '/candidate/browse': typeof AuthenticatedCandidateBrowseRoute
   '/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
   '/candidate/documents': typeof AuthenticatedCandidateDocumentsRoute
+  '/candidate/learning': typeof AuthenticatedCandidateLearningRoute
   '/candidate/notifications': typeof AuthenticatedCandidateNotificationsRoute
   '/candidate/profile': typeof AuthenticatedCandidateProfileRoute
   '/candidate/resume-builder': typeof AuthenticatedCandidateResumeBuilderRoute
@@ -576,6 +605,9 @@ export interface FileRoutesByFullPath {
   '/api/public/webhooks/razorpay': typeof ApiPublicWebhooksRazorpayRoute
   '/learn/certification/$slug/exam': typeof LearnCertificationSlugExamRoute
   '/candidate/interview-prep/': typeof AuthenticatedCandidateInterviewPrepIndexRoute
+  '/candidate/learning/certification/$slug': typeof AuthenticatedCandidateLearningCertificationSlugRoute
+  '/candidate/learning/course/$slug': typeof AuthenticatedCandidateLearningCourseSlugRoute
+  '/candidate/learning/post/$slug': typeof AuthenticatedCandidateLearningPostSlugRoute
   '/employer/jobs/$jobId/applicants': typeof AuthenticatedEmployerJobsJobIdApplicantsRoute
   '/employer/jobs/$jobId/edit': typeof AuthenticatedEmployerJobsJobIdEditRoute
   '/learn/course/$slug/lesson/$lessonId': typeof LearnCourseSlugLessonLessonIdRoute
@@ -622,6 +654,7 @@ export interface FileRoutesByTo {
   '/candidate/browse': typeof AuthenticatedCandidateBrowseRoute
   '/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
   '/candidate/documents': typeof AuthenticatedCandidateDocumentsRoute
+  '/candidate/learning': typeof AuthenticatedCandidateLearningRoute
   '/candidate/notifications': typeof AuthenticatedCandidateNotificationsRoute
   '/candidate/profile': typeof AuthenticatedCandidateProfileRoute
   '/candidate/resume-builder': typeof AuthenticatedCandidateResumeBuilderRoute
@@ -652,6 +685,9 @@ export interface FileRoutesByTo {
   '/api/public/webhooks/razorpay': typeof ApiPublicWebhooksRazorpayRoute
   '/learn/certification/$slug/exam': typeof LearnCertificationSlugExamRoute
   '/candidate/interview-prep': typeof AuthenticatedCandidateInterviewPrepIndexRoute
+  '/candidate/learning/certification/$slug': typeof AuthenticatedCandidateLearningCertificationSlugRoute
+  '/candidate/learning/course/$slug': typeof AuthenticatedCandidateLearningCourseSlugRoute
+  '/candidate/learning/post/$slug': typeof AuthenticatedCandidateLearningPostSlugRoute
   '/employer/jobs/$jobId/applicants': typeof AuthenticatedEmployerJobsJobIdApplicantsRoute
   '/employer/jobs/$jobId/edit': typeof AuthenticatedEmployerJobsJobIdEditRoute
   '/learn/course/$slug/lesson/$lessonId': typeof LearnCourseSlugLessonLessonIdRoute
@@ -701,6 +737,7 @@ export interface FileRoutesById {
   '/_authenticated/candidate/browse': typeof AuthenticatedCandidateBrowseRoute
   '/_authenticated/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
   '/_authenticated/candidate/documents': typeof AuthenticatedCandidateDocumentsRoute
+  '/_authenticated/candidate/learning': typeof AuthenticatedCandidateLearningRoute
   '/_authenticated/candidate/notifications': typeof AuthenticatedCandidateNotificationsRoute
   '/_authenticated/candidate/profile': typeof AuthenticatedCandidateProfileRoute
   '/_authenticated/candidate/resume-builder': typeof AuthenticatedCandidateResumeBuilderRoute
@@ -731,6 +768,9 @@ export interface FileRoutesById {
   '/api/public/webhooks/razorpay': typeof ApiPublicWebhooksRazorpayRoute
   '/learn_/certification/$slug_/exam': typeof LearnCertificationSlugExamRoute
   '/_authenticated/candidate/interview-prep/': typeof AuthenticatedCandidateInterviewPrepIndexRoute
+  '/_authenticated/candidate/learning_/certification/$slug': typeof AuthenticatedCandidateLearningCertificationSlugRoute
+  '/_authenticated/candidate/learning_/course/$slug': typeof AuthenticatedCandidateLearningCourseSlugRoute
+  '/_authenticated/candidate/learning_/post/$slug': typeof AuthenticatedCandidateLearningPostSlugRoute
   '/_authenticated/employer/jobs/$jobId/applicants': typeof AuthenticatedEmployerJobsJobIdApplicantsRoute
   '/_authenticated/employer/jobs/$jobId/edit': typeof AuthenticatedEmployerJobsJobIdEditRoute
   '/learn_/course/$slug_/lesson/$lessonId': typeof LearnCourseSlugLessonLessonIdRoute
@@ -780,6 +820,7 @@ export interface FileRouteTypes {
     | '/candidate/browse'
     | '/candidate/dashboard'
     | '/candidate/documents'
+    | '/candidate/learning'
     | '/candidate/notifications'
     | '/candidate/profile'
     | '/candidate/resume-builder'
@@ -810,6 +851,9 @@ export interface FileRouteTypes {
     | '/api/public/webhooks/razorpay'
     | '/learn/certification/$slug/exam'
     | '/candidate/interview-prep/'
+    | '/candidate/learning/certification/$slug'
+    | '/candidate/learning/course/$slug'
+    | '/candidate/learning/post/$slug'
     | '/employer/jobs/$jobId/applicants'
     | '/employer/jobs/$jobId/edit'
     | '/learn/course/$slug/lesson/$lessonId'
@@ -856,6 +900,7 @@ export interface FileRouteTypes {
     | '/candidate/browse'
     | '/candidate/dashboard'
     | '/candidate/documents'
+    | '/candidate/learning'
     | '/candidate/notifications'
     | '/candidate/profile'
     | '/candidate/resume-builder'
@@ -886,6 +931,9 @@ export interface FileRouteTypes {
     | '/api/public/webhooks/razorpay'
     | '/learn/certification/$slug/exam'
     | '/candidate/interview-prep'
+    | '/candidate/learning/certification/$slug'
+    | '/candidate/learning/course/$slug'
+    | '/candidate/learning/post/$slug'
     | '/employer/jobs/$jobId/applicants'
     | '/employer/jobs/$jobId/edit'
     | '/learn/course/$slug/lesson/$lessonId'
@@ -934,6 +982,7 @@ export interface FileRouteTypes {
     | '/_authenticated/candidate/browse'
     | '/_authenticated/candidate/dashboard'
     | '/_authenticated/candidate/documents'
+    | '/_authenticated/candidate/learning'
     | '/_authenticated/candidate/notifications'
     | '/_authenticated/candidate/profile'
     | '/_authenticated/candidate/resume-builder'
@@ -964,6 +1013,9 @@ export interface FileRouteTypes {
     | '/api/public/webhooks/razorpay'
     | '/learn_/certification/$slug_/exam'
     | '/_authenticated/candidate/interview-prep/'
+    | '/_authenticated/candidate/learning_/certification/$slug'
+    | '/_authenticated/candidate/learning_/course/$slug'
+    | '/_authenticated/candidate/learning_/post/$slug'
     | '/_authenticated/employer/jobs/$jobId/applicants'
     | '/_authenticated/employer/jobs/$jobId/edit'
     | '/learn_/course/$slug_/lesson/$lessonId'
@@ -1302,6 +1354,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCandidateDocumentsRouteImport
       parentRoute: typeof AuthenticatedCandidateRouteRoute
     }
+    '/_authenticated/candidate/learning': {
+      id: '/_authenticated/candidate/learning'
+      path: '/learning'
+      fullPath: '/candidate/learning'
+      preLoaderRoute: typeof AuthenticatedCandidateLearningRouteImport
+      parentRoute: typeof AuthenticatedCandidateRouteRoute
+    }
     '/_authenticated/candidate/notifications': {
       id: '/_authenticated/candidate/notifications'
       path: '/notifications'
@@ -1512,6 +1571,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LearnCertificationSlugExamRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/candidate/learning_/certification/$slug': {
+      id: '/_authenticated/candidate/learning_/certification/$slug'
+      path: '/learning/certification/$slug'
+      fullPath: '/candidate/learning/certification/$slug'
+      preLoaderRoute: typeof AuthenticatedCandidateLearningCertificationSlugRouteImport
+      parentRoute: typeof AuthenticatedCandidateRouteRoute
+    }
+    '/_authenticated/candidate/learning_/course/$slug': {
+      id: '/_authenticated/candidate/learning_/course/$slug'
+      path: '/learning/course/$slug'
+      fullPath: '/candidate/learning/course/$slug'
+      preLoaderRoute: typeof AuthenticatedCandidateLearningCourseSlugRouteImport
+      parentRoute: typeof AuthenticatedCandidateRouteRoute
+    }
+    '/_authenticated/candidate/learning_/post/$slug': {
+      id: '/_authenticated/candidate/learning_/post/$slug'
+      path: '/learning/post/$slug'
+      fullPath: '/candidate/learning/post/$slug'
+      preLoaderRoute: typeof AuthenticatedCandidateLearningPostSlugRouteImport
+      parentRoute: typeof AuthenticatedCandidateRouteRoute
+    }
     '/_authenticated/employer/jobs/$jobId/applicants': {
       id: '/_authenticated/employer/jobs/$jobId/applicants'
       path: '/$jobId/applicants'
@@ -1542,6 +1622,7 @@ interface AuthenticatedCandidateRouteRouteChildren {
   AuthenticatedCandidateBrowseRoute: typeof AuthenticatedCandidateBrowseRoute
   AuthenticatedCandidateDashboardRoute: typeof AuthenticatedCandidateDashboardRoute
   AuthenticatedCandidateDocumentsRoute: typeof AuthenticatedCandidateDocumentsRoute
+  AuthenticatedCandidateLearningRoute: typeof AuthenticatedCandidateLearningRoute
   AuthenticatedCandidateNotificationsRoute: typeof AuthenticatedCandidateNotificationsRoute
   AuthenticatedCandidateProfileRoute: typeof AuthenticatedCandidateProfileRoute
   AuthenticatedCandidateResumeBuilderRoute: typeof AuthenticatedCandidateResumeBuilderRoute
@@ -1550,6 +1631,9 @@ interface AuthenticatedCandidateRouteRouteChildren {
   AuthenticatedCandidateInterviewPrepSessionIdRoute: typeof AuthenticatedCandidateInterviewPrepSessionIdRoute
   AuthenticatedCandidateJobsJobIdRoute: typeof AuthenticatedCandidateJobsJobIdRoute
   AuthenticatedCandidateInterviewPrepIndexRoute: typeof AuthenticatedCandidateInterviewPrepIndexRoute
+  AuthenticatedCandidateLearningCertificationSlugRoute: typeof AuthenticatedCandidateLearningCertificationSlugRoute
+  AuthenticatedCandidateLearningCourseSlugRoute: typeof AuthenticatedCandidateLearningCourseSlugRoute
+  AuthenticatedCandidateLearningPostSlugRoute: typeof AuthenticatedCandidateLearningPostSlugRoute
 }
 
 const AuthenticatedCandidateRouteRouteChildren: AuthenticatedCandidateRouteRouteChildren =
@@ -1560,6 +1644,7 @@ const AuthenticatedCandidateRouteRouteChildren: AuthenticatedCandidateRouteRoute
     AuthenticatedCandidateBrowseRoute: AuthenticatedCandidateBrowseRoute,
     AuthenticatedCandidateDashboardRoute: AuthenticatedCandidateDashboardRoute,
     AuthenticatedCandidateDocumentsRoute: AuthenticatedCandidateDocumentsRoute,
+    AuthenticatedCandidateLearningRoute: AuthenticatedCandidateLearningRoute,
     AuthenticatedCandidateNotificationsRoute:
       AuthenticatedCandidateNotificationsRoute,
     AuthenticatedCandidateProfileRoute: AuthenticatedCandidateProfileRoute,
@@ -1572,6 +1657,12 @@ const AuthenticatedCandidateRouteRouteChildren: AuthenticatedCandidateRouteRoute
     AuthenticatedCandidateJobsJobIdRoute: AuthenticatedCandidateJobsJobIdRoute,
     AuthenticatedCandidateInterviewPrepIndexRoute:
       AuthenticatedCandidateInterviewPrepIndexRoute,
+    AuthenticatedCandidateLearningCertificationSlugRoute:
+      AuthenticatedCandidateLearningCertificationSlugRoute,
+    AuthenticatedCandidateLearningCourseSlugRoute:
+      AuthenticatedCandidateLearningCourseSlugRoute,
+    AuthenticatedCandidateLearningPostSlugRoute:
+      AuthenticatedCandidateLearningPostSlugRoute,
   }
 
 const AuthenticatedCandidateRouteRouteWithChildren =
