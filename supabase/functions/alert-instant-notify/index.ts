@@ -2,6 +2,7 @@ import { createAdminClient } from "../_shared/supabaseAdmin.ts";
 import { sendEmail } from "../_shared/resend.ts";
 import { jobMatchEmail, type MatchedJob } from "../_shared/templates.ts";
 import { matchesAlert } from "../_shared/matching.ts";
+import { getCandidateEmailPrefs } from "../_shared/notificationPrefs.ts";
 
 // Triggered by a Supabase Database Webhook (dashboard-configured) on
 // INSERT INTO public.jobs. Payload shape: { type, table, schema, record, old_record }.
@@ -81,6 +82,9 @@ Deno.serve(async (req) => {
       .eq("id", alert.user_id)
       .maybeSingle();
     if (!profile?.email) continue;
+
+    const prefs = await getCandidateEmailPrefs(admin, alert.user_id);
+    if (!prefs.email_alerts) continue;
 
     const query = (alert.query ?? {}) as { keyword?: string | null; city?: string | null };
     const { subject, html, text } = jobMatchEmail(

@@ -63,6 +63,29 @@ function BandChip({ band }: { band: Band }) {
   );
 }
 
+const SPEECH_RATES = [0.75, 1, 1.25, 1.5] as const;
+
+/** Shared speed control for both "read question aloud" and "read my answer aloud". */
+function SpeedPicker({ value, onChange }: { value: number; onChange: (rate: number) => void }) {
+  return (
+    <div className="inline-flex items-center gap-1 rounded-lg border border-border p-0.5">
+      {SPEECH_RATES.map((r) => (
+        <button
+          key={r}
+          type="button"
+          onClick={() => onChange(r)}
+          aria-pressed={value === r}
+          className={`rounded-md px-2 py-1 text-xs font-semibold ${
+            value === r ? "bg-primary-light text-primary" : "text-muted-foreground hover:bg-surface"
+          }`}
+        >
+          {r}x
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function PrepSessionPage() {
   const { sessionId } = Route.useParams();
   const navigate = useNavigate();
@@ -85,6 +108,9 @@ function PrepSessionPage() {
   const [mode, setMode] = useState<"type" | "speak">("type");
   const [voiceSec, setVoiceSec] = useState<number | null>(null);
   const [transcriptNotice, setTranscriptNotice] = useState(false);
+  // Shared between "read question aloud" and "read my answer aloud" — both are
+  // plain client-side speechSynthesis, so one rate control covers both.
+  const [speechRate, setSpeechRate] = useState(1);
   const [result, setResult] = useState<{
     answerId: string;
     feedback: Feedback;
@@ -177,11 +203,25 @@ function PrepSessionPage() {
     setTranscriptNotice(false);
   };
 
+  const ttsLang = session.language === "hi" ? "hi-IN" : "en-IN";
+
+  const hasVoiceFor = (langPrefix: string) => {
+    if (typeof window === "undefined" || !window.speechSynthesis) return false;
+    // getVoices() can return [] before the browser has loaded its voice list
+    // asynchronously — treat "not loaded yet" as "assume available" so the button
+    // isn't wrongly disabled on first render; it only disables once voices are
+    // loaded AND none match.
+    const voices = window.speechSynthesis.getVoices();
+    if (voices.length === 0) return true;
+    return voices.some((v) => v.lang.toLowerCase().startsWith(langPrefix));
+  };
+
   const readAloud = (t: string) => {
     if (typeof window === "undefined" || !window.speechSynthesis) return;
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(t);
-    u.lang = "en-IN";
+    u.lang = ttsLang;
+    u.rate = speechRate;
     window.speechSynthesis.speak(u);
   };
 
@@ -359,14 +399,28 @@ function PrepSessionPage() {
             <p className="text-xs font-semibold uppercase text-muted-foreground">
               {CATEGORY_LABELS[q.category] ?? q.category}
             </p>
-            <h2 className="mt-1 text-lg font-semibold text-foreground">{q.question_text}</h2>
+            <h2
+              lang={session.language === "hi" ? "hi" : "en"}
+              className="mt-1 text-lg font-semibold text-foreground"
+            >
+              {q.question_text}
+            </h2>
             {typeof window !== "undefined" && "speechSynthesis" in window && (
-              <button
-                onClick={() => readAloud(q.question_text)}
-                className="mt-2 inline-flex h-8 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-semibold"
-              >
-                <Volume2 className="h-3.5 w-3.5" /> Read question aloud
-              </button>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => readAloud(q.question_text)}
+                  disabled={!hasVoiceFor(session.language === "hi" ? "hi" : "en")}
+                  title={
+                    hasVoiceFor(session.language === "hi" ? "hi" : "en")
+                      ? undefined
+                      : "No Hindi voice available on this device"
+                  }
+                  className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Volume2 className="h-3.5 w-3.5" /> Read question aloud
+                </button>
+                <SpeedPicker value={speechRate} onChange={setSpeechRate} />
+              </div>
             )}
             {framework.steps && framework.steps.length > 0 && (
               <details className="mt-3 text-sm">
@@ -450,6 +504,7 @@ function PrepSessionPage() {
               {mode === "speak" && (
                 <div className="mt-3">
                   <VoiceRecorder
+                    defaultLanguage={session.language === "hi" ? "hi" : "en"}
                     onCancel={() => setMode("type")}
                     onTranscript={(t, sec) => {
                       setText(t);
@@ -489,6 +544,27 @@ function PrepSessionPage() {
                   {text.length}/{MAX_ANSWER_CHARS}
                 </span>
               </div>
+              {mode === "type" &&
+                text.trim() &&
+                typeof window !== "undefined" &&
+                "speechSynthesis" in window && (
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => readAloud(text)}
+                      disabled={!hasVoiceFor(session.language === "hi" ? "hi" : "en")}
+                      title={
+                        hasVoiceFor(session.language === "hi" ? "hi" : "en")
+                          ? undefined
+                          : "No Hindi voice available on this device"
+                      }
+                      className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <Volume2 className="h-3.5 w-3.5" /> Read my answer aloud
+                    </button>
+                    <SpeedPicker value={speechRate} onChange={setSpeechRate} />
+                  </div>
+                )}
               {hint && (
                 <p role="alert" className="mt-3 rounded-lg bg-amber/10 p-3 text-sm text-foreground">
                   {hint}
@@ -517,6 +593,7 @@ function PrepSessionPage() {
               feedback={result.feedback}
               source={result.source}
               voice={result.voice}
+              language={session.language === "hi" ? "hi" : "en"}
               onFlag={() => flag(result.answerId)}
               actions={
                 <>
@@ -557,13 +634,18 @@ function FeedbackCard({
   voice,
   onFlag,
   actions,
+  language = "en",
 }: {
   feedback: Feedback;
   source: "ai" | "fallback";
   voice?: VoiceMetrics | null;
   onFlag?: () => void;
   actions?: React.ReactNode;
+  /** Language the feedback PROSE (evidence/tip/strengths/improvements/outline) is
+   *  written in — criterion/band labels stay English chrome regardless. */
+  language?: "en" | "hi";
 }) {
+  const proseLang = language === "hi" ? "hi" : undefined;
   return (
     <div className="rounded-xl border border-border bg-card p-5">
       <div className="flex items-center justify-between gap-2">
@@ -597,15 +679,19 @@ function FeedbackCard({
               <span className="font-medium text-foreground">{CRITERION_LABELS[c.key]}</span>
               <BandChip band={c.band} />
             </div>
-            <p className="mt-0.5 text-muted-foreground">{c.evidence}</p>
-            <p className="text-foreground/90">→ {c.tip}</p>
+            <p lang={proseLang} className="mt-0.5 text-muted-foreground">
+              {c.evidence}
+            </p>
+            <p lang={proseLang} className="text-foreground/90">
+              → {c.tip}
+            </p>
           </li>
         ))}
       </ul>
       {feedback.strengths.length > 0 && (
         <div className="mt-4 text-sm">
           <p className="font-semibold text-foreground">What worked</p>
-          <ul className="list-disc pl-5 text-foreground/90">
+          <ul lang={proseLang} className="list-disc pl-5 text-foreground/90">
             {feedback.strengths.map((s) => (
               <li key={s}>{s}</li>
             ))}
@@ -614,7 +700,7 @@ function FeedbackCard({
       )}
       <div className="mt-4 text-sm">
         <p className="font-semibold text-foreground">Improve next</p>
-        <ul className="list-disc pl-5 text-foreground/90">
+        <ul lang={proseLang} className="list-disc pl-5 text-foreground/90">
           {feedback.improvements.map((s) => (
             <li key={s}>{s}</li>
           ))}
@@ -622,7 +708,7 @@ function FeedbackCard({
       </div>
       <div className="mt-4 text-sm">
         <p className="font-semibold text-foreground">Outline to fill with your own experience</p>
-        <ol className="list-decimal pl-5 text-foreground/90">
+        <ol lang={proseLang} className="list-decimal pl-5 text-foreground/90">
           {feedback.outline.map((s) => (
             <li key={s}>{s}</li>
           ))}
@@ -759,6 +845,7 @@ function Results({
                       <FeedbackCard
                         feedback={a.feedback}
                         source={a.feedback_source ?? "fallback"}
+                        language={a.feedback_language ?? "en"}
                       />
                     </div>
                   </details>

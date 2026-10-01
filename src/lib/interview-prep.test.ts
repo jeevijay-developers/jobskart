@@ -1,6 +1,7 @@
 import { describe, it as test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  buildFeedbackPrompt,
   checkAnswer,
   computeReadiness,
   computeSkillGap,
@@ -24,6 +25,42 @@ describe("fallbackFeedback", () => {
   test("is schema-valid and detects STAR parts", () => {
     const fb = fallbackFeedback(long, "behavioural", { name: "STAR", steps: ["S", "T", "A", "R"] });
     assert.doesNotThrow(() => FeedbackSchema.parse(fb));
+  });
+  test("defaults to English when language is omitted", () => {
+    const withDefault = fallbackFeedback(long, "behavioural", {});
+    const explicitEn = fallbackFeedback(long, "behavioural", {}, "en");
+    assert.deepEqual(withDefault, explicitEn);
+  });
+  test("non-English uses the simplified generic fallback, not English STAR regexes", () => {
+    const fb = fallbackFeedback(long, "behavioural", { steps: ["एक", "दो"] }, "hi");
+    assert.doesNotThrow(() => FeedbackSchema.parse(fb));
+    // The English STAR-detection evidence text never appears in the Hindi path.
+    const joined = fb.criteria.map((c) => c.evidence).join(" ");
+    assert.ok(!/Situation|Task|Action|Result/.test(joined));
+    assert.deepEqual(fb.outline, ["एक", "दो"]);
+  });
+});
+
+describe("buildFeedbackPrompt", () => {
+  const baseArgs = {
+    roleTitle: "Delivery executive",
+    skills: ["Route Planning"],
+    category: "behavioural",
+    question: "Tell me about a time you handled a difficult customer.",
+    framework: { name: "STAR", steps: ["S", "T", "A", "R"] },
+    answer: long,
+  };
+  test("English prompt instructs plain English and keeps JSON shape", () => {
+    const { system } = buildFeedbackPrompt(baseArgs);
+    assert.match(system, /Plain, simple English/);
+    assert.match(system, /"criteria":\[\{"key":"relevance\|structure\|evidence\|clarity"/);
+  });
+  test("Hindi prompt instructs Hindi prose while keeping the same fixed JSON keys/enums", () => {
+    const { system } = buildFeedbackPrompt({ ...baseArgs, language: "hi" });
+    assert.match(system, /plain Hindi/i);
+    // Keys/enum literals must stay the fixed English values regardless of language.
+    assert.match(system, /"criteria":\[\{"key":"relevance\|structure\|evidence\|clarity"/);
+    assert.match(system, /needs_work\|developing\|strong/);
   });
 });
 

@@ -18,6 +18,8 @@ import type { ParsedResumePayload } from "@/lib/resume.functions";
 import {
   fullNameSchema,
   mobileSchema,
+  emailSchema,
+  isSyntheticEmail,
   headlineSchema,
   descriptionSchema,
   dobSchema,
@@ -101,6 +103,7 @@ function OnboardingPage() {
   // Basics
   const [fullName, setFullName] = useState("");
   const [mobile, setMobile] = useState("");
+  const [email, setEmail] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   // When false, WhatsApp silently mirrors the (OTP-verified) mobile number and
   // the input stays hidden — only revealed via "Use a different number".
@@ -150,14 +153,18 @@ function OnboardingPage() {
       if (!u) return;
       setUid(u);
       const [{ data: p }, { data: c }, { data: ex }, { data: lg }, { data: am }, { data: lm }] = await Promise.all([
-        supabase.from("profiles").select("full_name, mobile, city").eq("id", u).maybeSingle(),
+        supabase.from("profiles").select("full_name, mobile, city, email").eq("id", u).maybeSingle(),
         supabase.from("candidate_profiles").select("*").eq("user_id", u).maybeSingle(),
         supabase.from("candidate_experiences").select("*").eq("user_id", u).order("start_date", { ascending: false }),
         supabase.from("candidate_languages").select("*").eq("user_id", u),
         supabase.from("candidate_assets_master").select("id, slug, label, category").eq("is_active", true).order("sort_order"),
         supabase.from("languages_master").select("name").eq("is_active", true).order("sort_order"),
       ]);
-      if (p) { setFullName(p.full_name || ""); setMobile(to10(p.mobile)); setCity(p.city || ""); }
+      if (p) {
+        setFullName(p.full_name || ""); setMobile(to10(p.mobile)); setCity(p.city || "");
+        const pEmail = (p as { email?: string | null }).email;
+        setEmail(isSyntheticEmail(pEmail) ? "" : pEmail || "");
+      }
       if (c) {
         setHeadline(c.headline || "");
         setDob(c.date_of_birth || ""); setGender((c.gender as typeof gender) || "");
@@ -293,7 +300,10 @@ function OnboardingPage() {
     setSaving(true);
     try {
       await runOrThrow(
-        supabase.from("profiles").update({ full_name: fullName, mobile: toE164(mobile), city }).eq("id", uid),
+        supabase.from("profiles").update({
+          full_name: fullName, mobile: toE164(mobile), city,
+          email: email ? emailSchema.parse(email) : null,
+        }).eq("id", uid),
         "Save basics",
       );
 
@@ -397,6 +407,10 @@ function OnboardingPage() {
       if (!name.success) return name.error.issues[0].message;
       const mob = mobileSchema.safeParse(mobile);
       if (!mob.success) return mob.error.issues[0].message;
+      if (email) {
+        const em = emailSchema.safeParse(email);
+        if (!em.success) return em.error.issues[0].message;
+      }
       if (whatsappCustom) {
         if (!whatsapp) return "Please enter your WhatsApp number.";
         const w = mobileSchema.safeParse(whatsapp);
@@ -671,6 +685,20 @@ function OnboardingPage() {
                             onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 10))}
                             placeholder="98xxxxxxxx"
                             readOnly={!!mobile}
+                          />
+                        </Field>
+                        <Field
+                          label="Email"
+                          optional
+                          hint="For job alerts and application updates"
+                          error={email && !emailSchema.safeParse(email).success ? "Enter a valid email address" : undefined}
+                        >
+                          <input
+                            type="email"
+                            className="form-input"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="you@example.com"
                           />
                         </Field>
                         <Field

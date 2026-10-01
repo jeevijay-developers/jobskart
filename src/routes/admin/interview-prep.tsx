@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -15,7 +16,8 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { CATEGORY_LABELS } from "@/lib/interview-prep";
+import { CATEGORY_LABELS, type Framework } from "@/lib/interview-prep";
+import { draftQuestionTranslation } from "@/lib/interview-prep.functions";
 
 export const Route = createFileRoute("/admin/interview-prep")({
   component: Page,
@@ -57,10 +59,17 @@ type Report = {
   status: string;
   created_at: string;
 };
+type Translation = {
+  template_id: string;
+  question: string;
+  framework: Framework;
+  status: "draft" | "published";
+};
 
 function Page() {
   const qc = useQueryClient();
   const [form, setForm] = useState(EMPTY);
+  const draftTranslation = useServerFn(draftQuestionTranslation);
 
   const templates = useQuery({
     queryKey: ["ip-templates-admin"],
@@ -85,6 +94,19 @@ function Page() {
         .limit(50);
       if (error) throw error;
       return data as Report[];
+    },
+  });
+  const translations = useQuery({
+    queryKey: ["ip-template-translations-admin"],
+    queryFn: async () => {
+      const { data, error } = await db
+        .from("interview_prep_question_template_translations")
+        .select("template_id, question, framework, status")
+        .eq("language", "hi");
+      if (error) throw error;
+      const map: Record<string, Translation> = {};
+      for (const row of data as Translation[]) map[row.template_id] = row;
+      return map;
     },
   });
 
@@ -134,6 +156,41 @@ function Page() {
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["ip-reports-admin"] }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const requestDraft = useMutation({
+    mutationFn: (templateId: string) => draftTranslation({ data: { templateId, language: "hi" } }),
+    onSuccess: () => {
+      toast.success("Draft translated — review before publishing.");
+      qc.invalidateQueries({ queryKey: ["ip-template-translations-admin"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const saveTranslation = useMutation({
+    mutationFn: async ({
+      templateId,
+      question,
+      steps,
+      status,
+    }: {
+      templateId: string;
+      question: string;
+      steps: string[];
+      status: "draft" | "published";
+    }) => {
+      const { error } = await db.from("interview_prep_question_template_translations").upsert({
+        template_id: templateId,
+        language: "hi",
+        question,
+        framework: { steps },
+        status,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Translation saved.");
+      qc.invalidateQueries({ queryKey: ["ip-template-translations-admin"] });
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -251,33 +308,122 @@ function Page() {
 
       <div className="space-y-2">
         {templates.data?.map((t) => (
-          <div
-            key={t.id}
-            className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4"
-          >
-            <div className="min-w-0">
-              <p className="font-medium text-foreground">{t.question}</p>
-              <p className="text-xs text-muted-foreground">
-                {CATEGORY_LABELS[t.category] ?? t.category} · {t.difficulty}
-                {t.role_keywords ? ` · roles: ${t.role_keywords.join(", ")}` : " · all roles"}
-              </p>
+          <div key={t.id} className="rounded-2xl border border-border bg-card p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-medium text-foreground">{t.question}</p>
+                <p className="text-xs text-muted-foreground">
+                  {CATEGORY_LABELS[t.category] ?? t.category} · {t.difficulty}
+                  {t.role_keywords ? ` · roles: ${t.role_keywords.join(", ")}` : " · all roles"}
+                </p>
+              </div>
+              <Select
+                value={t.status}
+                onValueChange={(status) => setStatus.mutate({ id: t.id, status })}
+              >
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="published">Published</SelectItem>
+                  <SelectItem value="retired">Retired</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <Select
-              value={t.status}
-              onValueChange={(status) => setStatus.mutate({ id: t.id, status })}
-            >
-              <SelectTrigger className="w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="draft">Draft</SelectItem>
-                <SelectItem value="published">Published</SelectItem>
-                <SelectItem value="retired">Retired</SelectItem>
-              </SelectContent>
-            </Select>
+            <TranslationPanel
+              templateId={t.id}
+              existing={translations.data?.[t.id]}
+              drafting={requestDraft.isPending}
+              onDraft={() => requestDraft.mutate(t.id)}
+              onSave={(question, steps, status) =>
+                saveTranslation.mutate({ templateId: t.id, question, steps, status })
+              }
+            />
           </div>
         ))}
       </div>
     </AdminShell>
+  );
+}
+
+function TranslationPanel({
+  templateId,
+  existing,
+  drafting,
+  onDraft,
+  onSave,
+}: {
+  templateId: string;
+  existing: Translation | undefined;
+  drafting: boolean;
+  onDraft: () => void;
+  onSave: (question: string, steps: string[], status: "draft" | "published") => void;
+}) {
+  const [question, setQuestion] = useState(existing?.question ?? "");
+  const [steps, setSteps] = useState((existing?.framework.steps ?? []).join("\n"));
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
+
+  // Sync local edit buffer when a fresh/updated translation arrives (e.g. right
+  // after an AI draft) — but only once per distinct `existing` value, so the
+  // admin's in-progress manual edits are never clobbered by a background refetch.
+  const existingKey = existing ? `${existing.question}|${existing.status}` : "none";
+  if (loadedFor !== `${templateId}:${existingKey}`) {
+    setLoadedFor(`${templateId}:${existingKey}`);
+    setQuestion(existing?.question ?? "");
+    setSteps((existing?.framework.steps ?? []).join("\n"));
+  }
+
+  const stepList = () =>
+    steps
+      .split("\n")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+  return (
+    <details className="mt-3 border-t border-border pt-3">
+      <summary className="cursor-pointer text-xs font-semibold text-primary">
+        Hindi translation {existing ? `(${existing.status})` : "(none yet)"}
+      </summary>
+      <div className="mt-2 space-y-2">
+        <Button size="sm" variant="outline" onClick={onDraft} disabled={drafting}>
+          {drafting ? "Drafting…" : existing ? "Re-draft with AI" : "Draft with AI"}
+        </Button>
+        <div>
+          <Label>Hindi question</Label>
+          <Textarea rows={2} value={question} onChange={(e) => setQuestion(e.target.value)} />
+        </div>
+        <div>
+          <Label>Hindi outline steps (one per line)</Label>
+          <Textarea rows={3} value={steps} onChange={(e) => setSteps(e.target.value)} />
+        </div>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            disabled={question.trim().length < 3}
+            onClick={() => onSave(question.trim(), stepList(), "draft")}
+          >
+            Save draft
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={question.trim().length < 3}
+            onClick={() => onSave(question.trim(), stepList(), "published")}
+          >
+            Save &amp; publish
+          </Button>
+          {existing?.status === "published" && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => onSave(question.trim(), stepList(), "draft")}
+            >
+              Unpublish
+            </Button>
+          )}
+        </div>
+      </div>
+    </details>
   );
 }

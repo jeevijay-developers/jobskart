@@ -2,6 +2,7 @@ import { createAdminClient } from "../_shared/supabaseAdmin.ts";
 import { sendEmail } from "../_shared/resend.ts";
 import { jobMatchEmail, type MatchedJob } from "../_shared/templates.ts";
 import { matchesAlert } from "../_shared/matching.ts";
+import { getCandidateEmailPrefs } from "../_shared/notificationPrefs.ts";
 
 type Frequency = "daily" | "weekly";
 
@@ -80,7 +81,9 @@ Deno.serve(async (req) => {
           .select("email")
           .eq("id", alert.user_id)
           .maybeSingle();
-        if (profile?.email) {
+        const prefs = profile?.email ? await getCandidateEmailPrefs(admin, alert.user_id) : null;
+        const prefAllows = frequency === "weekly" ? prefs?.weekly_digest : prefs?.email_alerts;
+        if (profile?.email && prefAllows) {
           const matchedJobs: MatchedJob[] = toSend.map((j) => ({
             id: j.id,
             title: j.title,

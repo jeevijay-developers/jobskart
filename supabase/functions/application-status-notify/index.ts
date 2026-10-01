@@ -1,6 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { createAdminClient } from "../_shared/supabaseAdmin.ts";
 import { sendEmail } from "../_shared/resend.ts";
+import { getCandidateEmailPrefs } from "../_shared/notificationPrefs.ts";
 import {
   applicationStatusEmail,
   type ApplicationStatusNotifyStatus,
@@ -48,7 +49,7 @@ Deno.serve(async (req) => {
   const { data: application, error } = await admin
     .from("applications")
     .select(
-      "id, company_id, jobs (title, companies (name)), profiles!candidate_id (email, full_name)",
+      "id, company_id, candidate_id, jobs (title, companies (name)), profiles!candidate_id (email, full_name)",
     )
     .eq("id", applicationId)
     .maybeSingle();
@@ -63,6 +64,13 @@ Deno.serve(async (req) => {
   const email = application.profiles?.email;
   if (!email)
     return new Response(JSON.stringify({ ok: true, skipped: "no_email" }), {
+      status: 200,
+      headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+    });
+
+  const prefs = await getCandidateEmailPrefs(admin, application.candidate_id);
+  if (!prefs.email_alerts)
+    return new Response(JSON.stringify({ ok: true, skipped: "email_alerts_disabled" }), {
       status: 200,
       headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
     });

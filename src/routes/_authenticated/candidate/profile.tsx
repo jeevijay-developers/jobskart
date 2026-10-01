@@ -8,7 +8,7 @@ import { CandidateShell } from "@/components/candidate/CandidateShell";
 import { SectionCard, EmptyHint, Chip, ChipInput, Field } from "@/components/candidate/primitives";
 import { supabase } from "@/integrations/supabase/client";
 import { computeProfileStrength, getIncompleteProfileFields, strengthLabel } from "@/lib/profileStrength";
-import { AVATAR_ACCEPT, validateAvatarFile } from "@/lib/validators";
+import { AVATAR_ACCEPT, emailSchema, isSyntheticEmail, validateAvatarFile } from "@/lib/validators";
 import { INDIAN_CITIES, SUGGESTED_SKILLS, SUGGESTED_LANGUAGES, JOB_TYPE_OPTIONS, WORK_MODES, ID_TYPES, EDUCATION_LEVELS } from "@/lib/options";
 import { INDIAN_STATES_AND_UTS, CITIES_BY_STATE, type IndianState } from "@/lib/indianStatesCities";
 import { CityTownAutocomplete } from "@/components/candidate/CityTownAutocomplete";
@@ -24,7 +24,7 @@ export const Route = createFileRoute("/_authenticated/candidate/profile")({
   component: ProfilePage,
 });
 
-type Profile = { full_name: string; mobile: string; city: string; state: string | null; avatar_url: string | null };
+type Profile = { full_name: string; mobile: string; city: string; state: string | null; avatar_url: string | null; email: string | null };
 type Candidate = {
   headline: string | null; bio: string | null; date_of_birth: string | null; gender: string | null;
   experience_status: string; years_experience: number; last_role: string | null;
@@ -62,9 +62,8 @@ function ProfilePage() {
     const u = sess.session?.user.id;
     if (!u) return;
     setUid(u);
-    setEmail(sess.session?.user.email ?? null);
     const [{ data: pr }, { data: cp }, { data: ex }, { data: ed }, { data: lg }, { data: docs }, apps, ivs, saved] = await Promise.all([
-      supabase.from("profiles").select("full_name, mobile, city, state, avatar_url").eq("id", u).maybeSingle(),
+      supabase.from("profiles").select("full_name, mobile, city, state, avatar_url, email").eq("id", u).maybeSingle(),
       supabase.from("candidate_profiles").select("*").eq("user_id", u).maybeSingle(),
       supabase.from("candidate_experiences").select("*").eq("user_id", u).order("start_date", { ascending: false }),
       supabase.from("candidate_education").select("*").eq("user_id", u).order("year_of_passing", { ascending: false }),
@@ -84,6 +83,8 @@ function ProfilePage() {
     ]);
     setP(pr as Profile);
     setC(cp as unknown as Candidate);
+    const prEmail = (pr as Profile | null)?.email ?? null;
+    setEmail(isSyntheticEmail(prEmail) ? null : prEmail);
     setResumeDoc(((docs as ResumeDoc[] | null) || [])[0] ?? null);
     setExperiences((ex || []).map((e) => ({ ...e, start_date: e.start_date || "", end_date: e.end_date || "", description: e.description || "" })) as Exp[]);
     setEducations((ed || []).map((e) => ({ ...e, board_or_university: e.board_or_university || "", institute: e.institute || "", year_of_passing: e.year_of_passing ?? "", marks: e.marks || "" })) as Edu[]);
@@ -931,11 +932,12 @@ function PersonalDialog({ open, onClose, uid, p, c, onSaved }: { open: boolean; 
   const to10 = (v: string) => { const d = (v ?? "").replace(/\D/g, ""); return d.length >= 10 ? d.slice(-10) : d; };
   const [full_name, setFn] = useState(p.full_name); const [mobile, setMo] = useState(to10(p.mobile)); const [city, setCity] = useState(p.city || "");
   const [state, setState] = useState(p.state || "");
+  const [email, setEmail] = useState(isSyntheticEmail(p.email) ? "" : p.email || "");
   const [dob, setDob] = useState(c.date_of_birth || ""); const [gender, setGender] = useState(c.gender || "");
   const [bio, setBio] = useState(c.bio || ""); const [headline, setHeadline] = useState(c.headline || "");
   const [saving, setSaving] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState<{ full_name?: string; mobile?: string; state?: string; city?: string; dob?: string; gender?: string }>({});
-  useEffect(() => { if (open) { setFn(p.full_name); setMo(to10(p.mobile)); setCity(p.city || ""); setState(p.state || ""); setDob(c.date_of_birth || ""); setGender(c.gender || ""); setBio(c.bio || ""); setHeadline(c.headline || ""); setFieldErrors({}); } }, [open, p, c]);
+  const [fieldErrors, setFieldErrors] = useState<{ full_name?: string; mobile?: string; state?: string; city?: string; email?: string; dob?: string; gender?: string }>({});
+  useEffect(() => { if (open) { setFn(p.full_name); setMo(to10(p.mobile)); setCity(p.city || ""); setState(p.state || ""); setEmail(isSyntheticEmail(p.email) ? "" : p.email || ""); setDob(c.date_of_birth || ""); setGender(c.gender || ""); setBio(c.bio || ""); setHeadline(c.headline || ""); setFieldErrors({}); } }, [open, p, c]);
   const save = async () => {
     const next: typeof fieldErrors = {};
     if (!full_name.trim()) next.full_name = "Please enter your full name.";
@@ -944,12 +946,18 @@ function PersonalDialog({ open, onClose, uid, p, c, onSaved }: { open: boolean; 
     if (!city) next.city = "Please choose your city/town.";
     if (!dob) next.dob = "Please enter your date of birth.";
     if (!gender) next.gender = "Please select your gender.";
+    let parsedEmail: string | null = null;
+    if (email.trim()) {
+      const result = emailSchema.safeParse(email);
+      if (!result.success) next.email = result.error.issues[0]?.message || "Enter a valid email address.";
+      else parsedEmail = result.data;
+    }
     setFieldErrors(next);
     if (Object.keys(next).length > 0) return;
     setSaving(true);
     await supabase
       .from("profiles")
-      .update({ full_name, mobile: to10(mobile).length === 10 ? `+91${to10(mobile)}` : null, city, state })
+      .update({ full_name, mobile: to10(mobile).length === 10 ? `+91${to10(mobile)}` : null, city, state, email: parsedEmail })
       .eq("id", uid);
     await supabase.from("candidate_profiles").update({ date_of_birth: dob || null, gender: gender || null, bio: bio || null, headline: headline || null }).eq("user_id", uid);
     setSaving(false); toast.success("Saved"); onSaved(); onClose();
@@ -959,6 +967,9 @@ function PersonalDialog({ open, onClose, uid, p, c, onSaved }: { open: boolean; 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Full name" required error={fieldErrors.full_name}><input className="form-input" value={full_name} onChange={(e) => setFn(e.target.value)} /></Field>
         <Field label="Mobile" required error={fieldErrors.mobile}><input className="form-input" value={mobile} onChange={(e) => setMo(e.target.value.replace(/\D/g, "").slice(0, 10))} /></Field>
+        <Field label="Email" error={fieldErrors.email} hint="Used for job alerts and application updates">
+          <input type="email" className="form-input" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+        </Field>
         <Field label="State" required error={fieldErrors.state}>
           <CityTownAutocomplete
             value={state}

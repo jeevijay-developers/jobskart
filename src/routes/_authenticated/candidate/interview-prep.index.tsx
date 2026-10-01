@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { CandidateShell } from "@/components/candidate/CandidateShell";
+import { AutocompleteInput } from "@/components/site/AutocompleteInput";
+import { useJobTitleSuggestions } from "@/lib/useJobTitleSuggestions";
 import { supabase } from "@/integrations/supabase/client";
 import {
   BAND_LABELS,
@@ -47,6 +49,7 @@ type SessionRow = {
   context_type: string;
   status: string;
   started_at: string;
+  language: "en" | "hi";
 };
 type Template = {
   id: string;
@@ -58,6 +61,7 @@ type Template = {
 
 function InterviewPrepHome() {
   const navigate = useNavigate();
+  const jobTitles = useJobTitleSuggestions();
   const start = useServerFn(startPrepSession);
   const removeHistory = useServerFn(deletePrepHistory);
   const fetchProgress = useServerFn(getPrepProgress);
@@ -69,6 +73,9 @@ function InterviewPrepHome() {
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
+  // Content language for the next session (questions/TTS/feedback) — defaults to
+  // whatever the candidate's most recent session used, else English.
+  const [language, setLanguage] = useState<"en" | "hi">("en");
   const [category, setCategory] = useState("all");
   const [open, setOpen] = useState<string | null>(null);
   const [prefs, setPrefs] = useState<Record<string, "saved" | "hidden">>({});
@@ -92,7 +99,7 @@ function InterviewPrepHome() {
         .limit(5),
       db
         .from("interview_prep_sessions")
-        .select("id, role_title, context_type, status, started_at")
+        .select("id, role_title, context_type, status, started_at, language")
         .order("started_at", { ascending: false })
         .limit(20),
       db
@@ -106,7 +113,9 @@ function InterviewPrepHome() {
       map[r.template_id] = r.pref;
     setPrefs(map);
     setInterviews((iv.data ?? []) as UpcomingInterview[]);
-    setSessions((ses.data ?? []) as SessionRow[]);
+    const sessionRows = (ses.data ?? []) as SessionRow[];
+    setSessions(sessionRows);
+    if (sessionRows[0]?.language) setLanguage(sessionRows[0].language);
     setTemplates((tpl.data ?? []) as Template[]);
     setLoading(false);
     // Progress is a nice-to-have; never block the page on it.
@@ -119,6 +128,16 @@ function InterviewPrepHome() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const startRolePractice = () => {
+    if (role.trim().length < 2) return;
+    void begin("role", {
+      contextType: "role",
+      roleTitle: role.trim(),
+      questionCount: 6,
+      language,
+    });
+  };
 
   const begin = async (key: string, data: StartPrepInput) => {
     setBusy(key);
@@ -195,6 +214,25 @@ function InterviewPrepHome() {
         </div>
       ) : (
         <div className="space-y-8">
+          <section className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-4 text-sm">
+            <label htmlFor="prep-language" className="font-semibold text-foreground">
+              Practice language
+            </label>
+            <select
+              id="prep-language"
+              value={language}
+              onChange={(e) => setLanguage(e.target.value as "en" | "hi")}
+              className="h-9 rounded-lg border border-border bg-background px-2 text-sm"
+            >
+              <option value="en">English</option>
+              <option value="hi">Hindi</option>
+            </select>
+            <p className="text-xs text-muted-foreground">
+              Applies to the questions, read-aloud voice and feedback for your next session.
+              {language === "hi" && " Some questions may still show in English if not yet translated."}
+            </p>
+          </section>
+
           {interviews.length > 0 && (
             <section>
               <h2 className="mb-3 text-lg font-semibold text-foreground">
@@ -221,6 +259,7 @@ function InterviewPrepHome() {
                           contextType: "interview",
                           interviewId: iv.id,
                           questionCount: 6,
+                          language,
                         })
                       }
                       className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60"
@@ -239,35 +278,28 @@ function InterviewPrepHome() {
             <p className="mt-1 text-sm text-muted-foreground">
               Enter the job you're aiming for, e.g. “Delivery executive” or “Customer support”.
             </p>
-            <form
-              className="mt-3 flex flex-wrap gap-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (role.trim().length >= 2)
-                  void begin("role", {
-                    contextType: "role",
-                    roleTitle: role.trim(),
-                    questionCount: 6,
-                  });
-              }}
-            >
-              <input
+            <div className="mt-3 flex flex-wrap gap-2">
+              <AutocompleteInput
                 value={role}
-                onChange={(e) => setRole(e.target.value)}
+                onChange={setRole}
+                onSubmit={startRolePractice}
+                suggestions={jobTitles}
                 maxLength={80}
                 placeholder="Role or job title"
+                wrapperClassName="relative min-w-0 flex-1"
+                inputClassName="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
                 aria-label="Role or job title"
-                className="h-10 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-sm"
               />
               <button
-                type="submit"
+                type="button"
+                onClick={startRolePractice}
                 disabled={!!busy || role.trim().length < 2}
                 className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
               >
                 {busy === "role" && <Loader2 className="h-4 w-4 animate-spin" />}
                 Start 6-question practice
               </button>
-            </form>
+            </div>
             <p className="mt-2 text-xs text-muted-foreground">
               Practising for a specific job?{" "}
               <Link to="/candidate/applications" className="font-semibold text-primary">
@@ -287,6 +319,7 @@ function InterviewPrepHome() {
                   roleTitle: progress.lastRoleTitle ?? "General practice",
                   questionCount: 4,
                   categories: progress.progress.weakest as never,
+                  language,
                 })
               }
             />

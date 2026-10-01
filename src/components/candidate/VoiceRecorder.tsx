@@ -44,16 +44,21 @@ function blobToBase64(blob: Blob): Promise<string> {
 export function VoiceRecorder({
   onTranscript,
   onCancel,
+  defaultLanguage = "en",
 }: {
   onTranscript: (text: string, durationSec: number) => void;
   onCancel: () => void;
+  /** What language the candidate is likely to speak — independent of STT's own
+   *  override below, this just seeds a sensible default (e.g. match the session's
+   *  content language) rather than always starting from English. */
+  defaultLanguage?: "en" | "hi";
 }) {
   const fetchConsent = useServerFn(getVoiceConsent);
   const saveConsent = useServerFn(setVoiceConsent);
   const transcribe = useServerFn(transcribePrepAnswer);
 
   const [phase, setPhase] = useState<Phase>("loading");
-  const [language, setLanguage] = useState<"en" | "hi">("en");
+  const [language, setLanguage] = useState<"en" | "hi">(defaultLanguage);
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
