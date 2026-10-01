@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle2, Loader2, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 import { Navbar } from "@/components/site/Navbar";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,8 +18,10 @@ function InvitePage() {
   const [invite, setInvite] = useState<Invite | null>(null);
   const [loading, setLoading] = useState(true);
   const [auth, setAuth] = useState<boolean>(false);
-  const [currentEmail, setCurrentEmail] = useState<string | null>(null);
   const [accepting, setAccepting] = useState(false);
+  // Guards the auto-accept effect so it fires at most once per page visit,
+  // even though `invite`/`auth` can each update independently after load.
+  const [autoAcceptTried, setAutoAcceptTried] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -30,13 +32,9 @@ function InvitePage() {
       const row = (iRes.data as unknown as Invite[] | null)?.[0] ?? null;
       setInvite(row);
       setAuth(!!uRes.data.user);
-      setCurrentEmail(uRes.data.user?.email ?? null);
       setLoading(false);
     })();
   }, [token]);
-
-  const emailMismatch =
-    !!invite && !!currentEmail && currentEmail.toLowerCase() !== invite.email.toLowerCase();
 
   const accept = async () => {
     setAccepting(true);
@@ -46,6 +44,19 @@ function InvitePage() {
     toast.success(`Joined ${invite?.company_name}!`);
     nav({ to: "/employer/dashboard" });
   };
+
+  // Arriving here already authenticated (the common case: bounced back from
+  // /auth after verifying mobile+OTP, with this page's own URL as the
+  // `redirect` target) should join the company immediately, not make the
+  // person click Accept again on a page they were already sent to accept.
+  useEffect(() => {
+    if (loading || autoAcceptTried || accepting) return;
+    if (auth && invite && !invite.accepted_at && new Date(invite.expires_at) >= new Date()) {
+      setAutoAcceptTried(true);
+      accept();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, auth, invite, autoAcceptTried, accepting]);
 
   return (
     <div className="min-h-screen bg-surface">
@@ -70,30 +81,18 @@ function InvitePage() {
               <p className="mt-2 text-sm text-muted-foreground">Role: <span className="font-semibold">{invite.role.replace("_", " ")}</span></p>
               <p className="text-sm text-muted-foreground">Invited email: <span className="font-medium">{invite.email}</span></p>
 
-              {auth && emailMismatch && (
-                <div className="mt-4 flex items-start gap-2 rounded-lg bg-warning-light px-3 py-2 text-left text-xs text-warning">
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                  <span>
-                    You're signed in as <strong>{currentEmail}</strong>, but this invite was sent to{" "}
-                    <strong>{invite.email}</strong>. Accepting will join this company under your
-                    current account.
-                  </span>
-                </div>
-              )}
-
               {auth ? (
                 <button onClick={accept} disabled={accepting} className="mt-6 inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-60">
-                  {accepting && <Loader2 className="h-4 w-4 animate-spin" />} Accept invitation
+                  {accepting && <Loader2 className="h-4 w-4 animate-spin" />} {accepting ? "Joining…" : "Accept invitation"}
                 </button>
               ) : (
-                <div className="mt-6 space-y-2">
-                  <Link to="/auth" className="inline-flex h-11 w-full items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-foreground hover:bg-primary-dark">
-                    Sign in to accept
-                  </Link>
-                  <Link to="/signup/employer" className="inline-flex h-11 w-full items-center justify-center rounded-lg border border-border text-sm font-semibold">
-                    Create an account
-                  </Link>
-                </div>
+                <Link
+                  to="/auth"
+                  search={{ tab: "employer", redirect: `/invite/${token}` }}
+                  className="mt-6 inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground hover:bg-primary-dark"
+                >
+                  <Smartphone className="h-4 w-4" /> Continue with mobile number
+                </Link>
               )}
             </div>
           )}

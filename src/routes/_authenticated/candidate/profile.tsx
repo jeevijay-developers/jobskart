@@ -56,41 +56,65 @@ function ProfilePage() {
   const [open, setOpen] = useState<null | "personal" | "headline" | "career" | "experience" | "education" | "skills" | "languages" | "resume" | "kyc" | "avatar">(null);
   const [email, setEmail] = useState<string | null>(null);
   const [counts, setCounts] = useState({ applications: 0, interviews: 0, saved: 0 });
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = async () => {
-    const { data: sess } = await supabase.auth.getSession();
-    const u = sess.session?.user.id;
-    if (!u) return;
-    setUid(u);
-    const [{ data: pr }, { data: cp }, { data: ex }, { data: ed }, { data: lg }, { data: docs }, apps, ivs, saved] = await Promise.all([
-      supabase.from("profiles").select("full_name, mobile, city, state, avatar_url, email").eq("id", u).maybeSingle(),
-      supabase.from("candidate_profiles").select("*").eq("user_id", u).maybeSingle(),
-      supabase.from("candidate_experiences").select("*").eq("user_id", u).order("start_date", { ascending: false }),
-      supabase.from("candidate_education").select("*").eq("user_id", u).order("year_of_passing", { ascending: false }),
-      supabase.from("candidate_languages").select("*").eq("user_id", u),
-      // Same table/query the Documents page uses for the "Resume / CV" row —
-      // this is the actual source of truth for an uploaded resume.
-      supabase
-        .from("candidate_documents")
-        .select("id, file_path, file_name, size_bytes, created_at")
-        .eq("user_id", u)
-        .eq("doc_type", "resume")
-        .order("created_at", { ascending: false })
-        .limit(1),
-      supabase.from("applications").select("id", { count: "exact", head: true }).eq("candidate_id", u),
-      supabase.from("interviews").select("id", { count: "exact", head: true }).eq("candidate_id", u),
-      supabase.from("saved_jobs").select("id", { count: "exact", head: true }).eq("user_id", u),
-    ]);
-    setP(pr as Profile);
-    setC(cp as unknown as Candidate);
-    const prEmail = (pr as Profile | null)?.email ?? null;
-    setEmail(isSyntheticEmail(prEmail) ? null : prEmail);
-    setResumeDoc(((docs as ResumeDoc[] | null) || [])[0] ?? null);
-    setExperiences((ex || []).map((e) => ({ ...e, start_date: e.start_date || "", end_date: e.end_date || "", description: e.description || "" })) as Exp[]);
-    setEducations((ed || []).map((e) => ({ ...e, board_or_university: e.board_or_university || "", institute: e.institute || "", year_of_passing: e.year_of_passing ?? "", marks: e.marks || "" })) as Edu[]);
-    setLanguages((lg || []) as Lang[]);
-    setCounts({ applications: apps.count ?? 0, interviews: ivs.count ?? 0, saved: saved.count ?? 0 });
-    setLoading(false);
+    setLoadError(null);
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const u = sess.session?.user.id;
+      if (!u) return;
+      setUid(u);
+      const [{ data: pr }, { data: cpRaw }, { data: ex }, { data: ed }, { data: lg }, { data: docs }, apps, ivs, saved] = await Promise.all([
+        supabase.from("profiles").select("full_name, mobile, city, state, avatar_url, email").eq("id", u).maybeSingle(),
+        supabase.from("candidate_profiles").select("*").eq("user_id", u).maybeSingle(),
+        supabase.from("candidate_experiences").select("*").eq("user_id", u).order("start_date", { ascending: false }),
+        supabase.from("candidate_education").select("*").eq("user_id", u).order("year_of_passing", { ascending: false }),
+        supabase.from("candidate_languages").select("*").eq("user_id", u),
+        // Same table/query the Documents page uses for the "Resume / CV" row —
+        // this is the actual source of truth for an uploaded resume.
+        supabase
+          .from("candidate_documents")
+          .select("id, file_path, file_name, size_bytes, created_at")
+          .eq("user_id", u)
+          .eq("doc_type", "resume")
+          .order("created_at", { ascending: false })
+          .limit(1),
+        supabase.from("applications").select("id", { count: "exact", head: true }).eq("candidate_id", u),
+        supabase.from("interviews").select("id", { count: "exact", head: true }).eq("candidate_id", u),
+        supabase.from("saved_jobs").select("id", { count: "exact", head: true }).eq("user_id", u),
+      ]);
+
+      // Every candidate account is seeded with a candidate_profiles row by the
+      // handle_new_user() trigger, but older/edge-case accounts can predate
+      // that or have had the row deleted — self-heal instead of leaving `c`
+      // null forever (same upsert pattern onboarding/candidate.tsx uses).
+      let cp = cpRaw;
+      if (!cp) {
+        const { data: seeded, error: seedErr } = await supabase
+          .from("candidate_profiles")
+          .upsert({ user_id: u }, { onConflict: "user_id" })
+          .select("*")
+          .maybeSingle();
+        if (seedErr) throw seedErr;
+        cp = seeded;
+      }
+
+      setP(pr as Profile);
+      setC(cp as unknown as Candidate);
+      const prEmail = (pr as Profile | null)?.email ?? null;
+      setEmail(isSyntheticEmail(prEmail) ? null : prEmail);
+      setResumeDoc(((docs as ResumeDoc[] | null) || [])[0] ?? null);
+      setExperiences((ex || []).map((e) => ({ ...e, start_date: e.start_date || "", end_date: e.end_date || "", description: e.description || "" })) as Exp[]);
+      setEducations((ed || []).map((e) => ({ ...e, board_or_university: e.board_or_university || "", institute: e.institute || "", year_of_passing: e.year_of_passing ?? "", marks: e.marks || "" })) as Edu[]);
+      setLanguages((lg || []) as Lang[]);
+      setCounts({ applications: apps.count ?? 0, interviews: ivs.count ?? 0, saved: saved.count ?? 0 });
+    } catch (err) {
+      console.error("Failed to load profile:", err);
+      setLoadError(err instanceof Error ? err.message : "Something went wrong loading your profile.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { load(); }, []);
@@ -165,8 +189,24 @@ function ProfilePage() {
     }
   }, [strength, uid, c]);
 
-  if (loading || !p || !c) {
+  if (loading) {
     return <CandidateShell title="My Profile"><div className="grid place-items-center py-20"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div></CandidateShell>;
+  }
+
+  if (loadError || !p || !c) {
+    return (
+      <CandidateShell title="My Profile">
+        <div className="grid place-items-center gap-3 rounded-2xl border border-border bg-card py-20 text-center">
+          <p className="text-sm text-muted-foreground">{loadError || "We couldn't load your profile."}</p>
+          <button
+            onClick={() => { setLoading(true); load(); }}
+            className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary-dark"
+          >
+            Try again
+          </button>
+        </div>
+      </CandidateShell>
+    );
   }
 
   const initials = (p.full_name || "U").split(" ").map((x) => x[0]).slice(0, 2).join("").toUpperCase();
