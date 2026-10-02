@@ -65,6 +65,7 @@ type RecommendRow = {
   boosted: boolean | null;
   score: number | null;              // NEW: personalized relevance score (0-1)
   score_breakdown: Record<string, any> | null;  // NEW: explainable scoring breakdown
+  recommendation_stage?: string | null;  // NEW: cold-start ladder stage, absent on feed_jobs rows
   total_count: number | string;
 };
 
@@ -93,6 +94,7 @@ function mapRecommendRows(rows: RecommendRow[]): JobCardData[] {
     // NEW: attach score for UI indicators (e.g., "95% match")
     relevance_score: r.score,
     score_breakdown: r.score_breakdown,
+    recommendation_stage: r.recommendation_stage ?? null,
   }));
 }
 

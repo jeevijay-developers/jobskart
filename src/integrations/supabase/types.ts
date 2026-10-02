@@ -1127,6 +1127,7 @@ export type Database = {
           preferred_cities: string[]
           preferred_job_types: string[]
           preferred_work_mode: string | null
+          profile_embedding: string | null
           profile_slug: string | null
           profile_strength: number
           profile_views: number
@@ -1164,6 +1165,7 @@ export type Database = {
           preferred_cities?: string[]
           preferred_job_types?: string[]
           preferred_work_mode?: string | null
+          profile_embedding?: string | null
           profile_slug?: string | null
           profile_strength?: number
           profile_views?: number
@@ -1201,6 +1203,7 @@ export type Database = {
           preferred_cities?: string[]
           preferred_job_types?: string[]
           preferred_work_mode?: string | null
+          profile_embedding?: string | null
           profile_slug?: string | null
           profile_strength?: number
           profile_views?: number
@@ -3321,6 +3324,41 @@ export type Database = {
           },
         ]
       }
+      job_impressions: {
+        Row: {
+          candidate_user_id: string
+          id: string
+          job_id: string
+          position: number | null
+          shown_at: string
+          source: string
+        }
+        Insert: {
+          candidate_user_id: string
+          id?: string
+          job_id: string
+          position?: number | null
+          shown_at?: string
+          source: string
+        }
+        Update: {
+          candidate_user_id?: string
+          id?: string
+          job_id?: string
+          position?: number | null
+          shown_at?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_impressions_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_purge_reminders: {
         Row: {
           job_id: string
@@ -3339,6 +3377,38 @@ export type Database = {
             foreignKeyName: "job_purge_reminders_job_id_fkey"
             columns: ["job_id"]
             isOneToOne: true
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_recommendation_feedback: {
+        Row: {
+          action: string
+          candidate_user_id: string
+          created_at: string
+          id: string
+          job_id: string
+        }
+        Insert: {
+          action: string
+          candidate_user_id: string
+          created_at?: string
+          id?: string
+          job_id: string
+        }
+        Update: {
+          action?: string
+          candidate_user_id?: string
+          created_at?: string
+          id?: string
+          job_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_recommendation_feedback_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
             referencedRelation: "jobs"
             referencedColumns: ["id"]
           },
@@ -3533,6 +3603,7 @@ export type Database = {
           created_at: string
           degree: string | null
           description: string
+          description_embedding: string | null
           description_html: string | null
           education: string | null
           english_level: string | null
@@ -3610,6 +3681,7 @@ export type Database = {
           created_at?: string
           degree?: string | null
           description?: string
+          description_embedding?: string | null
           description_html?: string | null
           education?: string | null
           english_level?: string | null
@@ -3687,6 +3759,7 @@ export type Database = {
           created_at?: string
           degree?: string | null
           description?: string
+          description_embedding?: string | null
           description_html?: string | null
           education?: string | null
           english_level?: string | null
@@ -3830,24 +3903,6 @@ export type Database = {
           slug?: string
           title?: string
           updated_at?: string
-        }
-        Relationships: []
-      }
-      match_scoring_config: {
-        Row: {
-          id: number
-          updated_at: string
-          weights: Json
-        }
-        Insert: {
-          id?: number
-          updated_at?: string
-          weights?: Json
-        }
-        Update: {
-          id?: number
-          updated_at?: string
-          weights?: Json
         }
         Relationships: []
       }
@@ -4239,12 +4294,14 @@ export type Database = {
           boost_weight: number
           boost_window_hours: number
           cold_start_min_applications: number
+          cold_start_weight: number
           experience_weight: number
           freshness_weight: number
           id: number
           location_weight: number
           max_same_company_in_top: number
           salary_weight: number
+          semantic_weight: number
           skill_weight: number
           trending_bonus_max: number
           trending_weight: number
@@ -4255,12 +4312,14 @@ export type Database = {
           boost_weight?: number
           boost_window_hours?: number
           cold_start_min_applications?: number
+          cold_start_weight?: number
           experience_weight?: number
           freshness_weight?: number
           id?: number
           location_weight?: number
           max_same_company_in_top?: number
           salary_weight?: number
+          semantic_weight?: number
           skill_weight?: number
           trending_bonus_max?: number
           trending_weight?: number
@@ -4271,12 +4330,14 @@ export type Database = {
           boost_weight?: number
           boost_window_hours?: number
           cold_start_min_applications?: number
+          cold_start_weight?: number
           experience_weight?: number
           freshness_weight?: number
           id?: number
           location_weight?: number
           max_same_company_in_top?: number
           salary_weight?: number
+          semantic_weight?: number
           skill_weight?: number
           trending_bonus_max?: number
           trending_weight?: number
@@ -5270,6 +5331,7 @@ export type Database = {
           min_experience_years: number
           min_salary: number
           pay_type: string
+          recommendation_stage: string
           salary_period: string
           score: number
           score_breakdown: Json
@@ -5464,6 +5526,14 @@ export type Database = {
           _application_ids: string[]
           _status: Database["public"]["Enums"]["application_status"]
         }
+        Returns: undefined
+      }
+      update_candidate_profile_embedding: {
+        Args: { _embedding: string }
+        Returns: undefined
+      }
+      update_job_description_embedding: {
+        Args: { _embedding: string; _job_id: string }
         Returns: undefined
       }
       update_member_role: {

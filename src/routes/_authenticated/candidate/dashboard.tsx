@@ -204,17 +204,37 @@ function CandidateDashboard() {
     total: recommendedTotal,
     totalPages: recommendedTotalPages,
     isLoading: recommendedLoading,
+    error: recommendedError,
     refetch: refetchRecommended,
   } = usePaginatedQuery<JobCardData>({
     queryKey: ["candidate-dashboard", "recommended", candidateId],
     pageSize: REC_JOBS_PAGE_SIZE,
     fetchPage: async ({ from, to }) => {
       const { rows, total, error } = await fetchCandidateJobFeed({}, "recommended", from, to);
-      if (error) return { rows: [], total: 0 };
+      if (error) throw new Error(error);
       return { rows, total };
     },
     enabled: !!candidateId,
   });
+
+  // Best-effort impression logging so the recommendation engine's future
+  // tuning has a record of what was actually shown, not just applied-to.
+  // Never blocks rendering — failures are swallowed silently.
+  useEffect(() => {
+    if (!candidateId || recommendedLoading || !recommendedPage.length) return;
+    supabase
+      .from("job_impressions")
+      .insert(
+        recommendedPage.map((j, i) => ({
+          candidate_user_id: candidateId,
+          job_id: j.id,
+          source: "recommended",
+          position: (recPage - 1) * REC_JOBS_PAGE_SIZE + i,
+        })) as never,
+      )
+      .then(() => {}, () => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- log once per page load, not on every candidateId/recPage re-render
+  }, [recommendedPage, recommendedLoading]);
 
   const recommendedHeading = (
     <div className="mb-3 flex items-center gap-2">
@@ -233,6 +253,20 @@ function CandidateDashboard() {
       {recommendedLoading ? (
         <div className="grid place-items-center rounded-xl border border-border bg-card p-8">
           <Loader2 className="h-5 w-5 animate-spin text-primary" />
+        </div>
+      ) : recommendedError ? (
+        <div className="grid place-items-center rounded-2xl border border-dashed border-border bg-card p-10 text-center">
+          <p className="text-base font-bold text-foreground">Couldn&apos;t load your recommendations</p>
+          <p className="mt-1 max-w-xs text-sm text-muted-foreground">
+            Something went wrong on our side. Please try again in a moment.
+          </p>
+          <button
+            type="button"
+            onClick={() => void refetchRecommended()}
+            className="mt-5 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground hover:bg-primary-dark"
+          >
+            Try again
+          </button>
         </div>
       ) : recommendedTotal === 0 ? (
         <EmptyState

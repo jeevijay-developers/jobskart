@@ -43,7 +43,7 @@ Browser (React 19 + TanStack Router)
 |---|---|---|
 | Routes | `src/routes/**` (file-based, TanStack Router) | `_authenticated/{admin,employer,candidate,onboarding}` gate each portal |
 | Server functions | `src/lib/*.functions.ts` | `createServerFn` — portable, NOT Supabase Edge Functions |
-| Pure logic (no I/O, unit-testable) | `src/lib/{matching,jd-template,jd-library,profileStrength,validators,options}.ts` | |
+| Pure logic (no I/O, unit-testable) | `src/lib/{jd-template,jd-library,profileStrength,validators,options}.ts` | |
 | DB access | `src/integrations/supabase/{client,client.server}.ts` | Generated — do not hand-edit |
 | Auth shim | `src/integrations/lovable/index.ts` | Generated; deleted at migration off Lovable |
 | Database | `supabase/migrations/*.sql` | RLS + `SECURITY DEFINER` RPCs on every user-facing table |
@@ -56,10 +56,10 @@ Browser (React 19 + TanStack Router)
 
 These are load-bearing, not stylistic — enforce them on every change that touches money, auth, or AI:
 
-1. **All AI calls go through `src/lib/ai/provider.ts`.** No other file may contain a provider URL or model name. `PROVIDER`/`MODEL` are read from `AI_PROVIDER`/`AI_MODEL` env vars (`lovable | gemini | openai`). Files that call AI today: `resume.functions.ts`, `ai-shortlist.functions.ts`, `matching.functions.ts`.
+1. **All AI calls go through `src/lib/ai/provider.ts`.** No other file may contain a provider URL or model name. `PROVIDER`/`MODEL` are read from `AI_PROVIDER`/`AI_MODEL` env vars (`lovable | gemini | openai`). Files that call AI today: `resume.functions.ts`, `ai-shortlist.functions.ts`, `matching.functions.ts`, `embeddings.functions.ts`. Embeddings (`provider.ts::embed()`) use Gemini whenever `GEMINI_API_KEY` is set (any chat provider), else OpenAI when `AI_PROVIDER=openai`; the Lovable/OpenRouter gateways have no embeddings endpoint.
 2. **Money and access logic lives in Postgres, never in server functions or React.** Credit deduction, unlock grants, boost consumption, plan-entitlement checks: all inside `SECURITY DEFINER` functions with `SET search_path = public` and row locks (`SELECT ... FOR UPDATE`). Reason: two browser tabs can double-spend a credit; only a DB-level row lock prevents it.
 3. **Locked candidate data (phone, email, resume URL) must never reach the frontend** until an unlock row exists. Enforce by excluding the columns in SQL (a masked-column RPC), never by hiding fields in React — assume every network response is inspected.
-4. **Recruiter-facing ranking is server-side.** `src/lib/matching.ts` client-side scoring exists **only** for the candidate's own "match %" badge (harmless, instant, uses only their own data). Any ranking of *other people's* data (candidate DB search, feed ordering) must be a DB function so scoring weights aren't shippable to a paying user.
+4. **Recruiter-facing ranking is server-side.** Any ranking of *other people's* data (candidate DB search, feed ordering) must be a DB function so scoring weights aren't shippable to a paying user — `compute_candidate_match()` and `recommend_jobs_for_candidate()` are both `SECURITY DEFINER` RPCs for this reason. There is no client-side scoring file; an earlier `src/lib/matching.ts` existed only as a candidate-side "match %" sketch, was never wired into the UI, and has been deleted.
 5. **Schema changes land only as new files in `supabase/migrations/`.** Never modify an existing migration file; never change schema through the Lovable UI without a migration file capturing it. Use `CREATE TABLE IF NOT EXISTS` / `ADD COLUMN IF NOT EXISTS` / guarded `DO $$ ... END $$` so migrations are re-runnable.
 6. **Every privileged action writes to `employer_activity`** (job created, candidate unlocked, boost applied, candidate contacted, DB search run) — inside the same transaction as the action, via trigger where possible.
 7. **No third-party failure blocks a core flow.** Resume parse fails → manual form. Verification API down → queue for admin review. AI down → deterministic JD template still works.
@@ -79,7 +79,10 @@ Every privileged RPC checks role in Postgres (`has_company_role(auth.uid(), _com
 - **Boost engine**: `job_boosts` table, one boost per job per calendar day (IST), decays linearly over its window rather than a flat bonus — a boosted job can't sit stale at the top. `jobs.boosted_until` is a denormalized cache of `max(ends_at)`, maintained by trigger; never write it directly.
 - **Candidate DB unlocks**: hybrid model — job-scoped allowance (`job_unlock_allowance`, 25 per job per the client deck) checked first, company-wide credit wallet (`employer_credit_wallets`) as fallback. Repeat unlocks of the same candidate by the same company are free (prevents double-charging across recruiters on the same account).
 - **Response retention**: 60-day purge of candidate responses, with advance notice to the employer (not yet implemented — P0 item).
-- Ranking formula (feed and recruiter-candidate search) lives in `match_scoring_config`, admin-editable — weights: skills overlap 60, location 20, experience fit 15, salary overlap 5, plus tier/boost/freshness bonuses for feed ranking. See `prompt structure/matching.md` for the full formula; don't re-derive it from `matching.ts` alone, that file is the client-side subset only.
+- There are two independent, admin-editable ranking formulas — don't conflate them:
+  - **Candidate's "Recommended for you" feed**: `recommend_jobs_for_candidate()` RPC, weights in `recommendation_settings` (skill, location, salary, experience, freshness, boost, trending, cold_start, semantic — each a 0–1 component, summed and weighted). Includes a diversity cap (`max_same_company_in_top`) and a staged cold-start ladder (`recommendation_stage`: `personalized` / `popular_in_category` / `citywide_fresh`) for candidates with no resolved skills/cities. `semantic_weight` blends in pgvector cosine similarity between `jobs.description_embedding` and `candidate_profiles.profile_embedding` (generated via `src/lib/embeddings.functions.ts` → `src/lib/ai/provider.ts::embed()`), neutral when either embedding is missing.
+  - **Recruiter-side candidate ranking** (candidate DB search, applicant sort): `compute_candidate_match()` RPC, hardcoded weights — skills overlap 60, location 20, experience fit 15, salary overlap 5 (0–100 scale), plus activity/intent/proximity bonuses.
+  - The `match_scoring_config` table referenced by older docs was dead code (never read by either function) and has been dropped.
 
 ## Two deliberate reshapes of client asks
 

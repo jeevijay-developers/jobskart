@@ -75,6 +75,7 @@ import {
   mapTierError,
   type JobTier,
 } from "@/lib/jobs.functions";
+import { embedJobDescription } from "@/lib/embeddings.functions";
 import { TierPicker } from "@/components/employer/TierPicker";
 
 type Form = {
@@ -380,6 +381,7 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
   const canPickTier = !editJobId || jobStatus === "draft";
   const runGetEntitlements = useServerFn(getCompanyEntitlements);
   const runActivateJobWithTier = useServerFn(activateJobWithTier);
+  const runEmbedJobDescription = useServerFn(embedJobDescription);
 
   useEffect(() => {
     (async () => {
@@ -716,6 +718,9 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
 
       try {
         await runActivateJobWithTier({ data: { jobId, tier } });
+        // Fire-and-forget: semantic matching degrades to neutral until this
+        // lands, so it must never hold up the publish confirmation.
+        runEmbedJobDescription({ data: { jobId } }).catch(() => {});
         toast.success("Job published! Candidates can apply now.");
         nav({ to: "/employer/jobs/$jobId/applicants", params: { jobId } });
       } catch (activateErr) {
@@ -764,6 +769,7 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
       }
 
       if (!thenPublish) {
+        runEmbedJobDescription({ data: { jobId: editJobId } }).catch(() => {});
         toast.success("Job updated.");
         nav({ to: "/employer/jobs" });
         return;
@@ -771,6 +777,7 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
 
       try {
         await runActivateJobWithTier({ data: { jobId: editJobId, tier } });
+        runEmbedJobDescription({ data: { jobId: editJobId } }).catch(() => {});
         toast.success("Job published! Candidates can apply now.");
         nav({ to: "/employer/jobs/$jobId/applicants", params: { jobId: editJobId } });
       } catch (activateErr) {

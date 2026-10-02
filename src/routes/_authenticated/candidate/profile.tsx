@@ -1,5 +1,6 @@
 import { ThemedDatePicker, ThemedSelect } from "@/components/ui/themed-form-controls";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, BadgeCheck, Bookmark, Briefcase, CalendarCheck, Camera, CheckCircle2, Clock, Eye, ExternalLink, FileText, GraduationCap, HelpCircle, Languages as LangIcon, Loader2, MapPin, Pencil, Plus, ShieldCheck, Trash2, Upload, UserRound } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -18,6 +19,7 @@ import { ResumeUpload, type ImportSource } from "@/components/candidate/ResumeUp
 import type { ParsedResumePayload } from "@/lib/resume.functions";
 import { SalaryPicker, type SalaryChoiceKind } from "@/components/candidate/SalaryPicker";
 import { EducationNudge } from "@/components/candidate/EducationNudge";
+import { embedCandidateProfile } from "@/lib/embeddings.functions";
 
 export const Route = createFileRoute("/_authenticated/candidate/profile")({
   head: () => ({ meta: [{ title: "My Profile · JobsKart" }] }),
@@ -969,6 +971,7 @@ function AvatarDialog({ open, onClose, uid, onSaved }: { open: boolean; onClose:
 }
 
 function PersonalDialog({ open, onClose, uid, p, c, onSaved }: { open: boolean; onClose: () => void; uid: string; p: Profile; c: Candidate; onSaved: () => void }) {
+  const runEmbedCandidateProfile = useServerFn(embedCandidateProfile);
   const to10 = (v: string) => { const d = (v ?? "").replace(/\D/g, ""); return d.length >= 10 ? d.slice(-10) : d; };
   const [full_name, setFn] = useState(p.full_name); const [mobile, setMo] = useState(to10(p.mobile)); const [city, setCity] = useState(p.city || "");
   const [state, setState] = useState(p.state || "");
@@ -1000,6 +1003,7 @@ function PersonalDialog({ open, onClose, uid, p, c, onSaved }: { open: boolean; 
       .update({ full_name, mobile: to10(mobile).length === 10 ? `+91${to10(mobile)}` : null, city, state, email: parsedEmail })
       .eq("id", uid);
     await supabase.from("candidate_profiles").update({ date_of_birth: dob || null, gender: gender || null, bio: bio || null, headline: headline || null }).eq("user_id", uid);
+    runEmbedCandidateProfile().catch(() => {});
     setSaving(false); toast.success("Saved"); onSaved(); onClose();
   };
   return (
@@ -1141,8 +1145,9 @@ function CareerDialog({ open, onClose, uid, c, city, onSaved }: { open: boolean;
 
 function SkillsDialog({ open, onClose, uid, c, onSaved }: { open: boolean; onClose: () => void; uid: string; c: Candidate; onSaved: () => void }) {
   const [skills, setSkills] = useState<string[]>(c.skills); const [saving, setSaving] = useState(false);
+  const runEmbedCandidateProfile = useServerFn(embedCandidateProfile);
   useEffect(() => { if (open) setSkills(c.skills); }, [open, c]);
-  const save = async () => { setSaving(true); await supabase.from("candidate_profiles").update({ skills }).eq("user_id", uid); setSaving(false); toast.success("Saved"); onSaved(); onClose(); };
+  const save = async () => { setSaving(true); await supabase.from("candidate_profiles").update({ skills }).eq("user_id", uid); runEmbedCandidateProfile().catch(() => {}); setSaving(false); toast.success("Saved"); onSaved(); onClose(); };
   return <DlgShell open={open} onClose={onClose} title="Your skills" onSave={save} saving={saving} footerButtonsSideBySide><ChipInput values={skills} onChange={setSkills} suggestions={SUGGESTED_SKILLS} /></DlgShell>;
 }
 
@@ -1327,6 +1332,7 @@ function ResumeSuggestHint({ suggested, current, onUse }: { suggested: string | 
 function ResumeDialog({ open, onClose, uid, current, p, c, onSaved }: { open: boolean; onClose: () => void; uid: string; current: string | null; p: Profile; c: Candidate; onSaved: () => void }) {
   const [review, setReview] = useState<ReviewState | null>(null);
   const [saving, setSaving] = useState(false);
+  const runEmbedCandidateProfile = useServerFn(embedCandidateProfile);
 
   // Reset when dialog closes
   useEffect(() => {
@@ -1387,6 +1393,7 @@ function ResumeDialog({ open, onClose, uid, current, p, c, onSaved }: { open: bo
       if (Object.keys(profPatch).length) {
         await supabase.from("profiles").update(profPatch as never).eq("id", uid);
       }
+      runEmbedCandidateProfile().catch(() => {});
       const expRows = review.experiences
         .filter((e) => (e.job_title || e.company_name)?.trim())
         .map((e) => ({

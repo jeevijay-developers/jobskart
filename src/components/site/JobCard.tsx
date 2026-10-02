@@ -35,6 +35,36 @@ export type JobCardData = {
   relevance_score?: number | null;
   // NEW: Explainable scoring breakdown for transparency
   score_breakdown?: Record<string, any> | null;
+  // NEW: which cold-start ladder stage produced this row ("personalized" when
+  // the candidate has enough signal to skip the ladder entirely)
+  recommendation_stage?: string | null;
+};
+
+// Best-effort interaction logging for the recommendation engine's future
+// tuning — never blocks the UI action it's attached to, so failures are
+// swallowed silently.
+function logRecommendationFeedback(
+  candidateUserId: string,
+  jobId: string,
+  action: "saved" | "dismissed" | "applied",
+) {
+  supabase
+    .from("job_recommendation_feedback")
+    .insert({ candidate_user_id: candidateUserId, job_id: jobId, action } as never)
+    .then(() => {}, () => {});
+}
+
+const SCORE_BREAKDOWN_LABELS: Record<string, string> = {
+  skill: "Skills",
+  role: "Role fit",
+  location: "Location",
+  salary: "Salary fit",
+  experience: "Experience fit",
+  freshness: "Freshness",
+  boost: "Boost",
+  trending: "Trending",
+  cold_start: "Popular with others",
+  semantic: "Profile similarity",
 };
 
 export function JobCard({
@@ -64,6 +94,7 @@ export function JobCard({
   const [userId, setUserId] = useState<string | null>(null);
   const [applied, setApplied] = useState(false);
   const [applyOpen, setApplyOpen] = useState(false);
+  const [showBreakdown, setShowBreakdown] = useState(false);
   const { saved, toggle: toggleSaved } = useSavedJob(job.id, userId);
   const { share } = useShareJob();
 
@@ -114,6 +145,7 @@ export function JobCard({
     e.preventDefault();
     e.stopPropagation();
     if (!userId) return requireAuth();
+    if (!saved && variant === "discovery") logRecommendationFeedback(userId, job.id, "saved");
     toggleSaved();
   };
 
@@ -141,8 +173,36 @@ export function JobCard({
                   </span>
                 )}
                 {job.relevance_score !== undefined && job.relevance_score !== null && (
-                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-success-light px-2 py-0.5 text-[10px] font-semibold uppercase text-success">
-                    <Target className="h-3 w-3" /> {Math.round(job.relevance_score * 100)}% Match
+                  <span className="relative inline-flex shrink-0">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setShowBreakdown((v) => !v);
+                      }}
+                      className="inline-flex items-center gap-1 rounded-full bg-success-light px-2 py-0.5 text-[10px] font-semibold uppercase text-success"
+                    >
+                      <Target className="h-3 w-3" /> {Math.round(job.relevance_score * 100)}% Match
+                    </button>
+                    {showBreakdown && job.score_breakdown && (
+                      <div
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                        className="absolute left-0 top-full z-10 mt-1 w-48 rounded-lg border border-border bg-card p-2.5 text-xs normal-case text-foreground shadow-lg"
+                      >
+                        <p className="mb-1.5 font-semibold text-foreground">Why this match</p>
+                        <ul className="space-y-1">
+                          {Object.entries(job.score_breakdown)
+                            .filter(([key]) => key !== "weights" && SCORE_BREAKDOWN_LABELS[key])
+                            .map(([key, value]) => (
+                              <li key={key} className="flex items-center justify-between gap-2 text-muted-foreground">
+                                <span>{SCORE_BREAKDOWN_LABELS[key]}</span>
+                                <span className="font-medium text-foreground">{Math.round(Number(value) * 100)}%</span>
+                              </li>
+                            ))}
+                        </ul>
+                      </div>
+                    )}
                   </span>
                 )}
                 <span className="shrink-0 text-xs text-muted-foreground">{timeAgo(job.created_at)}</span>
@@ -242,6 +302,7 @@ export function JobCard({
           onApplied={() => {
             setApplied(true);
             setApplyOpen(false);
+            if (variant === "discovery" && userId) logRecommendationFeedback(userId, job.id, "applied");
             void onApplied?.();
           }}
         />

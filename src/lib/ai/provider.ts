@@ -173,6 +173,59 @@ export async function chat(args: ChatArgs): Promise<string> {
   return chatWithModel(model, args);
 }
 
+const OPENAI_EMBEDDINGS_URL = "https://api.openai.com/v1/embeddings";
+/** Fixed dimensionality used everywhere embeddings are stored (vector(1536) columns). */
+export const EMBEDDING_DIMENSIONS = 1536;
+
+/**
+ * Text embedding for semantic similarity (job description ↔ candidate profile).
+ * Follows AI_PROVIDER like chat(), except "lovable" has no embeddings endpoint
+ * on the gateway this project uses, so it's not a supported provider here —
+ * callers must set AI_PROVIDER=openai or AI_PROVIDER=gemini to use embeddings,
+ * and must treat a thrown error as "no embedding available" (never block the
+ * caller's primary flow on it, same as every other AI call in this file).
+ */
+export async function embed(text: string): Promise<number[]> {
+  const { provider } = cfg();
+
+  // Like transcribeAudio: a configured Gemini key is used directly for embeddings even when
+  // chat runs through a gateway (openrouter/lovable) that has no embeddings endpoint.
+  if (provider === "gemini" || (provider !== "openai" && process.env.GEMINI_API_KEY)) {
+    const key = process.env.GEMINI_API_KEY;
+    if (!key) throw new Error("AI not configured.");
+    const res = await fetch(`${GEMINI_BASE}/gemini-embedding-001:embedContent?key=${key}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        content: { parts: [{ text }] },
+        outputDimensionality: EMBEDDING_DIMENSIONS,
+      }),
+    });
+    if (!res.ok) throw mapError(res.status, await res.text().catch(() => ""));
+    const json = (await res.json()) as { embedding?: { values?: number[] } };
+    const values = json.embedding?.values;
+    if (!values?.length) throw new Error("AI request failed (empty embedding).");
+    return values;
+  }
+
+  if (provider === "openai" || provider === "openrouter") {
+    const key = process.env.OPENAI_API_KEY;
+    if (!key) throw new Error("AI not configured.");
+    const res = await fetch(OPENAI_EMBEDDINGS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+      body: JSON.stringify({ model: "text-embedding-3-small", input: text }),
+    });
+    if (!res.ok) throw mapError(res.status, await res.text().catch(() => ""));
+    const json = (await res.json()) as { data?: Array<{ embedding?: number[] }> };
+    const values = json.data?.[0]?.embedding;
+    if (!values?.length) throw new Error("AI request failed (empty embedding).");
+    return values;
+  }
+
+  throw new Error(`Embeddings are not supported for AI_PROVIDER=${provider}.`);
+}
+
 export type TranscribeArgs = {
   b64: string;
   mime: string;
