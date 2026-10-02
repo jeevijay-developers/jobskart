@@ -4,6 +4,7 @@ import type { Json } from "@/integrations/supabase/types";
 import type { CandidateProfile, CandidateExperience, CandidateEducation, CandidateCertification, CandidateLanguage, CandidateLink, ResumeVersion } from "@/lib/resumeBuilder/types";
 import { buildResumeSnapshot, applyResumeExtras } from "@/lib/resumeBuilder/snapshot";
 import type { ResumeExtras } from "@/lib/resumeBuilder/schema";
+import { getTemplateTheme, normalizeLayout } from "@/lib/resumeBuilder/templates/theme";
 import { renderResumeToPdf } from "@/lib/resumeBuilder/renderResumePdf.server";
 import { uploadResumePdf } from "@/lib/resumeBuilder/storage";
 
@@ -109,7 +110,7 @@ POST: async ({ request }) => {
         }
         const getUserId = (fallback?: string) => authUserId ?? fallback;
 
-        let body: { userId?: string; templateId?: string } = {};
+        let body: { userId?: string; templateId?: string; layout?: unknown } = {};
         try {
           body = await request.json();
         } catch {}
@@ -150,7 +151,10 @@ POST: async ({ request }) => {
         // default — overwrite it with the actually-selected template before
         // persisting, so a re-preview of this saved version later renders
         // with the template the candidate picked, not always Classic ATS.
-        const finalSnapshot = { ...withExtras, templateId: finalTemplateId };
+        // Layout settings come from the client but are re-validated/clamped here
+        // (normalizeLayout) so a version can never persist out-of-range values.
+        const layout = body.layout ? normalizeLayout(body.layout, getTemplateTheme(finalTemplateId)) : undefined;
+        const finalSnapshot = { ...withExtras, templateId: finalTemplateId, layout };
 
         const { data: versionData, error: versionError } = await supabaseAdmin
           .from("resume_versions")

@@ -17,22 +17,15 @@ import {
 } from "lucide-react";
 import { CandidateShell } from "@/components/candidate/CandidateShell";
 import { ResumeExtrasEditor } from "@/components/candidate/ResumeExtrasEditor";
+import { ResumeLayoutEditor } from "@/components/candidate/ResumeLayoutEditor";
 import { JobMatchPanel } from "@/components/candidate/JobMatchPanel";
 import { supabase } from "@/integrations/supabase/client";
 import { getResumeTemplate, RESUME_TEMPLATE_LIST } from "@/lib/resumeBuilder/templates/registry";
+import { getDefaultLayout, getTemplateTheme, normalizeLayout } from "@/lib/resumeBuilder/templates/theme";
 import { getResumeVersionPdfUrl } from "@/lib/resumeBuilder.functions";
 import { applyResumeExtras } from "@/lib/resumeBuilder/snapshot";
 import { validateResume } from "@/lib/resumeBuilder/validateResume";
-import type { ExperienceItem, ResumeExtras, ResumeSchema } from "@/lib/resumeBuilder/schema";
-
-function useDebounced<T>(value: T, ms: number): T {
-  const [v, setV] = useState(value);
-  useEffect(() => {
-    const t = setTimeout(() => setV(value), ms);
-    return () => clearTimeout(t);
-  }, [value, ms]);
-  return v;
-}
+import type { ExperienceItem, ResumeExtras, ResumeLayoutSettings, ResumeSchema } from "@/lib/resumeBuilder/schema";
 
 export const Route = createFileRoute(
   "/_authenticated/candidate/resume-builder"
@@ -60,7 +53,8 @@ async function fetchSnapshot(token: string): Promise<ResumeSchema> {
 
 async function generateVersion(
   token: string,
-  templateId: string
+  templateId: string,
+  layout: ResumeLayoutSettings
 ): Promise<{ version: Record<string, unknown>; pdfUrl: string | null }> {
   const res = await fetch("/api/resume-builder", {
     method: "POST",
@@ -68,7 +62,7 @@ async function generateVersion(
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ templateId }),
+    body: JSON.stringify({ templateId, layout }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -91,6 +85,40 @@ function ResumeBuilderPage() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState("classic-ats");
+  // Layout & Design works like "Edit Your Resume": `layoutDraft` is the working
+  // copy; `savedLayout` is what the preview and generated versions use. It only
+  // changes when the candidate clicks Save changes (and is remembered per candidate).
+  const [layoutDraft, setLayoutDraft] = useState<ResumeLayoutSettings>(() => getDefaultLayout("classic-ats"));
+  const [savedLayout, setSavedLayout] = useState<ResumeLayoutSettings>(() => getDefaultLayout("classic-ats"));
+  const [savingLayout, setSavingLayout] = useState(false);
+  const layoutDirty = useMemo(() => JSON.stringify(layoutDraft) !== JSON.stringify(savedLayout), [layoutDraft, savedLayout]);
+  const selectTemplate = (id: string) => {
+    // Each template has its own look, so switching starts from that template's
+    // defaults (and replaces any unsaved layout edits).
+    const defaults = getDefaultLayout(id);
+    setSelectedTemplate(id);
+    setLayoutDraft(defaults);
+    setSavedLayout(defaults);
+    const uid = userIdRef.current;
+    if (uid) {
+      supabase
+        .from("resume_drafts")
+        .upsert({ user_id: uid, template_id: id, layout: null }, { onConflict: "user_id" })
+        .then(({ error }) => { if (error) toast.error("Couldn't remember your template choice"); });
+    }
+  };
+  const handleSaveLayout = async () => {
+    const uid = userIdRef.current;
+    if (!uid) { toast.error("Not signed in"); return; }
+    setSavingLayout(true);
+    const { error } = await supabase
+      .from("resume_drafts")
+      .upsert({ user_id: uid, template_id: selectedTemplate, layout: layoutDraft as never }, { onConflict: "user_id" });
+    setSavingLayout(false);
+    if (error) { toast.error("Couldn't save your layout"); return; }
+    setSavedLayout(layoutDraft);
+    toast.success("Layout saved");
+  };
   const [versions, setVersions] = useState<VersionRow[]>([]);
   const [versionsLoading, setVersionsLoading] = useState(false);
   const [lastPdfUrl, setLastPdfUrl] = useState<string | null>(null);
@@ -99,46 +127,67 @@ function ResumeBuilderPage() {
   const getVersionPdfUrl = useServerFn(getResumeVersionPdfUrl);
 
   // Builder-authored content (hobbies, certifications, rich-text overrides…).
-  // Autosaved to resume_drafts; the live preview merges it onto the profile
-  // snapshot exactly like the server does when a version is saved.
+  // `extras` is the working copy being edited; `savedExtras` is what was last
+  // saved to resume_drafts. The live preview (and any generated version) only
+  // reflect `savedExtras` — changes apply when the candidate clicks Save changes.
   const [extras, setExtras] = useState<ResumeExtras>({});
+  const [savedExtras, setSavedExtras] = useState<ResumeExtras>({});
   const [extrasLoaded, setExtrasLoaded] = useState(false);
-  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const [savingExtras, setSavingExtras] = useState(false);
   const userIdRef = useRef<string | null>(null);
+  const isDirty = useMemo(() => JSON.stringify(extras) !== JSON.stringify(savedExtras), [extras, savedExtras]);
 
   useEffect(() => {
     (async () => {
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) return;
       userIdRef.current = u.user.id;
-      const { data } = await supabase.from("resume_drafts").select("extras").eq("user_id", u.user.id).maybeSingle();
-      setExtras((data?.extras ?? {}) as ResumeExtras);
+      const { data } = await supabase.from("resume_drafts").select("extras, layout, template_id").eq("user_id", u.user.id).maybeSingle();
+      const loaded = (data?.extras ?? {}) as ResumeExtras;
+      setExtras(loaded);
+      setSavedExtras(loaded);
+      // Restore the template and layout the candidate last saved.
+      const tpl = RESUME_TEMPLATE_LIST.some((t) => t.id === data?.template_id) ? (data!.template_id as string) : "classic-ats";
+      const restored = data?.layout ? normalizeLayout(data.layout, getTemplateTheme(tpl)) : getDefaultLayout(tpl);
+      setSelectedTemplate(tpl);
+      setLayoutDraft(restored);
+      setSavedLayout(restored);
       setExtrasLoaded(true);
     })();
   }, []);
 
-  const debouncedExtras = useDebounced(extras, 700);
-  const firstSave = useRef(true);
+  // Warn before leaving the page with unsaved edits.
   useEffect(() => {
-    if (!extrasLoaded) return;
-    if (firstSave.current) {
-      firstSave.current = false;
-      return;
-    }
-    const uid = userIdRef.current;
-    if (!uid) return;
-    setSaveState("saving");
-    supabase
-      .from("resume_drafts")
-      .upsert({ user_id: uid, extras: debouncedExtras as never }, { onConflict: "user_id" })
-      .then(({ error }) => {
-        if (error) toast.error("Couldn't save your changes");
-        setSaveState(error ? "idle" : "saved");
-      });
-  }, [debouncedExtras, extrasLoaded]);
+    if (!isDirty && !layoutDirty) return;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [isDirty, layoutDirty]);
 
-  const merged = useMemo(() => (snapshot ? applyResumeExtras(snapshot, debouncedExtras) : null), [snapshot, debouncedExtras]);
+  const handleSaveExtras = async () => {
+    const uid = userIdRef.current;
+    if (!uid) { toast.error("Not signed in"); return; }
+    setSavingExtras(true);
+    const { error } = await supabase
+      .from("resume_drafts")
+      .upsert({ user_id: uid, extras: extras as never }, { onConflict: "user_id" });
+    setSavingExtras(false);
+    if (error) { toast.error("Couldn't save your changes"); return; }
+    setSavedExtras(extras);
+    toast.success("Changes saved");
+  };
+
+  const merged = useMemo(() => (snapshot ? applyResumeExtras(snapshot, savedExtras) : null), [snapshot, savedExtras]);
+  // Section titles in current display order, including not-yet-saved edits, for the order list.
+  const workingSections = useMemo(
+    () => (snapshot ? applyResumeExtras(snapshot, extras).sections.map((sec) => ({ id: sec.id, title: sec.title })) : []),
+    [snapshot, extras],
+  );
   const checklist = useMemo(() => (merged ? validateResume(merged) : []), [merged]);
+  // react-pdf's incremental updates duplicate a node when its siblings are
+  // reordered (a moved section would render twice in the live preview), so the
+  // viewer is remounted whenever the template or the section order/set changes.
+  const previewKey = `${selectedTemplate}|${(merged ?? snapshot)?.sections.map((sec) => sec.id).join(",") ?? ""}`;
   const baseExperiences = useMemo(() => {
     const sec = snapshot?.sections.find((s) => s.content.kind === "experience");
     return sec && sec.content.kind === "experience" ? (sec.content.items as ExperienceItem[]) : [];
@@ -194,15 +243,14 @@ function ResumeBuilderPage() {
     try {
       const token = await getAuthToken();
       if (!token) { toast.error("Not signed in"); return; }
-      // Flush un-debounced edits first: the server merges the saved draft, so a
-      // version generated right after typing must not miss the latest changes.
-      if (userIdRef.current) {
-        const { error } = await supabase
-          .from("resume_drafts")
-          .upsert({ user_id: userIdRef.current, extras: extras as never }, { onConflict: "user_id" });
-        if (error) throw new Error("Couldn't save your latest changes — try again");
+      // The server merges the *saved* draft, so unsaved edits would be missing
+      // from the version while the preview (also saved-only) wouldn't show them
+      // either — make the candidate save first so version, preview and PDF agree.
+      if (isDirty || layoutDirty) {
+        toast.error("Save your changes first, then generate.");
+        return;
       }
-      const { version, pdfUrl } = await generateVersion(token, selectedTemplate);
+      const { version, pdfUrl } = await generateVersion(token, selectedTemplate, savedLayout);
       toast.success(`Resume v${(version as VersionRow).version_number} saved!`);
       if (pdfUrl) setLastPdfUrl(pdfUrl);
       await loadVersions();
@@ -256,7 +304,7 @@ function ResumeBuilderPage() {
                   <button
                     key={t.id}
                     type="button"
-                    onClick={() => setSelectedTemplate(t.id)}
+                    onClick={() => selectTemplate(t.id)}
                     className={`relative flex items-start gap-3 rounded-xl border-2 p-4 text-left transition-all ${
                       selectedTemplate === t.id
                         ? "border-primary bg-primary/5"
@@ -277,6 +325,15 @@ function ResumeBuilderPage() {
                 ))}
               </div>
             </section>
+
+            <ResumeLayoutEditor
+              value={layoutDraft}
+              onChange={setLayoutDraft}
+              onReset={() => setLayoutDraft(getDefaultLayout(selectedTemplate))}
+              dirty={layoutDirty}
+              saving={savingLayout}
+              onSave={handleSaveLayout}
+            />
 
             {/* Completeness checklist — asks for what's missing instead of silently leaving gaps */}
             <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
@@ -315,12 +372,23 @@ function ResumeBuilderPage() {
                 <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                   Edit Your Resume
                 </h2>
-                <span className="text-[11px] text-muted-foreground">
-                  {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : ""}
-                </span>
+                <button
+                  type="button"
+                  onClick={handleSaveExtras}
+                  disabled={!isDirty || savingExtras}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 disabled:opacity-50"
+                >
+                  {savingExtras && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  {savingExtras ? "Saving…" : "Save changes"}
+                </button>
               </div>
+              {isDirty && (
+                <p className="mb-3 rounded-lg bg-warning/10 px-3 py-1.5 text-xs text-warning">
+                  You have unsaved changes — click Save changes to update the preview.
+                </p>
+              )}
               {extrasLoaded ? (
-                <ResumeExtrasEditor extras={extras} onChange={setExtras} experiences={baseExperiences} />
+                <ResumeExtrasEditor extras={extras} onChange={setExtras} experiences={baseExperiences} sections={workingSections} />
               ) : (
                 <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
               )}
@@ -472,8 +540,8 @@ function ResumeBuilderPage() {
               </span>
             </div>
             <div className="relative min-h-[700px] overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
-              <PDFViewer key={selectedTemplate} style={{ width: "100%", height: 700, border: "none" }} showToolbar={false}>
-                <LivePreviewTemplate resume={{ ...(merged ?? snapshot), templateId: selectedTemplate }} />
+              <PDFViewer key={previewKey} style={{ width: "100%", height: 700, border: "none" }} showToolbar={false}>
+                <LivePreviewTemplate resume={{ ...(merged ?? snapshot), templateId: selectedTemplate, layout: savedLayout }} />
               </PDFViewer>
             </div>
             <p className="text-xs text-muted-foreground">
