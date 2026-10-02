@@ -4300,6 +4300,10 @@ export type Database = {
           id: number
           location_weight: number
           max_same_company_in_top: number
+          relevant_role_threshold: number
+          relevant_semantic_threshold: number
+          relevant_skill_threshold: number
+          role_weight: number
           salary_weight: number
           semantic_weight: number
           skill_weight: number
@@ -4318,6 +4322,10 @@ export type Database = {
           id?: number
           location_weight?: number
           max_same_company_in_top?: number
+          relevant_role_threshold?: number
+          relevant_semantic_threshold?: number
+          relevant_skill_threshold?: number
+          role_weight?: number
           salary_weight?: number
           semantic_weight?: number
           skill_weight?: number
@@ -4336,6 +4344,10 @@ export type Database = {
           id?: number
           location_weight?: number
           max_same_company_in_top?: number
+          relevant_role_threshold?: number
+          relevant_semantic_threshold?: number
+          relevant_skill_threshold?: number
+          role_weight?: number
           salary_weight?: number
           semantic_weight?: number
           skill_weight?: number
@@ -5293,55 +5305,106 @@ export type Database = {
         }
         Returns: undefined
       }
-      recommend_jobs_for_candidate: {
-        Args: {
-          _category?: string
-          _city?: string
-          _company?: string
-          _education?: string
-          _english_level?: string
-          _job_type?: string
-          _limit?: number
-          _max_exp?: number
-          _max_salary?: number
-          _min_exp?: number
-          _min_salary?: number
-          _offset?: number
-          _posted_after?: string
-          _q?: string
-          _shift?: string
-          _vehicle?: boolean
-          _verified_only?: boolean
-          _work_mode?: string
-        }
-        Returns: {
-          avg_incentive_monthly: number
-          boosted: boolean
-          city: string
-          company_id: string
-          company_is_verified: boolean
-          company_name: string
-          created_at: string
-          education: string
-          id: string
-          job_type: string
-          locality: string
-          max_experience_years: number
-          max_salary: number
-          min_experience_years: number
-          min_salary: number
-          pay_type: string
-          recommendation_stage: string
-          salary_period: string
-          score: number
-          score_breakdown: Json
-          skills: string[]
-          state: string
-          title: string
-          total_count: number
-          work_mode: string
-        }[]
-      }
+      recommend_jobs_for_candidate:
+        | {
+            Args: {
+              _category?: string
+              _city?: string
+              _company?: string
+              _education?: string
+              _english_level?: string
+              _job_type?: string
+              _limit?: number
+              _max_exp?: number
+              _max_salary?: number
+              _min_exp?: number
+              _min_salary?: number
+              _offset?: number
+              _posted_after?: string
+              _q?: string
+              _shift?: string
+              _vehicle?: boolean
+              _verified_only?: boolean
+              _work_mode?: string
+            }
+            Returns: {
+              avg_incentive_monthly: number
+              boosted: boolean
+              city: string
+              company_id: string
+              company_is_verified: boolean
+              company_name: string
+              created_at: string
+              education: string
+              id: string
+              job_type: string
+              locality: string
+              max_experience_years: number
+              max_salary: number
+              min_experience_years: number
+              min_salary: number
+              pay_type: string
+              recommendation_stage: string
+              salary_period: string
+              score: number
+              score_breakdown: Json
+              skills: string[]
+              state: string
+              title: string
+              total_count: number
+              work_mode: string
+            }[]
+          }
+        | {
+            Args: {
+              _category?: string
+              _city?: string
+              _company?: string
+              _education?: string
+              _english_level?: string
+              _job_type?: string
+              _limit?: number
+              _max_exp?: number
+              _max_salary?: number
+              _min_exp?: number
+              _min_salary?: number
+              _offset?: number
+              _posted_after?: string
+              _q?: string
+              _relevant_only?: boolean
+              _shift?: string
+              _vehicle?: boolean
+              _verified_only?: boolean
+              _work_mode?: string
+            }
+            Returns: {
+              avg_incentive_monthly: number
+              boosted: boolean
+              city: string
+              company_id: string
+              company_is_verified: boolean
+              company_name: string
+              created_at: string
+              education: string
+              id: string
+              job_type: string
+              locality: string
+              max_experience_years: number
+              max_salary: number
+              min_experience_years: number
+              min_salary: number
+              pay_type: string
+              recommendation_stage: string
+              salary_period: string
+              score: number
+              score_breakdown: Json
+              skills: string[]
+              state: string
+              title: string
+              total_count: number
+              work_mode: string
+            }[]
+          }
       refresh_computed_salary_bands: { Args: never; Returns: number }
       register_download: {
         Args: { _company_id: string; _count: number; _kind: string }
@@ -5817,3 +5880,5 @@ export const Constants = {
     },
   },
 } as const
+A new version of Supabase CLI is available: v2.119.0 (currently installed v2.117.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli

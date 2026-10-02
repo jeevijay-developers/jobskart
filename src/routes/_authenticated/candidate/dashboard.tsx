@@ -60,6 +60,7 @@ function CandidateDashboard() {
     appliedWeek: 0,
   });
   const [candidateId, setCandidateId] = useState<string | null>(null);
+  const [feedMode, setFeedMode] = useState<"recommended" | "top">("recommended");
   const [missing, setMissing] = useState<string[]>([]);
   const [learning, setLearning] = useState<LearningRow[]>([]);
   const [verified, setVerified] = useState(false);
@@ -207,10 +208,10 @@ function CandidateDashboard() {
     error: recommendedError,
     refetch: refetchRecommended,
   } = usePaginatedQuery<JobCardData>({
-    queryKey: ["candidate-dashboard", "recommended", candidateId],
+    queryKey: ["candidate-dashboard", "recommended", candidateId, feedMode],
     pageSize: REC_JOBS_PAGE_SIZE,
     fetchPage: async ({ from, to }) => {
-      const { rows, total, error } = await fetchCandidateJobFeed({}, "recommended", from, to);
+      const { rows, total, error } = await fetchCandidateJobFeed({}, "recommended", from, to, feedMode);
       if (error) throw new Error(error);
       return { rows, total };
     },
@@ -228,7 +229,7 @@ function CandidateDashboard() {
         recommendedPage.map((j, i) => ({
           candidate_user_id: candidateId,
           job_id: j.id,
-          source: "recommended",
+          source: feedMode,
           position: (recPage - 1) * REC_JOBS_PAGE_SIZE + i,
         })) as never,
       )
@@ -237,14 +238,34 @@ function CandidateDashboard() {
   }, [recommendedPage, recommendedLoading]);
 
   const recommendedHeading = (
-    <div className="mb-3 flex items-center gap-2">
-      <h2 className="text-base font-bold text-foreground sm:text-lg">Recommended for you</h2>
-      {recommendedTotal > 0 && (
-        <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-1 text-xs font-bold text-success">
-          <CheckCircle2 className="h-3.5 w-3.5" /> {recommendedTotal} match
-          {recommendedTotal === 1 ? "" : "es"}
-        </span>
-      )}
+    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 className="text-base font-bold text-foreground sm:text-lg">
+          {feedMode === "recommended" ? "Recommended for you" : "Top jobs on JobsKart"}
+        </h2>
+        {recommendedTotal > 0 && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-1 text-xs font-bold text-success">
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            {recommendedTotal} {feedMode === "recommended" ? (recommendedTotal === 1 ? "match" : "matches") : "jobs"}
+          </span>
+        )}
+      </div>
+      <div className="inline-flex rounded-lg border border-border bg-card p-0.5 text-xs font-semibold">
+        <button
+          type="button"
+          onClick={() => setFeedMode("recommended")}
+          className={`rounded-md px-3 py-1.5 transition-colors ${feedMode === "recommended" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+        >
+          Recommended
+        </button>
+        <button
+          type="button"
+          onClick={() => setFeedMode("top")}
+          className={`rounded-md px-3 py-1.5 transition-colors ${feedMode === "top" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+        >
+          Top jobs
+        </button>
+      </div>
     </div>
   );
 
@@ -268,11 +289,28 @@ function CandidateDashboard() {
             Try again
           </button>
         </div>
+      ) : recommendedTotal === 0 && feedMode === "recommended" ? (
+        <div className="grid place-items-center rounded-2xl border border-dashed border-border bg-card p-10 text-center">
+          <span className="grid h-12 w-12 place-items-center rounded-2xl bg-primary-light text-primary">
+            <Briefcase className="h-6 w-6" strokeWidth={2} />
+          </span>
+          <p className="mt-4 text-base font-bold text-foreground">No close matches yet</p>
+          <p className="mt-1 max-w-xs text-sm text-muted-foreground">
+            Your skills and role don&apos;t line up with what&apos;s posted right now — or you&apos;ve already applied to everything that fits. Add more skills to your profile, or see everything that&apos;s open.
+          </p>
+          <button
+            type="button"
+            onClick={() => setFeedMode("top")}
+            className="mt-5 inline-flex items-center gap-1 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground hover:bg-primary-dark"
+          >
+            See top jobs <ArrowRight className="h-4 w-4" />
+          </button>
+        </div>
       ) : recommendedTotal === 0 ? (
         <EmptyState
           icon={Briefcase}
-          title="No matches yet"
-          body="Add a few skills to your profile so we can match you to relevant jobs — or you may have already applied to everything that matches."
+          title="No jobs right now"
+          body="Nothing active matches your filters at the moment — or you may have already applied to everything that's open."
           ctaLabel="Search jobs"
           ctaTo="/jobs"
         />
