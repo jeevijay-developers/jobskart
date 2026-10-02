@@ -259,7 +259,11 @@ export function CourseContent({ slug, inCandidate }: { slug: string; inCandidate
                           return (
                             <li key={l.id}>
                               <Link
-                                to="/learn/course/$slug/lesson/$lessonId"
+                                to={
+                                  inCandidate
+                                    ? "/candidate/learning/course/$slug/lesson/$lessonId"
+                                    : "/learn/course/$slug/lesson/$lessonId"
+                                }
                                 params={{ slug, lessonId: l.id }}
                                 className={
                                   inCandidate
