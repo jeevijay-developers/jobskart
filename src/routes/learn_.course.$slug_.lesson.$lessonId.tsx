@@ -31,6 +31,27 @@ function toEmbedUrl(url: string): string | null {
 
 function LessonPage() {
   const { slug, lessonId } = Route.useParams();
+  return (
+    <div className="min-h-screen bg-surface">
+      <Navbar />
+      <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
+        <LessonContent slug={slug} lessonId={lessonId} />
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
+/** Lesson body, shared by the public page and the candidate dashboard. */
+export function LessonContent({
+  slug,
+  lessonId,
+  inCandidate,
+}: {
+  slug: string;
+  lessonId: string;
+  inCandidate?: boolean;
+}) {
   const fetchContent = useServerFn(getLessonContent);
   const createOrder = useServerFn(createCourseOrder);
   const [state, setState] = useState<
@@ -74,75 +95,69 @@ function LessonPage() {
     state.status === "ok" && state.content.videoUrl ? toEmbedUrl(state.content.videoUrl) : null;
 
   return (
-    <div className="min-h-screen bg-surface">
-      <Navbar />
-      <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
-        <Link
-          to="/learn/course/$slug"
-          params={{ slug }}
-          className="inline-flex items-center gap-1 text-sm font-semibold text-primary"
-        >
-          <ArrowLeft className="h-4 w-4" /> Back to course
-        </Link>
+    <>
+      <Link
+        to={inCandidate ? "/candidate/learning/course/$slug" : "/learn/course/$slug"}
+        params={{ slug }}
+        className="inline-flex items-center gap-1 text-sm font-semibold text-primary"
+      >
+        <ArrowLeft className="h-4 w-4" /> Back to course
+      </Link>
 
-        {state.status === "loading" ? (
-          <div className="mt-8 grid place-items-center rounded-xl border border-border bg-card p-12">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
-          </div>
-        ) : state.status === "locked" ? (
-          <div className="mt-8 rounded-xl border border-border bg-card p-8 text-center">
-            <Lock className="mx-auto h-8 w-8 text-muted-foreground" />
-            <p className="mt-3 font-semibold text-foreground">This lesson is locked</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Buy this course to unlock every lesson.
-            </p>
-            <button
-              onClick={handleBuy}
-              disabled={buying}
-              className="mt-4 inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+      {state.status === "loading" ? (
+        <div className="mt-8 grid place-items-center rounded-xl border border-border bg-card p-12">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        </div>
+      ) : state.status === "locked" ? (
+        <div className="mt-8 rounded-xl border border-border bg-card p-8 text-center">
+          <Lock className="mx-auto h-8 w-8 text-muted-foreground" />
+          <p className="mt-3 font-semibold text-foreground">This lesson is locked</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Buy this course to unlock every lesson.
+          </p>
+          <button
+            onClick={handleBuy}
+            disabled={buying}
+            className="mt-4 inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+          >
+            {buying && <Loader2 className="h-4 w-4 animate-spin" />}
+            Buy this course
+          </button>
+        </div>
+      ) : state.status === "error" ? (
+        <div className="mt-8 rounded-xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
+          {state.message}
+        </div>
+      ) : (
+        <div className="mt-6">
+          <h1 className="text-2xl font-bold text-foreground sm:text-3xl">{state.content.title}</h1>
+          {embed ? (
+            <div className="mt-4 aspect-video w-full overflow-hidden rounded-xl border border-border">
+              <iframe
+                src={embed}
+                title={state.content.title}
+                className="h-full w-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+          ) : state.content.videoUrl ? (
+            <a
+              href={state.content.videoUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-4 inline-block text-primary underline"
             >
-              {buying && <Loader2 className="h-4 w-4 animate-spin" />}
-              Buy this course
-            </button>
-          </div>
-        ) : state.status === "error" ? (
-          <div className="mt-8 rounded-xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
-            {state.message}
-          </div>
-        ) : (
-          <div className="mt-6">
-            <h1 className="text-2xl font-bold text-foreground sm:text-3xl">
-              {state.content.title}
-            </h1>
-            {embed ? (
-              <div className="mt-4 aspect-video w-full overflow-hidden rounded-xl border border-border">
-                <iframe
-                  src={embed}
-                  title={state.content.title}
-                  className="h-full w-full"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              </div>
-            ) : state.content.videoUrl ? (
-              <a
-                href={state.content.videoUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-4 inline-block text-primary underline"
-              >
-                Open video
-              </a>
-            ) : null}
-            {state.content.bodyMd && (
-              <div className="mt-4">
-                <FormattedMarkdown text={state.content.bodyMd} />
-              </div>
-            )}
-          </div>
-        )}
-      </main>
-      <Footer />
-    </div>
+              Open video
+            </a>
+          ) : null}
+          {state.content.bodyMd && (
+            <div className="mt-4">
+              <FormattedMarkdown text={state.content.bodyMd} />
+            </div>
+          )}
+        </div>
+      )}
+    </>
   );
 }

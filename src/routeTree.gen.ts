@@ -90,6 +90,7 @@ import { Route as AuthenticatedCandidateLearningPostSlugRouteImport } from './ro
 import { Route as AuthenticatedEmployerJobsJobIdApplicantsRouteImport } from './routes/_authenticated/employer/jobs.$jobId.applicants'
 import { Route as AuthenticatedEmployerJobsJobIdEditRouteImport } from './routes/_authenticated/employer/jobs.$jobId.edit'
 import { Route as LearnCourseSlugLessonLessonIdRouteImport } from './routes/learn_.course.$slug_.lesson.$lessonId'
+import { Route as AuthenticatedCandidateLearningCourseSlugLessonLessonIdRouteImport } from './routes/_authenticated/candidate/learning_.course.$slug_.lesson.$lessonId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -537,6 +538,12 @@ const LearnCourseSlugLessonLessonIdRoute =
     path: '/learn/course/$slug/lesson/$lessonId',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AuthenticatedCandidateLearningCourseSlugLessonLessonIdRoute =
+  AuthenticatedCandidateLearningCourseSlugLessonLessonIdRouteImport.update({
+    id: '/learning_/course/$slug_/lesson/$lessonId',
+    path: '/learning/course/$slug/lesson/$lessonId',
+    getParentRoute: () => AuthenticatedCandidateRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -619,6 +626,7 @@ export interface FileRoutesByFullPath {
   '/employer/jobs/$jobId/applicants': typeof AuthenticatedEmployerJobsJobIdApplicantsRoute
   '/employer/jobs/$jobId/edit': typeof AuthenticatedEmployerJobsJobIdEditRoute
   '/learn/course/$slug/lesson/$lessonId': typeof LearnCourseSlugLessonLessonIdRoute
+  '/candidate/learning/course/$slug/lesson/$lessonId': typeof AuthenticatedCandidateLearningCourseSlugLessonLessonIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -700,6 +708,7 @@ export interface FileRoutesByTo {
   '/employer/jobs/$jobId/applicants': typeof AuthenticatedEmployerJobsJobIdApplicantsRoute
   '/employer/jobs/$jobId/edit': typeof AuthenticatedEmployerJobsJobIdEditRoute
   '/learn/course/$slug/lesson/$lessonId': typeof LearnCourseSlugLessonLessonIdRoute
+  '/candidate/learning/course/$slug/lesson/$lessonId': typeof AuthenticatedCandidateLearningCourseSlugLessonLessonIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -784,6 +793,7 @@ export interface FileRoutesById {
   '/_authenticated/employer/jobs/$jobId/applicants': typeof AuthenticatedEmployerJobsJobIdApplicantsRoute
   '/_authenticated/employer/jobs/$jobId/edit': typeof AuthenticatedEmployerJobsJobIdEditRoute
   '/learn_/course/$slug_/lesson/$lessonId': typeof LearnCourseSlugLessonLessonIdRoute
+  '/_authenticated/candidate/learning_/course/$slug_/lesson/$lessonId': typeof AuthenticatedCandidateLearningCourseSlugLessonLessonIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -868,6 +878,7 @@ export interface FileRouteTypes {
     | '/employer/jobs/$jobId/applicants'
     | '/employer/jobs/$jobId/edit'
     | '/learn/course/$slug/lesson/$lessonId'
+    | '/candidate/learning/course/$slug/lesson/$lessonId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -949,6 +960,7 @@ export interface FileRouteTypes {
     | '/employer/jobs/$jobId/applicants'
     | '/employer/jobs/$jobId/edit'
     | '/learn/course/$slug/lesson/$lessonId'
+    | '/candidate/learning/course/$slug/lesson/$lessonId'
   id:
     | '__root__'
     | '/'
@@ -1032,6 +1044,7 @@ export interface FileRouteTypes {
     | '/_authenticated/employer/jobs/$jobId/applicants'
     | '/_authenticated/employer/jobs/$jobId/edit'
     | '/learn_/course/$slug_/lesson/$lessonId'
+    | '/_authenticated/candidate/learning_/course/$slug_/lesson/$lessonId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1633,6 +1646,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LearnCourseSlugLessonLessonIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/candidate/learning_/course/$slug_/lesson/$lessonId': {
+      id: '/_authenticated/candidate/learning_/course/$slug_/lesson/$lessonId'
+      path: '/learning/course/$slug/lesson/$lessonId'
+      fullPath: '/candidate/learning/course/$slug/lesson/$lessonId'
+      preLoaderRoute: typeof AuthenticatedCandidateLearningCourseSlugLessonLessonIdRouteImport
+      parentRoute: typeof AuthenticatedCandidateRouteRoute
+    }
   }
 }
 
@@ -1655,6 +1675,7 @@ interface AuthenticatedCandidateRouteRouteChildren {
   AuthenticatedCandidateLearningCertificationSlugRoute: typeof AuthenticatedCandidateLearningCertificationSlugRoute
   AuthenticatedCandidateLearningCourseSlugRoute: typeof AuthenticatedCandidateLearningCourseSlugRoute
   AuthenticatedCandidateLearningPostSlugRoute: typeof AuthenticatedCandidateLearningPostSlugRoute
+  AuthenticatedCandidateLearningCourseSlugLessonLessonIdRoute: typeof AuthenticatedCandidateLearningCourseSlugLessonLessonIdRoute
 }
 
 const AuthenticatedCandidateRouteRouteChildren: AuthenticatedCandidateRouteRouteChildren =
@@ -1686,6 +1707,8 @@ const AuthenticatedCandidateRouteRouteChildren: AuthenticatedCandidateRouteRoute
       AuthenticatedCandidateLearningCourseSlugRoute,
     AuthenticatedCandidateLearningPostSlugRoute:
       AuthenticatedCandidateLearningPostSlugRoute,
+    AuthenticatedCandidateLearningCourseSlugLessonLessonIdRoute:
+      AuthenticatedCandidateLearningCourseSlugLessonLessonIdRoute,
   }
 
 const AuthenticatedCandidateRouteRouteWithChildren =
