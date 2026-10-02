@@ -32,7 +32,10 @@ function Page() {
   });
   const add = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("learning_resources").insert({ ...form, slug: slugify(form.title) });
+      if (form.cover_url.trim() && !/^https?:\/\//i.test(form.cover_url.trim())) {
+        throw new Error("Cover image must be a public http(s) URL — a file on your computer (C:\\…) can't be loaded by other users. Upload it and paste the link.");
+      }
+      const { error } = await supabase.from("learning_resources").insert({ ...form, cover_url: form.cover_url.trim(), slug: slugify(form.title) });
       if (error) throw error;
     },
     onSuccess: () => { toast.success("Created"); setForm({ title: "", description: "", cover_url: "", content_url: "", kind: "article", category: "" }); qc.invalidateQueries({ queryKey: ["learning-admin"] }); },

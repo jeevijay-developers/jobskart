@@ -133,9 +133,8 @@ export const loginOrCreateWithMobile = createServerFn({ method: "POST" })
       }
     }
 
-    if (!profile.email) {
-      throw new Error("Account is missing an email on file. Contact support.");
-    }
+    // profiles.email is an optional, user-clearable display field; the login identity is the
+    // auth user's own email (resolved below), so a blank profile email must not block sign-in.
 
     // 3. Mint a magic link for the client to verify.
     // IMPORTANT: resolve the auth email via getUserById rather than trusting
