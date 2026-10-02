@@ -7,6 +7,7 @@ export interface ResumeSchema {
   contact: ResumeContact;
   targetJobRole?: string; // optional target role for tailoring
   templateId: string; // reference to resume_template_catalog
+  layout?: ResumeLayoutSettings; // optional: absent on versions saved before layout controls existed
   sections: ResumeSection[];
   createdAt: string; // ISO timestamp
   updatedAt: string; // ISO timestamp
@@ -21,9 +22,25 @@ export interface ResumeExtras {
   targetJobRole?: string;
   hobbies?: string[];
   certifications?: CertificationItem[];
-  customSections?: { id: string; title: string; text: string }[];
+  customSections?: { id: string; title: string; text: string; align?: TextAlign }[];
   experienceOverrides?: Record<string, string>;
   snippets?: string[];
+  sectionOrder?: string[]; // section ids in display order; unlisted sections keep their natural position
+}
+
+export type TextAlign = 'left' | 'center' | 'right';
+
+// LaTeX-style typesetting controls (geometry / enumitem / vspace equivalents),
+// stored per resume version next to templateId. Built-in PDF fonts only.
+export interface ResumeLayoutSettings {
+  marginPreset: 'compact' | 'standard' | 'spacious' | 'custom';
+  margins?: { top: number; bottom: number; left: number; right: number }; // pt, used when marginPreset === 'custom'
+  fontFamily: 'helvetica' | 'times' | 'courier';
+  baseFontSize: number; // pt, all other sizes scale from this
+  lineHeightScale: number; // multiplier on every line-height
+  sectionSpacingScale: number; // multiplier on gaps between sections and items
+  sectionHeaderStyle: 'underline' | 'plain' | 'colored';
+  accentColor: string; // #RRGGBB
 }
 
 export interface ResumeContact {
@@ -39,6 +56,7 @@ export interface ResumeSection {
   content: ResumeSectionContent;
   // optional override flag for manual edits
   overridden?: boolean;
+  align?: TextAlign; // custom text sections only
 }
 
 export type ResumeSectionContent =

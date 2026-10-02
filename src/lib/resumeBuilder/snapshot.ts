@@ -224,9 +224,36 @@ export function applyResumeExtras(base: ResumeSchema, extras: ResumeExtras): Res
       type: 'custom',
       title: custom.title.trim(),
       content: { kind: 'text', value: custom.text },
+      align: custom.align,
     });
   }
 
+  sections = applySectionOrder(sections, extras.sectionOrder);
+
   const targetJobRole = extras.targetJobRole?.trim() || base.targetJobRole;
   return { ...base, targetJobRole, sections };
+}
+
+/**
+ * Reorder sections by an explicit id list. Sections missing from the list
+ * (e.g. one added after the order was last saved) keep their natural position:
+ * each is inserted right after its nearest preceding natural neighbour.
+ */
+export function applySectionOrder(sections: ResumeSection[], order?: string[]): ResumeSection[] {
+  if (!order?.length) return sections;
+  const rank = new Map(order.map((id, i) => [id, i]));
+  const result = sections.filter((s) => rank.has(s.id)).sort((a, b) => rank.get(a.id)! - rank.get(b.id)!);
+  sections.forEach((s, idx) => {
+    if (rank.has(s.id)) return;
+    let insertAt = 0;
+    for (let j = idx - 1; j >= 0; j--) {
+      const pos = result.findIndex((r) => r.id === sections[j].id);
+      if (pos >= 0) {
+        insertAt = pos + 1;
+        break;
+      }
+    }
+    result.splice(insertAt, 0, s);
+  });
+  return result;
 }

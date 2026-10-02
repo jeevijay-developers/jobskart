@@ -1,10 +1,10 @@
-import { Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { ChipInput } from "@/components/candidate/primitives";
 import { RichTextField } from "@/components/candidate/RichTextField";
-import type { CertificationItem, ExperienceItem, ResumeExtras } from "@/lib/resumeBuilder/schema";
+import type { CertificationItem, ExperienceItem, ResumeExtras, TextAlign } from "@/lib/resumeBuilder/schema";
 
 const newId = () => Math.random().toString(36).slice(2, 10);
-const input = "form-input h-9 text-sm";
+const input = "form-input h-9 py-0 text-sm";
 
 function Block({ id, title, hint, children }: { id?: string; title: string; hint?: string; children: React.ReactNode }) {
   return (
@@ -20,10 +20,13 @@ export function ResumeExtrasEditor({
   extras,
   onChange,
   experiences,
+  sections,
 }: {
   extras: ResumeExtras;
   onChange: (next: ResumeExtras) => void;
   experiences: ExperienceItem[];
+  // Current sections in display order (including unsaved edits) — drives the order list.
+  sections: { id: string; title: string }[];
 }) {
   const set = (patch: Partial<ResumeExtras>) => onChange({ ...extras, ...patch });
   const snippets = extras.snippets ?? [];
@@ -37,11 +40,49 @@ export function ResumeExtrasEditor({
     set({ certifications: certs.map((c) => (c.id === id ? { ...c, ...patch } : c)) });
 
   const customs = extras.customSections ?? [];
-  const updateCustom = (id: string, patch: Partial<{ title: string; text: string }>) =>
+  const updateCustom = (id: string, patch: Partial<{ title: string; text: string; align: TextAlign }>) =>
     set({ customSections: customs.map((c) => (c.id === id ? { ...c, ...patch } : c)) });
+
+  const moveSection = (index: number, dir: -1 | 1) => {
+    const target = index + dir;
+    if (target < 0 || target >= sections.length) return;
+    const ids = sections.map((x) => x.id);
+    [ids[index], ids[target]] = [ids[target], ids[index]];
+    set({ sectionOrder: ids });
+  };
 
   return (
     <div className="space-y-6">
+      {sections.length > 1 && (
+        <Block title="Section order" hint="Move sections up or down to change the order they appear on your resume.">
+          <ul className="space-y-1">
+            {sections.map((sec, i) => (
+              <li key={sec.id} className="flex items-center gap-2 rounded-lg border border-border bg-background px-2 py-1">
+                <span className="min-w-0 flex-1 truncate text-xs font-medium text-foreground">{sec.title}</span>
+                <button
+                  type="button"
+                  onClick={() => moveSection(i, -1)}
+                  disabled={i === 0}
+                  title="Move up"
+                  className="rounded p-1 text-muted-foreground hover:bg-surface hover:text-foreground disabled:opacity-30"
+                >
+                  <ArrowUp className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => moveSection(i, 1)}
+                  disabled={i === sections.length - 1}
+                  title="Move down"
+                  className="rounded p-1 text-muted-foreground hover:bg-surface hover:text-foreground disabled:opacity-30"
+                >
+                  <ArrowDown className="h-3.5 w-3.5" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </Block>
+      )}
+
       <Block id="rb-summary" title="Summary" hint="A 2–3 line introduction. Leave empty to use the bio from your profile.">
         <RichTextField
           value={extras.summary ?? ""}
@@ -107,6 +148,23 @@ export function ResumeExtrasEditor({
                 snippets={snippets}
                 onSaveSnippet={saveSnippet}
               />
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Text alignment</span>
+                <div className="inline-flex overflow-hidden rounded-lg border border-border">
+                  {(["left", "center", "right"] as const).map((a) => (
+                    <button
+                      key={a}
+                      type="button"
+                      onClick={() => updateCustom(c.id, { align: a })}
+                      className={`px-2.5 py-1 text-xs font-medium capitalize ${
+                        (c.align ?? "left") === a ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-surface"
+                      }`}
+                    >
+                      {a}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           ))}
           <button

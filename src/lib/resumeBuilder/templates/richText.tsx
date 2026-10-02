@@ -2,8 +2,10 @@
 // "- " bullet lines only. Deliberately not HTML — ATS parsers choke on fancy
 // formatting, and a tiny markup avoids any HTML-injection surface. Rendered
 // to real react-pdf <Text> nodes, so preview and PDF stay identical.
+import type { ReactNode } from "react";
 import { Text, View } from "@react-pdf/renderer";
-import type { Style } from "@react-pdf/types";
+import type { TextAlign } from "../schema";
+import type { RichTextStyles } from "./styleTypes";
 
 type Span = { text: string; bold?: boolean; italic?: boolean };
 type Block = { bullet: boolean; spans: Span[] };
@@ -36,25 +38,38 @@ export function parseRichText(value: string): Block[] {
     });
 }
 
-export function RichText({ value, style, bulletStyle }: { value: string; style: Style; bulletStyle: Style }) {
+/**
+ * One bullet with a hanging indent: the glyph sits in its own fixed-width
+ * column, so wrapped lines align under the first word instead of under the
+ * bullet. The single bullet renderer for the whole resume (rich text and
+ * experience achievements both use it).
+ */
+export function BulletLine({ children, s }: { children: ReactNode; s: Pick<RichTextStyles, "bullet" | "bulletGlyph" | "bulletText"> }) {
+  return (
+    <View style={s.bullet} wrap={false}>
+      <Text style={s.bulletGlyph}>{"•"}</Text>
+      <Text style={s.bulletText}>{children}</Text>
+    </View>
+  );
+}
+
+export function RichText({ value, s, align }: { value: string; s: RichTextStyles; align?: TextAlign }) {
   const blocks = parseRichText(value);
+  const textStyle = align && align !== "left" ? { ...s.text, textAlign: align } : s.text;
   return (
     <View>
-      {blocks.map((block, i) => (
-        <Text key={i} style={block.bullet ? bulletStyle : style}>
-          {block.bullet ? "•  " : ""}
-          {block.spans.map((span, j) => (
-            <Text
-              key={j}
-              style={{
-                fontFamily: span.bold ? "Helvetica-Bold" : span.italic ? "Helvetica-Oblique" : "Helvetica",
-              }}
-            >
-              {span.text}
-            </Text>
-          ))}
-        </Text>
-      ))}
+      {blocks.map((block, i) => {
+        const spans = block.spans.map((span, j) => (
+          <Text key={j} style={span.bold ? { fontFamily: s.fonts.bold } : span.italic ? { fontFamily: s.fonts.italic } : undefined}>
+            {span.text}
+          </Text>
+        ));
+        return block.bullet ? (
+          <BulletLine key={i} s={s}>{spans}</BulletLine>
+        ) : (
+          <Text key={i} style={textStyle}>{spans}</Text>
+        );
+      })}
     </View>
   );
 }

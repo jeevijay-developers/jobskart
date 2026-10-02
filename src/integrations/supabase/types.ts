@@ -4287,16 +4287,22 @@ export type Database = {
       resume_drafts: {
         Row: {
           extras: Json
+          layout: Json | null
+          template_id: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           extras?: Json
+          layout?: Json | null
+          template_id?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           extras?: Json
+          layout?: Json | null
+          template_id?: string | null
           updated_at?: string
           user_id?: string
         }
