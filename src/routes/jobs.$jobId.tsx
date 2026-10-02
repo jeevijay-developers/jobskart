@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import {
   ArrowLeft,
   Bookmark,
@@ -40,6 +40,9 @@ import { rankSimilarJobs, type RankableJob } from "@/lib/similarJobs";
 import { getSeenJobIds, markJobSeen } from "@/lib/seenJobs";
 import { FormattedJobDescription } from "@/lib/jdFormat";
 import { useShareJob } from "@/hooks/use-share-job";
+
+// Candidate (embedded) view only: Block renders as its own card there.
+const BlockCardCtx = createContext(false);
 
 export const Route = createFileRoute("/jobs/$jobId")({
   head: () => ({ meta: [{ title: "Job · JobsKart" }] }),
@@ -336,7 +339,9 @@ export function JobDetailPage({
   return (
     <div className="flex min-h-screen flex-col bg-surface">
       {!embedded && <Navbar />}
-      <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-28 sm:px-6 lg:px-8 lg:pb-10">
+      <main
+        className={`mx-auto w-full ${embedded ? "max-w-none" : "max-w-6xl"} px-4 py-6 pb-28 sm:px-6 lg:px-8 lg:pb-10`}
+      >
         <nav aria-label="Job navigation" className="flex items-center gap-1 text-sm">
           {canGoBack && (
             <>
@@ -358,10 +363,24 @@ export function JobDetailPage({
           </Link>
         </nav>
 
-        <div className="mt-4 grid gap-6 lg:grid-cols-[1fr_320px]">
+        <div
+          className={`mt-4 grid gap-6 ${embedded ? "lg:grid-cols-[minmax(0,1fr)_340px]" : "lg:grid-cols-[1fr_320px]"}`}
+        >
           <div className="min-w-0">
-            <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]">
-              <div className="bg-gradient-to-br from-primary-light to-card p-5 sm:p-7">
+            <div
+              className={
+                embedded
+                  ? ""
+                  : "overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]"
+              }
+            >
+              <div
+                className={
+                  embedded
+                    ? "rounded-t-2xl border border-b-0 border-border bg-card p-5 shadow-[var(--shadow-card)] sm:p-6"
+                    : "bg-gradient-to-br from-primary-light to-card p-5 sm:p-7"
+                }
+              >
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div className="flex min-w-0 gap-4">
                     <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl border border-border bg-card text-base font-bold text-primary sm:h-16 sm:w-16 sm:text-lg">
@@ -444,15 +463,27 @@ export function JobDetailPage({
                   </p>
                 )}
 
-                <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  <Stat icon={IndianRupee} label="Salary" value={formatSalary(job.min_salary, job.max_salary, job.salary_period || "monthly")} />
-                  <Stat icon={MapPin} label="Location" value={location || "India"} />
-                  <Stat icon={Briefcase} label="Experience" value={formatExperience(job.min_experience_years, job.max_experience_years)} />
-                  <Stat icon={Users} label="Openings" value={`${job.openings ?? 1}`} />
+                <div
+                  className={
+                    embedded
+                      ? "mt-5 grid grid-cols-2 gap-4 rounded-xl bg-primary-light/50 p-4 sm:grid-cols-4 sm:gap-0 sm:divide-x sm:divide-border"
+                      : "mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4"
+                  }
+                >
+                  <Stat plain={embedded} icon={IndianRupee} label="Salary" value={formatSalary(job.min_salary, job.max_salary, job.salary_period || "monthly")} />
+                  <Stat plain={embedded} icon={MapPin} label="Location" value={location || "India"} />
+                  <Stat plain={embedded} icon={Briefcase} label="Experience" value={formatExperience(job.min_experience_years, job.max_experience_years)} />
+                  <Stat plain={embedded} icon={Users} label="Openings" value={`${job.openings ?? 1}`} />
                 </div>
               </div>
 
-              <div className="flex gap-1 border-b border-border px-2 sm:px-6">
+              <div
+                className={
+                  embedded
+                    ? "flex gap-1 rounded-b-2xl border border-t-0 border-border bg-card px-2 shadow-[var(--shadow-card)] sm:px-6"
+                    : "flex gap-1 border-b border-border px-2 sm:px-6"
+                }
+              >
                 {(["overview", "company"] as const).map((t) => (
                   <button
                     key={t}
@@ -467,9 +498,10 @@ export function JobDetailPage({
                 ))}
               </div>
 
-              <div className="p-5 sm:p-7">
+              <div className={embedded ? "mt-4" : "p-5 sm:p-7"}>
+                <BlockCardCtx.Provider value={embedded}>
                 {tab === "overview" ? (
-                  <div className="space-y-6">
+                  <div className={embedded ? "space-y-4" : "space-y-6"}>
                     <div className="flex flex-wrap gap-2">
                       <Pill>{jobTypeLabel(job.job_type)}</Pill>
                       <Pill>{workModeLabel(job.work_mode)}</Pill>
@@ -611,7 +643,13 @@ export function JobDetailPage({
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div
+                    className={
+                      embedded
+                        ? "space-y-4 rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)] sm:p-6"
+                        : "space-y-4"
+                    }
+                  >
                     <div className="flex items-start gap-4">
                       <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl border border-border bg-surface text-base font-bold text-primary">
                         {job.companies?.logo_url ? (
@@ -632,6 +670,7 @@ export function JobDetailPage({
                     <p className="text-sm leading-6 text-foreground/80">{job.companies?.about || job.companies?.description || `${job.companies?.name || "This employer"} is hiring on JobsKart. Apply now to hear back directly from the recruiter.`}</p>
                   </div>
                 )}
+                </BlockCardCtx.Provider>
               </div>
             </div>
 
@@ -651,8 +690,16 @@ export function JobDetailPage({
           <aside className="hidden lg:block">
             <div className="sticky top-24 space-y-4">
               <div className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Quick summary</p>
-                <div className="mt-3 space-y-3 text-sm">
+                <p
+                  className={
+                    embedded
+                      ? "text-base font-bold text-foreground"
+                      : "text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                  }
+                >
+                  Quick summary
+                </p>
+                <div className={`mt-3 text-sm ${embedded ? "space-y-4" : "space-y-3"}`}>
                   <Side icon={IndianRupee} label="Salary" value={formatSalary(job.min_salary, job.max_salary, job.salary_period || "monthly")} />
                   <Side icon={MapPin} label="Location" value={location || "India"} />
                   <Side icon={Briefcase} label="Type" value={`${jobTypeLabel(job.job_type)} · ${workModeLabel(job.work_mode)}`} />
@@ -720,9 +767,19 @@ export function JobDetailPage({
                 </button>
               </div>
 
-              <div className="rounded-2xl border border-border bg-gradient-to-br from-primary-light to-card p-5">
-                <p className="text-sm font-semibold text-foreground">Tips to get hired faster</p>
-                <ul className="mt-2 space-y-1.5 text-xs text-foreground/80">
+              <div
+                className={
+                  embedded
+                    ? "rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]"
+                    : "rounded-2xl border border-border bg-gradient-to-br from-primary-light to-card p-5"
+                }
+              >
+                <p className={embedded ? "text-base font-bold text-foreground" : "text-sm font-semibold text-foreground"}>
+                  Tips to get hired faster
+                </p>
+                <ul
+                  className={`mt-2 text-foreground/80 ${embedded ? "space-y-2.5 text-sm" : "space-y-1.5 text-xs"}`}
+                >
                   <li className="flex gap-2"><CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" /> Complete your profile to 100%</li>
                   <li className="flex gap-2"><CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" /> Upload an updated resume</li>
                   <li className="flex gap-2"><CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" /> Apply within 24 hours of posting</li>
@@ -811,7 +868,27 @@ export function JobDetailPage({
   );
 }
 
-function Stat({ icon: Icon, label, value }: { icon: typeof IndianRupee; label: string; value: string }) {
+function Stat({
+  icon: Icon,
+  label,
+  value,
+  plain = false,
+}: {
+  icon: typeof IndianRupee;
+  label: string;
+  value: string;
+  plain?: boolean;
+}) {
+  if (plain)
+    return (
+      <div className="flex min-w-0 items-center gap-3 sm:px-5 sm:first:pl-1">
+        <Icon className="h-5 w-5 shrink-0 text-primary" />
+        <div className="min-w-0">
+          <p className="text-xs text-muted-foreground">{label}</p>
+          <p className="truncate text-sm font-bold text-foreground">{value}</p>
+        </div>
+      </div>
+    );
   return (
     <div className="rounded-xl border border-border bg-card/70 p-3">
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -822,6 +899,14 @@ function Stat({ icon: Icon, label, value }: { icon: typeof IndianRupee; label: s
   );
 }
 function Block({ title, children }: { title: string; children: React.ReactNode }) {
+  const card = useContext(BlockCardCtx);
+  if (card)
+    return (
+      <div className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)] sm:p-6">
+        <h3 className="mb-3 text-lg font-bold text-foreground">{title}</h3>
+        {children}
+      </div>
+    );
   return (
     <div>
       <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">{title}</h3>
