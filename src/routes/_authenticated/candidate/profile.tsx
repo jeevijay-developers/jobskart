@@ -582,20 +582,22 @@ function ProfilePage() {
                 </h3>
                 <Link to="/candidate/documents" className="text-sm font-semibold text-primary hover:underline">View all</Link>
               </div>
-              {c.resume_url ? (
+              {resumeDoc || c.resume_url ? (
                 <div className="mb-4 flex items-start gap-3 rounded-lg border border-border bg-surface p-3">
                   <div className="shrink-0 rounded border border-border bg-card p-2 text-muted-foreground"><FileText className="h-5 w-5" /></div>
                   <div className="min-w-0 flex-1">
                     <div className="mb-1 flex items-center gap-2">
-                      <h4 className="truncate text-sm font-bold text-foreground">{c.resume_name || "Resume"}</h4>
+                      <h4 className="truncate text-sm font-bold text-foreground">{resumeDoc?.file_name || c.resume_name || "Resume"}</h4>
                       <span className="rounded bg-success/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-success">Latest</span>
                     </div>
                     <p className="text-xs text-muted-foreground">Attached to your applications</p>
                   </div>
                   <button
                     onClick={async () => {
-                      const { data } = await supabase.storage.from("candidate-docs").createSignedUrl(c.resume_url!, 60);
-                      if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+                      // Same source of truth as the mobile card above: the candidate_documents row first.
+                      const { data } = await supabase.storage.from("candidate-docs").createSignedUrl((resumeDoc?.file_path ?? c.resume_url)!, 3600);
+                      if (data?.signedUrl) window.open(data.signedUrl, "_blank", "noopener");
+                      else toast.error("Couldn't open resume. Please try again.");
                     }}
                     className="text-sm font-semibold text-primary hover:underline"
                   >
@@ -608,7 +610,7 @@ function ProfilePage() {
                 className="mt-auto flex flex-col items-center justify-center rounded-lg border border-dashed border-border bg-card p-6 text-center transition-colors hover:bg-surface"
               >
                 <Upload className="mb-2 h-5 w-5 text-muted-foreground" />
-                <span className="text-sm font-bold text-foreground">{c.resume_url ? "Upload new resume" : "Upload your resume"}</span>
+                <span className="text-sm font-bold text-foreground">{resumeDoc || c.resume_url ? "Upload new resume" : "Upload your resume"}</span>
                 <span className="mt-1 text-xs text-muted-foreground">PDF, DOC, DOCX (Max 5MB)</span>
               </button>
             </div>
@@ -970,17 +972,30 @@ function AvatarDialog({ open, onClose, uid, onSaved }: { open: boolean; onClose:
   );
 }
 
+// Onboarding only ever stored City, so profiles.state is empty for existing
+// candidates. Recover it from the saved city when exactly one state lists it
+// (never guess when a district name exists in several states).
+function savedState(p: Profile): string {
+  if (p.state) return p.state;
+  const city = (p.city || "").trim().toLowerCase();
+  if (!city) return "";
+  const hits = INDIAN_STATES_AND_UTS.filter((st) =>
+    CITIES_BY_STATE[st].some((c) => c.toLowerCase() === city),
+  );
+  return hits.length === 1 ? hits[0] : "";
+}
+
 function PersonalDialog({ open, onClose, uid, p, c, onSaved }: { open: boolean; onClose: () => void; uid: string; p: Profile; c: Candidate; onSaved: () => void }) {
   const runEmbedCandidateProfile = useServerFn(embedCandidateProfile);
   const to10 = (v: string) => { const d = (v ?? "").replace(/\D/g, ""); return d.length >= 10 ? d.slice(-10) : d; };
   const [full_name, setFn] = useState(p.full_name); const [mobile, setMo] = useState(to10(p.mobile)); const [city, setCity] = useState(p.city || "");
-  const [state, setState] = useState(p.state || "");
+  const [state, setState] = useState(savedState(p));
   const [email, setEmail] = useState(isSyntheticEmail(p.email) ? "" : p.email || "");
   const [dob, setDob] = useState(c.date_of_birth || ""); const [gender, setGender] = useState(c.gender || "");
   const [bio, setBio] = useState(c.bio || ""); const [headline, setHeadline] = useState(c.headline || "");
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{ full_name?: string; mobile?: string; state?: string; city?: string; email?: string; dob?: string; gender?: string }>({});
-  useEffect(() => { if (open) { setFn(p.full_name); setMo(to10(p.mobile)); setCity(p.city || ""); setState(p.state || ""); setEmail(isSyntheticEmail(p.email) ? "" : p.email || ""); setDob(c.date_of_birth || ""); setGender(c.gender || ""); setBio(c.bio || ""); setHeadline(c.headline || ""); setFieldErrors({}); } }, [open, p, c]);
+  useEffect(() => { if (open) { setFn(p.full_name); setMo(to10(p.mobile)); setCity(p.city || ""); setState(savedState(p)); setEmail(isSyntheticEmail(p.email) ? "" : p.email || ""); setDob(c.date_of_birth || ""); setGender(c.gender || ""); setBio(c.bio || ""); setHeadline(c.headline || ""); setFieldErrors({}); } }, [open, p, c]);
   const save = async () => {
     const next: typeof fieldErrors = {};
     if (!full_name.trim()) next.full_name = "Please enter your full name.";

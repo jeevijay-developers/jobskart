@@ -60,6 +60,11 @@ export function ViewApplicationDialog({ open, onClose, userId, application, jobT
       className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
+      onClick={(e) => {
+        // Same pattern as ApplyDialog: only a click landing directly on the
+        // backdrop closes it, never one bubbling up from inside the modal.
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div className="flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-card shadow-2xl sm:rounded-2xl">
         <div className="flex items-start justify-between gap-4 border-b border-border p-5">

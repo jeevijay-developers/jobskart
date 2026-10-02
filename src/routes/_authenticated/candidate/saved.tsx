@@ -52,7 +52,7 @@ function SavedJobsPage() {
       ) : (
         <div className="grid gap-4">
           {jobs.map((j) => (
-            <JobCard key={j.id} job={j} />
+            <JobCard key={j.id} job={j} detailBasePath="/candidate/jobs" />
           ))}
         </div>
       )}
