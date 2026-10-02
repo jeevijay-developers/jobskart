@@ -31,8 +31,7 @@ import { usePaginatedQuery } from "@/hooks/use-paginated-query";
 import { fetchCandidateJobFeed, fetchPublicJobFeed, type JobFeedFilters } from "@/lib/job-feed";
 import { jobsSearchSchema, type JobsSearch } from "@/lib/jobs-search";
 
-// Same page size the previous "Load More Jobs" button revealed per click.
-const JOBS_PAGE_SIZE = 5;
+const JOBS_PAGE_SIZE = 14;
 const SORT_OPTIONS = ["recommended", "newest", "oldest", "salary_high", "salary_low"] as const;
 type SortKey = (typeof SORT_OPTIONS)[number];
 
@@ -292,7 +291,7 @@ export function JobsList({ embeddedInCandidateApp = false }: { embeddedInCandida
         rows,
         total: count,
         error,
-      } = await fetchCandidateJobFeed(feedFilters, sort, from, to);
+      } = await fetchCandidateJobFeed(feedFilters, sort, from, to, "top");
       return error
         ? { data: null, count: null, error: { message: error } }
         : { data: rows, count, error: null };

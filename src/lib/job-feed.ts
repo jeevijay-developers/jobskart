@@ -148,9 +148,11 @@ export async function fetchCandidateJobFeed(
   _sort: JobFeedSort,  // kept for API compatibility; ignored by new RPC
   from: number,
   to: number,
-  /** "recommended" (default) requires real skill/role/semantic fit; "top" is the
-   *  unfiltered ranking — same formula, just without the relevance gate. */
-  mode: "recommended" | "top" = "recommended",
+  /** "recommended" requires real skill/role/semantic fit; "top" is the unfiltered
+   *  ranking (same formula, no relevance gate) — required, not defaulted: Browse
+   *  jobs and the dashboard want different behavior and a silent default here
+   *  previously let Browse jobs inherit the strict filter unintentionally. */
+  mode: "recommended" | "top",
 ): Promise<JobFeedResult> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await supabase.rpc("recommend_jobs_for_candidate" as any,

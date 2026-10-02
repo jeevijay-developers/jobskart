@@ -45,7 +45,7 @@ const RECENT_DAYS = 7;
 const isRecent = (iso: string) =>
   Date.now() - new Date(iso).getTime() < RECENT_DAYS * 24 * 60 * 60 * 1000;
 
-const REC_JOBS_PAGE_SIZE = 15;
+const REC_JOBS_PAGE_SIZE = 14;
 
 function CandidateDashboard() {
   const navigate = useNavigate();
