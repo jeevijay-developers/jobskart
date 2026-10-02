@@ -12,3 +12,4 @@ index 8d74eb4..f2e4075 100644
 +	if (nChild !== nParent && !nChild.startsWith(nParent + "/")) throw new Error(`@lovable.dev/mcp-js: ${label} must resolve under ${parent}, got ${child}`);
  }
  function wellKnownRouteFile(routesDir, urlPath) {
+ 	const segments = urlPath.replace(/^\//, "").split("/");

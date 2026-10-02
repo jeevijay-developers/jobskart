@@ -1,0 +1,4 @@
+# patch-package's diff parser fails on CRLF-terminated patch files (breaks
+# deployment on Linux build machines like Vercel even though it looks fine on
+# Windows) — force LF regardless of whoever commits from Windows.
+patches/*.patch text eol=lf
