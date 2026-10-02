@@ -41,6 +41,44 @@ export function setActiveCompanyId(id: string) {
   window.localStorage.setItem(KEY, id);
 }
 
+export type EmployerRoleSnapshot = {
+  userId: string | null;
+  membership: EmployerMembership | null;
+  accessMessage: string | null;
+};
+
+const ROLE_CACHE_KEY = "jobskart.employerRoleCache.v1";
+
+/** In-memory + localStorage snapshot of the last-known employer role, read by useEmployerRole(). */
+export function getCachedEmployerRole(): EmployerRoleSnapshot | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(ROLE_CACHE_KEY);
+    return raw ? (JSON.parse(raw) as EmployerRoleSnapshot) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setCachedEmployerRole(snapshot: EmployerRoleSnapshot) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(ROLE_CACHE_KEY, JSON.stringify(snapshot));
+  } catch {
+    /* best-effort; a failed write just means the next hard reload won't have a seed */
+  }
+}
+
+/** Clears the cached role snapshot — call on sign-out so a shared browser never flashes the previous employer's role-gated nav before the next sign-in's fetch resolves. */
+export function clearCachedEmployerRole() {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(ROLE_CACHE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function canEditCompany(role: EmployerRole | null) {
   return role === "super_admin" || role === "hr_admin";
 }

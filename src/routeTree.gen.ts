@@ -82,6 +82,7 @@ import { Route as AuthenticatedCandidateLearningCornerSlugRouteImport } from './
 import { Route as AuthenticatedEmployerCrmAutomationRouteImport } from './routes/_authenticated/employer/crm.automation'
 import { Route as AuthenticatedEmployerJobsBulkRouteImport } from './routes/_authenticated/employer/jobs.bulk'
 import { Route as AuthenticatedEmployerJobsNewRouteImport } from './routes/_authenticated/employer/jobs.new'
+import { Route as AuthenticatedEmployerLearningCornerSlugRouteImport } from './routes/_authenticated/employer/learning-corner.$slug'
 import { Route as ApiPublicWebhooksRazorpayRouteImport } from './routes/api/public/webhooks/razorpay'
 import { Route as LearnCertificationSlugExamRouteImport } from './routes/learn_.certification.$slug_.exam'
 import { Route as AuthenticatedCandidateLearningCertificationSlugRouteImport } from './routes/_authenticated/candidate/learning_.certification.$slug'
@@ -490,6 +491,12 @@ const AuthenticatedEmployerJobsNewRoute =
     path: '/new',
     getParentRoute: () => AuthenticatedEmployerJobsRoute,
   } as any)
+const AuthenticatedEmployerLearningCornerSlugRoute =
+  AuthenticatedEmployerLearningCornerSlugRouteImport.update({
+    id: '/employer/learning-corner/$slug',
+    path: '/employer/learning-corner/$slug',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ApiPublicWebhooksRazorpayRoute =
   ApiPublicWebhooksRazorpayRouteImport.update({
     id: '/api/public/webhooks/razorpay',
@@ -617,6 +624,7 @@ export interface FileRoutesByFullPath {
   '/employer/crm/automation': typeof AuthenticatedEmployerCrmAutomationRoute
   '/employer/jobs/bulk': typeof AuthenticatedEmployerJobsBulkRoute
   '/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
+  '/employer/learning-corner/$slug': typeof AuthenticatedEmployerLearningCornerSlugRoute
   '/api/public/webhooks/razorpay': typeof ApiPublicWebhooksRazorpayRoute
   '/learn/certification/$slug/exam': typeof LearnCertificationSlugExamRoute
   '/candidate/interview-prep/': typeof AuthenticatedCandidateInterviewPrepIndexRoute
@@ -699,6 +707,7 @@ export interface FileRoutesByTo {
   '/employer/crm/automation': typeof AuthenticatedEmployerCrmAutomationRoute
   '/employer/jobs/bulk': typeof AuthenticatedEmployerJobsBulkRoute
   '/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
+  '/employer/learning-corner/$slug': typeof AuthenticatedEmployerLearningCornerSlugRoute
   '/api/public/webhooks/razorpay': typeof ApiPublicWebhooksRazorpayRoute
   '/learn/certification/$slug/exam': typeof LearnCertificationSlugExamRoute
   '/candidate/interview-prep': typeof AuthenticatedCandidateInterviewPrepIndexRoute
@@ -784,6 +793,7 @@ export interface FileRoutesById {
   '/_authenticated/employer/crm/automation': typeof AuthenticatedEmployerCrmAutomationRoute
   '/_authenticated/employer/jobs/bulk': typeof AuthenticatedEmployerJobsBulkRoute
   '/_authenticated/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
+  '/_authenticated/employer/learning-corner/$slug': typeof AuthenticatedEmployerLearningCornerSlugRoute
   '/api/public/webhooks/razorpay': typeof ApiPublicWebhooksRazorpayRoute
   '/learn_/certification/$slug_/exam': typeof LearnCertificationSlugExamRoute
   '/_authenticated/candidate/interview-prep/': typeof AuthenticatedCandidateInterviewPrepIndexRoute
@@ -869,6 +879,7 @@ export interface FileRouteTypes {
     | '/employer/crm/automation'
     | '/employer/jobs/bulk'
     | '/employer/jobs/new'
+    | '/employer/learning-corner/$slug'
     | '/api/public/webhooks/razorpay'
     | '/learn/certification/$slug/exam'
     | '/candidate/interview-prep/'
@@ -951,6 +962,7 @@ export interface FileRouteTypes {
     | '/employer/crm/automation'
     | '/employer/jobs/bulk'
     | '/employer/jobs/new'
+    | '/employer/learning-corner/$slug'
     | '/api/public/webhooks/razorpay'
     | '/learn/certification/$slug/exam'
     | '/candidate/interview-prep'
@@ -1035,6 +1047,7 @@ export interface FileRouteTypes {
     | '/_authenticated/employer/crm/automation'
     | '/_authenticated/employer/jobs/bulk'
     | '/_authenticated/employer/jobs/new'
+    | '/_authenticated/employer/learning-corner/$slug'
     | '/api/public/webhooks/razorpay'
     | '/learn_/certification/$slug_/exam'
     | '/_authenticated/candidate/interview-prep/'
@@ -1590,6 +1603,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedEmployerJobsNewRouteImport
       parentRoute: typeof AuthenticatedEmployerJobsRoute
     }
+    '/_authenticated/employer/learning-corner/$slug': {
+      id: '/_authenticated/employer/learning-corner/$slug'
+      path: '/employer/learning-corner/$slug'
+      fullPath: '/employer/learning-corner/$slug'
+      preLoaderRoute: typeof AuthenticatedEmployerLearningCornerSlugRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/public/webhooks/razorpay': {
       id: '/api/public/webhooks/razorpay'
       path: '/api/public/webhooks/razorpay'
@@ -1769,6 +1789,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedEmployerVerificationRoute: typeof AuthenticatedEmployerVerificationRoute
   AuthenticatedOnboardingCandidateRoute: typeof AuthenticatedOnboardingCandidateRoute
   AuthenticatedOnboardingEmployerRoute: typeof AuthenticatedOnboardingEmployerRoute
+  AuthenticatedEmployerLearningCornerSlugRoute: typeof AuthenticatedEmployerLearningCornerSlugRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -1789,6 +1810,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedEmployerVerificationRoute,
   AuthenticatedOnboardingCandidateRoute: AuthenticatedOnboardingCandidateRoute,
   AuthenticatedOnboardingEmployerRoute: AuthenticatedOnboardingEmployerRoute,
+  AuthenticatedEmployerLearningCornerSlugRoute:
+    AuthenticatedEmployerLearningCornerSlugRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

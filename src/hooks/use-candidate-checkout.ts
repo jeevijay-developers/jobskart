@@ -3,6 +3,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { reportCandidateOrderFailure, verifyCandidatePayment } from "@/lib/learning.functions";
+import { loadRazorpayScript } from "@/lib/razorpay-loader";
 
 type OrderResult = {
   orderId: string;
@@ -32,12 +33,9 @@ export function useCandidateCheckout(
       toast.error("Please sign in as a candidate to buy this.");
       return;
     }
-    if (typeof window === "undefined" || !window.Razorpay) {
-      toast.error("Checkout not loaded yet. Refresh and try again.");
-      return;
-    }
     setBuying(true);
     try {
+      await loadRazorpayScript();
       const order = await createOrder();
       const rzp = new window.Razorpay({
         key: order.keyId,

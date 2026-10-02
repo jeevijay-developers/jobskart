@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, Loader2, Lock } from "lucide-react";
 import { Navbar } from "@/components/site/Navbar";
 import { Footer } from "@/components/site/Footer";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useCandidateCheckout } from "@/hooks/use-candidate-checkout";
 import { FormattedMarkdown } from "@/lib/markdownLite";
 import { createCourseOrder, getLessonContent } from "@/lib/learning.functions";
@@ -99,17 +100,18 @@ export function LessonContent({
       <Link
         to={inCandidate ? "/candidate/learning/course/$slug" : "/learn/course/$slug"}
         params={{ slug }}
-        className="inline-flex items-center gap-1 text-sm font-semibold text-primary"
+        className="inline-flex min-h-11 items-center gap-1 rounded-lg text-sm font-semibold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
       >
         <ArrowLeft className="h-4 w-4" /> Back to course
       </Link>
 
       {state.status === "loading" ? (
-        <div className="mt-8 grid place-items-center rounded-xl border border-border bg-card p-12">
-          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        <div role="status" aria-live="polite" aria-label="Loading lesson" className="mt-6">
+          <Skeleton className="h-8 w-2/3" />
+          <Skeleton className="mt-4 aspect-video w-full rounded-xl" />
         </div>
       ) : state.status === "locked" ? (
-        <div className="mt-8 rounded-xl border border-border bg-card p-8 text-center">
+        <div role="alert" className="mt-8 rounded-xl border border-border bg-card p-8 text-center">
           <Lock className="mx-auto h-8 w-8 text-muted-foreground" />
           <p className="mt-3 font-semibold text-foreground">This lesson is locked</p>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -118,14 +120,17 @@ export function LessonContent({
           <button
             onClick={handleBuy}
             disabled={buying}
-            className="mt-4 inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+            className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-60"
           >
             {buying && <Loader2 className="h-4 w-4 animate-spin" />}
             Buy this course
           </button>
         </div>
       ) : state.status === "error" ? (
-        <div className="mt-8 rounded-xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
+        <div
+          role="alert"
+          className="mt-8 rounded-xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground"
+        >
           {state.message}
         </div>
       ) : (

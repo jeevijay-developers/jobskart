@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, Award, CheckCircle2, FileCheck2, Loader2, Lock } from "lucide-react";
 import { Navbar } from "@/components/site/Navbar";
 import { Footer } from "@/components/site/Footer";
+import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useCandidateCheckout } from "@/hooks/use-candidate-checkout";
 import { createCertificationOrder, getMyCertificatePurchases } from "@/lib/learning.functions";
@@ -110,17 +111,23 @@ export function CertificationContent({
     <>
       <Link
         to={inCandidate ? "/candidate/learning" : "/learn"}
-        className="inline-flex items-center gap-1 text-sm font-semibold text-primary"
+        className="inline-flex min-h-11 items-center gap-1 rounded-lg text-sm font-semibold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
       >
         <ArrowLeft className="h-4 w-4" /> Back to Learning
       </Link>
 
       {cert === null ? (
-        <div className="mt-8 grid place-items-center rounded-xl border border-border bg-card p-12">
-          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        <div role="status" aria-live="polite" aria-label="Loading certification" className="mt-6">
+          <Skeleton className="mb-6 h-56 w-full rounded-xl" />
+          <Skeleton className="h-8 w-2/3" />
+          <Skeleton className="mt-3 h-4 w-full" />
+          <Skeleton className="mt-6 h-24 w-full rounded-xl" />
         </div>
       ) : cert === "not_found" ? (
-        <div className="mt-8 rounded-xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
+        <div
+          role="alert"
+          className="mt-8 rounded-xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground"
+        >
           This certification isn't available.
         </div>
       ) : (
@@ -130,7 +137,11 @@ export function CertificationContent({
           return (
             <div className="mt-6">
               {cert.cover_url && (
-                <img src={cert.cover_url} alt="" className="mb-6 w-full rounded-xl object-cover" />
+                <img
+                  src={cert.cover_url}
+                  alt={cert.title}
+                  className="mb-6 w-full rounded-xl object-cover"
+                />
               )}
               <div className="flex items-center gap-2">
                 <Award className="h-6 w-6 text-primary" />
@@ -180,7 +191,7 @@ export function CertificationContent({
                     <Link
                       to="/learn/certification/$slug/exam"
                       params={{ slug }}
-                      className="mt-3 inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground"
+                      className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                     >
                       <FileCheck2 className="h-4 w-4" /> Start exam
                     </Link>
@@ -191,7 +202,7 @@ export function CertificationContent({
                     <button
                       onClick={handleBuy}
                       disabled={buying}
-                      className="mt-3 inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+                      className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-60"
                     >
                       {buying && <Loader2 className="h-4 w-4 animate-spin" />}
                       Buy now

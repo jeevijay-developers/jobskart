@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
-import { BookOpen, GraduationCap, Award, Loader2 } from "lucide-react";
+import { BookOpen, GraduationCap, Award } from "lucide-react";
 import { Navbar } from "@/components/site/Navbar";
 import { Footer } from "@/components/site/Footer";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -101,9 +102,15 @@ export function LearnContent({ inCandidate }: { inCandidate?: boolean }) {
         <TabsList
           className={`grid w-full grid-cols-3 ${inCandidate ? "h-auto max-w-2xl rounded-xl bg-card p-1 shadow-sm" : ""}`}
         >
-          <TabsTrigger value="posts">Articles</TabsTrigger>
-          <TabsTrigger value="courses">Courses</TabsTrigger>
-          <TabsTrigger value="certifications">Certifications</TabsTrigger>
+          <TabsTrigger value="posts" className="min-h-11">
+            Articles
+          </TabsTrigger>
+          <TabsTrigger value="courses" className="min-h-11">
+            Courses
+          </TabsTrigger>
+          <TabsTrigger value="certifications" className="min-h-11">
+            Certifications
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="posts" className="mt-4">
@@ -237,16 +244,56 @@ function CardGrid<
   inCandidate?: boolean;
   badge?: (item: T) => string;
 }) {
-  if (items === null)
+  if (items === null) {
     return (
-      <div className="grid place-items-center rounded-xl border border-border bg-card p-12">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      <div
+        role="status"
+        aria-live="polite"
+        aria-label="Loading content"
+        className={inCandidate ? "grid gap-4 lg:grid-cols-2" : "grid gap-4 sm:grid-cols-2"}
+      >
+        {Array.from({ length: inCandidate ? 2 : 4 }).map((_, i) => (
+          <div
+            key={i}
+            className={
+              inCandidate
+                ? "flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 shadow-sm sm:flex-row sm:items-center"
+                : "flex flex-col rounded-xl border border-border bg-card p-4"
+            }
+          >
+            <Skeleton
+              className={
+                inCandidate
+                  ? "h-44 w-full shrink-0 rounded-xl sm:h-32 sm:w-64"
+                  : "mb-3 h-32 w-full rounded-lg"
+              }
+            />
+            <div
+              className={
+                inCandidate
+                  ? "flex min-w-0 flex-1 flex-col justify-center gap-2"
+                  : "flex flex-col gap-2"
+              }
+            >
+              <Skeleton className="h-5 w-3/4" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-1/3" />
+            </div>
+          </div>
+        ))}
       </div>
     );
+  }
   if (items.length === 0)
     return (
-      <div className="flex items-center gap-2 rounded-xl border border-dashed border-border bg-card p-8 text-sm text-muted-foreground">
-        <Icon className="h-4 w-4 shrink-0" /> {empty}
+      <div
+        role="status"
+        className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border bg-card px-6 py-12 text-center"
+      >
+        <span className="grid h-12 w-12 place-items-center rounded-full bg-primary-light text-primary">
+          <Icon className="h-6 w-6" />
+        </span>
+        <p className="max-w-sm text-sm text-muted-foreground">{empty}</p>
       </div>
     );
   return (
@@ -257,7 +304,7 @@ function CardGrid<
           className={
             inCandidate
               ? "flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md sm:flex-row sm:items-center"
-              : "flex flex-col rounded-xl border border-border bg-card p-4"
+              : "flex flex-col rounded-xl border border-border bg-card p-4 transition-shadow hover:shadow-md"
           }
         >
           {item.cover_url &&
@@ -265,14 +312,16 @@ function CardGrid<
               <div className="relative h-44 w-full shrink-0 overflow-hidden rounded-xl bg-surface sm:h-32 sm:w-64">
                 <img
                   src={item.cover_url}
-                  alt=""
+                  alt={item.title}
+                  loading="lazy"
                   className="absolute inset-0 h-full w-full object-contain object-center"
                 />
               </div>
             ) : (
               <img
                 src={item.cover_url}
-                alt=""
+                alt={item.title}
+                loading="lazy"
                 className="mb-3 h-32 w-full rounded-lg object-cover"
               />
             ))}
@@ -288,7 +337,13 @@ function CardGrid<
                 {item.title}
               </h2>
               {badge && (
-                <span className="shrink-0 rounded-full bg-primary-light px-2 py-0.5 text-xs font-bold text-primary">
+                <span
+                  className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${
+                    badge(item) === "Free"
+                      ? "bg-success/15 text-success"
+                      : "bg-primary-light text-primary"
+                  }`}
+                >
                   {badge(item)}
                 </span>
               )}
@@ -310,8 +365,8 @@ function CardGrid<
               inCandidate={inCandidate}
               className={
                 inCandidate
-                  ? "mt-3 inline-flex w-fit items-center text-base font-semibold text-primary hover:underline"
-                  : "mt-3 inline-flex w-fit items-center text-sm font-semibold text-primary hover:underline"
+                  ? "mt-3 inline-flex min-h-11 w-fit items-center rounded-lg text-base font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                  : "mt-3 inline-flex min-h-11 w-fit items-center rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
               }
             >
               {linkLabel}

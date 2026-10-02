@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, CheckCircle2, GraduationCap, Loader2, Lock, PlayCircle } from "lucide-react";
 import { Navbar } from "@/components/site/Navbar";
 import { Footer } from "@/components/site/Footer";
+import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useCandidateCheckout } from "@/hooks/use-candidate-checkout";
 import { createCourseOrder, getMyCoursePurchases } from "@/lib/learning.functions";
@@ -105,17 +106,23 @@ export function CourseContent({ slug, inCandidate }: { slug: string; inCandidate
     <>
       <Link
         to={inCandidate ? "/candidate/learning" : "/learn"}
-        className="inline-flex items-center gap-1 text-sm font-semibold text-primary"
+        className="inline-flex min-h-11 items-center gap-1 rounded-lg text-sm font-semibold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
       >
         <ArrowLeft className="h-4 w-4" /> Back to Learning
       </Link>
 
       {course === null ? (
-        <div className="mt-8 grid place-items-center rounded-xl border border-border bg-card p-12">
-          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        <div role="status" aria-live="polite" aria-label="Loading course" className="mt-6">
+          <Skeleton className="mb-6 h-56 w-full rounded-xl" />
+          <Skeleton className="h-8 w-2/3" />
+          <Skeleton className="mt-3 h-4 w-full" />
+          <Skeleton className="mt-6 h-24 w-full rounded-xl" />
         </div>
       ) : course === "not_found" ? (
-        <div className="mt-8 rounded-xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
+        <div
+          role="alert"
+          className="mt-8 rounded-xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground"
+        >
           This course isn't available.
         </div>
       ) : (
@@ -136,14 +143,14 @@ export function CourseContent({ slug, inCandidate }: { slug: string; inCandidate
                     <div className="relative mb-6 h-[200px] w-full overflow-hidden rounded-2xl bg-surface sm:h-[260px] lg:h-[320px]">
                       <img
                         src={course.cover_url}
-                        alt=""
+                        alt={course.title}
                         className="absolute inset-0 h-full w-full object-contain object-center"
                       />
                     </div>
                   ) : (
                     <img
                       src={course.cover_url}
-                      alt=""
+                      alt={course.title}
                       className="mb-6 w-full rounded-xl object-cover"
                     />
                   ))}
@@ -202,7 +209,7 @@ export function CourseContent({ slug, inCandidate }: { slug: string; inCandidate
                         <button
                           onClick={handleBuy}
                           disabled={buying}
-                          className={`mt-3 inline-flex items-center gap-2 bg-primary text-sm font-semibold text-primary-foreground disabled:opacity-60 ${inCandidate ? "h-11 w-full justify-center rounded-xl" : "h-10 rounded-lg px-5"}`}
+                          className={`mt-3 inline-flex min-h-11 items-center gap-2 bg-primary text-sm font-semibold text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-60 ${inCandidate ? "w-full justify-center rounded-xl" : "rounded-lg px-5"}`}
                         >
                           {buying && <Loader2 className="h-4 w-4 animate-spin" />}
                           Buy now
@@ -265,10 +272,15 @@ export function CourseContent({ slug, inCandidate }: { slug: string; inCandidate
                                     : "/learn/course/$slug/lesson/$lessonId"
                                 }
                                 params={{ slug, lessonId: l.id }}
+                                title={
+                                  lessonUnlocked
+                                    ? undefined
+                                    : "Buy this course to unlock this lesson"
+                                }
                                 className={
                                   inCandidate
-                                    ? "flex items-center gap-3 rounded-xl border border-border bg-card p-3 text-sm font-medium text-foreground transition-colors hover:border-primary/40"
-                                    : "flex items-center gap-2 rounded-lg p-1.5 text-sm text-foreground/90 hover:bg-surface"
+                                    ? "flex min-h-11 items-center gap-3 rounded-xl border border-border bg-card p-3 text-sm font-medium text-foreground transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                                    : "flex min-h-11 items-center gap-2 rounded-lg p-1.5 text-sm text-foreground/90 hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                                 }
                               >
                                 {lessonUnlocked ? (

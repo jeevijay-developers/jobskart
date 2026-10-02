@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Navbar } from "@/components/site/Navbar";
 import { Footer } from "@/components/site/Footer";
+import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { FormattedMarkdown } from "@/lib/markdownLite";
 
@@ -57,17 +58,24 @@ export function PostContent({ slug, inCandidate }: { slug: string; inCandidate?:
     <div className={inCandidate ? "w-full rounded-3xl bg-card p-4 shadow-sm sm:p-8" : undefined}>
       <Link
         to={inCandidate ? "/candidate/learning" : "/learn"}
-        className="inline-flex items-center gap-1 text-sm font-semibold text-primary"
+        className="inline-flex min-h-11 items-center gap-1 rounded-lg text-sm font-semibold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
       >
         <ArrowLeft className="h-4 w-4" /> Back to Learning
       </Link>
 
       {post === null ? (
-        <div className="mt-8 grid place-items-center rounded-xl border border-border bg-card p-12">
-          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        <div role="status" aria-live="polite" aria-label="Loading article" className="mt-6">
+          <Skeleton className="mb-6 h-64 w-full rounded-xl" />
+          <Skeleton className="h-8 w-2/3" />
+          <Skeleton className="mt-4 h-4 w-full" />
+          <Skeleton className="mt-2 h-4 w-full" />
+          <Skeleton className="mt-2 h-4 w-3/4" />
         </div>
       ) : post === "not_found" ? (
-        <div className="mt-8 rounded-xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
+        <div
+          role="alert"
+          className="mt-8 rounded-xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground"
+        >
           This article isn't available.
         </div>
       ) : (
@@ -77,12 +85,16 @@ export function PostContent({ slug, inCandidate }: { slug: string; inCandidate?:
               <div className="relative mb-6 aspect-[16/9] w-full sm:aspect-[3/1] overflow-hidden rounded-2xl bg-surface">
                 <img
                   src={post.cover_url}
-                  alt=""
+                  alt={post.title}
                   className="absolute inset-0 h-full w-full object-contain object-center"
                 />
               </div>
             ) : (
-              <img src={post.cover_url} alt="" className="mb-6 w-full rounded-xl object-cover" />
+              <img
+                src={post.cover_url}
+                alt={post.title}
+                className="mb-6 w-full rounded-xl object-cover"
+              />
             ))}
           <h1
             className={

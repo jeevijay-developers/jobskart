@@ -99,7 +99,10 @@ function DashboardMetricCard({
   to: "/employer/jobs" | "/employer/responses" | "/employer/interviews" | "/employer/reports";
 }) {
   return (
-    <Link to={to} className="group flex min-h-32 min-w-0 flex-col justify-between rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-card-hover)] sm:p-5 min-[1180px]:!min-h-28 min-[1180px]:!p-4">
+    <Link
+      to={to}
+      className="group flex min-h-32 min-w-0 flex-col justify-between rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-card-hover)] sm:p-5 min-[1180px]:!min-h-28 min-[1180px]:!p-4"
+    >
       <div className="flex items-start justify-between gap-3">
         <p className="min-w-0 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
           {label}
@@ -560,8 +563,9 @@ function EmployerDashboard() {
                 <ul className="space-y-1.5">
                   {learn.map((l) => (
                     <li key={l.id}>
-                      <a
-                        href={`/learn/${l.slug}`}
+                      <Link
+                        to="/employer/learning-corner/$slug"
+                        params={{ slug: l.slug }}
                         className="flex items-center gap-3 rounded-xl p-2.5 transition-colors hover:bg-surface"
                       >
                         <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-lg bg-primary-light text-primary">
@@ -577,7 +581,7 @@ function EmployerDashboard() {
                             {l.kind} · {l.category || "Tips"}
                           </p>
                         </div>
-                      </a>
+                      </Link>
                     </li>
                   ))}
                 </ul>

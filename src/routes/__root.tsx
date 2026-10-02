@@ -90,16 +90,37 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:title", content: "JobsKart — India's #1 Blue Collar Hiring Platform" },
       {
         property: "og:description",
-        content: "Find jobs or hire faster. 10 lakh+ jobs, 50 lakh+ candidates, 1000+ employers across 500+ Indian cities.",
+        content:
+          "Find jobs or hire faster. 10 lakh+ jobs, 50 lakh+ candidates, 1000+ employers across 500+ Indian cities.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "JobsKart — India's #1 Blue Collar Hiring Platform" },
-      { name: "description", content: "JobsKart Connect is an Indian job portal connecting blue-collar and grey-collar workers with employers." },
-      { property: "og:description", content: "JobsKart Connect is an Indian job portal connecting blue-collar and grey-collar workers with employers." },
-      { name: "twitter:description", content: "JobsKart Connect is an Indian job portal connecting blue-collar and grey-collar workers with employers." },
-      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/jniP1INDbGeWUnFtlV1iyCqRoJV2/social-images/social-1781697729157-images_(1).webp" },
-      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/jniP1INDbGeWUnFtlV1iyCqRoJV2/social-images/social-1781697729157-images_(1).webp" },
+      {
+        name: "description",
+        content:
+          "JobsKart Connect is an Indian job portal connecting blue-collar and grey-collar workers with employers.",
+      },
+      {
+        property: "og:description",
+        content:
+          "JobsKart Connect is an Indian job portal connecting blue-collar and grey-collar workers with employers.",
+      },
+      {
+        name: "twitter:description",
+        content:
+          "JobsKart Connect is an Indian job portal connecting blue-collar and grey-collar workers with employers.",
+      },
+      {
+        property: "og:image",
+        content:
+          "https://storage.googleapis.com/gpt-engineer-file-uploads/jniP1INDbGeWUnFtlV1iyCqRoJV2/social-images/social-1781697729157-images_(1).webp",
+      },
+      {
+        name: "twitter:image",
+        content:
+          "https://storage.googleapis.com/gpt-engineer-file-uploads/jniP1INDbGeWUnFtlV1iyCqRoJV2/social-images/social-1781697729157-images_(1).webp",
+      },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -112,7 +133,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap",
       },
     ],
-    scripts: [{ src: "https://checkout.razorpay.com/v1/checkout.js", defer: true }],
   }),
   shellComponent: RootShell,
   component: RootComponent,

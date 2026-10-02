@@ -42,6 +42,7 @@ import {
   switchToBasicPlan,
   verifyPlanPayment,
 } from "@/lib/plans.functions";
+import { loadRazorpayScript } from "@/lib/razorpay-loader";
 
 // Display only — the charged amount is quoted server-side by create_credit_pack_order().
 const withGst = (priceInr: number) => Math.round(priceInr * (1 + GST_RATE) * 100) / 100;
@@ -73,7 +74,8 @@ function ledgerDetail(row: LedgerRow): string {
     const grants = Array.isArray(ref.grants_consumed) ? ref.grants_consumed.length : 1;
     return grants > 1 ? `Drawn from ${grants} grants` : "Drawn from one grant";
   }
-  if (typeof ref.via === "string") return `Via ${ref.via}${typeof ref.kind === "string" ? ` (${ref.kind})` : ""}`;
+  if (typeof ref.via === "string")
+    return `Via ${ref.via}${typeof ref.kind === "string" ? ` (${ref.kind})` : ""}`;
   return row.resource_key ? `Ref: ${row.resource_key}` : "—";
 }
 
@@ -149,20 +151,6 @@ type Invoice = {
   status: string;
   source: string;
 };
-
-declare global {
-  interface Window {
-    Razorpay?: new (options: Record<string, unknown>) => {
-      open: () => void;
-      on: (
-        event: "payment.failed",
-        cb: (resp: {
-          error?: { description?: string; reason?: string; metadata?: { order_id?: string; payment_id?: string } };
-        }) => void,
-      ) => void;
-    };
-  }
-}
 
 function CreditsPage() {
   const { isSuperAdmin, isRecruiter, loading: roleLoading } = useEmployerRole();
@@ -295,17 +283,13 @@ function CreditsPage() {
     }
   };
 
-
   const handleBuy = async (pack: Pack) => {
     if (!active) return;
-    if (typeof window === "undefined" || !window.Razorpay) {
-      toast.error("Checkout not loaded yet. Refresh and try again.");
-      return;
-    }
     setBuyingId(pack.id);
     // The button stays busy while Checkout is open; it is released by the
     // success handler, dismissal, or an error starting checkout.
     try {
+      await loadRazorpayScript();
       const order = await createRazorpayOrder({
         data: { companyId: active.company_id, packId: pack.id },
       });
@@ -350,7 +334,8 @@ function CreditsPage() {
           data: {
             razorpayOrderId: resp.error?.metadata?.order_id ?? order.orderId,
             razorpayPaymentId: resp.error?.metadata?.payment_id,
-            reason: [resp.error?.reason, resp.error?.description].filter(Boolean).join(": ") || undefined,
+            reason:
+              [resp.error?.reason, resp.error?.description].filter(Boolean).join(": ") || undefined,
           },
         }).catch(() => {
           /* best-effort; the webhook records failures too */
@@ -365,12 +350,9 @@ function CreditsPage() {
 
   const handleSubscribe = async (plan: Plan) => {
     if (!active) return;
-    if (typeof window === "undefined" || !window.Razorpay) {
-      toast.error("Checkout not loaded yet. Refresh and try again.");
-      return;
-    }
     setPlanBusyId(plan.id);
     try {
+      await loadRazorpayScript();
       const order = await createPlanOrder({
         data: { companyId: active.company_id, planId: plan.id },
       });
@@ -397,7 +379,10 @@ function CreditsPage() {
               },
             });
             toast.success(`Switched to the ${order.planName} plan.`);
-            await Promise.all([refreshWallet(active.company_id), refreshEntitlements(active.company_id)]);
+            await Promise.all([
+              refreshWallet(active.company_id),
+              refreshEntitlements(active.company_id),
+            ]);
           } catch (e) {
             toast.error(e instanceof Error ? e.message : "Verification failed.");
           } finally {
@@ -412,7 +397,8 @@ function CreditsPage() {
           data: {
             razorpayOrderId: resp.error?.metadata?.order_id ?? order.orderId,
             razorpayPaymentId: resp.error?.metadata?.payment_id,
-            reason: [resp.error?.reason, resp.error?.description].filter(Boolean).join(": ") || undefined,
+            reason:
+              [resp.error?.reason, resp.error?.description].filter(Boolean).join(": ") || undefined,
           },
         }).catch(() => {
           /* best-effort; the webhook records failures too */
@@ -476,8 +462,12 @@ function CreditsPage() {
           <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary-foreground/80">
             <Coins className="h-3.5 w-3.5" /> Job Post credits
           </p>
-          <p className="mt-3 text-4xl font-black tabular-nums">{jobPostBalance.toLocaleString("en-IN")}</p>
-          <p className="mt-2 text-xs text-primary-foreground/80">Spent posting Classic/Trending jobs beyond your plan quota.</p>
+          <p className="mt-3 text-4xl font-black tabular-nums">
+            {jobPostBalance.toLocaleString("en-IN")}
+          </p>
+          <p className="mt-2 text-xs text-primary-foreground/80">
+            Spent posting Classic/Trending jobs beyond your plan quota.
+          </p>
           <p className="mt-2 text-[11px] font-medium text-primary-foreground/70">
             {expiryLabel(nearestExpiry.job_post)}
           </p>
@@ -486,8 +476,12 @@ function CreditsPage() {
           <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             <Coins className="h-3.5 w-3.5" /> Contact credits
           </p>
-          <p className="mt-3 text-4xl font-black tabular-nums text-foreground">{contactBalance.toLocaleString("en-IN")}</p>
-          <p className="mt-2 text-xs text-muted-foreground">Spent unlocking a candidate's contact once a job's free allowance runs out.</p>
+          <p className="mt-3 text-4xl font-black tabular-nums text-foreground">
+            {contactBalance.toLocaleString("en-IN")}
+          </p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Spent unlocking a candidate's contact once a job's free allowance runs out.
+          </p>
           <p className="mt-2 text-[11px] font-medium text-muted-foreground/80">
             {expiryLabel(nearestExpiry.contact)}
           </p>
@@ -496,8 +490,12 @@ function CreditsPage() {
           <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             <Coins className="h-3.5 w-3.5" /> Boost credits
           </p>
-          <p className="mt-3 text-4xl font-black tabular-nums text-foreground">{boostBalance.toLocaleString("en-IN")}</p>
-          <p className="mt-2 text-xs text-muted-foreground">Spent boosting a job's ranking for 24 hours.</p>
+          <p className="mt-3 text-4xl font-black tabular-nums text-foreground">
+            {boostBalance.toLocaleString("en-IN")}
+          </p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Spent boosting a job's ranking for 24 hours.
+          </p>
           <p className="mt-2 text-[11px] font-medium text-muted-foreground/80">
             {expiryLabel(nearestExpiry.boost)}
           </p>
@@ -512,8 +510,8 @@ function CreditsPage() {
         <header className="mb-4">
           <h2 className="text-lg font-bold text-foreground">Your plan</h2>
           <p className="text-sm text-muted-foreground">
-            Sets how many jobs you can keep live at once, monthly post quotas, and reposting.
-            Prices in INR, exclusive of GST.
+            Sets how many jobs you can keep live at once, monthly post quotas, and reposting. Prices
+            in INR, exclusive of GST.
           </p>
         </header>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -537,7 +535,11 @@ function CreditsPage() {
                 </p>
                 <p className="mt-2 text-2xl font-black text-foreground">
                   {isFree ? "Free" : `₹${plan.price_inr.toLocaleString("en-IN")}`}
-                  {!isFree && <span className="ml-1 text-sm font-semibold text-muted-foreground">/ 30 days + GST</span>}
+                  {!isFree && (
+                    <span className="ml-1 text-sm font-semibold text-muted-foreground">
+                      / 30 days + GST
+                    </span>
+                  )}
                 </p>
                 {!isFree && (
                   <p className="mt-0.5 text-xs text-muted-foreground">
@@ -545,18 +547,56 @@ function CreditsPage() {
                   </p>
                 )}
                 <ul className="mt-4 space-y-1.5 text-xs text-muted-foreground">
-                  <li>Live jobs at once: <span className="font-semibold text-foreground">{fmtLimit(plan.limits.live_jobs_max)}</span></li>
-                  <li>Job posts / month: <span className="font-semibold text-foreground">{fmtLimit(plan.limits.classic_posts_per_month)}</span></li>
-                  <li>Trending boosts / month: <span className="font-semibold text-foreground">{fmtLimit(plan.limits.trending_posts_per_month)}</span></li>
-                  <li>Reposting (Classic+): <span className="font-semibold text-foreground">{plan.limits.classic_plus_enabled ? "Yes" : "No"}</span></li>
-                  <li>Contact credits / month: <span className="font-semibold text-foreground">{fmtLimit(plan.limits.contact_credits_per_month)}</span></li>
-                  <li>Boost credits / month: <span className="font-semibold text-foreground">{fmtLimit(plan.limits.boost_credits_per_month)}</span></li>
-                  <li>Response history: <span className="font-semibold text-foreground">{fmtLimit(plan.limits.response_retention_days)} days</span></li>
+                  <li>
+                    Live jobs at once:{" "}
+                    <span className="font-semibold text-foreground">
+                      {fmtLimit(plan.limits.live_jobs_max)}
+                    </span>
+                  </li>
+                  <li>
+                    Job posts / month:{" "}
+                    <span className="font-semibold text-foreground">
+                      {fmtLimit(plan.limits.classic_posts_per_month)}
+                    </span>
+                  </li>
+                  <li>
+                    Trending boosts / month:{" "}
+                    <span className="font-semibold text-foreground">
+                      {fmtLimit(plan.limits.trending_posts_per_month)}
+                    </span>
+                  </li>
+                  <li>
+                    Reposting (Classic+):{" "}
+                    <span className="font-semibold text-foreground">
+                      {plan.limits.classic_plus_enabled ? "Yes" : "No"}
+                    </span>
+                  </li>
+                  <li>
+                    Contact credits / month:{" "}
+                    <span className="font-semibold text-foreground">
+                      {fmtLimit(plan.limits.contact_credits_per_month)}
+                    </span>
+                  </li>
+                  <li>
+                    Boost credits / month:{" "}
+                    <span className="font-semibold text-foreground">
+                      {fmtLimit(plan.limits.boost_credits_per_month)}
+                    </span>
+                  </li>
+                  <li>
+                    Response history:{" "}
+                    <span className="font-semibold text-foreground">
+                      {fmtLimit(plan.limits.response_retention_days)} days
+                    </span>
+                  </li>
                 </ul>
                 {isCurrent && entitlements?.subscribed && entitlements.plan_ends_at && (
                   <p className="mt-3 text-[11px] text-muted-foreground">
                     Renews/expires on{" "}
-                    {new Date(entitlements.plan_ends_at).toLocaleDateString("en-IN", { dateStyle: "medium" })}.
+                    {new Date(entitlements.plan_ends_at).toLocaleDateString("en-IN", {
+                      dateStyle: "medium",
+                    })}
+                    .
                   </p>
                 )}
                 {isCurrent ? (
@@ -629,10 +669,13 @@ function CreditsPage() {
                 <h2 className="text-lg font-bold text-foreground">{BENEFIT_LABELS[bt]} Packs</h2>
                 <p className="text-sm text-muted-foreground">
                   Prices in INR, exclusive of GST. 18% GST is added at checkout. Credits currently
-                  do not expire and are non-refundable once purchased, except where JobsKart
-                  rejects a job before it goes live.
+                  do not expire and are non-refundable once purchased, except where JobsKart rejects
+                  a job before it goes live.
                   {bt === "boost" && boostCost != null && (
-                    <> · Boosting a job costs {boostCost} credit{boostCost === 1 ? "" : "s"}.</>
+                    <>
+                      {" "}
+                      · Boosting a job costs {boostCost} credit{boostCost === 1 ? "" : "s"}.
+                    </>
                   )}
                 </p>
               </div>
@@ -665,7 +708,9 @@ function CreditsPage() {
                   <div className="mt-4">
                     <p className="text-2xl font-bold text-foreground">
                       ₹{p.price_inr.toLocaleString("en-IN")}
-                      <span className="ml-1 text-sm font-semibold text-muted-foreground">+ GST</span>
+                      <span className="ml-1 text-sm font-semibold text-muted-foreground">
+                        + GST
+                      </span>
                     </p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       ₹{formatInr(withGst(p.price_inr))} incl. 18% GST
@@ -719,7 +764,8 @@ function CreditsPage() {
         </div>
         <div className="overflow-hidden rounded-2xl border border-border bg-card">
           {(() => {
-            const filtered = txnFilter === "all" ? txns : txns.filter((t) => t.benefit_type === txnFilter);
+            const filtered =
+              txnFilter === "all" ? txns : txns.filter((t) => t.benefit_type === txnFilter);
             if (filtered.length === 0) {
               return (
                 <p className="p-8 text-center text-sm text-muted-foreground">
@@ -728,44 +774,48 @@ function CreditsPage() {
               );
             }
             return (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-surface/60 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  <tr>
-                    <th className="px-4 py-3">When</th>
-                    <th className="px-4 py-3">Type</th>
-                    <th className="px-4 py-3">Balance</th>
-                    <th className="px-4 py-3 text-right">Change</th>
-                    <th className="px-4 py-3 text-right">Balance after</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((t) => (
-                    <tr key={t.id} className="border-t border-border">
-                      <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
-                        {new Date(t.created_at).toLocaleString("en-IN", {
-                          dateStyle: "medium",
-                          timeStyle: "short",
-                        })}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3 font-medium text-foreground capitalize">{t.kind}</td>
-                      <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">{BENEFIT_LABELS[t.benefit_type]}</td>
-                      <td
-                        className={`whitespace-nowrap px-4 py-3 text-right font-semibold tabular-nums ${
-                          t.delta >= 0 ? "text-success" : "text-foreground"
-                        }`}
-                      >
-                        {t.delta >= 0 ? "+" : ""}
-                        {t.delta}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-right font-semibold tabular-nums text-foreground">
-                        {t.balance_after}
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-surface/60 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    <tr>
+                      <th className="px-4 py-3">When</th>
+                      <th className="px-4 py-3">Type</th>
+                      <th className="px-4 py-3">Balance</th>
+                      <th className="px-4 py-3 text-right">Change</th>
+                      <th className="px-4 py-3 text-right">Balance after</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {filtered.map((t) => (
+                      <tr key={t.id} className="border-t border-border">
+                        <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
+                          {new Date(t.created_at).toLocaleString("en-IN", {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          })}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 font-medium text-foreground capitalize">
+                          {t.kind}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
+                          {BENEFIT_LABELS[t.benefit_type]}
+                        </td>
+                        <td
+                          className={`whitespace-nowrap px-4 py-3 text-right font-semibold tabular-nums ${
+                            t.delta >= 0 ? "text-success" : "text-foreground"
+                          }`}
+                        >
+                          {t.delta >= 0 ? "+" : ""}
+                          {t.delta}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-right font-semibold tabular-nums text-foreground">
+                          {t.balance_after}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             );
           })()}
         </div>
@@ -792,7 +842,9 @@ function CreditsPage() {
         {showLedger && (
           <div className="mt-3 overflow-hidden rounded-2xl border border-border bg-card">
             {ledgerRows.length === 0 ? (
-              <p className="p-8 text-center text-sm text-muted-foreground">No ledger entries yet.</p>
+              <p className="p-8 text-center text-sm text-muted-foreground">
+                No ledger entries yet.
+              </p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -832,7 +884,9 @@ function CreditsPage() {
                           {row.delta >= 0 ? "+" : ""}
                           {row.delta}
                         </td>
-                        <td className="px-4 py-3 text-xs text-muted-foreground">{ledgerDetail(row)}</td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground">
+                          {ledgerDetail(row)}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

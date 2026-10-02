@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
+import { resetEmployerRoleCache } from "@/hooks/use-employer-role";
 
 export type SignupUserType = "candidate" | "employer";
 
@@ -51,10 +52,7 @@ export async function signUpCandidate(input: CandidateSignupInput) {
 
   // Best-effort: set city on profile after the trigger creates it.
   if (data.user) {
-    await supabase
-      .from("profiles")
-      .update({ city: input.city })
-      .eq("id", data.user.id);
+    await supabase.from("profiles").update({ city: input.city }).eq("id", data.user.id);
   }
   return data;
 }
@@ -107,8 +105,7 @@ export async function signUpEmployer(input: EmployerSignupInput) {
 }
 
 export async function signInWithGoogle(userType: SignupUserType = "candidate") {
-  const redirectBase =
-    typeof window !== "undefined" ? window.location.origin : undefined;
+  const redirectBase = typeof window !== "undefined" ? window.location.origin : undefined;
   const result = await lovable.auth.signInWithOAuth("google", {
     redirect_uri: redirectBase,
     extraParams: { prompt: "select_account" },
@@ -141,5 +138,6 @@ export async function updatePassword(newPassword: string) {
 
 export async function signOut() {
   const { error } = await supabase.auth.signOut();
+  resetEmployerRoleCache();
   if (error) throw error;
 }

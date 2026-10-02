@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
 import { ChevronDown, Loader2, Minus, Plus, RotateCcw, SlidersHorizontal } from "lucide-react";
 import type { ResumeLayoutSettings } from "@/lib/resumeBuilder/schema";
-import { ACCENT_SWATCHES, FONT_LABELS, MARGIN_PRESETS, type FontKey } from "@/lib/resumeBuilder/templates/theme";
+import {
+  ACCENT_SWATCHES,
+  FONT_LABELS,
+  MARGIN_PRESETS,
+  type FontKey,
+} from "@/lib/resumeBuilder/templates/theme";
 
 // LaTeX-style typesetting controls (geometry / enumitem / vspace equivalents).
 // Edits stay local until "Save changes" is clicked; only then do they reach the
@@ -26,7 +31,9 @@ function Segmented<T extends string>({
           type="button"
           onClick={() => onChange(o.value)}
           className={`px-2.5 py-1 text-xs font-medium ${
-            value === o.value ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-surface"
+            value === o.value
+              ? "bg-primary text-primary-foreground"
+              : "bg-background text-muted-foreground hover:bg-surface"
           }`}
         >
           {o.label}
@@ -52,14 +59,29 @@ function Stepper({
   onChange: (n: number) => void;
 }) {
   const clamp = (n: number) => Math.round(Math.min(max, Math.max(min, n)) * 100) / 100;
-  const btn = "grid h-7 w-7 place-items-center rounded-md border border-border bg-background text-muted-foreground hover:bg-surface disabled:opacity-40";
+  const btn =
+    "grid h-7 w-7 place-items-center rounded-md border border-border bg-background text-muted-foreground hover:bg-surface disabled:opacity-40";
   return (
     <div className="inline-flex items-center gap-1.5">
-      <button type="button" className={btn} disabled={value <= min} onClick={() => onChange(clamp(value - step))} aria-label="Decrease">
+      <button
+        type="button"
+        className={btn}
+        disabled={value <= min}
+        onClick={() => onChange(clamp(value - step))}
+        aria-label="Decrease"
+      >
         <Minus className="h-3.5 w-3.5" />
       </button>
-      <span className="w-12 text-center text-xs font-semibold tabular-nums text-foreground">{format ? format(value) : value}</span>
-      <button type="button" className={btn} disabled={value >= max} onClick={() => onChange(clamp(value + step))} aria-label="Increase">
+      <span className="w-12 text-center text-xs font-semibold tabular-nums text-foreground">
+        {format ? format(value) : value}
+      </span>
+      <button
+        type="button"
+        className={btn}
+        disabled={value >= max}
+        onClick={() => onChange(clamp(value + step))}
+        aria-label="Increase"
+      >
         <Plus className="h-3.5 w-3.5" />
       </button>
     </div>
@@ -68,7 +90,15 @@ function Stepper({
 
 // Margin box that can be cleared while typing (a plain controlled number input
 // snaps back to 0 the moment it's emptied, making it impossible to retype).
-function MarginInput({ label, value, onCommit }: { label: string; value: number; onCommit: (n: number) => void }) {
+function MarginInput({
+  label,
+  value,
+  onCommit,
+}: {
+  label: string;
+  value: number;
+  onCommit: (n: number) => void;
+}) {
   const [text, setText] = useState(String(value));
   useEffect(() => {
     if (Number(text) !== value) setText(String(value));
@@ -84,9 +114,12 @@ function MarginInput({ label, value, onCommit }: { label: string; value: number;
         value={text}
         onChange={(e) => {
           setText(e.target.value);
-          if (e.target.value !== "" && Number.isFinite(Number(e.target.value))) onCommit(Number(e.target.value));
+          if (e.target.value !== "" && Number.isFinite(Number(e.target.value)))
+            onCommit(Number(e.target.value));
         }}
-        onBlur={() => { if (text === "") setText(String(value)); }}
+        onBlur={() => {
+          if (text === "") setText(String(value));
+        }}
         className="form-input mt-0.5 h-8 w-full py-0 text-xs"
       />
     </label>
@@ -106,16 +139,21 @@ export function ResumeLayoutEditor({
   value,
   onChange,
   onReset,
-  dirty,
-  saving,
+  dirty = false,
+  saving = false,
   onSave,
+  hideActions = false,
+  className = "",
 }: {
   value: ResumeLayoutSettings;
   onChange: (next: ResumeLayoutSettings) => void;
-  onReset: () => void;
-  dirty: boolean;
-  saving: boolean;
-  onSave: () => void;
+  onReset?: () => void;
+  dirty?: boolean;
+  saving?: boolean;
+  onSave?: () => void;
+  // When the caller already renders its own Save/Reset bar (e.g. the edit drawer), skip this one.
+  hideActions?: boolean;
+  className?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [hexDraft, setHexDraft] = useState(value.accentColor);
@@ -124,7 +162,9 @@ export function ResumeLayoutEditor({
   const set = (patch: Partial<ResumeLayoutSettings>) => onChange({ ...value, ...patch });
 
   const currentMargins =
-    value.marginPreset === "custom" && value.margins ? value.margins : MARGIN_PRESETS[value.marginPreset === "custom" ? "standard" : value.marginPreset];
+    value.marginPreset === "custom" && value.margins
+      ? value.margins
+      : MARGIN_PRESETS[value.marginPreset === "custom" ? "standard" : value.marginPreset];
   const setMargin = (side: keyof typeof currentMargins, n: number) => {
     const v = Math.min(120, Math.max(0, Number.isFinite(n) ? n : 0));
     set({ marginPreset: "custom", margins: { ...currentMargins, [side]: v } });
@@ -136,13 +176,24 @@ export function ResumeLayoutEditor({
   };
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-      <button type="button" onClick={() => setOpen((o) => !o)} className="flex w-full items-center justify-between text-left" aria-expanded={open}>
+    <section className={`rounded-2xl border border-border bg-card p-5 shadow-sm ${className}`}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center justify-between text-left"
+        aria-expanded={open}
+      >
         <span className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
           <SlidersHorizontal className="h-4 w-4" /> Layout &amp; Design
-          {dirty && <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-semibold normal-case tracking-normal text-warning">Unsaved</span>}
+          {dirty && (
+            <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-semibold normal-case tracking-normal text-warning">
+              Unsaved
+            </span>
+          )}
         </span>
-        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+        <ChevronDown
+          className={`h-4 w-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+        />
       </button>
 
       {open && (
@@ -151,7 +202,13 @@ export function ResumeLayoutEditor({
             <Row label="Margins">
               <Segmented
                 value={value.marginPreset}
-                onChange={(v) => set(v === "custom" ? { marginPreset: "custom", margins: currentMargins } : { marginPreset: v, margins: undefined })}
+                onChange={(v) =>
+                  set(
+                    v === "custom"
+                      ? { marginPreset: "custom", margins: currentMargins }
+                      : { marginPreset: v, margins: undefined },
+                  )
+                }
                 options={[
                   { value: "compact", label: "Compact" },
                   { value: "standard", label: "Standard" },
@@ -163,11 +220,18 @@ export function ResumeLayoutEditor({
             {value.marginPreset === "custom" && (
               <div className="mt-2 grid grid-cols-4 gap-2">
                 {(["top", "bottom", "left", "right"] as const).map((side) => (
-                  <MarginInput key={side} label={side} value={currentMargins[side]} onCommit={(n) => setMargin(side, n)} />
+                  <MarginInput
+                    key={side}
+                    label={side}
+                    value={currentMargins[side]}
+                    onCommit={(n) => setMargin(side, n)}
+                  />
                 ))}
               </div>
             )}
-            <p className="mt-1 text-[10px] text-muted-foreground">Page margins in points (72pt = 1 inch).</p>
+            <p className="mt-1 text-[10px] text-muted-foreground">
+              Page margins in points (72pt = 1 inch).
+            </p>
           </div>
 
           <Row label="Font">
@@ -177,21 +241,44 @@ export function ResumeLayoutEditor({
               className="form-input h-8 w-auto py-0 text-xs"
             >
               {(Object.keys(FONT_LABELS) as FontKey[]).map((k) => (
-                <option key={k} value={k}>{FONT_LABELS[k]}</option>
+                <option key={k} value={k}>
+                  {FONT_LABELS[k]}
+                </option>
               ))}
             </select>
           </Row>
 
           <Row label="Font size">
-            <Stepper value={value.baseFontSize} min={8} max={14} step={0.5} format={(n) => `${n}pt`} onChange={(n) => set({ baseFontSize: n })} />
+            <Stepper
+              value={value.baseFontSize}
+              min={8}
+              max={14}
+              step={0.5}
+              format={(n) => `${n}pt`}
+              onChange={(n) => set({ baseFontSize: n })}
+            />
           </Row>
 
           <Row label="Line spacing">
-            <Stepper value={value.lineHeightScale} min={0.8} max={1.6} step={0.05} format={(n) => `×${n.toFixed(2)}`} onChange={(n) => set({ lineHeightScale: n })} />
+            <Stepper
+              value={value.lineHeightScale}
+              min={0.8}
+              max={1.6}
+              step={0.05}
+              format={(n) => `×${n.toFixed(2)}`}
+              onChange={(n) => set({ lineHeightScale: n })}
+            />
           </Row>
 
           <Row label="Section spacing">
-            <Stepper value={value.sectionSpacingScale} min={0.6} max={1.8} step={0.1} format={(n) => `×${n.toFixed(1)}`} onChange={(n) => set({ sectionSpacingScale: n })} />
+            <Stepper
+              value={value.sectionSpacingScale}
+              min={0.6}
+              max={1.8}
+              step={0.1}
+              format={(n) => `×${n.toFixed(1)}`}
+              onChange={(n) => set({ sectionSpacingScale: n })}
+            />
           </Row>
 
           <Row label="Section headings">
@@ -216,7 +303,9 @@ export function ResumeLayoutEditor({
                     title={c.label}
                     onClick={() => pickAccent(c.value)}
                     className={`h-5 w-5 rounded-full border-2 ${
-                      value.accentColor.toLowerCase() === c.value.toLowerCase() ? "border-foreground" : "border-transparent ring-1 ring-border"
+                      value.accentColor.toLowerCase() === c.value.toLowerCase()
+                        ? "border-foreground"
+                        : "border-transparent ring-1 ring-border"
                     }`}
                     style={{ backgroundColor: c.value }}
                   />
@@ -236,24 +325,38 @@ export function ResumeLayoutEditor({
                 className={`form-input h-8 w-24 py-0 text-xs ${HEX.test(hexDraft) ? "" : "border-destructive"}`}
               />
             </div>
-            <p className="mt-1 text-[10px] text-muted-foreground">Used for the header band, heading text or underline, and links.</p>
+            <p className="mt-1 text-[10px] text-muted-foreground">
+              Used for the header band, heading text or underline, and links.
+            </p>
           </div>
 
-          <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
-            <button type="button" onClick={onReset} className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline">
-              <RotateCcw className="h-3.5 w-3.5" /> Reset to defaults
-            </button>
-            <button
-              type="button"
-              onClick={onSave}
-              disabled={!dirty || saving}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 disabled:opacity-50"
-            >
-              {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-              {saving ? "Saving…" : "Save changes"}
-            </button>
-          </div>
-          {dirty && <p className="text-[11px] text-warning">You have unsaved layout changes — click Save changes to update the preview.</p>}
+          {!hideActions && (
+            <>
+              <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
+                <button
+                  type="button"
+                  onClick={onReset}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" /> Reset to defaults
+                </button>
+                <button
+                  type="button"
+                  onClick={onSave}
+                  disabled={!dirty || saving}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 disabled:opacity-50"
+                >
+                  {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  {saving ? "Saving…" : "Save changes"}
+                </button>
+              </div>
+              {dirty && (
+                <p className="text-[11px] text-warning">
+                  You have unsaved layout changes — click Save changes to update the preview.
+                </p>
+              )}
+            </>
+          )}
         </div>
       )}
     </section>

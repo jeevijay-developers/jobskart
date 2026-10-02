@@ -522,6 +522,11 @@ async function insertCourseModules(
   // FK ON DELETE CASCADE takes lessons with their module.
   await supabase.from("course_modules").delete().eq("course_id", courseId);
   for (const [position, mod] of modules.entries()) {
+    // .select("id"), not .select(): course_modules has body_md/video_url/quiz
+    // locked down to a column-level SELECT allow-list that excludes them (see
+    // 20260930150000/1) — a plain .select() requests RETURNING * and fails with
+    // "permission denied for table course_modules" even though the admin RLS
+    // policy allows the write itself. Only the id is needed for the lessons' FK.
     const { data: moduleRow, error: moduleError } = await supabase
       .from("course_modules")
       .insert({
@@ -535,7 +540,7 @@ async function insertCourseModules(
         free_preview: mod.freePreview,
         duration_minutes: mod.durationMinutes ?? null,
       })
-      .select()
+      .select("id")
       .single();
     if (moduleError) throw new Error(moduleError.message);
 
