@@ -25,6 +25,8 @@ export async function sendEmail(opts: {
     return { ok: false, error: "RESEND_API_KEY not configured" };
   }    
   const from = Deno.env.get("RESEND_FROM_EMAIL") || DEFAULT_FROM;
+  // Resend's shared sandbox sender can only deliver to the Resend account owner's own address.
+  const usingSandboxSender = from.toLowerCase().includes("@resend.dev");
 
   try {
     const res = await fetch(RESEND_API_URL, {
@@ -38,7 +40,11 @@ export async function sendEmail(opts: {
     if (!res.ok) {
       const body = await res.text();
       console.error("[resend] send failed", res.status, body);
-      return { ok: false, error: `Resend ${res.status}: ${body}` };
+      const hint =
+        usingSandboxSender && res.status === 403
+          ? " (Sending from Resend's sandbox address, which can only email the Resend account owner. Verify a domain at resend.com/domains and set the RESEND_FROM_EMAIL Edge Function secret to an address on it.)"
+          : "";
+      return { ok: false, error: `Resend ${res.status}: ${body}${hint}` };
     }
     return { ok: true };
   } catch (e) {

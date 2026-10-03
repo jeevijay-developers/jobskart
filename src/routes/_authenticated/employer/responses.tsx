@@ -389,13 +389,13 @@ function ResponsesPage() {
   };
 
   const loadAi = async (refresh = false) => {
-    if (!jobFilter) {
-      toast.error("Pick a job to get AI recommendations.");
-      return;
-    }
+    // "All jobs" (empty jobFilter) is a valid selection: rank across the company's jobs.
+    if (!jobFilter && !cid) return;
     setAiLoading(true);
     try {
-      const data = await recommend({ data: { jobId: jobFilter, refresh } });
+      const data = await recommend({
+        data: jobFilter ? { jobId: jobFilter, refresh } : { companyId: cid!, refresh },
+      });
       setAiRows(data as AiRow[]);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "AI failed");
@@ -405,9 +405,9 @@ function ResponsesPage() {
   };
 
   useEffect(() => {
-    if (tab === "ai" && jobFilter) loadAi(false);
+    if (tab === "ai" && (jobFilter || cid)) loadAi(false);
     // eslint-disable-next-line
-  }, [tab, jobFilter]);
+  }, [tab, jobFilter, cid]);
 
   // Job-specific AI recommendations quick-action: when a job is selected,
   // surface how many database candidates match it but haven't applied yet.
@@ -606,7 +606,7 @@ function ResponsesPage() {
           <>
             <button
               onClick={() => loadAi(true)}
-              disabled={!jobFilter || aiLoading}
+              disabled={aiLoading}
               className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-primary bg-primary-light px-3 text-xs font-semibold text-primary disabled:opacity-50"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${aiLoading ? "animate-spin" : ""}`} /> Re-rank
@@ -625,7 +625,7 @@ function ResponsesPage() {
               />
               <button
                 onClick={shortlistTopN}
-                disabled={!jobFilter || aiLoading || eligibleAiRows.length === 0}
+                disabled={aiLoading || eligibleAiRows.length === 0}
                 className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-success px-3 text-xs font-semibold text-success-foreground disabled:opacity-50"
               >
                 <CheckCircle2 className="h-3.5 w-3.5" /> Shortlist top {shortlistN}
@@ -824,14 +824,7 @@ function ResponsesPage() {
         </>
       ) : (
         <>
-          {!jobFilter ? (
-            <div className="rounded-2xl border border-dashed border-border bg-surface p-10 text-center">
-              <Filter className="mx-auto mb-2 h-5 w-5 text-muted-foreground" />
-              <p className="text-sm font-semibold">
-                Pick a job in Filter above to see AI-ranked candidates.
-              </p>
-            </div>
-          ) : aiLoading && aiRows.length === 0 ? (
+          {aiLoading && aiRows.length === 0 ? (
             <div className="h-64 animate-pulse rounded-2xl bg-card" />
           ) : filteredAiRows.length === 0 ? (
             <EmptyResponses

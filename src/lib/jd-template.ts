@@ -257,6 +257,35 @@ export function buildJd(input: JdInput): { markdown: string; html: string } {
   return { markdown: md.join("\n"), html: html.join("") };
 }
 
+/**
+ * Renders the markdown subset buildJd() emits (**bold**, "- " bullets, one paragraph
+ * per line) as the same kind of HTML, so edited/polished text can refresh the preview,
+ * PDF and published description_html instead of leaving the old template HTML behind.
+ */
+export function markdownToHtml(md: string): string {
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const inline = (s: string) => esc(s).replace(/[*][*]([^*]+)[*][*]/g, "<strong>$1</strong>");
+  const out: string[] = [];
+  let items: string[] = [];
+  const flush = () => {
+    if (items.length) out.push(`<ul>${items.map((i) => `<li>${i}</li>`).join("")}</ul>`);
+    items = [];
+  };
+  for (const raw of md.split("\n")) {
+    const line = raw.trim();
+    if (!line) {
+      flush();
+    } else if (line.startsWith("- ") || line.startsWith("* ")) {
+      items.push(inline(line.slice(2)));
+    } else {
+      flush();
+      out.push(`<p>${inline(line)}</p>`);
+    }
+  }
+  flush();
+  return out.join("");
+}
+
 export function earningPotentialLabel(input: Pick<JdInput, "payType" | "minSalary" | "maxSalary" | "avgIncentive">) {
   if (input.payType !== "fixed_incentive" || !input.avgIncentive) return null;
   const hi = (input.maxSalary || input.minSalary || 0) + input.avgIncentive;

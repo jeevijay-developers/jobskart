@@ -106,16 +106,6 @@ type RecommendedCandidate = {
   total_count: number;
 };
 
-type AIDigest = {
-  total_matches: number;
-  hot_count: number;
-  nearby_count: number;
-  active_count: number;
-  top_job_id: string | null;
-  top_job_title: string | null;
-  top_job_matches: number | null;
-};
-
 function maskName(name: string | null) {
   if (!name) return "Candidate";
   const parts = name.trim().split(" ");
@@ -155,7 +145,6 @@ function DatabasePage() {
     });
   };
   const [aiFilter, setAiFilter] = useState<"all" | "hot" | "nearby" | "active">("all");
-  const [aiDigest, setAiDigest] = useState<AIDigest | null>(null);
   const [recommendedCandidates, setRecommendedCandidates] = useState<RecommendedCandidate[]>([]);
   const [loadingRecommended, setLoadingRecommended] = useState(false);
   const [invitingId, setInvitingId] = useState<string | null>(null);
@@ -217,19 +206,9 @@ function DatabasePage() {
     })();
   }, []);
 
-  // Fetch AI Digest summary
-  useEffect(() => {
-    if (!active?.company_id) return;
-    supabase
-      .rpc("get_recommended_candidates_digest", { _company_id: active.company_id })
-      .then(({ data, error }) => {
-        if (!error && data && data.length > 0) {
-          setAiDigest(data[0] as AIDigest);
-        }
-      });
-  }, [active?.company_id]);
-
-  // Fetch Active Hiring Intelligence recommended candidates when job or filter changes
+  // Fetch Active Hiring Intelligence recommended candidates when the job changes. The
+  // unfiltered set is fetched once; the Hot/Nearby/Recently Active lists AND their badge
+  // counts below are all derived from this same array so they can never disagree.
   useEffect(() => {
     if (!selectedJobId || !active) return;
     let cancelled = false;
@@ -241,7 +220,6 @@ function DatabasePage() {
         _limit: 40,
         _offset: 0,
         _min_score: 40,
-        _filter: aiFilter === "all" ? undefined : aiFilter,
       })
       .then(({ data, error }) => {
         if (cancelled) return;
@@ -254,7 +232,7 @@ function DatabasePage() {
     return () => {
       cancelled = true;
     };
-  }, [selectedJobId, active, aiFilter]);
+  }, [selectedJobId, active]);
 
   const {
     rows: results,
@@ -540,7 +518,13 @@ function DatabasePage() {
       ? `Unlock · uses 1 of ${selectedJobMeta.allowanceLeft} left on this job`
       : "Unlock · job allowance used up, costs credits";
 
-  const visibleRecommended = recommendedCandidates.filter((c) => !dismissedSet.has(c.user_id));
+  const matchedRecommended = recommendedCandidates.filter((c) => !dismissedSet.has(c.user_id));
+  const AI_FILTER_TAG = { hot: "Hot Profile", nearby: "Nearby Candidate", active: "Recently Active" } as const;
+  const tagCount = (tag: string) => matchedRecommended.filter((c) => c.tags?.includes(tag)).length;
+  const visibleRecommended =
+    aiFilter === "all"
+      ? matchedRecommended
+      : matchedRecommended.filter((c) => c.tags?.includes(AI_FILTER_TAG[aiFilter]));
 
   return (
     <EmployerShell
@@ -649,7 +633,7 @@ function DatabasePage() {
           >
             <Sparkles className="h-4 w-4" />
             Active Hiring Intelligence
-            {visibleRecommended.length > 0 && (
+            {matchedRecommended.length > 0 && (
               <span
                 className={`ml-1 rounded-full px-2 py-0.5 text-[11px] font-extrabold ${
                   searchMode === "ai"
@@ -657,7 +641,7 @@ function DatabasePage() {
                     : "bg-primary text-primary-foreground"
                 }`}
               >
-                {visibleRecommended.length}
+                {matchedRecommended.length}
               </span>
             )}
           </button>
@@ -677,18 +661,18 @@ function DatabasePage() {
                 AI Powered
               </span>
             </div>
-            {searchMode === "all" && visibleRecommended.length > 0 && (
+            {searchMode === "all" && matchedRecommended.length > 0 && (
               <button
                 type="button"
                 onClick={() => setSearchMode("ai")}
                 className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:underline"
               >
-                View {visibleRecommended.length} AI matches →
+                View {matchedRecommended.length} AI matches →
               </button>
             )}
           </div>
           <p className="mt-2 text-sm text-foreground">
-            <strong>{visibleRecommended.length} candidates</strong> match your selected job criteria but haven't applied yet.
+            <strong>{matchedRecommended.length} candidates</strong> match your selected job criteria but haven't applied yet.
           </p>
 
           {/* Quick AI Filter Pills */}
@@ -705,7 +689,7 @@ function DatabasePage() {
                   : "bg-card border border-border text-foreground hover:bg-surface"
               }`}
             >
-              All Matches ({visibleRecommended.length})
+              All Matches ({matchedRecommended.length})
             </button>
             <button
               type="button"
@@ -719,7 +703,7 @@ function DatabasePage() {
                   : "bg-[#fff3e0] text-orange-600 hover:bg-orange-100"
               }`}
             >
-              <Flame className="h-3 w-3" /> Hot Profiles ({aiDigest?.hot_count ?? 0})
+              <Flame className="h-3 w-3" /> Hot Profiles ({tagCount(AI_FILTER_TAG.hot)})
             </button>
             <button
               type="button"
@@ -733,7 +717,7 @@ function DatabasePage() {
                   : "bg-blue-50 text-blue-600 hover:bg-blue-100"
               }`}
             >
-              <MapPin className="h-3 w-3" /> Nearby ({aiDigest?.nearby_count ?? 0})
+              <MapPin className="h-3 w-3" /> Nearby ({tagCount(AI_FILTER_TAG.nearby)})
             </button>
             <button
               type="button"
@@ -747,7 +731,7 @@ function DatabasePage() {
                   : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
               }`}
             >
-              <Zap className="h-3 w-3" /> Recently Active ({aiDigest?.active_count ?? 0})
+              <Zap className="h-3 w-3" /> Recently Active ({tagCount(AI_FILTER_TAG.active)})
             </button>
           </div>
         </div>

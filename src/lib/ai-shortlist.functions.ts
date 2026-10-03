@@ -10,10 +10,18 @@ import {
 } from "@/lib/ai/jev-shortlist-gate";
 
 
-const input = z.object({
-  jobId: z.string().uuid(),
-  refresh: z.boolean().optional().default(false),
-});
+// jobId → rank that job's applicants; companyId only ("All jobs") → rank every job of that company.
+const input = z
+  .object({
+    jobId: z.string().uuid().optional(),
+    companyId: z.string().uuid().optional(),
+    refresh: z.boolean().optional().default(false),
+  })
+  .refine((d) => d.jobId || d.companyId, { message: "jobId or companyId is required" });
+
+// "All jobs" scores each job separately (one AI pass per job); cap it to the most recent jobs.
+const ALL_JOBS_LIMIT = 20;
+const ALL_JOBS_CONCURRENCY = 3;
 
 const AiScoreResponse = z.object({
   results: z
@@ -87,8 +95,10 @@ export const recommendShortlist = createServerFn({ method: "POST" })
   .validator((d: unknown) => input.parse(d))
   .handler(async ({ data, context }): Promise<ScoreRow[]> => {
     const { supabase, userId } = context;
-    const { jobId, refresh } = data;
+    const { refresh } = data;
 
+    // Ranks one job's applicants (the original single-job flow, unchanged).
+    const rankJob = async (jobId: string): Promise<ScoreRow[]> => {
     const { data: job } = await supabase
       .from("jobs")
       // Never add age_min/age_max/gender_pref here — see assertNoProtectedFields below.
@@ -112,6 +122,8 @@ export const recommendShortlist = createServerFn({ method: "POST" })
         "id, candidate_id, status, created_at, cover_note, expected_salary, available_from, profiles!candidate_id (full_name, city, avatar_url)",
       )
       .eq("job_id", jobId)
+      // Hired candidates are never part of an AI shortlist.
+      .neq("status", "hired")
       .order("created_at", { ascending: false })
       .limit(50);
     if (!apps?.length) return [];
@@ -301,4 +313,31 @@ part of the numeric formula.`;
       })
       .sort((a, b) => b.score - a.score);
     return rows;
+    };
+
+    if (data.jobId) return rankJob(data.jobId);
+
+    // "All jobs": rank the applicants of each of the company's jobs against that job, then merge.
+    const companyId = data.companyId!;
+    const { data: membership } = await supabase
+      .from("employer_members")
+      .select("user_id")
+      .eq("company_id", companyId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (!membership) throw new Error("Forbidden");
+
+    const { data: jobRows } = await supabase
+      .from("jobs")
+      .select("id")
+      .eq("company_id", companyId)
+      .order("created_at", { ascending: false })
+      .limit(ALL_JOBS_LIMIT);
+    const perJob = await mapPool(jobRows ?? [], ALL_JOBS_CONCURRENCY, (j) =>
+      rankJob(j.id).catch((e) => {
+        console.error("[ai-shortlist] job failed, skipping:", j.id, e);
+        return [] as ScoreRow[];
+      }),
+    );
+    return perJob.flat().sort((a, b) => b.score - a.score);
   });

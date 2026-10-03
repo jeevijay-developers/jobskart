@@ -19,6 +19,7 @@ export function ApplicantStatusMenu({ value, onChange, className }: Props) {
     <StateDropdown
       value={selected}
       options={APPLICANT_STATUSES.map((s) => s.label)}
+      menuMinWidth={136}
       onChange={(label) => {
         const next = APPLICANT_STATUSES.find((s) => s.label === label)?.id;
         if (next) onChange(next);
