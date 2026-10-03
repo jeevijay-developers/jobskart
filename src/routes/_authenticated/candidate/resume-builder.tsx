@@ -356,7 +356,23 @@ function ResumeBuilderPage() {
     setDownloadingVersionId(v.id);
     try {
       const { url } = await getVersionPdfUrl({ data: { versionNumber: v.version_number } });
-      window.open(url, "_blank", "noopener,noreferrer");
+      // Save the signed PDF in place instead of opening it in a new tab. A cross-origin
+      // link's `download` attribute is ignored, so fetch it and save the blob ourselves.
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const blobUrl = URL.createObjectURL(await res.blob());
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = `resume-v${v.version_number}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(blobUrl);
+      } catch {
+        // Fetch blocked (e.g. CORS): fall back to the previous behaviour so a download is never lost.
+        window.open(url, "_blank", "noopener,noreferrer");
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Couldn't get a download link");
     } finally {
