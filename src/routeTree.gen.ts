@@ -36,6 +36,7 @@ import { Route as AdminPlansRouteImport } from './routes/admin/plans'
 import { Route as AdminResumesRouteImport } from './routes/admin/resumes'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminVerificationsRouteImport } from './routes/admin/verifications'
+import { Route as AdminWhatsappRouteImport } from './routes/admin/whatsapp'
 import { Route as ApiResumeBuilderRouteImport } from './routes/api/resume-builder'
 import { Route as CSlugRouteImport } from './routes/c.$slug'
 import { Route as CandidateLoginRouteImport } from './routes/candidate.login'
@@ -68,6 +69,7 @@ import { Route as AuthenticatedEmployerInterviewsRouteImport } from './routes/_a
 import { Route as AuthenticatedEmployerJobsRouteImport } from './routes/_authenticated/employer/jobs'
 import { Route as AuthenticatedEmployerReportsRouteImport } from './routes/_authenticated/employer/reports'
 import { Route as AuthenticatedEmployerResponsesRouteImport } from './routes/_authenticated/employer/responses'
+import { Route as AuthenticatedEmployerSettingsRouteImport } from './routes/_authenticated/employer/settings'
 import { Route as AuthenticatedEmployerTeamRouteImport } from './routes/_authenticated/employer/team'
 import { Route as AuthenticatedEmployerVerificationRouteImport } from './routes/_authenticated/employer/verification'
 import { Route as AuthenticatedOnboardingCandidateRouteImport } from './routes/_authenticated/onboarding/candidate'
@@ -84,6 +86,7 @@ import { Route as AuthenticatedEmployerJobsBulkRouteImport } from './routes/_aut
 import { Route as AuthenticatedEmployerJobsNewRouteImport } from './routes/_authenticated/employer/jobs.new'
 import { Route as AuthenticatedEmployerLearningCornerSlugRouteImport } from './routes/_authenticated/employer/learning-corner.$slug'
 import { Route as ApiPublicWebhooksRazorpayRouteImport } from './routes/api/public/webhooks/razorpay'
+import { Route as ApiPublicWebhooksWhatsappRouteImport } from './routes/api/public/webhooks/whatsapp'
 import { Route as LearnCertificationSlugExamRouteImport } from './routes/learn_.certification.$slug_.exam'
 import { Route as AuthenticatedCandidateLearningCertificationSlugRouteImport } from './routes/_authenticated/candidate/learning_.certification.$slug'
 import { Route as AuthenticatedCandidateLearningCourseSlugRouteImport } from './routes/_authenticated/candidate/learning_.course.$slug'
@@ -227,6 +230,11 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
 const AdminVerificationsRoute = AdminVerificationsRouteImport.update({
   id: '/verifications',
   path: '/verifications',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminWhatsappRoute = AdminWhatsappRouteImport.update({
+  id: '/whatsapp',
+  path: '/whatsapp',
   getParentRoute: () => AdminRouteRoute,
 } as any)
 const ApiResumeBuilderRoute = ApiResumeBuilderRouteImport.update({
@@ -410,6 +418,12 @@ const AuthenticatedEmployerResponsesRoute =
     path: '/employer/responses',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedEmployerSettingsRoute =
+  AuthenticatedEmployerSettingsRouteImport.update({
+    id: '/employer/settings',
+    path: '/employer/settings',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedEmployerTeamRoute =
   AuthenticatedEmployerTeamRouteImport.update({
     id: '/employer/team',
@@ -503,6 +517,12 @@ const ApiPublicWebhooksRazorpayRoute =
     path: '/api/public/webhooks/razorpay',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicWebhooksWhatsappRoute =
+  ApiPublicWebhooksWhatsappRouteImport.update({
+    id: '/api/public/webhooks/whatsapp',
+    path: '/api/public/webhooks/whatsapp',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const LearnCertificationSlugExamRoute =
   LearnCertificationSlugExamRouteImport.update({
     id: '/learn_/certification/$slug_/exam',
@@ -578,6 +598,7 @@ export interface FileRoutesByFullPath {
   '/admin/resumes': typeof AdminResumesRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/verifications': typeof AdminVerificationsRoute
+  '/admin/whatsapp': typeof AdminWhatsappRoute
   '/api/resume-builder': typeof ApiResumeBuilderRoute
   '/c/$slug': typeof CSlugRoute
   '/candidate/login': typeof CandidateLoginRoute
@@ -611,6 +632,7 @@ export interface FileRoutesByFullPath {
   '/employer/jobs': typeof AuthenticatedEmployerJobsRouteWithChildren
   '/employer/reports': typeof AuthenticatedEmployerReportsRoute
   '/employer/responses': typeof AuthenticatedEmployerResponsesRoute
+  '/employer/settings': typeof AuthenticatedEmployerSettingsRoute
   '/employer/team': typeof AuthenticatedEmployerTeamRoute
   '/employer/verification': typeof AuthenticatedEmployerVerificationRoute
   '/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
@@ -626,6 +648,7 @@ export interface FileRoutesByFullPath {
   '/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
   '/employer/learning-corner/$slug': typeof AuthenticatedEmployerLearningCornerSlugRoute
   '/api/public/webhooks/razorpay': typeof ApiPublicWebhooksRazorpayRoute
+  '/api/public/webhooks/whatsapp': typeof ApiPublicWebhooksWhatsappRoute
   '/learn/certification/$slug/exam': typeof LearnCertificationSlugExamRoute
   '/candidate/interview-prep/': typeof AuthenticatedCandidateInterviewPrepIndexRoute
   '/candidate/learning/certification/$slug': typeof AuthenticatedCandidateLearningCertificationSlugRoute
@@ -661,6 +684,7 @@ export interface FileRoutesByTo {
   '/admin/resumes': typeof AdminResumesRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/verifications': typeof AdminVerificationsRoute
+  '/admin/whatsapp': typeof AdminWhatsappRoute
   '/api/resume-builder': typeof ApiResumeBuilderRoute
   '/c/$slug': typeof CSlugRoute
   '/candidate/login': typeof CandidateLoginRoute
@@ -694,6 +718,7 @@ export interface FileRoutesByTo {
   '/employer/jobs': typeof AuthenticatedEmployerJobsRouteWithChildren
   '/employer/reports': typeof AuthenticatedEmployerReportsRoute
   '/employer/responses': typeof AuthenticatedEmployerResponsesRoute
+  '/employer/settings': typeof AuthenticatedEmployerSettingsRoute
   '/employer/team': typeof AuthenticatedEmployerTeamRoute
   '/employer/verification': typeof AuthenticatedEmployerVerificationRoute
   '/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
@@ -709,6 +734,7 @@ export interface FileRoutesByTo {
   '/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
   '/employer/learning-corner/$slug': typeof AuthenticatedEmployerLearningCornerSlugRoute
   '/api/public/webhooks/razorpay': typeof ApiPublicWebhooksRazorpayRoute
+  '/api/public/webhooks/whatsapp': typeof ApiPublicWebhooksWhatsappRoute
   '/learn/certification/$slug/exam': typeof LearnCertificationSlugExamRoute
   '/candidate/interview-prep': typeof AuthenticatedCandidateInterviewPrepIndexRoute
   '/candidate/learning/certification/$slug': typeof AuthenticatedCandidateLearningCertificationSlugRoute
@@ -747,6 +773,7 @@ export interface FileRoutesById {
   '/admin/resumes': typeof AdminResumesRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/verifications': typeof AdminVerificationsRoute
+  '/admin/whatsapp': typeof AdminWhatsappRoute
   '/api/resume-builder': typeof ApiResumeBuilderRoute
   '/c/$slug': typeof CSlugRoute
   '/candidate/login': typeof CandidateLoginRoute
@@ -780,6 +807,7 @@ export interface FileRoutesById {
   '/_authenticated/employer/jobs': typeof AuthenticatedEmployerJobsRouteWithChildren
   '/_authenticated/employer/reports': typeof AuthenticatedEmployerReportsRoute
   '/_authenticated/employer/responses': typeof AuthenticatedEmployerResponsesRoute
+  '/_authenticated/employer/settings': typeof AuthenticatedEmployerSettingsRoute
   '/_authenticated/employer/team': typeof AuthenticatedEmployerTeamRoute
   '/_authenticated/employer/verification': typeof AuthenticatedEmployerVerificationRoute
   '/_authenticated/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
@@ -795,6 +823,7 @@ export interface FileRoutesById {
   '/_authenticated/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
   '/_authenticated/employer/learning-corner/$slug': typeof AuthenticatedEmployerLearningCornerSlugRoute
   '/api/public/webhooks/razorpay': typeof ApiPublicWebhooksRazorpayRoute
+  '/api/public/webhooks/whatsapp': typeof ApiPublicWebhooksWhatsappRoute
   '/learn_/certification/$slug_/exam': typeof LearnCertificationSlugExamRoute
   '/_authenticated/candidate/interview-prep/': typeof AuthenticatedCandidateInterviewPrepIndexRoute
   '/_authenticated/candidate/learning_/certification/$slug': typeof AuthenticatedCandidateLearningCertificationSlugRoute
@@ -833,6 +862,7 @@ export interface FileRouteTypes {
     | '/admin/resumes'
     | '/admin/users'
     | '/admin/verifications'
+    | '/admin/whatsapp'
     | '/api/resume-builder'
     | '/c/$slug'
     | '/candidate/login'
@@ -866,6 +896,7 @@ export interface FileRouteTypes {
     | '/employer/jobs'
     | '/employer/reports'
     | '/employer/responses'
+    | '/employer/settings'
     | '/employer/team'
     | '/employer/verification'
     | '/onboarding/candidate'
@@ -881,6 +912,7 @@ export interface FileRouteTypes {
     | '/employer/jobs/new'
     | '/employer/learning-corner/$slug'
     | '/api/public/webhooks/razorpay'
+    | '/api/public/webhooks/whatsapp'
     | '/learn/certification/$slug/exam'
     | '/candidate/interview-prep/'
     | '/candidate/learning/certification/$slug'
@@ -916,6 +948,7 @@ export interface FileRouteTypes {
     | '/admin/resumes'
     | '/admin/users'
     | '/admin/verifications'
+    | '/admin/whatsapp'
     | '/api/resume-builder'
     | '/c/$slug'
     | '/candidate/login'
@@ -949,6 +982,7 @@ export interface FileRouteTypes {
     | '/employer/jobs'
     | '/employer/reports'
     | '/employer/responses'
+    | '/employer/settings'
     | '/employer/team'
     | '/employer/verification'
     | '/onboarding/candidate'
@@ -964,6 +998,7 @@ export interface FileRouteTypes {
     | '/employer/jobs/new'
     | '/employer/learning-corner/$slug'
     | '/api/public/webhooks/razorpay'
+    | '/api/public/webhooks/whatsapp'
     | '/learn/certification/$slug/exam'
     | '/candidate/interview-prep'
     | '/candidate/learning/certification/$slug'
@@ -1001,6 +1036,7 @@ export interface FileRouteTypes {
     | '/admin/resumes'
     | '/admin/users'
     | '/admin/verifications'
+    | '/admin/whatsapp'
     | '/api/resume-builder'
     | '/c/$slug'
     | '/candidate/login'
@@ -1034,6 +1070,7 @@ export interface FileRouteTypes {
     | '/_authenticated/employer/jobs'
     | '/_authenticated/employer/reports'
     | '/_authenticated/employer/responses'
+    | '/_authenticated/employer/settings'
     | '/_authenticated/employer/team'
     | '/_authenticated/employer/verification'
     | '/_authenticated/onboarding/candidate'
@@ -1049,6 +1086,7 @@ export interface FileRouteTypes {
     | '/_authenticated/employer/jobs/new'
     | '/_authenticated/employer/learning-corner/$slug'
     | '/api/public/webhooks/razorpay'
+    | '/api/public/webhooks/whatsapp'
     | '/learn_/certification/$slug_/exam'
     | '/_authenticated/candidate/interview-prep/'
     | '/_authenticated/candidate/learning_/certification/$slug'
@@ -1086,6 +1124,7 @@ export interface RootRouteChildren {
   LearnCourseSlugRoute: typeof LearnCourseSlugRoute
   LearnPostSlugRoute: typeof LearnPostSlugRoute
   ApiPublicWebhooksRazorpayRoute: typeof ApiPublicWebhooksRazorpayRoute
+  ApiPublicWebhooksWhatsappRoute: typeof ApiPublicWebhooksWhatsappRoute
   LearnCertificationSlugExamRoute: typeof LearnCertificationSlugExamRoute
   LearnCourseSlugLessonLessonIdRoute: typeof LearnCourseSlugLessonLessonIdRoute
 }
@@ -1279,6 +1318,13 @@ declare module '@tanstack/react-router' {
       path: '/verifications'
       fullPath: '/admin/verifications'
       preLoaderRoute: typeof AdminVerificationsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/whatsapp': {
+      id: '/admin/whatsapp'
+      path: '/whatsapp'
+      fullPath: '/admin/whatsapp'
+      preLoaderRoute: typeof AdminWhatsappRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/api/resume-builder': {
@@ -1505,6 +1551,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedEmployerResponsesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/employer/settings': {
+      id: '/_authenticated/employer/settings'
+      path: '/employer/settings'
+      fullPath: '/employer/settings'
+      preLoaderRoute: typeof AuthenticatedEmployerSettingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/employer/team': {
       id: '/_authenticated/employer/team'
       path: '/employer/team'
@@ -1615,6 +1668,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/webhooks/razorpay'
       fullPath: '/api/public/webhooks/razorpay'
       preLoaderRoute: typeof ApiPublicWebhooksRazorpayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/webhooks/whatsapp': {
+      id: '/api/public/webhooks/whatsapp'
+      path: '/api/public/webhooks/whatsapp'
+      fullPath: '/api/public/webhooks/whatsapp'
+      preLoaderRoute: typeof ApiPublicWebhooksWhatsappRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/learn_/certification/$slug_/exam': {
@@ -1785,6 +1845,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedEmployerJobsRoute: typeof AuthenticatedEmployerJobsRouteWithChildren
   AuthenticatedEmployerReportsRoute: typeof AuthenticatedEmployerReportsRoute
   AuthenticatedEmployerResponsesRoute: typeof AuthenticatedEmployerResponsesRoute
+  AuthenticatedEmployerSettingsRoute: typeof AuthenticatedEmployerSettingsRoute
   AuthenticatedEmployerTeamRoute: typeof AuthenticatedEmployerTeamRoute
   AuthenticatedEmployerVerificationRoute: typeof AuthenticatedEmployerVerificationRoute
   AuthenticatedOnboardingCandidateRoute: typeof AuthenticatedOnboardingCandidateRoute
@@ -1805,6 +1866,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedEmployerJobsRoute: AuthenticatedEmployerJobsRouteWithChildren,
   AuthenticatedEmployerReportsRoute: AuthenticatedEmployerReportsRoute,
   AuthenticatedEmployerResponsesRoute: AuthenticatedEmployerResponsesRoute,
+  AuthenticatedEmployerSettingsRoute: AuthenticatedEmployerSettingsRoute,
   AuthenticatedEmployerTeamRoute: AuthenticatedEmployerTeamRoute,
   AuthenticatedEmployerVerificationRoute:
     AuthenticatedEmployerVerificationRoute,
@@ -1832,6 +1894,7 @@ interface AdminRouteRouteChildren {
   AdminResumesRoute: typeof AdminResumesRoute
   AdminUsersRoute: typeof AdminUsersRoute
   AdminVerificationsRoute: typeof AdminVerificationsRoute
+  AdminWhatsappRoute: typeof AdminWhatsappRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
@@ -1850,6 +1913,7 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminResumesRoute: AdminResumesRoute,
   AdminUsersRoute: AdminUsersRoute,
   AdminVerificationsRoute: AdminVerificationsRoute,
+  AdminWhatsappRoute: AdminWhatsappRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
 
@@ -1894,6 +1958,7 @@ const rootRouteChildren: RootRouteChildren = {
   LearnCourseSlugRoute: LearnCourseSlugRoute,
   LearnPostSlugRoute: LearnPostSlugRoute,
   ApiPublicWebhooksRazorpayRoute: ApiPublicWebhooksRazorpayRoute,
+  ApiPublicWebhooksWhatsappRoute: ApiPublicWebhooksWhatsappRoute,
   LearnCertificationSlugExamRoute: LearnCertificationSlugExamRoute,
   LearnCourseSlugLessonLessonIdRoute: LearnCourseSlugLessonLessonIdRoute,
 }

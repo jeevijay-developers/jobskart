@@ -27,6 +27,7 @@ import {
   type ReviewApplicant,
 } from "@/components/employer/ApplicantReviewPanel";
 import { CityMultiSelect } from "@/components/employer/CityMultiSelect";
+import { CandidateContactActions } from "@/components/employer/CandidateContactActions";
 import { ThemedSelect } from "@/components/ui/themed-form-controls";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchMyCompanies, getActiveCompanyId, type EmployerMembership } from "@/lib/employer";
@@ -134,7 +135,7 @@ function DatabasePage() {
   const [balance, setBalance] = useState(0);
   const [unlocked, setUnlocked] = useState<Set<string>>(new Set());
   const [contacts, setContacts] = useState<
-    Record<string, { full_name: string; mobile: string; email: string }>
+    Record<string, { full_name: string; mobile: string; email: string; whatsappAvailable: boolean }>
   >({});
 
   // Active Hiring Intelligence Mode & Filter States
@@ -419,9 +420,7 @@ function DatabasePage() {
       } else if (r.source === "monthly_pool") {
         toast.success("Unlocked using your plan's monthly contact allowance — no credits spent.");
       } else {
-        toast.success(
-          `Unlocked with contact credits · ${r.contactBalance} credits left`,
-        );
+        toast.success(`Unlocked with contact credits · ${r.contactBalance} credits left`);
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Unlock failed.";
@@ -453,6 +452,7 @@ function DatabasePage() {
         headline: c.headline,
         last_role: c.last_role,
         skills: c.skills,
+        whatsapp_available: !!contact?.whatsappAvailable,
       },
     });
 
@@ -613,13 +613,14 @@ function DatabasePage() {
                 )}
               </>
             )}
-          </div>   
+          </div>
         </div>
       )}
 
       {!selectedJobId && (
         <div className="mb-4 rounded-xl border border-dashed border-border bg-surface/40 px-4 py-3 text-sm text-muted-foreground">
-          Select an active job above to search candidates or view AI Hiring Intelligence recommendations.
+          Select an active job above to search candidates or view AI Hiring Intelligence
+          recommendations.
         </div>
       )}
 
@@ -688,7 +689,8 @@ function DatabasePage() {
             )}
           </div>
           <p className="mt-2 text-sm text-foreground">
-            <strong>{visibleRecommended.length} candidates</strong> match your selected job criteria but haven't applied yet.
+            <strong>{visibleRecommended.length} candidates</strong> match your selected job criteria
+            but haven't applied yet.
           </p>
 
           {/* Quick AI Filter Pills */}
@@ -989,6 +991,16 @@ function DatabasePage() {
                             <Mail className="h-3 w-3" /> {contact.email}
                           </p>
                         )}
+                        {active && (
+                          <CandidateContactActions
+                            companyId={active.company_id}
+                            jobId={selectedJobId || null}
+                            candidateUserId={c.user_id}
+                            mobile={contact?.mobile ?? null}
+                            whatsappAvailable={!!contact?.whatsappAvailable}
+                            className="justify-end"
+                          />
+                        )}
                       </div>
                     ) : (
                       <>
@@ -1168,8 +1180,18 @@ function DatabasePage() {
 
                       {/* Unlock Contact / View Details */}
                       {isUnlocked ? (
-                        <div className="text-right text-xs font-semibold text-foreground">
-                          {contact?.mobile}
+                        <div className="space-y-1 text-right">
+                          <p className="text-xs font-semibold text-foreground">{contact?.mobile}</p>
+                          {active && (
+                            <CandidateContactActions
+                              companyId={active.company_id}
+                              jobId={selectedJobId || null}
+                              candidateUserId={c.user_id}
+                              mobile={contact?.mobile ?? null}
+                              whatsappAvailable={!!contact?.whatsappAvailable}
+                              className="justify-end"
+                            />
+                          )}
                         </div>
                       ) : (
                         <button
@@ -1195,14 +1217,15 @@ function DatabasePage() {
         </div>
       )}
 
-      {reviewApplicant && (
+      {reviewApplicant && active && (
         <ApplicantReviewPanel
           applicant={reviewApplicant}
           onClose={() => setReviewApplicant(null)}
           onStatusChange={handleReviewStatusChange}
+          companyId={active.company_id}
+          jobId={selectedJobId || null}
         />
       )}
     </EmployerShell>
   );
 }
-

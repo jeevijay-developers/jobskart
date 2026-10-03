@@ -1,6 +1,18 @@
 ﻿import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, Calendar, Check, Loader2, Plus, Trash2, Upload, FileText, Compass, Sparkles } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Calendar,
+  Check,
+  Loader2,
+  Plus,
+  Trash2,
+  Upload,
+  FileText,
+  Compass,
+  Sparkles,
+} from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
@@ -10,7 +22,15 @@ import { ConditionalField } from "@/components/forms/ConditionalField";
 import { OptionalSection } from "@/components/forms/OptionalSection";
 import { JobTitleAutocomplete } from "@/components/candidate/JobTitleAutocomplete";
 import { supabase } from "@/integrations/supabase/client";
-import { INDIAN_CITIES, SUGGESTED_LANGUAGES, JOB_TYPE_OPTIONS, WORK_MODES, suggestRelatedRoles, suggestSkillsForRoles, DEFAULT_SKILL_SUGGESTIONS } from "@/lib/options";
+import {
+  INDIAN_CITIES,
+  SUGGESTED_LANGUAGES,
+  JOB_TYPE_OPTIONS,
+  WORK_MODES,
+  suggestRelatedRoles,
+  suggestSkillsForRoles,
+  DEFAULT_SKILL_SUGGESTIONS,
+} from "@/lib/options";
 import { computeProfileStrength } from "@/lib/profileStrength";
 import { ResumeUpload } from "@/components/candidate/ResumeUpload";
 import { SalaryPicker, type SalaryChoiceKind } from "@/components/candidate/SalaryPicker";
@@ -37,12 +57,33 @@ export const Route = createFileRoute("/_authenticated/onboarding/candidate")({
   component: OnboardingPage,
 });
 
-type Experience = { id?: string; job_title: string; company_name: string; start_date: string; end_date: string; is_current: boolean; description: string };
-type Language = { id?: string; language: string; proficiency: "basic" | "conversational" | "fluent" | "native"; can_read: boolean; can_write: boolean };
+type Experience = {
+  id?: string;
+  job_title: string;
+  company_name: string;
+  start_date: string;
+  end_date: string;
+  is_current: boolean;
+  description: string;
+};
+type Language = {
+  id?: string;
+  language: string;
+  proficiency: "basic" | "conversational" | "fluent" | "native";
+  can_read: boolean;
+  can_write: boolean;
+};
 
 type AssetRow = { id: string; slug: string; label: string; category: string };
 
-const STEPS = ["Basics", "Work status", "Experience", "Education", "Skills & languages", "Preferences"] as const;
+const STEPS = [
+  "Basics",
+  "Work status",
+  "Experience",
+  "Education",
+  "Skills & languages",
+  "Preferences",
+] as const;
 type StepLabel = (typeof STEPS)[number];
 
 /** Numbers are stored as +91XXXXXXXXXX; forms edit the bare 10 digits. */
@@ -53,15 +94,24 @@ const to10 = (v: string | null | undefined) => {
 const toE164 = (v: string) => (to10(v).length === 10 ? `+91${to10(v)}` : null);
 
 /** Maps the resume parser's education level enum onto our fixed QUALIFICATIONS options. */
-function mapEducationLevel(level: string | null | undefined): (typeof QUALIFICATIONS)[number] | null {
+function mapEducationLevel(
+  level: string | null | undefined,
+): (typeof QUALIFICATIONS)[number] | null {
   switch (level) {
-    case "10th": return "10th or Below";
-    case "12th": return "12th Pass";
-    case "Diploma": return "Diploma";
-    case "Graduate": return "Graduate";
-    case "Post Graduate": return "Post Graduate";
-    case "PhD": return "Doctorate";
-    default: return null;
+    case "10th":
+      return "10th or Below";
+    case "12th":
+      return "12th Pass";
+    case "Diploma":
+      return "Diploma";
+    case "Graduate":
+      return "Graduate";
+    case "Post Graduate":
+      return "Post Graduate";
+    case "PhD":
+      return "Doctorate";
+    default:
+      return null;
   }
 }
 
@@ -70,7 +120,15 @@ function mapEducationLevel(level: string | null | undefined): (typeof QUALIFICAT
  * but its own text is invisible ΓÇö Chromium ignores `lang` for the date format, so we render
  * our own dd-mm-yyyy label on top instead of trusting the native display.
  */
-function DateField({ value, onChange, disabled }: { value: string; onChange: (v: string) => void; disabled?: boolean }) {
+function DateField({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+}) {
   const [y, m, d] = value ? value.split("-") : [];
   const display = y && m && d ? `${d}-${m}-${y}` : "";
   return (
@@ -109,6 +167,10 @@ function OnboardingPage() {
   // the input stays hidden — only revealed via "Use a different number".
   const [whatsappCustom, setWhatsappCustom] = useState(false);
   const [whatsappOptIn, setWhatsappOptIn] = useState(true);
+  // Tracks the last-saved consent value so saveStep() only writes a
+  // whatsapp_consents row when the candidate actually flips the checkbox,
+  // not on every step-to-step autosave.
+  const whatsappOptInSavedRef = useRef(true);
   const [city, setCity] = useState("");
   const [dob, setDob] = useState("");
   const [gender, setGender] = useState<"male" | "female" | "other" | "prefer_not" | "">("");
@@ -129,7 +191,9 @@ function OnboardingPage() {
   // Skills & languages
   const [skills, setSkills] = useState<string[]>([]);
   const [aiSkills, setAiSkills] = useState<string[]>([]);
-  const [languages, setLanguages] = useState<Language[]>([{ language: "Hindi", proficiency: "fluent", can_read: true, can_write: true }]);
+  const [languages, setLanguages] = useState<Language[]>([
+    { language: "Hindi", proficiency: "fluent", can_read: true, can_write: true },
+  ]);
   const [assets, setAssets] = useState<string[]>([]);
   const [assetsMaster, setAssetsMaster] = useState<AssetRow[]>([]);
   const [langMaster, setLangMaster] = useState<string[]>(SUGGESTED_LANGUAGES);
@@ -139,7 +203,9 @@ function OnboardingPage() {
   const [workModes, setWorkModes] = useState<string[]>([]);
   const [preferredCities, setPreferredCities] = useState<string[]>([]);
   const [expectedSalary, setExpectedSalary] = useState<number | "">("");
-  const [expectedSalaryChoiceKind, setExpectedSalaryChoiceKind] = useState<SalaryChoiceKind | null>(null);
+  const [expectedSalaryChoiceKind, setExpectedSalaryChoiceKind] = useState<SalaryChoiceKind | null>(
+    null,
+  );
   const [noticeDays, setNoticeDays] = useState<number | "">(0);
   const [resume, setResume] = useState<{ name: string; path: string } | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -152,62 +218,106 @@ function OnboardingPage() {
       const u = sess.session?.user.id;
       if (!u) return;
       setUid(u);
-      const [{ data: p }, { data: c }, { data: ex }, { data: lg }, { data: am }, { data: lm }] = await Promise.all([
-        supabase.from("profiles").select("full_name, mobile, city, email").eq("id", u).maybeSingle(),
-        supabase.from("candidate_profiles").select("*").eq("user_id", u).maybeSingle(),
-        supabase.from("candidate_experiences").select("*").eq("user_id", u).order("start_date", { ascending: false }),
-        supabase.from("candidate_languages").select("*").eq("user_id", u),
-        supabase.from("candidate_assets_master").select("id, slug, label, category").eq("is_active", true).order("sort_order"),
-        supabase.from("languages_master").select("name").eq("is_active", true).order("sort_order"),
-      ]);
+      const [{ data: p }, { data: c }, { data: ex }, { data: lg }, { data: am }, { data: lm }] =
+        await Promise.all([
+          supabase
+            .from("profiles")
+            .select("full_name, mobile, city, email")
+            .eq("id", u)
+            .maybeSingle(),
+          supabase.from("candidate_profiles").select("*").eq("user_id", u).maybeSingle(),
+          supabase
+            .from("candidate_experiences")
+            .select("*")
+            .eq("user_id", u)
+            .order("start_date", { ascending: false }),
+          supabase.from("candidate_languages").select("*").eq("user_id", u),
+          supabase
+            .from("candidate_assets_master")
+            .select("id, slug, label, category")
+            .eq("is_active", true)
+            .order("sort_order"),
+          supabase
+            .from("languages_master")
+            .select("name")
+            .eq("is_active", true)
+            .order("sort_order"),
+        ]);
       if (p) {
-        setFullName(p.full_name || ""); setMobile(to10(p.mobile)); setCity(p.city || "");
+        setFullName(p.full_name || "");
+        setMobile(to10(p.mobile));
+        setCity(p.city || "");
         const pEmail = (p as { email?: string | null }).email;
         setEmail(isSyntheticEmail(pEmail) ? "" : pEmail || "");
       }
       if (c) {
         setHeadline(c.headline || "");
-        setDob(c.date_of_birth || ""); setGender((c.gender as typeof gender) || "");
-        setExpStatus(c.experience_status as typeof expStatus); setYears(c.years_experience || 0); setLastRole(c.last_role || "");
-        setSkills(c.skills || []); setAssets(c.assets || []);
+        setDob(c.date_of_birth || "");
+        setGender((c.gender as typeof gender) || "");
+        setExpStatus(c.experience_status as typeof expStatus);
+        setYears(c.years_experience || 0);
+        setLastRole(c.last_role || "");
+        setSkills(c.skills || []);
+        setAssets(c.assets || []);
         setJobTypes(c.preferred_job_types || []);
-        setWorkModes((c.preferred_work_mode || "").split(",").map((s) => s.trim()).filter(Boolean));
+        setWorkModes(
+          (c.preferred_work_mode || "")
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean),
+        );
         setPreferredCities(c.preferred_cities || []);
         setExpectedSalary(c.expected_salary || "");
         setNoticeDays(c.notice_period_days ?? 0);
         if (c.resume_url) setResume({ name: c.resume_name || "Resume", path: c.resume_url });
-        const cExt = c as unknown as { whatsapp_number?: string | null; whatsapp_opt_in?: boolean | null; highest_qualification?: string | null; interested_roles?: string[] | null; expected_salary_choice_kind?: SalaryChoiceKind | null };
+        const cExt = c as unknown as {
+          whatsapp_number?: string | null;
+          whatsapp_opt_in?: boolean | null;
+          highest_qualification?: string | null;
+          interested_roles?: string[] | null;
+          expected_salary_choice_kind?: SalaryChoiceKind | null;
+        };
         setExpectedSalaryChoiceKind(cExt.expected_salary_choice_kind || null);
         const savedWa = to10(cExt.whatsapp_number || "");
         setWhatsapp(savedWa || to10(p?.mobile));
         setWhatsappCustom(!!savedWa && savedWa !== to10(p?.mobile));
         setWhatsappOptIn(cExt.whatsapp_opt_in ?? true);
+        whatsappOptInSavedRef.current = cExt.whatsapp_opt_in ?? true;
         setHighestQualification(cExt.highest_qualification || "");
         setInterestedRoles(cExt.interested_roles || []);
       } else if (p?.mobile) {
         setWhatsapp(to10(p.mobile));
       }
-      if (ex?.length) setExperiences(ex.map((e) => ({ ...e, start_date: e.start_date || "", end_date: e.end_date || "", description: e.description || "" })));
-      if (lg?.length) setLanguages(lg.map((l) => ({ ...l, proficiency: l.proficiency as Language["proficiency"] })));
+      if (ex?.length)
+        setExperiences(
+          ex.map((e) => ({
+            ...e,
+            start_date: e.start_date || "",
+            end_date: e.end_date || "",
+            description: e.description || "",
+          })),
+        );
+      if (lg?.length)
+        setLanguages(
+          lg.map((l) => ({ ...l, proficiency: l.proficiency as Language["proficiency"] })),
+        );
       if (am?.length) setAssetsMaster(am as AssetRow[]);
       if (lm?.length) setLangMaster(lm.map((r) => r.name));
       setLoading(false);
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Fetch AI suggested skills when interested roles / experience titles change
   useEffect(() => {
-    const roles = [
-      ...interestedRoles,
-      ...experiences.map((e) => e.job_title).filter(Boolean),
-    ];
+    const roles = [...interestedRoles, ...experiences.map((e) => e.job_title).filter(Boolean)];
     if (!roles.length) return;
     let cancelled = false;
     suggest({ data: { roles, qualification: highestQualification || null } })
       .then((s) => !cancelled && setAiSkills(s))
-      .catch(() => { });
-    return () => { cancelled = true; };
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, [interestedRoles, experiences, highestQualification, suggest]);
 
   const roleSuggestions = useMemo(() => suggestRelatedRoles(interestedRoles), [interestedRoles]);
@@ -233,32 +343,66 @@ function OnboardingPage() {
 
   // Asset visibility: derive from selected roles
   const visibleAssets = useMemo(() => {
-    const roleText = [
-      ...interestedRoles,
-      ...experiences.map((e) => e.job_title),
-      lastRole,
-    ].join(" ").toLowerCase();
-    const wantsField = /(driver|delivery|field|sales|electric|mechanic|plumb|technician|guard|rider|cab|courier)/.test(roleText);
-    const wantsDesk = /(developer|engineer|analyst|designer|manager|marketing|content|writer|account|hr|tele|support|operator|executive)/.test(roleText);
+    const roleText = [...interestedRoles, ...experiences.map((e) => e.job_title), lastRole]
+      .join(" ")
+      .toLowerCase();
+    const wantsField =
+      /(driver|delivery|field|sales|electric|mechanic|plumb|technician|guard|rider|cab|courier)/.test(
+        roleText,
+      );
+    const wantsDesk =
+      /(developer|engineer|analyst|designer|manager|marketing|content|writer|account|hr|tele|support|operator|executive)/.test(
+        roleText,
+      );
     if (!wantsField && !wantsDesk) return assetsMaster; // show all
-    return assetsMaster.filter((a) =>
-      a.category === "general" ||
-      (wantsField && a.category === "field") ||
-      (wantsDesk && a.category === "desk"),
+    return assetsMaster.filter(
+      (a) =>
+        a.category === "general" ||
+        (wantsField && a.category === "field") ||
+        (wantsDesk && a.category === "desk"),
     );
   }, [assetsMaster, interestedRoles, experiences, lastRole]);
 
-  const strength = useMemo(() => computeProfileStrength({
-    full_name: fullName, mobile, city, headline, last_role: lastRole, skills,
-    years_experience: years, preferred_job_types: jobTypes, preferred_cities: preferredCities,
-    expected_salary: typeof expectedSalary === "number" ? expectedSalary : null,
-    resume_url: resume?.path, experiences_count: experiences.length,
-    education_count: highestQualification ? 1 : 0,
-    languages_count: languages.length,
-    highest_qualification: highestQualification,
-    interested_roles: interestedRoles,
-    whatsapp_opt_in: whatsappOptIn,
-  }), [fullName, mobile, city, headline, lastRole, skills, years, jobTypes, preferredCities, expectedSalary, resume, experiences, languages, highestQualification, interestedRoles, whatsappOptIn]);
+  const strength = useMemo(
+    () =>
+      computeProfileStrength({
+        full_name: fullName,
+        mobile,
+        city,
+        headline,
+        last_role: lastRole,
+        skills,
+        years_experience: years,
+        preferred_job_types: jobTypes,
+        preferred_cities: preferredCities,
+        expected_salary: typeof expectedSalary === "number" ? expectedSalary : null,
+        resume_url: resume?.path,
+        experiences_count: experiences.length,
+        education_count: highestQualification ? 1 : 0,
+        languages_count: languages.length,
+        highest_qualification: highestQualification,
+        interested_roles: interestedRoles,
+        whatsapp_opt_in: whatsappOptIn,
+      }),
+    [
+      fullName,
+      mobile,
+      city,
+      headline,
+      lastRole,
+      skills,
+      years,
+      jobTypes,
+      preferredCities,
+      expectedSalary,
+      resume,
+      experiences,
+      languages,
+      highestQualification,
+      interestedRoles,
+      whatsappOptIn,
+    ],
+  );
 
   // Skip "Experience" step for freshers ΓÇö handled via stepIndex translation
   const visibleSteps = useMemo<StepLabel[]>(() => {
@@ -273,8 +417,13 @@ function OnboardingPage() {
     setExpStatus(next);
     setExperiences([]);
     if (uid) {
-      supabase.from("candidate_experiences").delete().eq("user_id", uid)
-        .then(({ error }) => { if (error) console.warn("Clear experience:", error.message); });
+      supabase
+        .from("candidate_experiences")
+        .delete()
+        .eq("user_id", uid)
+        .then(({ error }) => {
+          if (error) console.warn("Clear experience:", error.message);
+        });
     }
   };
 
@@ -300,49 +449,74 @@ function OnboardingPage() {
     setSaving(true);
     try {
       await runOrThrow(
-        supabase.from("profiles").update({
-          full_name: fullName, mobile: toE164(mobile), city,
-          email: email ? emailSchema.parse(email) : null,
-        }).eq("id", uid),
+        supabase
+          .from("profiles")
+          .update({
+            full_name: fullName,
+            mobile: toE164(mobile),
+            city,
+            email: email ? emailSchema.parse(email) : null,
+          })
+          .eq("id", uid),
         "Save basics",
       );
 
       // Ensure a candidate_profiles row exists before update (mobile-OTP signups may not have one yet)
       await runOrThrow(
-        supabase.from("candidate_profiles").upsert(
-          { user_id: uid, experience_status: expStatus },
-          { onConflict: "user_id" },
-        ),
+        supabase
+          .from("candidate_profiles")
+          .upsert({ user_id: uid, experience_status: expStatus }, { onConflict: "user_id" }),
         "Init profile",
       );
 
       await runOrThrow(
-        supabase.from("candidate_profiles").update({
-          headline: headline || null,
-          date_of_birth: dob || null,
-          gender: gender || null,
-          experience_status: expStatus,
-          years_experience: years || 0,
-          last_role: lastRole || null,
-          skills,
-          assets,
-          preferred_job_types: jobTypes,
-          preferred_work_mode: workModes.join(","),
-          preferred_cities: preferredCities,
-          expected_salary: typeof expectedSalary === "number" ? expectedSalary : null,
-          expected_salary_choice_kind: expectedSalaryChoiceKind,
-          notice_period_days: typeof noticeDays === "number" ? noticeDays : null,
-          resume_url: resume?.path || null,
-          resume_name: resume?.name || null,
-          profile_strength: strength,
-          whatsapp_number: toE164(whatsappCustom ? whatsapp : mobile),
-          whatsapp_opt_in: whatsappOptIn,
-          highest_qualification: highestQualification || null,
-          interested_roles: interestedRoles,
-          onboarding_completed: advance === "finish" ? true : undefined,
-        }).eq("user_id", uid),
+        supabase
+          .from("candidate_profiles")
+          .update({
+            headline: headline || null,
+            date_of_birth: dob || null,
+            gender: gender || null,
+            experience_status: expStatus,
+            years_experience: years || 0,
+            last_role: lastRole || null,
+            skills,
+            assets,
+            preferred_job_types: jobTypes,
+            preferred_work_mode: workModes.join(","),
+            preferred_cities: preferredCities,
+            expected_salary: typeof expectedSalary === "number" ? expectedSalary : null,
+            expected_salary_choice_kind: expectedSalaryChoiceKind,
+            notice_period_days: typeof noticeDays === "number" ? noticeDays : null,
+            resume_url: resume?.path || null,
+            resume_name: resume?.name || null,
+            profile_strength: strength,
+            whatsapp_number: toE164(whatsappCustom ? whatsapp : mobile),
+            whatsapp_opt_in: whatsappOptIn,
+            highest_qualification: highestQualification || null,
+            interested_roles: interestedRoles,
+            onboarding_completed: advance === "finish" ? true : undefined,
+          })
+          .eq("user_id", uid),
         "Save profile",
       );
+
+      // Record a consent-ledger row only when the checkbox actually flips —
+      // saveStep() runs on every step transition, so comparing against the
+      // last-saved value avoids writing a redundant row every autosave.
+      if (whatsappOptIn !== whatsappOptInSavedRef.current) {
+        whatsappOptInSavedRef.current = whatsappOptIn;
+        supabase
+          .rpc(
+            "record_whatsapp_consent" as never,
+            {
+              _opted_in: whatsappOptIn,
+              _source: "onboarding",
+            } as never,
+          )
+          .then(({ error }) => {
+            if (error) console.warn("Record WhatsApp consent:", error.message);
+          });
+      }
 
       if (currentLabel === "Experience") {
         await runOrThrow(
@@ -351,22 +525,34 @@ function OnboardingPage() {
         );
         if (experiences.length) {
           await runOrThrow(
-            supabase.from("candidate_experiences").insert(experiences.map((e) => ({
-              user_id: uid, job_title: e.job_title, company_name: e.company_name,
-              start_date: e.start_date || null, end_date: e.is_current ? null : (e.end_date || null),
-              is_current: e.is_current, description: e.description || null,
-            }))),
+            supabase.from("candidate_experiences").insert(
+              experiences.map((e) => ({
+                user_id: uid,
+                job_title: e.job_title,
+                company_name: e.company_name,
+                start_date: e.start_date || null,
+                end_date: e.is_current ? null : e.end_date || null,
+                is_current: e.is_current,
+                description: e.description || null,
+              })),
+            ),
             "Save experience",
           );
         }
       }
       if (currentLabel === "Education" && highestQualification) {
         await runOrThrow(
-          supabase.from("candidate_education").delete().eq("user_id", uid).eq("level", highestQualification),
+          supabase
+            .from("candidate_education")
+            .delete()
+            .eq("user_id", uid)
+            .eq("level", highestQualification),
           "Clear education",
         );
         await runOrThrow(
-          supabase.from("candidate_education").insert({ user_id: uid, level: highestQualification }),
+          supabase
+            .from("candidate_education")
+            .insert({ user_id: uid, level: highestQualification }),
           "Save education",
         );
       }
@@ -377,9 +563,15 @@ function OnboardingPage() {
         );
         if (languages.length) {
           await runOrThrow(
-            supabase.from("candidate_languages").insert(languages.map((l) => ({
-              user_id: uid, language: l.language, proficiency: l.proficiency, can_read: l.can_read, can_write: l.can_write,
-            }))),
+            supabase.from("candidate_languages").insert(
+              languages.map((l) => ({
+                user_id: uid,
+                language: l.language,
+                proficiency: l.proficiency,
+                can_read: l.can_read,
+                can_write: l.can_write,
+              })),
+            ),
             "Save languages",
           );
         }
@@ -427,12 +619,14 @@ function OnboardingPage() {
       if (!d.success) return d.error.issues[0].message;
     }
     if (currentLabel === "Work status") {
-      if (expStatus === "experienced" && (!years || years < 0)) return "Enter your total years of experience.";
+      if (expStatus === "experienced" && (!years || years < 0))
+        return "Enter your total years of experience.";
       if (interestedRoles.length === 0) return "Add at least one interested job role.";
       if (skills.length === 0) return "Add at least one skill.";
     }
     if (currentLabel === "Experience") {
-      if (expStatus === "experienced" && experiences.length === 0) return "Add at least one work experience.";
+      if (expStatus === "experienced" && experiences.length === 0)
+        return "Add at least one work experience.";
       for (const e of experiences) {
         if (!e.job_title.trim()) return "Each experience needs a job title.";
         if (!e.company_name.trim()) return "Each experience needs a company name.";
@@ -454,9 +648,12 @@ function OnboardingPage() {
       if (preferredCities.length < 1) return "Add at least 1 preferred city.";
       if (preferredCities.length > 4) return "You can pick up to 4 cities.";
       if (expStatus === "experienced") {
-        const salaryOptedOut = expectedSalaryChoiceKind === "flexible" || expectedSalaryChoiceKind === "undisclosed";
-        if (!salaryOptedOut && (!expectedSalary || expectedSalary <= 0)) return "Enter your expected monthly salary, or choose flexible / prefer not to say.";
-        if (noticeDays === "" || (typeof noticeDays === "number" && noticeDays < 0)) return "Enter your notice period.";
+        const salaryOptedOut =
+          expectedSalaryChoiceKind === "flexible" || expectedSalaryChoiceKind === "undisclosed";
+        if (!salaryOptedOut && (!expectedSalary || expectedSalary <= 0))
+          return "Enter your expected monthly salary, or choose flexible / prefer not to say.";
+        if (noticeDays === "" || (typeof noticeDays === "number" && noticeDays < 0))
+          return "Enter your notice period.";
       }
     }
     return null;
@@ -477,11 +674,17 @@ function OnboardingPage() {
     try {
       const ext = (file.name.split(".").pop() || "bin").toLowerCase();
       const path = `${uid}/resume-${Date.now()}-${crypto.randomUUID()}.${ext}`;
-      const { error } = await supabase.storage.from("candidate-docs").upload(path, file, { upsert: true });
+      const { error } = await supabase.storage
+        .from("candidate-docs")
+        .upload(path, file, { upsert: true });
       if (error) throw new Error(error.message);
       setResume({ name: file.name, path });
       const { error: docErr } = await supabase.from("candidate_documents").insert({
-        user_id: uid, doc_type: "resume", file_path: path, file_name: file.name, size_bytes: file.size,
+        user_id: uid,
+        doc_type: "resume",
+        file_path: path,
+        file_name: file.name,
+        size_bytes: file.size,
       });
       if (docErr) console.warn("candidate_documents insert:", docErr.message);
       toast.success("Resume uploaded");
@@ -494,8 +697,11 @@ function OnboardingPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-surface"><Navbar />
-        <div className="grid place-items-center py-24"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+      <div className="min-h-screen bg-surface">
+        <Navbar />
+        <div className="grid place-items-center py-24">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        </div>
       </div>
     );
   }
@@ -518,7 +724,9 @@ function OnboardingPage() {
                 <Compass className="h-3 w-3" /> Onboarding
               </p>
               <h2 className="mt-3 text-xl font-bold leading-tight">Let's build your profile</h2>
-              <p className="mt-1 text-xs text-white/60">A complete profile gets you hired 3x faster.</p>
+              <p className="mt-1 text-xs text-white/60">
+                A complete profile gets you hired 3x faster.
+              </p>
 
               <div className="mt-5 rounded-2xl bg-white/5 p-3 ring-1 ring-white/10">
                 <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-white/70">
@@ -526,7 +734,10 @@ function OnboardingPage() {
                   <span className="text-white tabular-nums">{strength}%</span>
                 </div>
                 <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-                  <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${strength}%` }} />
+                  <div
+                    className="h-full rounded-full bg-primary transition-all"
+                    style={{ width: `${strength}%` }}
+                  />
                 </div>
               </div>
 
@@ -535,20 +746,25 @@ function OnboardingPage() {
                   const done = i < step;
                   const active = i === step;
                   return (
-                    <li key={label} className="relative flex items-center gap-3 rounded-xl px-2 py-2">
+                    <li
+                      key={label}
+                      className="relative flex items-center gap-3 rounded-xl px-2 py-2"
+                    >
                       <span
-                        className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-[11px] font-bold ring-2 ${done
-                          ? "bg-primary text-primary-foreground ring-primary"
-                          : active
-                            ? "bg-white text-[#0f1b3d] ring-white"
-                            : "bg-white/5 text-white/50 ring-white/15"
-                          }`}
+                        className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-[11px] font-bold ring-2 ${
+                          done
+                            ? "bg-primary text-primary-foreground ring-primary"
+                            : active
+                              ? "bg-white text-[#0f1b3d] ring-white"
+                              : "bg-white/5 text-white/50 ring-white/15"
+                        }`}
                       >
                         {done ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : i + 1}
                       </span>
                       <span
-                        className={`text-sm font-semibold ${active ? "text-white" : done ? "text-white/80" : "text-white/45"
-                          }`}
+                        className={`text-sm font-semibold ${
+                          active ? "text-white" : done ? "text-white/80" : "text-white/45"
+                        }`}
                       >
                         {label}
                       </span>
@@ -575,10 +791,14 @@ function OnboardingPage() {
                     <Compass className="h-3 w-3" /> Step {step + 1} of {visibleSteps.length}
                   </p>
                   <h1 className="mt-3 truncate text-2xl font-bold leading-tight">{currentLabel}</h1>
-                  <p className="mt-1 text-xs text-white/60">Every field matters — you can edit anytime later.</p>
+                  <p className="mt-1 text-xs text-white/60">
+                    Every field matters — you can edit anytime later.
+                  </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-white/60">Profile</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-white/60">
+                    Profile
+                  </p>
                   <p className="text-2xl font-bold text-white tabular-nums">{strength}%</p>
                 </div>
               </div>
@@ -586,8 +806,9 @@ function OnboardingPage() {
                 {visibleSteps.map((_, i) => (
                   <div
                     key={i}
-                    className={`h-1.5 flex-1 rounded-full transition-all ${i < step ? "bg-primary" : i === step ? "bg-white" : "bg-white/15"
-                      }`}
+                    className={`h-1.5 flex-1 rounded-full transition-all ${
+                      i < step ? "bg-primary" : i === step ? "bg-white" : "bg-white/15"
+                    }`}
                   />
                 ))}
               </div>
@@ -598,8 +819,12 @@ function OnboardingPage() {
               <p className="text-[11px] font-bold uppercase tracking-wider text-primary">
                 Step {step + 1} of {visibleSteps.length}
               </p>
-              <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-foreground">{currentLabel}</h1>
-              <p className="mt-1 text-sm text-muted-foreground">Every field matters — you can edit anytime later.</p>
+              <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-foreground">
+                {currentLabel}
+              </h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Every field matters — you can edit anytime later.
+              </p>
             </div>
 
             <AnimatePresence mode="wait" initial={false}>
@@ -610,7 +835,6 @@ function OnboardingPage() {
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.22, ease: "easeOut" }}
               >
-
                 {currentLabel === "Basics" && (
                   <div className="space-y-5">
                     <ResumeUpload
@@ -621,12 +845,15 @@ function OnboardingPage() {
                         uploadResume(file);
                       }}
                       onParsed={(d: ParsedResumePayload) => {
-                        if (d.full_name && !fullName) setFullName(titleCase(sanitizeText(d.full_name)));
+                        if (d.full_name && !fullName)
+                          setFullName(titleCase(sanitizeText(d.full_name)));
                         if (d.mobile && !mobile) setMobile(d.mobile.replace(/\D/g, "").slice(-10));
                         if (d.city && !city) {
                           // City is a strict <select> bound to INDIAN_CITIES — only
                           // accept a resume city that matches one of those options.
-                          const match = INDIAN_CITIES.find((c) => c.toLowerCase() === d.city!.trim().toLowerCase());
+                          const match = INDIAN_CITIES.find(
+                            (c) => c.toLowerCase() === d.city!.trim().toLowerCase(),
+                          );
                           if (match) setCity(match);
                         }
                         if (d.headline && !headline) setHeadline(d.headline.slice(0, 200));
@@ -634,17 +861,20 @@ function OnboardingPage() {
                           setYears(d.years_experience);
                           setExpStatus(d.years_experience > 0 ? "experienced" : "fresher");
                         }
-                        if (d.skills?.length) setSkills(Array.from(new Set([...skills, ...d.skills])).slice(0, 25));
+                        if (d.skills?.length)
+                          setSkills(Array.from(new Set([...skills, ...d.skills])).slice(0, 25));
                         if (d.experiences?.length) {
                           setExperiences(
-                            (d.experiences ?? []).map((e: NonNullable<ParsedResumePayload["experiences"]>[number]) => ({
-                              job_title: e.job_title || "",
-                              company_name: e.company_name || "",
-                              start_date: e.start_date || "",
-                              end_date: e.end_date || "",
-                              is_current: !!e.is_current,
-                              description: e.description || "",
-                            })),
+                            (d.experiences ?? []).map(
+                              (e: NonNullable<ParsedResumePayload["experiences"]>[number]) => ({
+                                job_title: e.job_title || "",
+                                company_name: e.company_name || "",
+                                start_date: e.start_date || "",
+                                end_date: e.end_date || "",
+                                is_current: !!e.is_current,
+                                description: e.description || "",
+                              }),
+                            ),
                           );
                           if (d.experiences[0]?.job_title) setLastRole(d.experiences[0].job_title);
                         }
@@ -664,11 +894,17 @@ function OnboardingPage() {
                     )}
                     <SectionCard title="Tell us about yourself">
                       <div className="grid gap-4 sm:grid-cols-2">
-                        <Field label="Full name" required hint="Letters, spaces and dots only (3-80 chars)">
+                        <Field
+                          label="Full name"
+                          required
+                          hint="Letters, spaces and dots only (3-80 chars)"
+                        >
                           <input
                             className="form-input"
                             value={fullName}
-                            onChange={(e) => setFullName(e.target.value.replace(/[^A-Za-z. ]/g, "").slice(0, 80))}
+                            onChange={(e) =>
+                              setFullName(e.target.value.replace(/[^A-Za-z. ]/g, "").slice(0, 80))
+                            }
                             onBlur={(e) => setFullName(titleCase(e.target.value.trim()))}
                             placeholder="Your full name"
                           />
@@ -677,12 +913,18 @@ function OnboardingPage() {
                           label="Mobile number"
                           required
                           hint="OTP-verified Indian number"
-                          error={mobile.length === 10 && !mobileSchema.safeParse(mobile).success ? "Enter a valid 10-digit mobile number" : undefined}
+                          error={
+                            mobile.length === 10 && !mobileSchema.safeParse(mobile).success
+                              ? "Enter a valid 10-digit mobile number"
+                              : undefined
+                          }
                         >
                           <input
                             className="form-input bg-surface"
                             value={mobile}
-                            onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                            onChange={(e) =>
+                              setMobile(e.target.value.replace(/\D/g, "").slice(0, 10))
+                            }
                             placeholder="98xxxxxxxx"
                             readOnly={!!mobile}
                           />
@@ -691,7 +933,11 @@ function OnboardingPage() {
                           label="Email"
                           optional
                           hint="For job alerts and application updates"
-                          error={email && !emailSchema.safeParse(email).success ? "Enter a valid email address" : undefined}
+                          error={
+                            email && !emailSchema.safeParse(email).success
+                              ? "Enter a valid email address"
+                              : undefined
+                          }
                         >
                           <input
                             type="email"
@@ -704,12 +950,23 @@ function OnboardingPage() {
                         <Field
                           label="WhatsApp number"
                           required
-                          error={whatsappCustom && whatsapp.length === 10 && !mobileSchema.safeParse(whatsapp).success ? "Enter a valid 10-digit mobile number" : undefined}
+                          error={
+                            whatsappCustom &&
+                            whatsapp.length === 10 &&
+                            !mobileSchema.safeParse(whatsapp).success
+                              ? "Enter a valid 10-digit mobile number"
+                              : undefined
+                          }
                         >
                           <ConditionalField visible={!whatsappCustom}>
                             <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface px-3 py-2.5">
                               <p className="min-w-0 truncate text-sm text-foreground/80">
-                                Same as mobile{mobile ? <span className="ml-1 font-medium tabular-nums">+91 {mobile}</span> : null}
+                                Same as mobile
+                                {mobile ? (
+                                  <span className="ml-1 font-medium tabular-nums">
+                                    +91 {mobile}
+                                  </span>
+                                ) : null}
                               </p>
                               <button
                                 type="button"
@@ -724,41 +981,80 @@ function OnboardingPage() {
                             <input
                               className="form-input"
                               value={whatsapp}
-                              onChange={(e) => setWhatsapp(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                              onChange={(e) =>
+                                setWhatsapp(e.target.value.replace(/\D/g, "").slice(0, 10))
+                              }
                               placeholder="WhatsApp 10-digit number"
                             />
                             <button
                               type="button"
-                              onClick={() => { setWhatsappCustom(false); setWhatsapp(""); }}
+                              onClick={() => {
+                                setWhatsappCustom(false);
+                                setWhatsapp("");
+                              }}
                               className="mt-1.5 text-xs font-semibold text-primary hover:underline"
                             >
                               Use my mobile number instead
                             </button>
                           </ConditionalField>
                           <label className="mt-2 flex items-start gap-2 text-xs text-foreground/80">
-                            <input type="checkbox" checked={whatsappOptIn} onChange={(e) => setWhatsappOptIn(e.target.checked)} />
-                            <span>Receive updates, alerts, and notifications on WhatsApp</span>
+                            <input
+                              type="checkbox"
+                              checked={whatsappOptIn}
+                              onChange={(e) => setWhatsappOptIn(e.target.checked)}
+                            />
+                            <span>
+                              Receive job alerts, application &amp; interview updates on WhatsApp.
+                              You can turn this off anytime in Settings.
+                            </span>
                           </label>
                         </Field>
-                        <Field label="Headline" hint="One-line summary — keep it short and specific">
-                          <input className="form-input" value={headline} maxLength={200} onChange={(e) => setHeadline(e.target.value.slice(0, 200))} placeholder="e.g. Sales Executive with 2 years exp" />
-                          <span className={`mt-1 block text-right text-xs tabular-nums ${headline.length >= 200 ? "text-destructive" : headline.length >= 180 ? "text-amber-600" : "text-muted-foreground"}`}>
+                        <Field
+                          label="Headline"
+                          hint="One-line summary — keep it short and specific"
+                        >
+                          <input
+                            className="form-input"
+                            value={headline}
+                            maxLength={200}
+                            onChange={(e) => setHeadline(e.target.value.slice(0, 200))}
+                            placeholder="e.g. Sales Executive with 2 years exp"
+                          />
+                          <span
+                            className={`mt-1 block text-right text-xs tabular-nums ${headline.length >= 200 ? "text-destructive" : headline.length >= 180 ? "text-amber-600" : "text-muted-foreground"}`}
+                          >
                             {headline.length}/200
                           </span>
                         </Field>
                         <Field label="City" required>
-                          <select className="form-input" value={city} onChange={(e) => setCity(e.target.value)}>
+                          <select
+                            className="form-input"
+                            value={city}
+                            onChange={(e) => setCity(e.target.value)}
+                          >
                             <option value="">Select city</option>
-                            {INDIAN_CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                            {INDIAN_CITIES.map((c) => (
+                              <option key={c} value={c}>
+                                {c}
+                              </option>
+                            ))}
                           </select>
                         </Field>
                         <Field label="Date of birth" required>
                           <DateField value={dob} onChange={setDob} />
                         </Field>
                         <Field label="Gender" required>
-                          <select className="form-input" value={gender} onChange={(e) => setGender(e.target.value as typeof gender)}>
-                            <option value="" disabled>Select gender</option>
-                            <option value="male">Male</option><option value="female">Female</option><option value="other">Other</option>
+                          <select
+                            className="form-input"
+                            value={gender}
+                            onChange={(e) => setGender(e.target.value as typeof gender)}
+                          >
+                            <option value="" disabled>
+                              Select gender
+                            </option>
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                            <option value="other">Other</option>
                             <option value="prefer_not">Prefer not to say</option>
                           </select>
                         </Field>
@@ -771,11 +1067,19 @@ function OnboardingPage() {
                   <SectionCard title="Your work status">
                     <div className="grid gap-3 sm:grid-cols-3">
                       {(["fresher", "experienced", "student"] as const).map((s) => (
-                        <button key={s} type="button" onClick={() => handleExpStatusChange(s)}
-                          className={`rounded-xl border p-4 text-left transition ${expStatus === s ? "border-primary bg-primary-light" : "border-border bg-card hover:border-primary/40"}`}>
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => handleExpStatusChange(s)}
+                          className={`rounded-xl border p-4 text-left transition ${expStatus === s ? "border-primary bg-primary-light" : "border-border bg-card hover:border-primary/40"}`}
+                        >
                           <p className="font-semibold capitalize text-foreground">{s}</p>
                           <p className="mt-1 text-xs text-muted-foreground">
-                            {s === "fresher" ? "Looking for first job" : s === "experienced" ? "1+ years of work experience" : "Currently studying"}
+                            {s === "fresher"
+                              ? "Looking for first job"
+                              : s === "experienced"
+                                ? "1+ years of work experience"
+                                : "Currently studying"}
                           </p>
                         </button>
                       ))}
@@ -783,21 +1087,51 @@ function OnboardingPage() {
                     {expStatus === "experienced" && (
                       <div className="mt-4 grid gap-4 sm:grid-cols-2">
                         <Field label="Total years of experience" required>
-                          <input type="number" min={0} max={50} className="form-input" value={years} onChange={(e) => setYears(Number(e.target.value))} />
+                          <input
+                            type="number"
+                            min={0}
+                            max={50}
+                            className="form-input"
+                            value={years}
+                            onChange={(e) => setYears(Number(e.target.value))}
+                          />
                         </Field>
                         <Field label="Current/last role">
-                          <JobTitleAutocomplete value={lastRole} onChange={setLastRole} placeholder="e.g. Sales Executive" />
+                          <JobTitleAutocomplete
+                            value={lastRole}
+                            onChange={setLastRole}
+                            placeholder="e.g. Sales Executive"
+                          />
                         </Field>
                       </div>
                     )}
                     <div className="mt-4">
-                      <Field label="Interested job roles" required hint="Pick as many as you like — we match jobs to all of them">
-                        <ChipInput values={interestedRoles} onChange={setInterestedRoles} placeholder="e.g. Sales Executive" suggestions={roleSuggestions} />
+                      <Field
+                        label="Interested job roles"
+                        required
+                        hint="Pick as many as you like — we match jobs to all of them"
+                      >
+                        <ChipInput
+                          values={interestedRoles}
+                          onChange={setInterestedRoles}
+                          placeholder="e.g. Sales Executive"
+                          suggestions={roleSuggestions}
+                        />
                       </Field>
                     </div>
                     <div className="mt-4">
-                      <Field label="Skills" required hint="Tap a suggestion to add it, or type your own and press Enter">
-                        <ChipInput values={skills} onChange={setSkills} max={25} suggestions={skillSuggestions} placeholder="Add a skill" />
+                      <Field
+                        label="Skills"
+                        required
+                        hint="Tap a suggestion to add it, or type your own and press Enter"
+                      >
+                        <ChipInput
+                          values={skills}
+                          onChange={setSkills}
+                          max={25}
+                          suggestions={skillSuggestions}
+                          placeholder="Add a skill"
+                        />
                       </Field>
                       <p className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground">
                         <Sparkles className="h-3 w-3 text-primary" />
@@ -813,12 +1147,30 @@ function OnboardingPage() {
                 )}
 
                 {currentLabel === "Experience" && (
-                  <SectionCard title={expStatus === "student" ? "Internships" : "Work experience"} action={
-                    <button type="button" onClick={() => setExperiences([...experiences, { job_title: "", company_name: "", start_date: "", end_date: "", is_current: false, description: "" }])}
-                      className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark">
-                      <Plus className="h-4 w-4" /> Add
-                    </button>
-                  }>
+                  <SectionCard
+                    title={expStatus === "student" ? "Internships" : "Work experience"}
+                    action={
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setExperiences([
+                            ...experiences,
+                            {
+                              job_title: "",
+                              company_name: "",
+                              start_date: "",
+                              end_date: "",
+                              is_current: false,
+                              description: "",
+                            },
+                          ])
+                        }
+                        className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark"
+                      >
+                        <Plus className="h-4 w-4" /> Add
+                      </button>
+                    }
+                  >
                     {experiences.length === 0 ? (
                       <p className="text-sm text-muted-foreground">
                         {expStatus === "experienced"
@@ -830,24 +1182,90 @@ function OnboardingPage() {
                         {experiences.map((e, i) => (
                           <div key={i} className="rounded-xl border border-border bg-surface p-4">
                             <div className="mb-3 flex items-center justify-between">
-                              <span className="text-xs font-semibold text-muted-foreground">{expStatus === "student" ? "Internship" : "Experience"} #{i + 1}</span>
-                              <button type="button" onClick={() => setExperiences(experiences.filter((_, k) => k !== i))} className="text-destructive hover:opacity-70"><Trash2 className="h-4 w-4" /></button>
+                              <span className="text-xs font-semibold text-muted-foreground">
+                                {expStatus === "student" ? "Internship" : "Experience"} #{i + 1}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setExperiences(experiences.filter((_, k) => k !== i))
+                                }
+                                className="text-destructive hover:opacity-70"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
                             </div>
                             <div className="grid gap-3 sm:grid-cols-2">
-                              <Field label={expStatus === "student" ? "Role" : "Job title"} required>
-                                <JobTitleAutocomplete value={e.job_title} onChange={(v) => setExperiences(experiences.map((x, k) => k === i ? { ...x, job_title: v } : x))} />
+                              <Field
+                                label={expStatus === "student" ? "Role" : "Job title"}
+                                required
+                              >
+                                <JobTitleAutocomplete
+                                  value={e.job_title}
+                                  onChange={(v) =>
+                                    setExperiences(
+                                      experiences.map((x, k) =>
+                                        k === i ? { ...x, job_title: v } : x,
+                                      ),
+                                    )
+                                  }
+                                />
                               </Field>
-                              <Field label={expStatus === "student" ? "Organisation" : "Company"} required>
-                                <input className="form-input" value={e.company_name} onChange={(ev) => setExperiences(experiences.map((x, k) => k === i ? { ...x, company_name: ev.target.value } : x))} />
+                              <Field
+                                label={expStatus === "student" ? "Organisation" : "Company"}
+                                required
+                              >
+                                <input
+                                  className="form-input"
+                                  value={e.company_name}
+                                  onChange={(ev) =>
+                                    setExperiences(
+                                      experiences.map((x, k) =>
+                                        k === i ? { ...x, company_name: ev.target.value } : x,
+                                      ),
+                                    )
+                                  }
+                                />
                               </Field>
                               <Field label="Start date">
-                                <DateField value={e.start_date} onChange={(v) => setExperiences(experiences.map((x, k) => k === i ? { ...x, start_date: v } : x))} />
+                                <DateField
+                                  value={e.start_date}
+                                  onChange={(v) =>
+                                    setExperiences(
+                                      experiences.map((x, k) =>
+                                        k === i ? { ...x, start_date: v } : x,
+                                      ),
+                                    )
+                                  }
+                                />
                               </Field>
                               <Field label="End date">
-                                <DateField value={e.end_date} disabled={e.is_current} onChange={(v) => setExperiences(experiences.map((x, k) => k === i ? { ...x, end_date: v } : x))} />
+                                <DateField
+                                  value={e.end_date}
+                                  disabled={e.is_current}
+                                  onChange={(v) =>
+                                    setExperiences(
+                                      experiences.map((x, k) =>
+                                        k === i ? { ...x, end_date: v } : x,
+                                      ),
+                                    )
+                                  }
+                                />
                                 <label className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                                  <input type="checkbox" checked={e.is_current} onChange={(ev) => setExperiences(experiences.map((x, k) => k === i ? { ...x, is_current: ev.target.checked } : x))} />
-                                  {expStatus === "student" ? "Currently ongoing" : "I currently work here"}
+                                  <input
+                                    type="checkbox"
+                                    checked={e.is_current}
+                                    onChange={(ev) =>
+                                      setExperiences(
+                                        experiences.map((x, k) =>
+                                          k === i ? { ...x, is_current: ev.target.checked } : x,
+                                        ),
+                                      )
+                                    }
+                                  />
+                                  {expStatus === "student"
+                                    ? "Currently ongoing"
+                                    : "I currently work here"}
                                 </label>
                               </Field>
                             </div>
@@ -856,7 +1274,13 @@ function OnboardingPage() {
                                 className="form-input min-h-[70px]"
                                 maxLength={1500}
                                 value={e.description}
-                                onChange={(ev) => setExperiences(experiences.map((x, k) => k === i ? { ...x, description: ev.target.value } : x))}
+                                onChange={(ev) =>
+                                  setExperiences(
+                                    experiences.map((x, k) =>
+                                      k === i ? { ...x, description: ev.target.value } : x,
+                                    ),
+                                  )
+                                }
                                 placeholder="What did you do here?"
                               />
                             </Field>
@@ -870,12 +1294,17 @@ function OnboardingPage() {
                 {currentLabel === "Education" && (
                   <SectionCard title="Highest qualification">
                     <p className="mb-4 text-sm text-muted-foreground">
-                      Pick your highest qualification now — you can add school/college, board and marks later from your profile.
+                      Pick your highest qualification now — you can add school/college, board and
+                      marks later from your profile.
                     </p>
                     <div className="grid gap-3 sm:grid-cols-2">
                       {QUALIFICATIONS.map((q) => (
-                        <button key={q} type="button" onClick={() => setHighestQualification(q)}
-                          className={`rounded-xl border p-3 text-left text-sm font-medium transition ${highestQualification === q ? "border-primary bg-primary-light text-primary" : "border-border bg-card hover:border-primary/40"}`}>
+                        <button
+                          key={q}
+                          type="button"
+                          onClick={() => setHighestQualification(q)}
+                          className={`rounded-xl border p-3 text-left text-sm font-medium transition ${highestQualification === q ? "border-primary bg-primary-light text-primary" : "border-border bg-card hover:border-primary/40"}`}
+                        >
                           {q}
                         </button>
                       ))}
@@ -885,19 +1314,33 @@ function OnboardingPage() {
 
                 {currentLabel === "Skills & languages" && (
                   <div className="space-y-6">
-                    <SectionCard title="Skills" action={
-                      <button type="button" onClick={() => setStepKey("Work status")} className="text-xs font-semibold text-primary hover:underline">
-                        Edit
-                      </button>
-                    }>
+                    <SectionCard
+                      title="Skills"
+                      action={
+                        <button
+                          type="button"
+                          onClick={() => setStepKey("Work status")}
+                          className="text-xs font-semibold text-primary hover:underline"
+                        >
+                          Edit
+                        </button>
+                      }
+                    >
                       {skills.length ? (
                         <div className="flex flex-wrap gap-2">
                           {skills.map((s) => (
-                            <span key={s} className="rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium text-foreground/80">{s}</span>
+                            <span
+                              key={s}
+                              className="rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium text-foreground/80"
+                            >
+                              {s}
+                            </span>
                           ))}
                         </div>
                       ) : (
-                        <p className="text-sm text-muted-foreground">No skills added yet — use Edit to add some.</p>
+                        <p className="text-sm text-muted-foreground">
+                          No skills added yet — use Edit to add some.
+                        </p>
                       )}
                     </SectionCard>
                     <OptionalSection
@@ -910,37 +1353,126 @@ function OnboardingPage() {
                         <p className="text-xs text-muted-foreground">
                           Optional — knowing more languages helps employers match you.
                         </p>
-                        <button type="button" onClick={() => setLanguages([...languages, { language: "", proficiency: "conversational", can_read: true, can_write: true }])}
-                          className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setLanguages([
+                              ...languages,
+                              {
+                                language: "",
+                                proficiency: "conversational",
+                                can_read: true,
+                                can_write: true,
+                              },
+                            ])
+                          }
+                          className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark"
+                        >
                           <Plus className="h-4 w-4" /> Add
                         </button>
                       </div>
                       <div className="space-y-3">
                         {languages.map((l, i) => (
-                          <div key={i} className="grid items-end gap-3 rounded-xl border border-border bg-surface p-3 sm:grid-cols-[1.2fr_1fr_auto_auto_auto]">
+                          <div
+                            key={i}
+                            className="grid items-end gap-3 rounded-xl border border-border bg-surface p-3 sm:grid-cols-[1.2fr_1fr_auto_auto_auto]"
+                          >
                             <Field label="Language">
-                              <input className="form-input" list="lang-suggestions" value={l.language} onChange={(e) => setLanguages(languages.map((x, k) => k === i ? { ...x, language: e.target.value } : x))} />
+                              <input
+                                className="form-input"
+                                list="lang-suggestions"
+                                value={l.language}
+                                onChange={(e) =>
+                                  setLanguages(
+                                    languages.map((x, k) =>
+                                      k === i ? { ...x, language: e.target.value } : x,
+                                    ),
+                                  )
+                                }
+                              />
                             </Field>
                             <Field label="Proficiency">
-                              <select className="form-input" value={l.proficiency} onChange={(e) => setLanguages(languages.map((x, k) => k === i ? { ...x, proficiency: e.target.value as Language["proficiency"] } : x))}>
-                                <option value="basic">Basic</option><option value="conversational">Conversational</option><option value="fluent">Fluent</option><option value="native">Native</option>
+                              <select
+                                className="form-input"
+                                value={l.proficiency}
+                                onChange={(e) =>
+                                  setLanguages(
+                                    languages.map((x, k) =>
+                                      k === i
+                                        ? {
+                                            ...x,
+                                            proficiency: e.target.value as Language["proficiency"],
+                                          }
+                                        : x,
+                                    ),
+                                  )
+                                }
+                              >
+                                <option value="basic">Basic</option>
+                                <option value="conversational">Conversational</option>
+                                <option value="fluent">Fluent</option>
+                                <option value="native">Native</option>
                               </select>
                             </Field>
-                            <label className="flex items-center gap-1.5 text-xs text-foreground/80"><input type="checkbox" checked={l.can_read} onChange={(e) => setLanguages(languages.map((x, k) => k === i ? { ...x, can_read: e.target.checked } : x))} /> Read</label>
-                            <label className="flex items-center gap-1.5 text-xs text-foreground/80"><input type="checkbox" checked={l.can_write} onChange={(e) => setLanguages(languages.map((x, k) => k === i ? { ...x, can_write: e.target.checked } : x))} /> Write</label>
-                            <button type="button" onClick={() => setLanguages(languages.filter((_, k) => k !== i))} className="text-destructive hover:opacity-70"><Trash2 className="h-4 w-4" /></button>
+                            <label className="flex items-center gap-1.5 text-xs text-foreground/80">
+                              <input
+                                type="checkbox"
+                                checked={l.can_read}
+                                onChange={(e) =>
+                                  setLanguages(
+                                    languages.map((x, k) =>
+                                      k === i ? { ...x, can_read: e.target.checked } : x,
+                                    ),
+                                  )
+                                }
+                              />{" "}
+                              Read
+                            </label>
+                            <label className="flex items-center gap-1.5 text-xs text-foreground/80">
+                              <input
+                                type="checkbox"
+                                checked={l.can_write}
+                                onChange={(e) =>
+                                  setLanguages(
+                                    languages.map((x, k) =>
+                                      k === i ? { ...x, can_write: e.target.checked } : x,
+                                    ),
+                                  )
+                                }
+                              />{" "}
+                              Write
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => setLanguages(languages.filter((_, k) => k !== i))}
+                              className="text-destructive hover:opacity-70"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
                           </div>
                         ))}
                       </div>
-                      <datalist id="lang-suggestions">{langMaster.map((l) => <option key={l} value={l} />)}</datalist>
+                      <datalist id="lang-suggestions">
+                        {langMaster.map((l) => (
+                          <option key={l} value={l} />
+                        ))}
+                      </datalist>
                     </OptionalSection>
                     <SectionCard title="What do you have?">
                       <div className="flex flex-wrap gap-2">
                         {(visibleAssets.length ? visibleAssets : assetsMaster).map((a) => {
                           const on = assets.includes(a.slug);
                           return (
-                            <button key={a.slug} type="button" onClick={() => setAssets(on ? assets.filter((x) => x !== a.slug) : [...assets, a.slug])}
-                              className={`rounded-full border px-4 py-1.5 text-sm font-medium transition ${on ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-foreground/70 hover:border-primary"}`}>
+                            <button
+                              key={a.slug}
+                              type="button"
+                              onClick={() =>
+                                setAssets(
+                                  on ? assets.filter((x) => x !== a.slug) : [...assets, a.slug],
+                                )
+                              }
+                              className={`rounded-full border px-4 py-1.5 text-sm font-medium transition ${on ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-foreground/70 hover:border-primary"}`}
+                            >
                               {a.label}
                             </button>
                           );
@@ -959,31 +1491,67 @@ function OnboardingPage() {
                             {JOB_TYPE_OPTIONS.map((j) => {
                               const on = jobTypes.includes(j.id);
                               const disabled = expStatus === "student" && j.id !== "internship";
-                              return <button key={j.id} type="button" disabled={disabled} onClick={() => setJobTypes(on ? jobTypes.filter((x) => x !== j.id) : [...jobTypes, j.id])}
-                                className={`rounded-full border px-3 py-1.5 text-xs font-medium ${on ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-foreground/70 hover:border-primary"} ${disabled ? "opacity-40" : ""}`}>{j.label}</button>;
+                              return (
+                                <button
+                                  key={j.id}
+                                  type="button"
+                                  disabled={disabled}
+                                  onClick={() =>
+                                    setJobTypes(
+                                      on ? jobTypes.filter((x) => x !== j.id) : [...jobTypes, j.id],
+                                    )
+                                  }
+                                  className={`rounded-full border px-3 py-1.5 text-xs font-medium ${on ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-foreground/70 hover:border-primary"} ${disabled ? "opacity-40" : ""}`}
+                                >
+                                  {j.label}
+                                </button>
+                              );
                             })}
                           </div>
-                          {expStatus === "student" && <p className="mt-1 text-xs text-muted-foreground">Students can apply only to Internships.</p>}
+                          {expStatus === "student" && (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Students can apply only to Internships.
+                            </p>
+                          )}
                         </Field>
                         <Field label="Work mode" required hint="Select one or more">
                           <div className="flex flex-wrap gap-2">
                             {WORK_MODES.map((w) => {
                               const on = workModes.includes(w.id);
                               return (
-                                <button key={w.id} type="button" onClick={() => setWorkModes(on ? workModes.filter((x) => x !== w.id) : [...workModes, w.id])}
-                                  className={`rounded-full border px-3 py-1.5 text-xs font-medium ${on ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-foreground/70 hover:border-primary"}`}>{w.label}</button>
+                                <button
+                                  key={w.id}
+                                  type="button"
+                                  onClick={() =>
+                                    setWorkModes(
+                                      on
+                                        ? workModes.filter((x) => x !== w.id)
+                                        : [...workModes, w.id],
+                                    )
+                                  }
+                                  className={`rounded-full border px-3 py-1.5 text-xs font-medium ${on ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-foreground/70 hover:border-primary"}`}
+                                >
+                                  {w.label}
+                                </button>
                               );
                             })}
                           </div>
                         </Field>
                         <div className="sm:col-span-2">
                           <Field label="Preferred cities" required hint="1–4 cities">
-                            <ChipInput values={preferredCities} onChange={(v) => setPreferredCities(v.slice(0, 4))} suggestions={INDIAN_CITIES} placeholder="Add cities" />
+                            <ChipInput
+                              values={preferredCities}
+                              onChange={(v) => setPreferredCities(v.slice(0, 4))}
+                              suggestions={INDIAN_CITIES}
+                              placeholder="Add cities"
+                            />
                           </Field>
                         </div>
                         {expStatus !== "student" && (
                           <div className="sm:col-span-2">
-                            <Field label={`Expected monthly salary${expStatus === "experienced" ? " *" : ""}`}>
+                            <Field
+                              label={`Expected monthly salary${expStatus === "experienced" ? " *" : ""}`}
+                            >
                               <SalaryPicker
                                 candidateId={uid}
                                 role={interestedRoles[0] || lastRole}
@@ -991,14 +1559,25 @@ function OnboardingPage() {
                                 experienceStatus={expStatus}
                                 value={expectedSalary}
                                 choiceKind={expectedSalaryChoiceKind}
-                                onChange={(v, kind) => { setExpectedSalary(v); setExpectedSalaryChoiceKind(kind); }}
+                                onChange={(v, kind) => {
+                                  setExpectedSalary(v);
+                                  setExpectedSalaryChoiceKind(kind);
+                                }}
                               />
                             </Field>
                           </div>
                         )}
                         {expStatus === "experienced" && (
                           <Field label="Notice period (days) *">
-                            <input type="number" className="form-input" value={noticeDays} onChange={(e) => setNoticeDays(e.target.value ? Number(e.target.value) : "")} placeholder="0 if immediately available" />
+                            <input
+                              type="number"
+                              className="form-input"
+                              value={noticeDays}
+                              onChange={(e) =>
+                                setNoticeDays(e.target.value ? Number(e.target.value) : "")
+                              }
+                              placeholder="0 if immediately available"
+                            />
                           </Field>
                         )}
                       </div>
@@ -1010,13 +1589,31 @@ function OnboardingPage() {
 
             {/* Footer nav ΓÇö no skips */}
             <div className="sticky bottom-0 z-20 mt-6 flex items-center justify-between rounded-xl border border-border bg-card p-3 shadow-[var(--shadow-card)] sm:p-4">
-              <button type="button" disabled={step === 0 || saving} onClick={() => saveStep(-1)}
-                className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground hover:bg-surface disabled:opacity-50">
+              <button
+                type="button"
+                disabled={step === 0 || saving}
+                onClick={() => saveStep(-1)}
+                className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground hover:bg-surface disabled:opacity-50"
+              >
                 <ArrowLeft className="h-4 w-4" /> Back
               </button>
-              <button type="button" onClick={handleNext} disabled={saving}
-                className="inline-flex items-center gap-1 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-50">
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : step === visibleSteps.length - 1 ? <>Finish <Check className="h-4 w-4" /></> : <>Continue <ArrowRight className="h-4 w-4" /></>}
+              <button
+                type="button"
+                onClick={handleNext}
+                disabled={saving}
+                className="inline-flex items-center gap-1 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-50"
+              >
+                {saving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : step === visibleSteps.length - 1 ? (
+                  <>
+                    Finish <Check className="h-4 w-4" />
+                  </>
+                ) : (
+                  <>
+                    Continue <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
               </button>
             </div>
           </div>

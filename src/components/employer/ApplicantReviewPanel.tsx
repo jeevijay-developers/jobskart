@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Mail, Phone, X } from "lucide-react";
+import { Mail, X } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { getCandidateResume, type ResumeFile } from "@/lib/candidateResume";
 import { ApplicationFormFields } from "@/components/candidate/ApplicationFormFields";
 import { ApplicantStatusMenu } from "./ApplicantStatusMenu";
+import { CandidateContactActions } from "./CandidateContactActions";
 
 type Experience = {
   id: string;
@@ -32,12 +33,18 @@ export type ReviewApplicant = {
   cover_note: string | null;
   expected_salary: number | null;
   available_from: string | null;
-  profiles: { full_name: string | null; email: string | null; mobile: string | null; city: string | null } | null;
+  profiles: {
+    full_name: string | null;
+    email: string | null;
+    mobile: string | null;
+    city: string | null;
+  } | null;
   candidate_profiles: {
     profile_slug: string | null;
     headline: string | null;
     last_role: string | null;
     skills: string[] | null;
+    whatsapp_available?: boolean;
   } | null;
 };
 
@@ -45,6 +52,9 @@ type Props = {
   applicant: ReviewApplicant;
   onClose: () => void;
   onStatusChange: (status: string) => void;
+  /** D10: enables the Call/WhatsApp row. Omit (or pass jobId=null) where no job context exists. */
+  companyId?: string;
+  jobId?: string | null;
 };
 
 function formatMonthYear(iso: string | null) {
@@ -52,7 +62,13 @@ function formatMonthYear(iso: string | null) {
   return new Date(iso).toLocaleDateString("en-IN", { month: "short", year: "numeric" });
 }
 
-export function ApplicantReviewPanel({ applicant: a, onClose, onStatusChange }: Props) {
+export function ApplicantReviewPanel({
+  applicant: a,
+  onClose,
+  onStatusChange,
+  companyId,
+  jobId,
+}: Props) {
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [education, setEducation] = useState<Education[]>([]);
   const [resume, setResume] = useState<ResumeFile | null>(null);
@@ -90,7 +106,9 @@ export function ApplicantReviewPanel({ applicant: a, onClose, onStatusChange }: 
   const viewResume = async () => {
     if (!resume) return;
     setViewingResume(true);
-    const { data, error } = await supabase.storage.from("candidate-docs").createSignedUrl(resume.path, 3600);
+    const { data, error } = await supabase.storage
+      .from("candidate-docs")
+      .createSignedUrl(resume.path, 3600);
     setViewingResume(false);
     if (error) return toast.error(error.message);
     if (data?.signedUrl) window.open(data.signedUrl, "_blank", "noopener,noreferrer");
@@ -121,7 +139,9 @@ export function ApplicantReviewPanel({ applicant: a, onClose, onStatusChange }: 
         </div>
 
         <div className="mt-4">
-          <p className="mb-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">Status</p>
+          <p className="mb-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            Status
+          </p>
           <ApplicantStatusMenu value={a.status} onChange={onStatusChange} className="w-full" />
         </div>
 
@@ -131,19 +151,28 @@ export function ApplicantReviewPanel({ applicant: a, onClose, onStatusChange }: 
               <Mail className="h-4 w-4 text-muted-foreground" /> {a.profiles.email}
             </p>
           )}
-          {a.profiles?.mobile && (
-            <p className="flex items-center gap-2">
-              <Phone className="h-4 w-4 text-muted-foreground" /> {a.profiles.mobile}
-            </p>
+          {a.profiles?.mobile && companyId && (
+            <CandidateContactActions
+              companyId={companyId}
+              jobId={jobId ?? null}
+              candidateUserId={a.candidate_id}
+              mobile={a.profiles.mobile}
+              whatsappAvailable={!!cp?.whatsapp_available}
+            />
           )}
         </div>
 
         {cp?.skills && cp.skills.length > 0 && (
           <div className="mt-5">
-            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Skills</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              Skills
+            </p>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {cp.skills.map((s) => (
-                <span key={s} className="rounded-full bg-surface px-2.5 py-1 text-xs text-foreground/80">
+                <span
+                  key={s}
+                  className="rounded-full bg-surface px-2.5 py-1 text-xs text-foreground/80"
+                >
                   {s}
                 </span>
               ))}
@@ -153,7 +182,9 @@ export function ApplicantReviewPanel({ applicant: a, onClose, onStatusChange }: 
 
         {!loadingDetails && experiences.length > 0 && (
           <div className="mt-5">
-            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Experience</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              Experience
+            </p>
             <div className="mt-2 space-y-2">
               {experiences.map((e) => (
                 <div key={e.id} className="rounded-lg border border-border bg-surface p-3 text-sm">
@@ -161,7 +192,8 @@ export function ApplicantReviewPanel({ applicant: a, onClose, onStatusChange }: 
                     {e.job_title} · {e.company_name}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {formatMonthYear(e.start_date)} – {e.is_current ? "Present" : formatMonthYear(e.end_date)}
+                    {formatMonthYear(e.start_date)} –{" "}
+                    {e.is_current ? "Present" : formatMonthYear(e.end_date)}
                   </p>
                 </div>
               ))}
@@ -171,13 +203,17 @@ export function ApplicantReviewPanel({ applicant: a, onClose, onStatusChange }: 
 
         {!loadingDetails && education.length > 0 && (
           <div className="mt-5">
-            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Education</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              Education
+            </p>
             <div className="mt-2 space-y-2">
               {education.map((e) => (
                 <div key={e.id} className="rounded-lg border border-border bg-surface p-3 text-sm">
                   <p className="font-medium">{e.level}</p>
                   <p className="text-xs text-muted-foreground">
-                    {[e.institute, e.board_or_university, e.year_of_passing].filter(Boolean).join(" · ")}
+                    {[e.institute, e.board_or_university, e.year_of_passing]
+                      .filter(Boolean)
+                      .join(" · ")}
                   </p>
                 </div>
               ))}
@@ -186,7 +222,9 @@ export function ApplicantReviewPanel({ applicant: a, onClose, onStatusChange }: 
         )}
 
         <div className="mt-5 space-y-4">
-          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Submitted application</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            Submitted application
+          </p>
           <ApplicationFormFields
             readOnly
             resumeLabel={resume?.name || ""}

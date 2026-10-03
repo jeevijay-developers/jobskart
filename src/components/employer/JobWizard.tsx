@@ -122,6 +122,7 @@ type Form = {
   description: string;
   description_html: string;
   hiring_for_company: string;
+  contact_pref: "in_app" | "call" | "whatsapp";
 };
 
 const initialForm: Form = {
@@ -165,6 +166,7 @@ const initialForm: Form = {
   description: "",
   description_html: "",
   hiring_for_company: "",
+  contact_pref: "in_app",
 };
 
 // Only the columns the wizard reads back when editing an existing job.
@@ -209,6 +211,7 @@ type JobRow = {
   description: string | null;
   description_html: string | null;
   hiring_for_company: string | null;
+  contact_pref: string | null;
   status: string;
 };
 
@@ -254,6 +257,7 @@ function jobToForm(job: JobRow): Form {
     description: job.description ?? "",
     description_html: job.description_html ?? "",
     hiring_for_company: job.hiring_for_company ?? "",
+    contact_pref: (job.contact_pref as Form["contact_pref"]) || "in_app",
   };
 }
 
@@ -296,6 +300,7 @@ function buildFieldsFromForm(
     required_assets: form.required_assets,
     certifications: form.certifications,
     preferred_industries: form.preferred_industries,
+    contact_pref: form.contact_pref,
   };
   if (form.category) p.category = form.category;
   if (form.industry) p.industry = form.industry;
@@ -404,7 +409,7 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
         setActiveCompanyId(chosen.company_id);
         setCompanyId(chosen.company_id);
         setCompanyName(chosen.companies?.name || "our company");
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
         const { data: co } = await supabase
           .from("companies")
           .select("is_consultant" as any)
@@ -1895,6 +1900,36 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                   {canPickTier && (
                     <TierPicker tier={tier} onChange={setTier} entitlements={entitlements} />
                   )}
+
+                  <div>
+                    <h3 className="text-sm font-bold">Preferred contact method</h3>
+                    <p className="text-xs text-muted-foreground">
+                      How applicants for this job see they'll be reached — doesn't change what
+                      recruiters themselves can do after unlocking a candidate.
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {(
+                        [
+                          { id: "in_app", label: "In-app only" },
+                          { id: "call", label: "Phone call" },
+                          { id: "whatsapp", label: "WhatsApp" },
+                        ] as const
+                      ).map((o) => (
+                        <button
+                          key={o.id}
+                          type="button"
+                          onClick={() => markDirty("contact_pref", o.id)}
+                          className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${
+                            form.contact_pref === o.id
+                              ? "border-primary bg-primary-light text-primary"
+                              : "border-border bg-surface text-foreground/70"
+                          }`}
+                        >
+                          {o.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
 
