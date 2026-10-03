@@ -29,6 +29,7 @@ import {
   WORK_MODES,
   suggestRelatedRoles,
   suggestSkillsForRoles,
+  suggestionSeeds,
   DEFAULT_SKILL_SUGGESTIONS,
 } from "@/lib/options";
 import { computeProfileStrength } from "@/lib/profileStrength";
@@ -309,19 +310,33 @@ function OnboardingPage() {
   }, []);
 
   // Fetch AI suggested skills when interested roles / experience titles change
+  // Debounced so typing the current role doesn't fire a request per keystroke.
   useEffect(() => {
-    const roles = [...interestedRoles, ...experiences.map((e) => e.job_title).filter(Boolean)];
+    const roles = suggestionSeeds(
+      [...interestedRoles, ...experiences.map((e) => e.job_title).filter(Boolean)],
+      lastRole,
+    );
     if (!roles.length) return;
     let cancelled = false;
-    suggest({ data: { roles, qualification: highestQualification || null } })
-      .then((s) => !cancelled && setAiSkills(s))
-      .catch(() => {});
+    const timer = setTimeout(() => {
+      suggest({ data: { roles, qualification: highestQualification || null } })
+        .then((s) => !cancelled && setAiSkills(s))
+        .catch(() => {});
+    }, 600);
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
-  }, [interestedRoles, experiences, highestQualification, suggest]);
+  }, [interestedRoles, experiences, lastRole, highestQualification, suggest]);
 
-  const roleSuggestions = useMemo(() => suggestRelatedRoles(interestedRoles), [interestedRoles]);
+  const roleSuggestions = useMemo(
+    () => suggestRelatedRoles(interestedRoles, lastRole),
+    [interestedRoles, lastRole],
+  );
+  const suggestionBasis = useMemo(
+    () => suggestionSeeds(interestedRoles.slice(0, 2), lastRole).slice(0, 3),
+    [interestedRoles, lastRole],
+  );
 
   // Merge the server/AI-driven suggestions (ranked by real employer job
   // postings, kept first) with a deterministic role->skills lookup so the
@@ -329,7 +344,7 @@ function OnboardingPage() {
   // for the selected role(s) yet — instead of falling back to a fully
   // generic list.
   const skillSuggestions = useMemo(() => {
-    const roleBased = suggestSkillsForRoles(interestedRoles);
+    const roleBased = suggestSkillsForRoles(interestedRoles, lastRole);
     if (!aiSkills.length) return roleBased.length ? roleBased : DEFAULT_SKILL_SUGGESTIONS;
     const seen = new Set(aiSkills.map((s) => s.toLowerCase()));
     const merged = [...aiSkills];
@@ -340,7 +355,7 @@ function OnboardingPage() {
       merged.push(s);
     }
     return merged;
-  }, [aiSkills, interestedRoles]);
+  }, [aiSkills, interestedRoles, lastRole]);
 
   // Asset visibility: derive from selected roles
   const visibleAssets = useMemo(() => {
@@ -1136,9 +1151,9 @@ function OnboardingPage() {
                       </Field>
                       <p className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground">
                         <Sparkles className="h-3 w-3 text-primary" />
-                        {interestedRoles.length > 0
-                          ? `Suggestions based on ${interestedRoles.slice(0, 2).join(", ")} — tap to add or remove.`
-                          : "Suggestions appear once you add a role above."}
+                        {suggestionBasis.length > 0
+                          ? `Suggestions based on ${suggestionBasis.join(", ")} — tap to add or remove.`
+                          : "Suggestions appear once you add your current role or a role above."}
                       </p>
                       <p className="mt-1 text-xs font-semibold text-foreground">
                         Selected: <span className="tabular-nums">{skills.length}</span>/25

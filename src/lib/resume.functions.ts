@@ -96,9 +96,11 @@ export const RESUME_SAFE_ERROR_MESSAGES = new Set<string>([
   "Old .doc files aren't supported. Please upload a PDF or DOCX instead.",
   "Unsupported file. Please upload a PDF, DOCX or image (JPG/PNG).",
   RESUME_SERVICE_UNAVAILABLE_MESSAGE,
-  // Mirrors mapError()'s 429 and 402 messages in ai/provider.ts.
+  // Mirrors mapError()'s 429 message in ai/provider.ts. The 402 ("credits
+  // exhausted") message is deliberately NOT here: it is a platform billing
+  // problem the candidate cannot fix, so it is logged and shown as the
+  // generic unavailable copy instead.
   "Too many requests. Try again in a minute.",
-  "AI credits exhausted. Add credits in your workspace.",
 ]);
 
 function toSafeError(e: unknown): Error {
@@ -134,9 +136,11 @@ async function callGateway(
   images?: { mime: string; b64: string }[],
   files?: { mime: string; b64: string; name?: string }[],
 ) {
-  // Up to 20 experiences + 10 education entries + 40 skills can legitimately
-  // fill more than the provider's shared default output cap.
-  return chat({ system: SYSTEM_PROMPT, user: userText, images, files, json: true, maxTokens: 6000 });
+  // OpenRouter reserves credit for the full max_tokens up front, so a large
+  // budget makes the call fail with 402 on a low-balance account even when the
+  // resume itself is small. 3000 covers a typical resume's JSON (up to ~20
+  // experiences, 10 education entries, 40 skills) and is verified to succeed.
+  return chat({ system: SYSTEM_PROMPT, user: userText, images, files, json: true, maxTokens: 3000 });
 }
 
 const fromText = (text: string) =>

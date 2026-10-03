@@ -22,6 +22,8 @@ const inputSchema = z.object({
 // publish-blocking step, so a long ceiling is fine — the fallback below still applies.
 const TIMEOUT_MS = 30000;
 
+export type PolishReason = "ok" | "unchanged" | "numbers_changed" | "empty" | "timeout" | "error";
+
 function extractNumbers(s: string): string[] {
   return (s.match(/\d[\d,]*/g) ?? []).map((n) => n.replace(/,/g, ""));
 }
@@ -54,15 +56,31 @@ export const polishJobDescription = createServerFn({ method: "POST" })
     try {
       const result = await Promise.race([
         chat({ system, user: data.markdown, temperature: 0.3 }),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), TIMEOUT_MS)),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("timeout")), TIMEOUT_MS),
+        ),
       ]);
       const polished = result.trim();
-      if (!polished || !passesNumericGuard(data.markdown, polished)) {
-        return { markdown: data.markdown, polished: false };
+      if (!polished)
+        return { markdown: data.markdown, polished: false, reason: "empty" as PolishReason };
+      if (!passesNumericGuard(data.markdown, polished)) {
+        return {
+          markdown: data.markdown,
+          polished: false,
+          reason: "numbers_changed" as PolishReason,
+        };
       }
-      return { markdown: polished, polished: true };
+      if (polished === data.markdown.trim()) {
+        return { markdown: data.markdown, polished: false, reason: "unchanged" as PolishReason };
+      }
+      return { markdown: polished, polished: true, reason: "ok" as PolishReason };
     } catch (e) {
+      const timedOut = e instanceof Error && e.message === "timeout";
       console.error("[jd-polish] AI polish failed, keeping original text:", e);
-      return { markdown: data.markdown, polished: false };
+      return {
+        markdown: data.markdown,
+        polished: false,
+        reason: (timedOut ? "timeout" : "error") as PolishReason,
+      };
     }
   });

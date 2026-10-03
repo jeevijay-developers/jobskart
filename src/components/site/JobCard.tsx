@@ -5,6 +5,7 @@ import { formatExperience, formatSalary, jobTypeLabel, timeAgo, workModeLabel } 
 import { supabase } from "@/integrations/supabase/client";
 import { useSavedJob } from "@/hooks/use-saved-job";
 import { useShareJob } from "@/hooks/use-share-job";
+import { useAppliedJobIds, useMarkJobApplied } from "@/hooks/use-applied-job-ids";
 import { ApplyDialog } from "@/components/candidate/ApplyDialog";
 import { Badge } from "@/components/ui/badge";
 
@@ -92,7 +93,9 @@ export function JobCard({
   const location = [job.locality, job.city].filter(Boolean).join(", ") || job.city || "India";
 
   const [userId, setUserId] = useState<string | null>(null);
-  const [applied, setApplied] = useState(false);
+  const appliedIds = useAppliedJobIds(userId);
+  const markApplied = useMarkJobApplied();
+  const applied = appliedIds.has(job.id);
   const [applyOpen, setApplyOpen] = useState(false);
   const [showBreakdown, setShowBreakdown] = useState(false);
   const { saved, toggle: toggleSaved } = useSavedJob(job.id, userId);
@@ -108,26 +111,6 @@ export function JobCard({
       cancelled = true;
     };
   }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (variant === "discovery" || !userId) {
-      setApplied(false);
-      return;
-    }
-    supabase
-      .from("applications")
-      .select("id")
-      .eq("job_id", job.id)
-      .eq("candidate_id", userId)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (!cancelled) setApplied(!!data);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [job.id, userId, variant]);
 
   const requireAuth = () => {
     navigate({ to: "/auth", search: { tab: "candidate" } as never });
@@ -300,7 +283,7 @@ export function JobCard({
             created_at: job.created_at,
           }}
           onApplied={() => {
-            setApplied(true);
+            markApplied(userId, job.id);
             setApplyOpen(false);
             if (variant === "discovery" && userId) logRecommendationFeedback(userId, job.id, "applied");
             void onApplied?.();

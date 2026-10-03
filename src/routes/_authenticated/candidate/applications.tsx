@@ -190,16 +190,28 @@ function ApplicationsPage() {
       ) : filtered.length === 0 ? (
         <div className="grid place-items-center rounded-xl border border-dashed border-border bg-card p-12 text-center">
           <Briefcase className="mb-3 h-7 w-7 text-muted-foreground" />
-          <h2 className="text-lg font-semibold text-foreground">No applications yet</h2>
+          <h2 className="text-lg font-semibold text-foreground">
+            {tab === "interview"
+              ? "No interviews yet"
+              : tab === "shortlisted"
+                ? "No shortlisted applications yet"
+                : "No applications yet"}
+          </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Browse jobs and apply to start tracking responses.
+            {tab === "interview"
+              ? "Interviews you're invited to will appear here."
+              : tab === "shortlisted"
+                ? "Applications that employers shortlist will appear here."
+                : "Browse jobs and apply to start tracking responses."}
           </p>
+          {tab === "all" && (
           <Link
             to="/jobs"
             className="mt-4 inline-flex h-10 items-center rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground"
           >
             Browse jobs
           </Link>
+          )}
         </div>
       ) : (
         <div className="grid gap-3">
