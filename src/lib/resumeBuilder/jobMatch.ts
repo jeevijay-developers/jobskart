@@ -3,6 +3,7 @@
 // candidate's own resume and a public job listing are involved, so (unlike
 // recruiter-facing ranking) it is fine to compute client-side.
 import type { ResumeSchema } from "./schema";
+import { termsFor } from "./skillSynonyms";
 
 export interface MatchJob {
   id: string;
@@ -19,6 +20,7 @@ export interface ResumeTextBlock {
 export interface MatchedSkill {
   skill: string;
   sections: string[]; // where on the resume it was found
+  via: string | null; // the alias that matched, when it isn't the skill's own name
 }
 
 export interface MissingSkill {
@@ -96,11 +98,20 @@ export function computeJobMatch(resume: ResumeSchema, job: MatchJob): JobMatchRe
   const matched: MatchedSkill[] = [];
   const missing: MissingSkill[] = [];
   for (const k of keywords) {
-    const sections = Array.from(
-      new Set(blocks.filter((b) => containsKeyword(b.text, k)).map((b) => b.section)),
-    );
-    if (sections.length > 0) matched.push({ skill: k, sections });
-    else missing.push({ skill: k, suggestion: suggestionFor(k, certKeys.has(norm(k))) });
+    const own = norm(k);
+    const sections = new Set<string>();
+    let via: string | null = null;
+    for (const term of termsFor(own)) {
+      for (const b of blocks) {
+        if (!containsKeyword(b.text, term)) continue;
+        sections.add(b.section);
+        if (term !== own && via === null) via = term;
+      }
+    }
+    const ownHit = blocks.some((b) => containsKeyword(b.text, own));
+    if (sections.size > 0)
+      matched.push({ skill: k, sections: Array.from(sections), via: ownHit ? null : via });
+    else missing.push({ skill: k, suggestion: suggestionFor(k, certKeys.has(own)) });
   }
 
   const fullText = blocks.map((b) => b.text).join(" ");

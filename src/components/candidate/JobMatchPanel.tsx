@@ -103,6 +103,7 @@ export function JobMatchPanel({
                 <div key={m.skill} className="flex flex-wrap items-center gap-1.5">
                   <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-medium text-success">
                     <CheckCircle2 className="h-3 w-3" /> {m.skill}
+                    {m.via && <span className="font-normal opacity-75">(as “{m.via}”)</span>}
                   </span>
                   <span className="text-[10px] text-muted-foreground">
                     in {m.sections.join(", ")}
