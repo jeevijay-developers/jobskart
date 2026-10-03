@@ -174,6 +174,27 @@ function ResumeBuilderPage() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editTab, setEditTab] = useState<"layout" | "extras">("layout");
   const [isVersionModalOpen, setIsVersionModalOpen] = useState(false);
+  const [pendingAnchor, setPendingAnchor] = useState<string | null>(null);
+
+  const openChecklistItem = (anchor?: string) => {
+    if (!anchor) return;
+    setEditTab("extras");
+    setIsEditOpen(true);
+    setPendingAnchor(anchor);
+  };
+
+  // The checklist targets fields inside the edit panel, which only mounts once
+  // it's open. Scroll after it renders, picking the visible copy (desktop drawer
+  // and mobile sheet both render the same ids, one of them hidden per breakpoint).
+  useEffect(() => {
+    if (!pendingAnchor || !isEditOpen || editTab !== "extras") return;
+    const target = Array.from(
+      document.querySelectorAll<HTMLElement>(`[id="${pendingAnchor}"]`),
+    ).find((el) => el.offsetParent !== null);
+    if (!target) return;
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+    setPendingAnchor(null);
+  }, [pendingAnchor, isEditOpen, editTab]);
 
   useEffect(() => {
     (async () => {
@@ -412,11 +433,7 @@ function ResumeBuilderPage() {
                           <button
                             type="button"
                             className="text-left text-foreground hover:text-primary hover:underline"
-                            onClick={() =>
-                              document
-                                .getElementById(item.anchor ?? "")
-                                ?.scrollIntoView({ behavior: "smooth", block: "center" })
-                            }
+                            onClick={() => openChecklistItem(item.anchor)}
                           >
                             {item.message}
                           </button>
@@ -432,7 +449,12 @@ function ResumeBuilderPage() {
                 <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                   Tailor to a Job
                 </h2>
-                {merged && <JobMatchPanel resume={merged} />}
+                {merged && (
+                  <JobMatchPanel
+                    resume={merged}
+                    onJumpToSummary={() => openChecklistItem("rb-summary")}
+                  />
+                )}
               </section>
 
               {/* Profile summary */}
@@ -644,11 +666,7 @@ function ResumeBuilderPage() {
                         <button
                           type="button"
                           className="text-left text-foreground hover:text-primary hover:underline"
-                          onClick={() =>
-                            document
-                              .getElementById(item.anchor ?? "")
-                              ?.scrollIntoView({ behavior: "smooth", block: "center" })
-                          }
+                          onClick={() => openChecklistItem(item.anchor)}
                         >
                           {item.message}
                         </button>
@@ -664,7 +682,12 @@ function ResumeBuilderPage() {
               <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                 Tailor to a Job
               </h2>
-              {merged && <JobMatchPanel resume={merged} />}
+              {merged && (
+                <JobMatchPanel
+                  resume={merged}
+                  onJumpToSummary={() => openChecklistItem("rb-summary")}
+                />
+              )}
             </section>
 
             {/* Profile summary */}
