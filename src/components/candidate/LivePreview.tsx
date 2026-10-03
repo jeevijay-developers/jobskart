@@ -1,5 +1,6 @@
 import { getResumeTemplate } from "@/lib/resumeBuilder/templates/registry";
 import type { ResumeLayoutSettings, ResumeSchema } from "@/lib/resumeBuilder/schema";
+import { useStandardFontsReady } from "@/lib/resumeBuilder/ensureStandardFonts";
 import { PDFViewer } from "@react-pdf/renderer";
 
 interface LivePreviewProps {
@@ -22,6 +23,11 @@ export function LivePreview({
   className = "",
 }: LivePreviewProps) {
   const Template = getResumeTemplate(templateId);
+  // Don't mount PDFViewer until the standard-font registration fix has
+  // actually resolved — see ensureStandardFonts.ts for why this can't just be
+  // a fire-and-forget import.
+  const fontsReady = useStandardFontsReady();
+  if (!fontsReady) return null;
 
   return (
     <PDFViewer

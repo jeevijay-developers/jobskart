@@ -40,6 +40,7 @@ import { EditModeDrawer } from "@/components/candidate/EditModeDrawer";
 import { EditModeBottomSheet } from "@/components/candidate/EditModeBottomSheet";
 import { LivePreview } from "@/components/candidate/LivePreview";
 import { Segmented } from "@/components/candidate/Segmented";
+import { useStandardFontsReady } from "@/lib/resumeBuilder/ensureStandardFonts";
 
 export const Route = createFileRoute("/_authenticated/candidate/resume-builder")({
   ssr: false,
@@ -761,6 +762,8 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 
 function VersionPreviewModal({ version, onClose }: { version: VersionRow; onClose: () => void }) {
   const Template = getResumeTemplate(version.template_id);
+  // See ensureStandardFonts.ts — PDFViewer must not mount until this resolves.
+  const fontsReady = useStandardFontsReady();
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="flex h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-card shadow-xl">
@@ -776,9 +779,14 @@ function VersionPreviewModal({ version, onClose }: { version: VersionRow; onClos
           </button>
         </div>
         <div className="flex-1">
-          <PDFViewer style={{ width: "100%", height: "100%", border: "none" }} showToolbar={false}>
-            <Template resume={version.snapshot} />
-          </PDFViewer>
+          {fontsReady && (
+            <PDFViewer
+              style={{ width: "100%", height: "100%", border: "none" }}
+              showToolbar={false}
+            >
+              <Template resume={version.snapshot} />
+            </PDFViewer>
+          )}
         </div>
       </div>
     </div>
