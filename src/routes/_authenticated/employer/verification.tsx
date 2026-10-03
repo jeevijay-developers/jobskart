@@ -29,10 +29,14 @@ function VerificationPage() {
 
   useEffect(() => {
     (async () => {
+      // The stored active-company id can be stale (another account, a removed membership).
+      // The KYC upload path is "<company_id>/kyc/..." and the storage policy only accepts a
+      // company the caller is an active member of, so only trust a stored id the user belongs to.
       let id = getActiveCompanyId();
-      if (!id) {
-        const { data: u } = await supabase.auth.getUser();
-        if (u.user) { const ms = await fetchMyCompanies(u.user.id); id = ms[0]?.company_id ?? null; }
+      const { data: u } = await supabase.auth.getUser();
+      if (u.user) {
+        const ms = await fetchMyCompanies(u.user.id);
+        if (!id || (ms.length > 0 && !ms.some((m) => m.company_id === id))) id = ms[0]?.company_id ?? id;
       }
       if (!id) return;
       setCid(id);

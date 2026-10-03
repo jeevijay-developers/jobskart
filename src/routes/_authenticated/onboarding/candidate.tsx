@@ -51,6 +51,7 @@ import {
   RESUME_ACCEPT,
 } from "@/lib/validators";
 import { suggestSkills } from "@/lib/candidate.functions";
+import { randomId } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/onboarding/candidate")({
   head: () => ({ meta: [{ title: "Complete your profile · JobsKart" }] }),
@@ -673,7 +674,7 @@ function OnboardingPage() {
     setUploading(true);
     try {
       const ext = (file.name.split(".").pop() || "bin").toLowerCase();
-      const path = `${uid}/resume-${Date.now()}-${crypto.randomUUID()}.${ext}`;
+      const path = `${uid}/resume-${Date.now()}-${randomId()}.${ext}`;
       const { error } = await supabase.storage
         .from("candidate-docs")
         .upload(path, file, { upsert: true });

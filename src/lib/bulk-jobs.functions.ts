@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { mapTierError } from "@/lib/jobs.functions";
 
 const RowSchema = z.object({
   title: z.string().min(2),
@@ -52,12 +53,32 @@ export const bulkCreateJobs = createServerFn({ method: "POST" })
       skills: r.skills ? r.skills.split(",").map((s) => s.trim()).filter(Boolean) : [],
       description: r.description || r.title,
       openings: r.openings,
-      status: "active",
+      // RLS only lets an INSERT create a draft; going live is activate_job_with_tier() below
+      // (the same path single-job posting uses for entitlement checks + credit charging).
+      status: "draft",
       salary_period: "monthly",
       pay_type: "fixed",
     }));
 
     const { data: inserted, error } = await supabase.from("jobs").insert(payload as never).select("id");
     if (error) throw new Error(error.message);
-    return { count: inserted?.length ?? 0 };
+
+    // Activate sequentially: the RPC row-locks the job and takes a per-company lock while it
+    // counts quota/credits, so each activation must see the previous one. Stop at the first
+    // failure (live-job cap, no credits...) — the remaining jobs stay as drafts, nothing is lost.
+    const ids = ((inserted ?? []) as { id: string }[]).map((j) => j.id);
+    let count = 0;
+    let failure: string | null = null;
+    for (const id of ids) {
+      const { error: activateError } = await supabase.rpc("activate_job_with_tier", {
+        _job_id: id,
+        _tier: "classic",
+      });
+      if (activateError) {
+        failure = mapTierError(activateError.message);
+        break;
+      }
+      count++;
+    }
+    return { count, drafts: ids.length - count, failure };
   });

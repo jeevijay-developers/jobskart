@@ -2,6 +2,7 @@ import { StateDropdown } from "@/components/candidate/StateDropdown";
 import { CityTownAutocomplete } from "@/components/candidate/CityTownAutocomplete";
 import { JobTitleAutocomplete } from "@/components/candidate/JobTitleAutocomplete";
 import { useNavigate } from "@tanstack/react-router";
+import { flushSync } from "react-dom";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -56,7 +57,7 @@ import {
   SUGGESTED_LANGUAGES,
   ASSETS,
 } from "@/lib/options";
-import { buildJd, type JdInput } from "@/lib/jd-template";
+import { buildJd, markdownToHtml, type JdInput } from "@/lib/jd-template";
 import { getRecommendedSkills } from "@/lib/skill-engine";
 import { getRoleBenchmarks } from "@/lib/salary-benchmarks";
 import { polishJobDescription } from "@/lib/jd-polish.functions";
@@ -623,14 +624,24 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
     if (jdDirty) return;
     if (!form.title.trim()) return;
     const jd = buildJd(jdInput);
-    setForm((f) => ({ ...f, description: jd.markdown, description_html: jd.html }));
+    // Keep the same state object when the JD is unchanged: jdInput depends on `form`,
+    // so always returning a new object re-fires this effect forever ("Maximum update
+    // depth exceeded"), which crashes the page on the next interaction.
+    setForm((f) =>
+      f.description === jd.markdown && f.description_html === jd.html
+        ? f
+        : { ...f, description: jd.markdown, description_html: jd.html },
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jdInput, jdDirty]);
 
   const regenerate = () => {
-    setJdDirty(false);
     const jd = buildJd(jdInput);
-    setForm((f) => ({ ...f, description: jd.markdown, description_html: jd.html }));
+    // flushSync commits the new text + preview before the success toast fires.
+    flushSync(() => {
+      setJdDirty(false);
+      setForm((f) => ({ ...f, description: jd.markdown, description_html: jd.html }));
+    });
     toast.success("JD regenerated from your inputs.");
   };
 
@@ -964,7 +975,13 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                         type="number"
                         min={1}
                         value={form.openings}
-                        onChange={(e) => markDirty("openings", Number(e.target.value))}
+                        onChange={(e) => {
+                          // "0" + typed "5" arrives as "05"; React's loose number compare
+                          // (05 == 5) never rewrites the DOM text, so strip it ourselves.
+                          const raw = e.target.value.replace(/^0+(?=\d)/, "");
+                          if (raw !== e.target.value) e.target.value = raw;
+                          markDirty("openings", Number(raw));
+                        }}
                         className="form-input max-sm:appearance-none pr-9 sm:pr-3.5 [&::-webkit-inner-spin-button]:max-sm:appearance-none [&::-webkit-outer-spin-button]:max-sm:appearance-none"
                       />
                       <div className="absolute inset-y-0 right-1 flex flex-col justify-center gap-0.5 py-1 sm:hidden">
@@ -1803,7 +1820,11 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                             });
                             if (r.polished) {
                               setJdDirty(true);
-                              set("description", r.markdown);
+                              setForm((f) => ({
+                                ...f,
+                                description: r.markdown,
+                                description_html: markdownToHtml(r.markdown),
+                              }));
                               toast.success("Tone polished.");
                             } else {
                               toast.info(
@@ -1858,7 +1879,12 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                         value={form.description}
                         onChange={(e) => {
                           setJdDirty(true);
-                          set("description", e.target.value);
+                          const text = e.target.value;
+                          setForm((f) => ({
+                            ...f,
+                            description: text,
+                            description_html: markdownToHtml(text),
+                          }));
                         }}
                         className="form-input resize-none font-mono text-xs"
                       />

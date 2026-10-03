@@ -17,7 +17,10 @@ const inputSchema = z.object({
   maxExp: z.number().optional(),
 });
 
-const TIMEOUT_MS = 3000;
+// A real rewrite from the configured model takes ~10-15s; 3s made every call fall
+// back to the original text. This is a user-triggered button (with a spinner), not a
+// publish-blocking step, so a long ceiling is fine — the fallback below still applies.
+const TIMEOUT_MS = 30000;
 
 function extractNumbers(s: string): string[] {
   return (s.match(/\d[\d,]*/g) ?? []).map((n) => n.replace(/,/g, ""));
@@ -58,7 +61,8 @@ export const polishJobDescription = createServerFn({ method: "POST" })
         return { markdown: data.markdown, polished: false };
       }
       return { markdown: polished, polished: true };
-    } catch {
+    } catch (e) {
+      console.error("[jd-polish] AI polish failed, keeping original text:", e);
       return { markdown: data.markdown, polished: false };
     }
   });

@@ -57,7 +57,13 @@ function BulkPage() {
       }
       if (!cid) throw new Error("Complete company onboarding first");
       const res = await upload({ data: { company_id: cid, rows } });
-      toast.success(`${res.count} jobs published`);
+      if (res.drafts > 0) {
+        toast.error(
+          `${res.count} published, ${res.drafts} saved as drafts — ${res.failure ?? "publishing failed"}`,
+        );
+      } else {
+        toast.success(`${res.count} jobs published`);
+      }
       nav({ to: "/employer/jobs" });
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Failed to upload");

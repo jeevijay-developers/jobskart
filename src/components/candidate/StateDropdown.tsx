@@ -11,6 +11,12 @@ type Props = {
   triggerClassName?: string;
   /** Overrides the open menu's max-height in px (default: 272). */
   maxMenuHeight?: number;
+  /**
+   * Opt-in: minimum menu width in px for a trigger narrower than its options. The
+   * menu then aligns its right edge with the trigger (staying on screen) instead of
+   * clipping option text to the trigger's width.
+   */
+  menuMinWidth?: number;
   /** Opt-in: shows a search box atop the menu that filters options as you type. */
   searchable?: boolean;
   /** Placeholder for the search box (searchable only). Default: "Search…". */
@@ -32,6 +38,7 @@ export function StateDropdown({
   placeholder = "Select state",
   triggerClassName,
   maxMenuHeight,
+  menuMinWidth,
   searchable,
   searchPlaceholder = "Search…",
   portalToBody = true,
@@ -88,10 +95,13 @@ export function StateDropdown({
       // keeps the default "open below" behavior for that everyday case.
       const MIN_USABLE_HEIGHT = 120;
       const openUpward = spaceBelow < MIN_USABLE_HEIGHT && spaceAbove > spaceBelow;
+      const wide = !!menuMinWidth && rect.width < menuMinWidth;
+      const width = wide ? menuMinWidth : rect.width;
+      const left = wide ? Math.max(8, rect.right - width) : rect.left;
       setMenuPos(
         openUpward
-          ? { bottom: window.innerHeight - rect.top + 4, left: rect.left, width: rect.width }
-          : { top: rect.bottom + 4, left: rect.left, width: rect.width },
+          ? { bottom: window.innerHeight - rect.top + 4, left, width }
+          : { top: rect.bottom + 4, left, width },
       );
     };
     updatePosition();
@@ -101,9 +111,9 @@ export function StateDropdown({
       window.removeEventListener("scroll", updatePosition, true);
       window.removeEventListener("resize", updatePosition);
     };
-  }, [open]);
+  }, [open, menuMinWidth]);
 
-  const pick = (v: string) => {
+  const pick =(v: string) => {
     onChange(v);
     setOpen(false);
     setSearch("");

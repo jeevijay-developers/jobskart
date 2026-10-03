@@ -1,6 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Briefcase, Building2, Calendar, CheckCircle2, GraduationCap, Loader2, MapPin, X } from "lucide-react";
+import {
+  Briefcase,
+  Building2,
+  Calendar,
+  CheckCircle2,
+  GraduationCap,
+  Loader2,
+  MapPin,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { RESUME_ACCEPT, validateResumeFile } from "@/lib/validators";
@@ -8,6 +17,7 @@ import { getCandidateResume } from "@/lib/candidateResume";
 import { ApplicationFormFields } from "@/components/candidate/ApplicationFormFields";
 import { Badge } from "@/components/ui/badge";
 import { formatExperience, formatSalary, jobTypeLabel, workModeLabel } from "@/lib/format";
+import { randomId } from "@/lib/utils";
 
 type Props = {
   open: boolean;
@@ -118,7 +128,7 @@ export function ApplyDialog({ open, onClose, userId, job, onApplied }: Props) {
       if (newFile) {
         setUploading(true);
         const ext = (newFile.name.split(".").pop() || "bin").toLowerCase();
-        const path = `${userId}/resume-${Date.now()}-${crypto.randomUUID()}.${ext}`;
+        const path = `${userId}/resume-${Date.now()}-${randomId()}.${ext}`;
         const up = await supabase.storage
           .from("candidate-docs")
           .upload(path, newFile, { upsert: true, contentType: newFile.type || undefined });
@@ -211,7 +221,9 @@ export function ApplyDialog({ open, onClose, userId, job, onApplied }: Props) {
             <h3 className="text-base font-bold leading-snug text-foreground">{job.title}</h3>
             <p className="mt-1 truncate text-sm text-muted-foreground">
               {job.company_name || "Confidential employer"}
-              {job.company_verified ? <span className="ml-1 text-xs text-success">✓ Verified</span> : null}
+              {job.company_verified ? (
+                <span className="ml-1 text-xs text-success">✓ Verified</span>
+              ) : null}
             </p>
           </div>
 
@@ -239,7 +251,10 @@ export function ApplyDialog({ open, onClose, userId, job, onApplied }: Props) {
           {job.skills && job.skills.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {job.skills.slice(0, 4).map((s) => (
-                <span key={s} className="rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground">
+                <span
+                  key={s}
+                  className="rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground"
+                >
                   {s}
                 </span>
               ))}
@@ -253,7 +268,10 @@ export function ApplyDialog({ open, onClose, userId, job, onApplied }: Props) {
                 <div>
                   <p className="text-muted-foreground">Posted on</p>
                   <p className="font-medium text-foreground">
-                    {new Date(job.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                    {new Date(job.created_at).toLocaleDateString("en-IN", {
+                      day: "numeric",
+                      month: "short",
+                    })}
                   </p>
                 </div>
               </div>
@@ -263,7 +281,9 @@ export function ApplyDialog({ open, onClose, userId, job, onApplied }: Props) {
                 <Briefcase className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                 <div>
                   <p className="text-muted-foreground">Job type</p>
-                  <p className="font-medium text-foreground">{jobTypeLabel(job.job_type as string)}</p>
+                  <p className="font-medium text-foreground">
+                    {jobTypeLabel(job.job_type as string)}
+                  </p>
                 </div>
               </div>
             )}
@@ -272,7 +292,9 @@ export function ApplyDialog({ open, onClose, userId, job, onApplied }: Props) {
                 <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                 <div>
                   <p className="text-muted-foreground">Work mode</p>
-                  <p className="font-medium text-foreground">{workModeLabel(job.work_mode as string)}</p>
+                  <p className="font-medium text-foreground">
+                    {workModeLabel(job.work_mode as string)}
+                  </p>
                 </div>
               </div>
             )}
