@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { FileText, Loader2, Trash2, Upload, Download } from "lucide-react";
 import { toast } from "sonner";
 import { CandidateShell } from "@/components/candidate/CandidateShell";
+import { DocumentPreviewModal, loadDocPreview, type DocPreview } from "@/components/candidate/DocumentPreviewModal";
 import { supabase } from "@/integrations/supabase/client";
 import { timeAgo } from "@/lib/format";
 
@@ -41,6 +42,7 @@ function DocumentsPage() {
   const [rows, setRows] = useState<Doc[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState<DocKey | null>(null);
+  const [preview, setPreview] = useState<DocPreview | null>(null);
   const inputs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const load = async () => {
@@ -130,10 +132,8 @@ function DocumentsPage() {
   };
 
   const openDoc = async (d: Doc) => {
-    const { data } = await supabase.storage
-      .from("candidate-docs")
-      .createSignedUrl(d.file_path, 3600);
-    if (data?.signedUrl) window.open(data.signedUrl, "_blank", "noopener");
+    const p = await loadDocPreview(d.file_path, d.file_name);
+    if (p) setPreview(p);
   };
 
   return (
@@ -215,6 +215,7 @@ function DocumentsPage() {
           );
         })}
       </div>
+      {preview && <DocumentPreviewModal preview={preview} onClose={() => setPreview(null)} />}
     </CandidateShell>
   );
 }
