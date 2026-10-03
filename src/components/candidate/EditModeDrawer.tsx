@@ -1,4 +1,4 @@
-import { X, Loader2, RotateCcw } from "lucide-react";
+import { X, Loader2, RotateCcw, ArrowLeft } from "lucide-react";
 import { Segmented } from "./Segmented";
 import { ResumeLayoutEditor } from "./ResumeLayoutEditor";
 import { ResumeExtrasEditor } from "./ResumeExtrasEditor";
@@ -67,19 +67,29 @@ export function EditModeDrawer({
           onChange={setActiveTab}
         />
 
-        {activeTab === "layout" ? (
-          <ResumeLayoutEditor value={layoutDraft} onChange={setLayoutDraft} className="flex-1" />
-        ) : (
-          <ResumeExtrasEditor
-            extras={extras}
-            onChange={setExtras}
-            experiences={experiences}
-            sections={sections}
-            className="flex-1"
-          />
-        )}
+        {/* Only this region scrolls, so the header, tabs and Back/Save footer stay in view. */}
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {activeTab === "layout" ? (
+            <ResumeLayoutEditor value={layoutDraft} onChange={setLayoutDraft} className="flex-1" />
+          ) : (
+            <ResumeExtrasEditor
+              extras={extras}
+              onChange={setExtras}
+              experiences={experiences}
+              sections={sections}
+              className="flex-1"
+            />
+          )}
+        </div>
 
         <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold text-foreground hover:bg-surface"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" /> Back
+          </button>
           <button
             type="button"
             onClick={onReset}

@@ -765,7 +765,14 @@ function VersionPreviewModal({ version, onClose }: { version: VersionRow; onClos
   // See ensureStandardFonts.ts — PDFViewer must not mount until this resolves.
   const fontsReady = useStandardFontsReady();
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={(e) => {
+        // Same pattern as ApplyDialog: only a click landing directly on the backdrop
+        // closes it, never one bubbling up from inside the modal.
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div className="flex h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-card shadow-xl">
         <div className="flex items-center justify-between border-b border-border px-5 py-3">
           <p className="text-sm font-semibold text-foreground">
