@@ -71,6 +71,7 @@ type Application = {
     years_experience: number | null;
     experience_status: string | null;
     skills: string[] | null;
+    whatsapp_available?: boolean;
   } | null;
   education: { level: string; institute: string | null } | null;
 };
@@ -103,13 +104,22 @@ type Tab = (typeof TABS)[number]["id"];
 function emptyStateCopy(tab: Tab) {
   switch (tab) {
     case "all":
-      return { title: "No applicants yet", body: "Applications will show up here as candidates apply." };
+      return {
+        title: "No applicants yet",
+        body: "Applications will show up here as candidates apply.",
+      };
     case "applied":
       return { title: "Nothing new to review", body: "New applications land here first." };
     case "shortlisted":
-      return { title: "No one shortlisted yet", body: "Move promising applicants here to keep track of them." };
+      return {
+        title: "No one shortlisted yet",
+        body: "Move promising applicants here to keep track of them.",
+      };
     case "interview":
-      return { title: "No interviews in progress", body: "Applicants you're interviewing will show up here." };
+      return {
+        title: "No interviews in progress",
+        body: "Applicants you're interviewing will show up here.",
+      };
     case "hired":
       return { title: "No hires yet", body: "Once you mark someone hired, they'll appear here." };
     case "rejected":
@@ -149,8 +159,14 @@ function TagBadge({ tag }: { tag: string }) {
 
 // ─── Match Score Ring ─────────────────────────────────────────────────────────
 function MatchScoreRing({ score, onClick }: { score: number; onClick?: () => void }) {
-  const color = score >= 75 ? "text-emerald-600" : score >= 50 ? "text-warning" : "text-muted-foreground";
-  const ring = score >= 75 ? "bg-emerald-50 ring-emerald-200" : score >= 50 ? "bg-warning-light ring-warning/30" : "bg-surface ring-border";
+  const color =
+    score >= 75 ? "text-emerald-600" : score >= 50 ? "text-warning" : "text-muted-foreground";
+  const ring =
+    score >= 75
+      ? "bg-emerald-50 ring-emerald-200"
+      : score >= 50
+        ? "bg-warning-light ring-warning/30"
+        : "bg-surface ring-border";
   const Tag = onClick ? "button" : "div";
   return (
     <Tag
@@ -261,16 +277,27 @@ function RecommendedCard({
               isAnonymous ? "bg-surface text-muted-foreground" : "bg-primary-light text-primary"
             }`}
           >
-            {isAnonymous ? "?" : name.split(" ").slice(0, 2).map((n) => n[0]).join("").toUpperCase()}
+            {isAnonymous
+              ? "?"
+              : name
+                  .split(" ")
+                  .slice(0, 2)
+                  .map((n) => n[0])
+                  .join("")
+                  .toUpperCase()}
           </div>
           <MatchScoreRing score={candidate.match_score} onClick={() => onExplain(candidate)} />
-          <span className="text-[9px] font-bold uppercase text-muted-foreground tracking-wider">Match</span>
+          <span className="text-[9px] font-bold uppercase text-muted-foreground tracking-wider">
+            Match
+          </span>
         </div>
 
         {/* Details */}
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <p className={`text-base font-semibold ${isAnonymous ? "text-muted-foreground italic" : "text-foreground"}`}>
+            <p
+              className={`text-base font-semibold ${isAnonymous ? "text-muted-foreground italic" : "text-foreground"}`}
+            >
               {name}
             </p>
             {candidate.tags.map((tag) => (
@@ -287,16 +314,26 @@ function RecommendedCard({
 
           <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
             {candidate.years_experience != null && (
-              <span>{candidate.years_experience} yr{candidate.years_experience !== 1 ? "s" : ""} exp</span>
+              <span>
+                {candidate.years_experience} yr{candidate.years_experience !== 1 ? "s" : ""} exp
+              </span>
             )}
-            {candidate.city && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{candidate.city}</span>}
+            {candidate.city && (
+              <span className="flex items-center gap-1">
+                <MapPin className="h-3 w-3" />
+                {candidate.city}
+              </span>
+            )}
           </div>
 
           {/* Skills */}
           {(candidate.skills ?? []).length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1">
               {(candidate.skills ?? []).slice(0, 5).map((s) => (
-                <span key={s} className="rounded-md bg-primary-light px-2 py-0.5 text-[10px] font-semibold text-primary">
+                <span
+                  key={s}
+                  className="rounded-md bg-primary-light px-2 py-0.5 text-[10px] font-semibold text-primary"
+                >
                   {s}
                 </span>
               ))}
@@ -359,7 +396,9 @@ function BoardCard({
     <div className="rounded-lg border border-border bg-card p-2.5 shadow-sm">
       <div className="flex items-start justify-between gap-1">
         <button onClick={onView} className="min-w-0 flex-1 text-left">
-          <p className="truncate text-xs font-semibold text-foreground hover:text-primary">{name}</p>
+          <p className="truncate text-xs font-semibold text-foreground hover:text-primary">
+            {name}
+          </p>
         </button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -383,7 +422,10 @@ function BoardCard({
       <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground">
         {score != null && <span className="font-bold text-primary">{score}% match</span>}
         {app.candidate_profiles?.years_experience != null && (
-          <span>{app.candidate_profiles.years_experience} yr{app.candidate_profiles.years_experience !== 1 ? "s" : ""}</span>
+          <span>
+            {app.candidate_profiles.years_experience} yr
+            {app.candidate_profiles.years_experience !== 1 ? "s" : ""}
+          </span>
         )}
         {app.profiles?.city && <span className="truncate">{app.profiles.city}</span>}
       </div>
@@ -395,7 +437,9 @@ function BoardCard({
 function ApplicantsPage() {
   const { jobId } = Route.useParams();
   const { source: sourceParam } = Route.useSearch();
-  const [job, setJob] = useState<{ title: string; status: string; company_id: string } | null>(null);
+  const [job, setJob] = useState<{ title: string; status: string; company_id: string } | null>(
+    null,
+  );
 
   // Applied candidates state
   const [apps, setApps] = useState<Application[]>([]);
@@ -409,7 +453,9 @@ function ApplicantsPage() {
   const [ranked, setRanked] = useState<Record<string, { score: number; tags: string[] }>>({});
 
   // Source switcher
-  const [source, setSource] = useState<Source>(sourceParam === "recommended" ? "recommended" : "applied");
+  const [source, setSource] = useState<Source>(
+    sourceParam === "recommended" ? "recommended" : "applied",
+  );
   const [explaining, setExplaining] = useState<RecommendedCandidate | null>(null);
 
   // Keep the active tab in sync with ?source= on every navigation to this
@@ -446,7 +492,9 @@ function ApplicantsPage() {
     if (aRes.error) toast.error(aRes.error.message);
     setJob(jRes.data as { title: string; status: string; company_id: string } | null);
 
-    const rows = (aRes.data || []) as unknown as Array<Omit<Application, "candidate_profiles" | "education">>;
+    const rows = (aRes.data || []) as unknown as Array<
+      Omit<Application, "candidate_profiles" | "education">
+    >;
     const ids = Array.from(new Set(rows.map((r) => r.candidate_id)));
 
     let cpMap: Record<string, Application["candidate_profiles"]> = {};
@@ -455,7 +503,9 @@ function ApplicantsPage() {
       const [cpRes, eduRes] = await Promise.all([
         supabase
           .from("candidate_profiles")
-          .select("user_id, profile_slug, headline, last_role, years_experience, experience_status, skills")
+          .select(
+            "user_id, profile_slug, headline, last_role, years_experience, experience_status, skills, whatsapp_number, whatsapp_opt_in, whatsapp_number_status",
+          )
           .in("user_id", ids),
         supabase
           .from("candidate_education")
@@ -463,13 +513,31 @@ function ApplicantsPage() {
           .in("user_id", ids)
           .order("year_of_passing", { ascending: false, nullsFirst: false }),
       ]);
-      cpMap = Object.fromEntries((cpRes.data || []).map((c) => [c.user_id, c]));
+      cpMap = Object.fromEntries(
+        (cpRes.data || []).map((c) => [
+          c.user_id,
+          {
+            ...c,
+            whatsapp_available: !!(
+              c.whatsapp_number &&
+              c.whatsapp_opt_in &&
+              c.whatsapp_number_status !== "invalid"
+            ),
+          },
+        ]),
+      );
       for (const e of eduRes.data || []) {
         if (!eduMap[e.user_id]) eduMap[e.user_id] = { level: e.level, institute: e.institute };
       }
     }
 
-    setApps(rows.map((r) => ({ ...r, candidate_profiles: cpMap[r.candidate_id] ?? null, education: eduMap[r.candidate_id] ?? null })) as Application[]);
+    setApps(
+      rows.map((r) => ({
+        ...r,
+        candidate_profiles: cpMap[r.candidate_id] ?? null,
+        education: eduMap[r.candidate_id] ?? null,
+      })) as Application[],
+    );
     setLoading(false);
   };
 
@@ -542,8 +610,16 @@ function ApplicantsPage() {
       toast.error(mapCrmError(e instanceof Error ? e.message : "Update failed"));
       return;
     }
-    toast.success(ids.length > 1 ? `Moved ${ids.length} to ${applicantStatusLabel(status)}` : `Marked as ${applicantStatusLabel(status)}`);
-    setSelectedIds((prev) => { const n = new Set(prev); ids.forEach((id) => n.delete(id)); return n; });
+    toast.success(
+      ids.length > 1
+        ? `Moved ${ids.length} to ${applicantStatusLabel(status)}`
+        : `Marked as ${applicantStatusLabel(status)}`,
+    );
+    setSelectedIds((prev) => {
+      const n = new Set(prev);
+      ids.forEach((id) => n.delete(id));
+      return n;
+    });
   };
 
   // ─── Recommended: actions ────────────────────────────────────────────────
@@ -583,7 +659,10 @@ function ApplicantsPage() {
 
   const visible = useMemo(() => {
     const filtered = tab === "all" ? apps : apps.filter((a) => a.status === tab);
-    if (sortOrder === "match") return [...filtered].sort((a, b) => (ranked[b.id]?.score ?? -1) - (ranked[a.id]?.score ?? -1));
+    if (sortOrder === "match")
+      return [...filtered].sort(
+        (a, b) => (ranked[b.id]?.score ?? -1) - (ranked[a.id]?.score ?? -1),
+      );
     const sorted = [...filtered].sort((a, b) => {
       const diff = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
       return sortOrder === "newest" ? -diff : diff;
@@ -592,7 +671,12 @@ function ApplicantsPage() {
   }, [apps, tab, sortOrder, ranked]);
 
   const toggleSelect = (id: string) => {
-    setSelectedIds((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+    setSelectedIds((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
   };
 
   const empty = emptyStateCopy(tab);
@@ -606,9 +690,16 @@ function ApplicantsPage() {
   return (
     <EmployerShell
       title={job?.title ?? "Applicants"}
-      subtitle={source === "applied" ? `${apps.length} applicant${apps.length === 1 ? "" : "s"}` : `${recTotal} matched profiles`}
+      subtitle={
+        source === "applied"
+          ? `${apps.length} applicant${apps.length === 1 ? "" : "s"}`
+          : `${recTotal} matched profiles`
+      }
       actions={
-        <Link to="/employer/jobs" className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm">
+        <Link
+          to="/employer/jobs"
+          className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm"
+        >
           <ArrowLeft className="h-4 w-4" /> All jobs
         </Link>
       }
@@ -626,7 +717,9 @@ function ApplicantsPage() {
           <Users className="h-4 w-4" />
           Applied Candidates
           {apps.length > 0 && (
-            <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-xs font-bold sm:px-2 ${source === "applied" ? "bg-white/20" : "bg-primary-light text-primary"}`}>
+            <span
+              className={`shrink-0 rounded-full px-1.5 py-0.5 text-xs font-bold sm:px-2 ${source === "applied" ? "bg-white/20" : "bg-primary-light text-primary"}`}
+            >
               {apps.length}
             </span>
           )}
@@ -663,51 +756,66 @@ function ApplicantsPage() {
             <>
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 {!boardView && (
-                <div className="w-full rounded-xl border border-border bg-card p-1 sm:flex sm:w-auto sm:flex-wrap sm:gap-1">
-                  <div className="grid grid-cols-3 gap-1 sm:contents">
-                    {TABS.filter((t) => t.id !== "hired" && t.id !== "rejected").map((t) => (
-                      <button
-                        key={t.id}
-                        onClick={() => setTab(t.id)}
-                        className={`rounded-lg px-2 py-2 text-sm font-medium transition-colors sm:px-3 ${
-                          t.id === "applied" ? "hidden sm:block" : ""
-                        } ${
-                          tab === t.id ? "bg-primary text-primary-foreground" : "text-foreground/70 hover:bg-surface"
-                        }`}
-                      >
-                        {t.label} {counts[t.id] > 0 && <span className="ml-1 opacity-80">({counts[t.id]})</span>}
-                      </button>
-                    ))}
-                  </div>
-                  {/* Mobile-only second row nested under the Interview stage — "In progress"
+                  <div className="w-full rounded-xl border border-border bg-card p-1 sm:flex sm:w-auto sm:flex-wrap sm:gap-1">
+                    <div className="grid grid-cols-3 gap-1 sm:contents">
+                      {TABS.filter((t) => t.id !== "hired" && t.id !== "rejected").map((t) => (
+                        <button
+                          key={t.id}
+                          onClick={() => setTab(t.id)}
+                          className={`rounded-lg px-2 py-2 text-sm font-medium transition-colors sm:px-3 ${
+                            t.id === "applied" ? "hidden sm:block" : ""
+                          } ${
+                            tab === t.id
+                              ? "bg-primary text-primary-foreground"
+                              : "text-foreground/70 hover:bg-surface"
+                          }`}
+                        >
+                          {t.label}{" "}
+                          {counts[t.id] > 0 && (
+                            <span className="ml-1 opacity-80">({counts[t.id]})</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                    {/* Mobile-only second row nested under the Interview stage — "In progress"
                       is an alias for the Interview tab itself, shown alongside Hired/Rejected
                       so all three interview-stage outcomes sit together. Hidden on desktop,
                       which keeps Interview/Hired/Rejected as three independent, always-visible
                       top-level tabs (rendered via the sm:contents below, unchanged). */}
-                  <div
-                    className={`${showMobileInterviewSubRow ? "mt-1 grid grid-cols-3 gap-1" : "hidden"} sm:contents sm:mt-0`}
-                  >
-                    <button
-                      onClick={() => setTab("interview")}
-                      className={`rounded-lg px-2 py-2 text-sm font-medium transition-colors sm:hidden ${
-                        tab === "interview" ? "bg-primary text-primary-foreground" : "text-foreground/70 hover:bg-surface"
-                      }`}
+                    <div
+                      className={`${showMobileInterviewSubRow ? "mt-1 grid grid-cols-3 gap-1" : "hidden"} sm:contents sm:mt-0`}
                     >
-                      In progress {counts.interview > 0 && <span className="ml-1 opacity-80">({counts.interview})</span>}
-                    </button>
-                    {TABS.filter((t) => t.id === "hired" || t.id === "rejected").map((t) => (
                       <button
-                        key={t.id}
-                        onClick={() => setTab(t.id)}
-                        className={`rounded-lg px-2 py-2 text-sm font-medium transition-colors sm:px-3 ${
-                          tab === t.id ? "bg-primary text-primary-foreground" : "text-foreground/70 hover:bg-surface"
+                        onClick={() => setTab("interview")}
+                        className={`rounded-lg px-2 py-2 text-sm font-medium transition-colors sm:hidden ${
+                          tab === "interview"
+                            ? "bg-primary text-primary-foreground"
+                            : "text-foreground/70 hover:bg-surface"
                         }`}
                       >
-                        {t.label} {counts[t.id] > 0 && <span className="ml-1 opacity-80">({counts[t.id]})</span>}
+                        In progress{" "}
+                        {counts.interview > 0 && (
+                          <span className="ml-1 opacity-80">({counts.interview})</span>
+                        )}
                       </button>
-                    ))}
+                      {TABS.filter((t) => t.id === "hired" || t.id === "rejected").map((t) => (
+                        <button
+                          key={t.id}
+                          onClick={() => setTab(t.id)}
+                          className={`rounded-lg px-2 py-2 text-sm font-medium transition-colors sm:px-3 ${
+                            tab === t.id
+                              ? "bg-primary text-primary-foreground"
+                              : "text-foreground/70 hover:bg-surface"
+                          }`}
+                        >
+                          {t.label}{" "}
+                          {counts[t.id] > 0 && (
+                            <span className="ml-1 opacity-80">({counts[t.id]})</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
                 )}
                 <div className="flex items-center gap-2">
                   <button
@@ -715,16 +823,28 @@ function ApplicantsPage() {
                     className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold hover:bg-surface"
                     aria-label={boardView ? "Switch to list view" : "Switch to board view"}
                   >
-                    {boardView ? <List className="h-3.5 w-3.5" /> : <LayoutGrid className="h-3.5 w-3.5" />}{" "}
+                    {boardView ? (
+                      <List className="h-3.5 w-3.5" />
+                    ) : (
+                      <LayoutGrid className="h-3.5 w-3.5" />
+                    )}{" "}
                     {boardView ? "List" : "Board"}
                   </button>
                   {!boardView && (
                     <button
-                      onClick={() => setSortOrder((s) => (s === "match" ? "newest" : s === "newest" ? "oldest" : "match"))}
+                      onClick={() =>
+                        setSortOrder((s) =>
+                          s === "match" ? "newest" : s === "newest" ? "oldest" : "match",
+                        )
+                      }
                       className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold hover:bg-surface"
                     >
                       <ArrowUpDown className="h-3.5 w-3.5" />{" "}
-                      {sortOrder === "match" ? "Best match" : sortOrder === "newest" ? "Newest first" : "Oldest first"}
+                      {sortOrder === "match"
+                        ? "Best match"
+                        : sortOrder === "newest"
+                          ? "Newest first"
+                          : "Oldest first"}
                     </button>
                   )}
                 </div>
@@ -737,16 +857,23 @@ function ApplicantsPage() {
                       .filter((a) => a.status === s.id)
                       .sort((a, b) => (ranked[b.id]?.score ?? -1) - (ranked[a.id]?.score ?? -1));
                     return (
-                      <div key={s.id} className="flex min-h-[10rem] flex-col rounded-xl border border-border bg-surface/60 p-2">
+                      <div
+                        key={s.id}
+                        className="flex min-h-[10rem] flex-col rounded-xl border border-border bg-surface/60 p-2"
+                      >
                         <div className="mb-2 flex items-center justify-between px-1">
-                          <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{s.label}</span>
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                            {s.label}
+                          </span>
                           <span className="rounded-full bg-card px-2 py-0.5 text-[10px] font-bold tabular-nums text-foreground">
                             {colApps.length}
                           </span>
                         </div>
                         <div className="flex flex-col gap-2">
                           {colApps.length === 0 && (
-                            <p className="px-1 py-4 text-center text-[11px] text-muted-foreground">No one here</p>
+                            <p className="px-1 py-4 text-center text-[11px] text-muted-foreground">
+                              No one here
+                            </p>
                           )}
                           {colApps.map((a) => (
                             <BoardCard
@@ -763,58 +890,63 @@ function ApplicantsPage() {
                   })}
                 </div>
               ) : (
-              <>
-              {selectedIds.size > 0 && (
-                <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-primary/30 bg-primary-light p-3">
-                  <span className="text-xs font-semibold text-primary">{selectedIds.size} selected</span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {APPLICANT_STATUSES.filter((s) => s.id !== "interview").map((s) => (
+                <>
+                  {selectedIds.size > 0 && (
+                    <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-primary/30 bg-primary-light p-3">
+                      <span className="text-xs font-semibold text-primary">
+                        {selectedIds.size} selected
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {APPLICANT_STATUSES.filter((s) => s.id !== "interview").map((s) => (
+                          <button
+                            key={s.id}
+                            onClick={() => updateStatus([...selectedIds], s.id)}
+                            className="rounded-md bg-card px-2.5 py-1 text-xs font-semibold hover:bg-surface"
+                          >
+                            Move to {s.label}
+                          </button>
+                        ))}
+                      </div>
                       <button
-                        key={s.id}
-                        onClick={() => updateStatus([...selectedIds], s.id)}
-                        className="rounded-md bg-card px-2.5 py-1 text-xs font-semibold hover:bg-surface"
+                        onClick={() => setSelectedIds(new Set())}
+                        className="ml-auto text-xs text-muted-foreground hover:underline"
                       >
-                        Move to {s.label}
+                        Clear
                       </button>
-                    ))}
-                  </div>
-                  <button onClick={() => setSelectedIds(new Set())} className="ml-auto text-xs text-muted-foreground hover:underline">
-                    Clear
-                  </button>
-                </div>
-              )}
-
-              {visible.length === 0 ? (
-                <div className="grid place-items-center rounded-xl border border-dashed border-border bg-card p-12 text-center">
-                  <Users className="mb-3 h-7 w-7 text-muted-foreground" />
-                  <h2 className="text-lg font-semibold text-foreground">{empty.title}</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">{empty.body}</p>
-                  {tab === "all" && apps.length === 0 && (
-                    <button
-                      onClick={() => setSource("recommended")}
-                      className="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary-dark"
-                    >
-                      <Sparkles className="h-4 w-4" /> Explore AI Recommended Profiles
-                    </button>
+                    </div>
                   )}
-                </div>
-              ) : (
-                <div className="grid gap-3">
-                  {visible.map((a) => (
-                    <ApplicantCard
-                      key={a.id}
-                      applicant={a}
-                      selected={selectedIds.has(a.id)}
-                      onToggleSelect={() => toggleSelect(a.id)}
-                      onStatusChange={(status) => updateStatus([a.id], status)}
-                      onView={() => setReviewing(a)}
-                      matchScore={ranked[a.id]?.score}
-                      tags={ranked[a.id]?.tags}
-                    />
-                  ))}
-                </div>
-              )}
-              </>
+
+                  {visible.length === 0 ? (
+                    <div className="grid place-items-center rounded-xl border border-dashed border-border bg-card p-12 text-center">
+                      <Users className="mb-3 h-7 w-7 text-muted-foreground" />
+                      <h2 className="text-lg font-semibold text-foreground">{empty.title}</h2>
+                      <p className="mt-1 text-sm text-muted-foreground">{empty.body}</p>
+                      {tab === "all" && apps.length === 0 && (
+                        <button
+                          onClick={() => setSource("recommended")}
+                          className="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary-dark"
+                        >
+                          <Sparkles className="h-4 w-4" /> Explore AI Recommended Profiles
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="grid gap-3">
+                      {visible.map((a) => (
+                        <ApplicantCard
+                          key={a.id}
+                          applicant={a}
+                          selected={selectedIds.has(a.id)}
+                          onToggleSelect={() => toggleSelect(a.id)}
+                          onStatusChange={(status) => updateStatus([a.id], status)}
+                          onView={() => setReviewing(a)}
+                          matchScore={ranked[a.id]?.score}
+                          tags={ranked[a.id]?.tags}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </>
           )}
@@ -826,7 +958,9 @@ function ApplicantsPage() {
         <div>
           {/* Filter chips */}
           <div className="mb-4 flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Filter:</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Filter:
+            </span>
             {[
               { label: "All Matches", value: null },
               { label: "🔥 Hot Profiles", value: "hot" },
@@ -852,8 +986,8 @@ function ApplicantsPage() {
             <div className="mb-4 flex items-center gap-3 rounded-xl border border-primary/20 bg-primary-light/40 px-4 py-3">
               <Sparkles className="h-5 w-5 shrink-0 text-primary" />
               <p className="text-sm text-foreground">
-                <strong>{recTotal} candidates</strong> in our database match your job requirements but haven't applied yet.
-                Invite them to apply or unlock their contact details.
+                <strong>{recTotal} candidates</strong> in our database match your job requirements
+                but haven't applied yet. Invite them to apply or unlock their contact details.
               </p>
             </div>
           )}
@@ -900,7 +1034,9 @@ function ApplicantsPage() {
                     disabled={recLoading}
                     className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-4 text-sm font-semibold hover:bg-surface disabled:opacity-60"
                   >
-                    {recLoading ? "Loading..." : `Load more (${recTotal - recommended.length} remaining)`}
+                    {recLoading
+                      ? "Loading..."
+                      : `Load more (${recTotal - recommended.length} remaining)`}
                   </button>
                 </div>
               )}
@@ -914,11 +1050,13 @@ function ApplicantsPage() {
       )}
 
       {/* Panels */}
-      {reviewing && (
+      {reviewing && job && (
         <ApplicantReviewPanel
           applicant={reviewing}
           onClose={() => setReviewing(null)}
           onStatusChange={(status) => updateStatus([reviewing.id], status)}
+          companyId={job.company_id}
+          jobId={jobId}
         />
       )}
 
@@ -930,7 +1068,9 @@ function ApplicantsPage() {
           applicationId={scheduling.id}
           candidateName={scheduling.profiles?.full_name}
           onScheduled={() => {
-            setApps((prev) => prev.map((a) => (a.id === scheduling.id ? { ...a, status: "interview" } : a)));
+            setApps((prev) =>
+              prev.map((a) => (a.id === scheduling.id ? { ...a, status: "interview" } : a)),
+            );
             setScheduling(null);
           }}
         />

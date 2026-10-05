@@ -108,31 +108,42 @@ export function AssumedFieldsStrip(props: {
     setOpenChip(null);
   };
 
-  const chip = (key: AssumedChipKey, content: ReactNode) => (
-    <Popover
-      key={key}
-      open={openChip === key}
-      onOpenChange={(open) => setOpenChip(open ? key : null)}
-    >
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          title={chipTooltip(sources[key], matchedHistoryTitle)}
-          className={chipClass}
-        >
-          {chipLabel(key, values)}
-        </button>
-      </PopoverTrigger>
-      <PopoverContent
-        align="start"
-        sideOffset={6}
-        collisionPadding={12}
-        className="w-auto max-w-[min(20rem,var(--radix-popover-content-available-width))] overflow-hidden rounded-xl border-primary/15 bg-popover p-1 shadow-xl shadow-primary/10"
+  // Only values that came from real data are "filled in". Hard-coded defaults
+  // (full-time, on-site, any gender…) would read as auto-filled on every post.
+  const isInferred = (key: AssumedChipKey) => {
+    const source = sources[key];
+    return source === "company_history" || source === "jd_library";
+  };
+
+  const chip = (key: AssumedChipKey, content: ReactNode) =>
+    !isInferred(key) ? null : (
+      <Popover
+        key={key}
+        open={openChip === key}
+        onOpenChange={(open) => setOpenChip(open ? key : null)}
       >
-        {content}
-      </PopoverContent>
-    </Popover>
-  );
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            title={chipTooltip(sources[key], matchedHistoryTitle)}
+            className={chipClass}
+          >
+            {chipLabel(key, values)}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          align="start"
+          sideOffset={6}
+          collisionPadding={12}
+          className="w-auto max-w-[min(20rem,var(--radix-popover-content-available-width))] overflow-hidden rounded-xl border-primary/15 bg-popover p-1 shadow-xl shadow-primary/10"
+        >
+          {content}
+        </PopoverContent>
+      </Popover>
+    );
+
+  const hasInferred = (Object.keys(sources) as AssumedChipKey[]).some(isInferred);
+  if (!hasInferred && !inferring) return null;
 
   return (
     <div className="mb-4 rounded-xl border border-border bg-surface/60 p-3">

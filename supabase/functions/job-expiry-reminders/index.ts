@@ -1,5 +1,6 @@
 import { createAdminClient } from "../_shared/supabaseAdmin.ts";
 import { sendEmail } from "../_shared/resend.ts";
+import { sendTemplate } from "../_shared/whatsapp.ts";
 
 // Invoked daily at 09:00 UTC by the 'job-expiry-reminders' pg_cron schedule
 // (see migration 20260924120000_job_expiry_renewal.sql). claim_due_expiry_
@@ -57,6 +58,54 @@ Deno.serve(async (req) => {
           link: "/employer/jobs",
         })),
       );
+    }
+
+    // D10/D9: employer WhatsApp, independent of the email leg above — every
+    // eligible admin/hr_admin on this company gets it, not just the first
+    // one with an email (email intentionally only notifies one recipient).
+    if (userIds.length > 0) {
+      const { data: waMembers } = await admin
+        .from("employer_members")
+        .select("user_id, whatsapp_number")
+        .eq("company_id", row.company_id)
+        .in("user_id", userIds)
+        .eq("whatsapp_opt_in", true)
+        .not("whatsapp_number", "is", null);
+      const { data: template } = await admin
+        .from("whatsapp_templates")
+        .select("provider_template_id, language, status")
+        .eq("key", "job_expiry_reminder")
+        .maybeSingle();
+      if (template && template.status !== "paused") {
+        for (const m of (waMembers ?? []) as Array<{ user_id: string; whatsapp_number: string }>) {
+          const { error: capError } = await admin.rpc("register_whatsapp_send_for", {
+            _user: m.user_id,
+            _count: 1,
+          });
+          if (capError) continue;
+          const result = await sendTemplate({
+            to: m.whatsapp_number,
+            templateName: template.provider_template_id,
+            languageCode: template.language,
+            variables: [row.title, String(daysLeft)],
+          });
+          await admin.from("whatsapp_messages").insert({
+            recipient_user: m.user_id,
+            recipient_number: m.whatsapp_number,
+            template_key: "job_expiry_reminder",
+            category: "utility",
+            variables: [row.title, daysLeft],
+            source: "job_expiry_reminder",
+            reference: { job_id: row.job_id, company_id: row.company_id },
+            status: result.ok ? "sent" : "failed",
+            status_detail: result.ok ? null : result.error,
+            sent_at: result.ok ? new Date().toISOString() : null,
+            failed_at: result.ok ? null : new Date().toISOString(),
+            provider_message_id: result.ok ? result.providerMessageId : null,
+            attempts: 1,
+          });
+        }
+      }
     }
 
     const { data: emails } = await admin

@@ -12,6 +12,7 @@ import {
   CalendarCheck,
   FileSpreadsheet,
   BadgeCheck,
+  MessageCircle,
 } from "lucide-react";
 
 export type EmployerNavMinRole = "super_admin" | "hr_admin";
@@ -39,6 +40,7 @@ export const EMPLOYER_NAV_LINKS: Array<{
   { to: "/employer/credits", label: "Credits", icon: Coins, minRole: "super_admin" },
   { to: "/employer/company", label: "Company", icon: Building2 },
   { to: "/employer/team", label: "Team", icon: Users, minRole: "hr_admin" },
+  { to: "/employer/settings", label: "Settings", icon: MessageCircle },
 ];
 
 export function isEmployerNavVisible(

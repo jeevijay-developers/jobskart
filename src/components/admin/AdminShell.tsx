@@ -16,6 +16,7 @@ import {
   Settings2,
   LogOut,
   Menu,
+  MessageCircle,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -38,6 +39,7 @@ const nav = [
   { to: "/admin/interview-prep", label: "Interview prep", icon: MessagesSquare },
   { to: "/admin/credits", label: "Credits", icon: Coins },
   { to: "/admin/resumes", label: "Resumes", icon: FileText },
+  { to: "/admin/whatsapp", label: "WhatsApp", icon: MessageCircle },
 ] as const;
 
 function NavList({ onNavigate }: { onNavigate?: () => void }) {
@@ -94,11 +96,15 @@ export function AdminShell({
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="w-72 p-4">
-                <p className="mb-4 text-sm font-bold uppercase tracking-wider text-primary">Jobskart Admin</p>
+                <p className="mb-4 text-sm font-bold uppercase tracking-wider text-primary">
+                  Jobskart Admin
+                </p>
                 <NavList onNavigate={() => setOpen(false)} />
               </SheetContent>
             </Sheet>
-            <p className="text-sm font-bold uppercase tracking-wider text-primary">Jobskart Admin</p>
+            <p className="text-sm font-bold uppercase tracking-wider text-primary">
+              Jobskart Admin
+            </p>
           </div>
           <Button variant="ghost" size="sm" onClick={signOut} className="gap-2">
             <LogOut className="h-4 w-4" /> Sign out

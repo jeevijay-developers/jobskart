@@ -2,6 +2,15 @@ import { createAdminClient } from "../_shared/supabaseAdmin.ts";
 import { sendEmail, getPublicAppUrl } from "../_shared/resend.ts";
 import { interviewReminderEmail } from "../_shared/templates.ts";
 import { mintInterviewJoinToken } from "../_shared/interview-token.ts";
+import { sendWhatsappForEvent } from "../_shared/notify.ts";
+
+function formatIst(iso: string): string {
+  return new Date(iso).toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
 
 // Invoked every minute by the 'interview-t30-reminder' pg_cron schedule (see
 // the migration alongside this function) via net.http_post, authorized with
@@ -54,9 +63,7 @@ Deno.serve(async (req) => {
     return new Response("ok", { status: 200 });
   }
 
-  const due = (claimed ?? []).filter((iv) =>
-    stillSendable(iv.scheduled_at, iv.duration_min, now),
-  );
+  const due = (claimed ?? []).filter((iv) => stillSendable(iv.scheduled_at, iv.duration_min, now));
   const expired = (claimed ?? []).filter(
     (iv) => !stillSendable(iv.scheduled_at, iv.duration_min, now),
   );
@@ -75,6 +82,21 @@ Deno.serve(async (req) => {
         ? admin.from("companies").select("name").eq("id", iv.company_id).maybeSingle()
         : Promise.resolve({ data: null }),
     ]);
+    void sendWhatsappForEvent(admin, {
+      userId: iv.candidate_id,
+      templateKey: "interview_reminder",
+      variables: [
+        profile?.full_name ?? "there",
+        job?.title ?? "the role",
+        formatIst(iv.scheduled_at),
+      ],
+      source: "interview_reminder",
+      reference: { interview_id: iv.id },
+      // Defense-in-depth alongside the reminder_email_sent_at claim above —
+      // a static per-interview key is correct since this reminder fires once.
+      dedupeKey: `iv_reminder:${iv.id}`,
+    }).catch(() => undefined);
+
     if (!profile?.email) continue;
 
     const exp =

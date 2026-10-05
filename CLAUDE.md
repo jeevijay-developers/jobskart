@@ -48,9 +48,10 @@ Browser (React 19 + TanStack Router)
 | Auth shim | `src/integrations/lovable/index.ts` | Generated; deleted at migration off Lovable |
 | Database | `supabase/migrations/*.sql` | RLS + `SECURITY DEFINER` RPCs on every user-facing table |
 | MCP server | `src/lib/mcp/**`, `src/routes/[.mcp]/**` | Exposes 7 tools: `search-jobs`, `get-job`, `my-profile`, `my-applications`, `my-saved-jobs`, `my-company-jobs`, `job-applicants` |
-| Webhooks | `src/routes/api/public/webhooks/razorpay.ts` | HMAC signature-verified |
+| Webhooks | `src/routes/api/public/webhooks/{razorpay,whatsapp}.ts` | HMAC/signature-verified |
+| Edge Functions | `supabase/functions/**` | Pre-existing exception to the rule below — see note |
 
-`supabase/functions/` is intentionally empty — all server logic lives in TanStack server functions, not Edge Functions. Keep it that way; it's what keeps the backend portable.
+`supabase/functions/` is **not** empty — despite the portability goal, it already holds ~15 Edge Functions (email dispatch via Resend, WhatsApp sends via Meta Cloud API, OTP, employer invites) wired to DB triggers/Database Webhooks/pg_cron, predating this instruction. Treat them as a grandfathered exception for notification/dispatch logic specifically, not a green light to add more: **new** server logic (anything reachable from the browser or a TanStack route) still belongs in `src/lib/*.functions.ts` via `createServerFn`, which is what actually keeps the request-handling backend portable off Lovable. The Edge Functions' own portability concern (Meta/Resend API calls, not Lovable-specific) is handled per-adapter (`supabase/functions/_shared/{resend,whatsapp}.ts`), the same pattern as `src/lib/ai/provider.ts`.
 
 ## Standing rules (from `prompt structure/architecture.md` and `P0-00-ground-rules.md`)
 
@@ -103,7 +104,7 @@ These came out of the client's requirement decks but are implemented differently
 | Service | Used for | Failure mode |
 |---|---|---|
 | Razorpay | Credit packs, plans | Webhook retries; `razorpay_orders` table is source of truth |
-| WhatsApp Business API | Alerts, notifications | `whatsapp_send_ledger` caps sends per post |
+| WhatsApp (Meta Cloud API) | Job/application/interview alerts (candidate), outreach + expiry reminders (employer) | Degrades to in-app + email only until `WHATSAPP_ACCESS_TOKEN`/`WHATSAPP_PHONE_NUMBER_ID` secrets are set (see `.env.example`); `whatsapp_send_ledger` + `whatsapp_settings` cap sends per recipient/post/week |
 | GST / MCA / Aadhaar APIs | Employer verification | Falls back to manual admin review |
 | AI provider (via `src/lib/ai/provider.ts`) | Resume parsing, shortlist, JD assist | Must degrade to manual entry, never block onboarding |
 

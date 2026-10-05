@@ -4,6 +4,40 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { RESUME_EXPORTS_BUCKET, resumePdfPath } from "@/lib/resumeBuilder/storage";
 
+// Deletes one saved resume version — both the resume_versions row and its
+// generated PDF in storage, so a deleted version doesn't leave an orphaned
+// file behind. Ownership is re-checked against context.userId (never trusted
+// from the client-supplied versionNumber alone), same pattern as
+// getResumeVersionPdfUrl above. Storage deletion failing isn't fatal (the PDF
+// may never have been generated for this version, or already be gone) — the
+// row delete is what actually removes it from the candidate's version list.
+export const deleteResumeVersion = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: { versionNumber: number }) =>
+    z.object({ versionNumber: z.number().int().positive() }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: row, error: findErr } = await supabaseAdmin
+      .from("resume_versions")
+      .select("version_number")
+      .eq("user_id", context.userId)
+      .eq("version_number", data.versionNumber)
+      .maybeSingle();
+    if (findErr || !row) throw new Error("Resume version not found");
+
+    const path = resumePdfPath(context.userId, data.versionNumber);
+    await supabaseAdmin.storage.from(RESUME_EXPORTS_BUCKET).remove([path]);
+
+    const { error: deleteErr } = await supabaseAdmin
+      .from("resume_versions")
+      .delete()
+      .eq("user_id", context.userId)
+      .eq("version_number", data.versionNumber);
+    if (deleteErr) throw new Error("Couldn't delete this resume version");
+
+    return { success: true };
+  });
+
 // Lets the candidate re-download or re-preview-link any past resume version,
 // not just the most recently generated one. The PDF for each version is
 // already stored at a deterministic per-version path (resumePdfPath) by

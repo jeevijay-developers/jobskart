@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { CandidateShell } from "@/components/candidate/CandidateShell";
 import { SectionCard } from "@/components/candidate/primitives";
+import { WhatsappNudgeCard } from "@/components/candidate/WhatsappNudgeCard";
 import { JobCard, type JobCardData } from "@/components/site/JobCard";
 import { Pagination } from "@/components/site/Pagination";
 import { StatCard } from "@/components/shared/StatCard";
@@ -211,7 +212,13 @@ function CandidateDashboard() {
     queryKey: ["candidate-dashboard", "recommended", candidateId, feedMode],
     pageSize: REC_JOBS_PAGE_SIZE,
     fetchPage: async ({ from, to }) => {
-      const { rows, total, error } = await fetchCandidateJobFeed({}, "recommended", from, to, feedMode);
+      const { rows, total, error } = await fetchCandidateJobFeed(
+        {},
+        "recommended",
+        from,
+        to,
+        feedMode,
+      );
       if (error) throw new Error(error);
       return { rows, total };
     },
@@ -233,7 +240,10 @@ function CandidateDashboard() {
           position: (recPage - 1) * REC_JOBS_PAGE_SIZE + i,
         })) as never,
       )
-      .then(() => {}, () => {});
+      .then(
+        () => {},
+        () => {},
+      );
     // eslint-disable-next-line react-hooks/exhaustive-deps -- log once per page load, not on every candidateId/recPage re-render
   }, [recommendedPage, recommendedLoading]);
 
@@ -246,7 +256,8 @@ function CandidateDashboard() {
         {recommendedTotal > 0 && (
           <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-1 text-xs font-bold text-success">
             <CheckCircle2 className="h-3.5 w-3.5" />
-            {recommendedTotal} {feedMode === "recommended" ? (recommendedTotal === 1 ? "match" : "matches") : "jobs"}
+            {recommendedTotal}{" "}
+            {feedMode === "recommended" ? (recommendedTotal === 1 ? "match" : "matches") : "jobs"}
           </span>
         )}
       </div>
@@ -277,7 +288,9 @@ function CandidateDashboard() {
         </div>
       ) : recommendedError ? (
         <div className="grid place-items-center rounded-2xl border border-dashed border-border bg-card p-10 text-center">
-          <p className="text-base font-bold text-foreground">Couldn&apos;t load your recommendations</p>
+          <p className="text-base font-bold text-foreground">
+            Couldn&apos;t load your recommendations
+          </p>
           <p className="mt-1 max-w-xs text-sm text-muted-foreground">
             Something went wrong on our side. Please try again in a moment.
           </p>
@@ -296,7 +309,9 @@ function CandidateDashboard() {
           </span>
           <p className="mt-4 text-base font-bold text-foreground">No close matches yet</p>
           <p className="mt-1 max-w-xs text-sm text-muted-foreground">
-            Your skills and role don&apos;t line up with what&apos;s posted right now — or you&apos;ve already applied to everything that fits. Add more skills to your profile, or see everything that&apos;s open.
+            Your skills and role don&apos;t line up with what&apos;s posted right now — or
+            you&apos;ve already applied to everything that fits. Add more skills to your profile, or
+            see everything that&apos;s open.
           </p>
           <button
             type="button"
@@ -407,6 +422,7 @@ function CandidateDashboard() {
 
   return (
     <CandidateShell title="" subtitle="">
+      <WhatsappNudgeCard />
       <NudgeBanner strength={strength} missing={missing} />
 
       {/* Hero band */}

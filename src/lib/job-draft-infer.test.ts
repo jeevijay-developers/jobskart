@@ -1,6 +1,7 @@
 import { describe, it as test } from "node:test";
 import assert from "node:assert/strict";
 import { inferJobDraft, mapTitleToCategory, type CompanyHistoryJob } from "./job-draft-infer.ts";
+import { suggestedSkillsFor } from "./jd-library.ts";
 
 const salesHistory: CompanyHistoryJob = {
   title: "Sales Executive",
@@ -49,9 +50,11 @@ describe("inferJobDraft", () => {
       history: [salesHistory],
       dirty: new Set(),
     });
-    assert.equal(r.patch.city, "Pune");
-    assert.deepEqual(r.patch.skills, ["CRM", "Pitching"]);
-    assert.equal(r.sources.city, "company_history");
+    // City is intentionally not inferred from history (removed in c0a273b),
+    // so the same-title job only contributes the other fields.
+    assert.equal(r.patch.city, undefined);
+    assert.deepEqual(r.patch.skills, []); // skills are suggested in the UI, never pre-filled
+    assert.equal(r.patch.min_salary, "15000");
     assert.equal(r.matchedHistoryTitle, "Sales Executive");
   });
 
@@ -62,7 +65,7 @@ describe("inferJobDraft", () => {
       dirty: new Set(["city"]),
     });
     assert.equal(r.patch.city, undefined);
-    assert.equal(r.patch.skills?.[0], "CRM");
+    assert.equal(r.patch.min_salary, "15000");
   });
 
   test("unknown title still applies defaults", () => {
@@ -82,14 +85,14 @@ describe("inferJobDraft", () => {
     assert.equal(r.sources.job_type, "default");
   });
 
-  test("library fills skills when history has none", () => {
+  test("skills start empty; the library role is matched for suggestions", () => {
     const r = inferJobDraft({
-      title: "HR Recruiter",
+      title: "HR Manager",
       history: [],
       dirty: new Set(),
     });
-    assert.ok((r.patch.skills?.length ?? 0) > 0);
-    assert.equal(r.sources.skills, "jd_library");
-    assert.equal(r.libraryTitle, "HR Recruiter");
+    assert.deepEqual(r.patch.skills, []);
+    assert.equal(r.libraryTitle, "HR Manager");
+    assert.ok(suggestedSkillsFor("HR Manager").length > 0);
   });
 });

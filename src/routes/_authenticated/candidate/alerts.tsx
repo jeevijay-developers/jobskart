@@ -2,7 +2,7 @@ import { ThemedSelect } from "@/components/ui/themed-form-controls";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Bell, Trash2, Plus } from "lucide-react";
+import { Bell, Trash2, Plus, Mail, MessageCircle } from "lucide-react";
 import { CandidateShell } from "@/components/candidate/CandidateShell";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -23,7 +23,15 @@ export const Route = createFileRoute("/_authenticated/candidate/alerts")({
   component: Page,
 });
 
-type Alert = { id: string; name: string; query: { keyword?: string; city?: string } | null; frequency: string; created_at: string };
+type Alert = {
+  id: string;
+  name: string;
+  query: { keyword?: string; city?: string } | null;
+  frequency: string;
+  created_at: string;
+  whatsapp_enabled: boolean;
+  email_enabled: boolean;
+};
 
 function Page() {
   const [items, setItems] = useState<Alert[]>([]);
@@ -32,18 +40,46 @@ function Page() {
   const [freq, setFreq] = useState("instant");
   const [loading, setLoading] = useState(true);
   const [pendingDelete, setPendingDelete] = useState<Alert | null>(null);
+  // D2/D3: WhatsApp pre-checked on a new alert whenever the candidate is
+  // already effectively opted in today — mirrors should_send_whatsapp()
+  // without a round trip, since all three inputs are already on hand.
+  const [effectiveWhatsapp, setEffectiveWhatsapp] = useState(false);
+  const [waChannel, setWaChannel] = useState(false);
+  const [emailChannel, setEmailChannel] = useState(true);
 
   const load = async () => {
     const { data: u } = await supabase.auth.getUser();
     if (!u.user) return setLoading(false);
-    const { data } = await supabase.from("candidate_job_alerts")
-      .select("id, name, query, frequency, created_at")
-      .eq("user_id", u.user.id)
-      .order("created_at", { ascending: false });
+    const [{ data }, { data: profile }] = await Promise.all([
+      supabase
+        .from("candidate_job_alerts")
+        .select("id, name, query, frequency, created_at, whatsapp_enabled, email_enabled")
+        .eq("user_id", u.user.id)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("candidate_profiles")
+        .select("whatsapp_number, whatsapp_opt_in, notification_prefs")
+        .eq("user_id", u.user.id)
+        .maybeSingle(),
+    ]);
     setItems((data || []) as unknown as Alert[]);
+    const p = profile as {
+      whatsapp_number: string | null;
+      whatsapp_opt_in: boolean;
+      notification_prefs: { whatsapp_alerts?: boolean } | null;
+    } | null;
+    const effective = !!(
+      p?.whatsapp_number &&
+      p.whatsapp_opt_in &&
+      p.notification_prefs?.whatsapp_alerts
+    );
+    setEffectiveWhatsapp(effective);
+    setWaChannel(effective);
     setLoading(false);
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   const add = async () => {
     const kw = keyword.trim();
@@ -59,6 +95,8 @@ function Page() {
         name,
         query: { keyword: kw || null, city: ct || null },
         frequency: freq,
+        whatsapp_enabled: waChannel,
+        email_enabled: emailChannel,
       } as never)
       .select("id")
       .single();
@@ -78,39 +116,118 @@ function Page() {
     await supabase.from("candidate_job_alerts").delete().eq("id", id);
     load();
   };
+  const toggleChannel = async (alert: Alert, channel: "whatsapp_enabled" | "email_enabled") => {
+    const next = !alert[channel];
+    setItems((prev) => prev.map((a) => (a.id === alert.id ? { ...a, [channel]: next } : a)));
+    const { error } = await supabase
+      .from("candidate_job_alerts")
+      .update({ [channel]: next } as never)
+      .eq("id", alert.id);
+    if (error) {
+      toast.error(error.message);
+      setItems((prev) => prev.map((a) => (a.id === alert.id ? { ...a, [channel]: !next } : a)));
+    }
+  };
 
   return (
     <CandidateShell title="Job alerts" subtitle="We'll notify you when matching jobs are posted.">
       <div className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
         <h3 className="text-sm font-bold uppercase text-muted-foreground">Create alert</h3>
         <div className="mt-3 grid gap-2 sm:grid-cols-4">
-          <Input placeholder="Job title / keyword" value={keyword} onChange={(e) => setKw(e.target.value)} />
+          <Input
+            placeholder="Job title / keyword"
+            value={keyword}
+            onChange={(e) => setKw(e.target.value)}
+          />
           <Input placeholder="City" value={city} onChange={(e) => setCity(e.target.value)} />
-          <ThemedSelect value={freq} onChange={(e) => setFreq(e.target.value)} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
+          <ThemedSelect
+            value={freq}
+            onChange={(e) => setFreq(e.target.value)}
+            className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+          >
             <option value="instant">Instant</option>
             <option value="daily">Daily</option>
             <option value="weekly">Weekly</option>
           </ThemedSelect>
-          <Button onClick={add}><Plus className="mr-2 h-4 w-4" /> Add alert</Button>
+          <Button onClick={add}>
+            <Plus className="mr-2 h-4 w-4" /> Add alert
+          </Button>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-4">
+          <label className="flex items-center gap-1.5 text-xs font-medium text-foreground/80">
+            <input
+              type="checkbox"
+              checked={emailChannel}
+              onChange={(e) => setEmailChannel(e.target.checked)}
+            />
+            <Mail className="h-3.5 w-3.5" /> Email
+          </label>
+          <label className="flex items-center gap-1.5 text-xs font-medium text-foreground/80">
+            <input
+              type="checkbox"
+              checked={waChannel}
+              onChange={(e) => setWaChannel(e.target.checked)}
+            />
+            <MessageCircle className="h-3.5 w-3.5" /> WhatsApp
+          </label>
+          {waChannel && !effectiveWhatsapp && (
+            <span className="text-xs text-muted-foreground">
+              Enable WhatsApp alerts in Settings to actually receive these on WhatsApp.
+            </span>
+          )}
         </div>
       </div>
 
       <div className="mt-6 space-y-2">
-        {loading ? <div className="h-24 animate-pulse rounded-xl bg-card" /> :
-          !items.length ? (
-            <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center">
-              <Bell className="mx-auto h-10 w-10 text-muted-foreground" />
-              <p className="mt-3 text-sm text-muted-foreground">No alerts yet. Create one above.</p>
-            </div>
-          ) : items.map((a) => (
-            <div key={a.id} className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
-              <div>
+        {loading ? (
+          <div className="h-24 animate-pulse rounded-xl bg-card" />
+        ) : !items.length ? (
+          <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center">
+            <Bell className="mx-auto h-10 w-10 text-muted-foreground" />
+            <p className="mt-3 text-sm text-muted-foreground">No alerts yet. Create one above.</p>
+          </div>
+        ) : (
+          items.map((a) => (
+            <div
+              key={a.id}
+              className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-4"
+            >
+              <div className="min-w-0">
                 <p className="font-medium">{a.name}</p>
                 <p className="text-xs text-muted-foreground uppercase">{a.frequency}</p>
               </div>
-              <Button variant="ghost" size="sm" onClick={() => setPendingDelete(a)}><Trash2 className="h-4 w-4" /></Button>
+              <div className="flex shrink-0 items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => toggleChannel(a, "email_enabled")}
+                  className={`flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${a.email_enabled ? "bg-primary-light text-primary" : "bg-surface text-muted-foreground"}`}
+                  title={
+                    a.email_enabled
+                      ? "Email alerts on — tap to turn off"
+                      : "Email alerts off — tap to turn on"
+                  }
+                >
+                  <Mail className="h-3.5 w-3.5" /> Email
+                </button>
+                <button
+                  type="button"
+                  onClick={() => toggleChannel(a, "whatsapp_enabled")}
+                  className={`flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${a.whatsapp_enabled ? "bg-primary-light text-primary" : "bg-surface text-muted-foreground"}`}
+                  title={
+                    a.whatsapp_enabled
+                      ? "WhatsApp alerts on — tap to turn off"
+                      : "WhatsApp alerts off — tap to turn on"
+                  }
+                >
+                  <MessageCircle className="h-3.5 w-3.5" /> WhatsApp
+                </button>
+                <Button variant="ghost" size="sm" onClick={() => setPendingDelete(a)}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
-          ))}
+          ))
+        )}
       </div>
 
       <AlertDialog open={!!pendingDelete} onOpenChange={(open) => !open && setPendingDelete(null)}>

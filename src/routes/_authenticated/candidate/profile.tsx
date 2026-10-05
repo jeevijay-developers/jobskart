@@ -14,6 +14,7 @@ import { INDIAN_CITIES, SUGGESTED_SKILLS, SUGGESTED_LANGUAGES, JOB_TYPE_OPTIONS,
 import { INDIAN_STATES_AND_UTS, CITIES_BY_STATE, type IndianState } from "@/lib/indianStatesCities";
 import { CityTownAutocomplete } from "@/components/candidate/CityTownAutocomplete";
 import { StateDropdown } from "@/components/candidate/StateDropdown";
+import { DocumentPreviewModal, loadDocPreview, type DocPreview } from "@/components/candidate/DocumentPreviewModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ResumeUpload, type ImportSource } from "@/components/candidate/ResumeUpload";
 import type { ParsedResumePayload } from "@/lib/resume.functions";
@@ -55,6 +56,11 @@ function ProfilePage() {
   const [educations, setEducations] = useState<Edu[]>([]);
   const [languages, setLanguages] = useState<Lang[]>([]);
   const [resumeDoc, setResumeDoc] = useState<ResumeDoc | null>(null);
+  const [docPreview, setDocPreview] = useState<DocPreview | null>(null);
+  const viewDoc = async (path: string, name: string) => {
+    const p = await loadDocPreview(path, name);
+    if (p) setDocPreview(p);
+  };
   const [open, setOpen] = useState<null | "personal" | "headline" | "career" | "experience" | "education" | "skills" | "languages" | "resume" | "kyc" | "avatar">(null);
   const [email, setEmail] = useState<string | null>(null);
   const [counts, setCounts] = useState({ applications: 0, interviews: 0, saved: 0 });
@@ -356,10 +362,7 @@ function ProfilePage() {
                 <p className="text-xs text-muted-foreground">Attached to your applications</p>
               </div>
               <button
-                onClick={async () => {
-                  const { data } = await supabase.storage.from("candidate-docs").createSignedUrl(resumeDoc.file_path, 3600);
-                  if (data?.signedUrl) window.open(data.signedUrl, "_blank", "noopener");
-                }}
+                onClick={() => viewDoc(resumeDoc.file_path, resumeDoc.file_name)}
                 className="text-sm font-semibold text-primary hover:underline"
               >
                 View
@@ -376,10 +379,7 @@ function ProfilePage() {
                 <p className="text-xs text-muted-foreground">Attached to your applications</p>
               </div>
               <button
-                onClick={async () => {
-                  const { data } = await supabase.storage.from("candidate-docs").createSignedUrl(c.resume_url!, 60);
-                  if (data?.signedUrl) window.open(data.signedUrl, "_blank");
-                }}
+                onClick={() => viewDoc(c.resume_url!, c.resume_name || "Resume")}
                 className="text-sm font-semibold text-primary hover:underline"
               >
                 View
@@ -593,12 +593,8 @@ function ProfilePage() {
                     <p className="text-xs text-muted-foreground">Attached to your applications</p>
                   </div>
                   <button
-                    onClick={async () => {
-                      // Same source of truth as the mobile card above: the candidate_documents row first.
-                      const { data } = await supabase.storage.from("candidate-docs").createSignedUrl((resumeDoc?.file_path ?? c.resume_url)!, 3600);
-                      if (data?.signedUrl) window.open(data.signedUrl, "_blank", "noopener");
-                      else toast.error("Couldn't open resume. Please try again.");
-                    }}
+                    // Same source of truth as the mobile card above: the candidate_documents row first.
+                    onClick={() => viewDoc((resumeDoc?.file_path ?? c.resume_url)!, resumeDoc?.file_name || c.resume_name || "Resume")}
                     className="text-sm font-semibold text-primary hover:underline"
                   >
                     View
@@ -769,6 +765,7 @@ function ProfilePage() {
 
       {/* Editor dialogs */}
       <AvatarDialog open={open === "avatar"} onClose={() => setOpen(null)} uid={uid!} onSaved={load} />
+      {docPreview && <DocumentPreviewModal preview={docPreview} onClose={() => setDocPreview(null)} />}
       <PersonalDialog open={open === "personal"} onClose={() => setOpen(null)} uid={uid!} p={p} c={c} onSaved={load} />
       <CareerDialog open={open === "career"} onClose={() => setOpen(null)} uid={uid!} c={c} city={p.city} onSaved={load} />
       <SkillsDialog open={open === "skills"} onClose={() => setOpen(null)} uid={uid!} c={c} onSaved={load} />

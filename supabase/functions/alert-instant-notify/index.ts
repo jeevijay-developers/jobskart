@@ -3,6 +3,7 @@ import { sendEmail } from "../_shared/resend.ts";
 import { jobMatchEmail, type MatchedJob } from "../_shared/templates.ts";
 import { matchesAlert } from "../_shared/matching.ts";
 import { getCandidateEmailPrefs } from "../_shared/notificationPrefs.ts";
+import { sendWhatsappForEvent } from "../_shared/notify.ts";
 
 // Triggered by a Supabase Database Webhook (dashboard-configured) on
 // INSERT INTO public.jobs. Payload shape: { type, table, schema, record, old_record }.
@@ -27,12 +28,15 @@ Deno.serve(async (req) => {
 
   const admin = createAdminClient();
 
+  // Previously filtered to email_enabled alerts only, which silently dropped
+  // alerts configured for WhatsApp-only (email_enabled=false, whatsapp_enabled=true)
+  // now that the alerts form (Phase 1) exposes both as independent toggles.
   const { data: alerts, error: alertsErr } = await admin
     .from("candidate_job_alerts")
-    .select("id, user_id, query, frequency")
+    .select("id, user_id, query, frequency, email_enabled, whatsapp_enabled")
     .eq("frequency", "instant")
     .eq("is_active", true)
-    .eq("email_enabled", true);
+    .or("email_enabled.eq.true,whatsapp_enabled.eq.true");
 
   if (alertsErr) {
     console.error("[alert-instant-notify] failed to load alerts", alertsErr);
@@ -78,22 +82,38 @@ Deno.serve(async (req) => {
 
     const { data: profile } = await admin
       .from("profiles")
-      .select("email")
+      .select("email, full_name")
       .eq("id", alert.user_id)
       .maybeSingle();
-    if (!profile?.email) continue;
 
-    const prefs = await getCandidateEmailPrefs(admin, alert.user_id);
-    if (!prefs.email_alerts) continue;
+    if (alert.whatsapp_enabled) {
+      void sendWhatsappForEvent(admin, {
+        userId: alert.user_id,
+        templateKey: "job_alert_instant",
+        variables: [
+          profile?.full_name ?? "there",
+          matchedJob.title,
+          matchedJob.company_name ?? "a company",
+          matchedJob.city ?? "your area",
+        ],
+        source: "alert_instant",
+        reference: { alert_id: alert.id, job_id: matchedJob.id },
+      }).catch(() => undefined);
+    }
 
-    const query = (alert.query ?? {}) as { keyword?: string | null; city?: string | null };
-    const { subject, html, text } = jobMatchEmail(
-      { keyword: query.keyword, city: query.city, frequency: alert.frequency },
-      [matchedJob],
-    );
-    const result = await sendEmail({ to: profile.email, subject, html, text });
-    if (!result.ok)
-      console.error("[alert-instant-notify] send failed for alert", alert.id, result.error);
+    if (alert.email_enabled && profile?.email) {
+      const prefs = await getCandidateEmailPrefs(admin, alert.user_id);
+      if (prefs.email_alerts) {
+        const query = (alert.query ?? {}) as { keyword?: string | null; city?: string | null };
+        const { subject, html, text } = jobMatchEmail(
+          { keyword: query.keyword, city: query.city, frequency: alert.frequency },
+          [matchedJob],
+        );
+        const result = await sendEmail({ to: profile.email, subject, html, text });
+        if (!result.ok)
+          console.error("[alert-instant-notify] send failed for alert", alert.id, result.error);
+      }
+    }
 
     await admin
       .from("candidate_job_alerts")

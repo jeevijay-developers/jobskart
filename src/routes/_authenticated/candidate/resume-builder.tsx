@@ -24,7 +24,7 @@ import {
   getTemplateTheme,
   normalizeLayout,
 } from "@/lib/resumeBuilder/templates/theme";
-import { getResumeVersionPdfUrl } from "@/lib/resumeBuilder.functions";
+import { getResumeVersionPdfUrl, deleteResumeVersion } from "@/lib/resumeBuilder.functions";
 import { applyResumeExtras } from "@/lib/resumeBuilder/snapshot";
 import { validateResume } from "@/lib/resumeBuilder/validateResume";
 import type {
@@ -40,6 +40,7 @@ import { EditModeDrawer } from "@/components/candidate/EditModeDrawer";
 import { EditModeBottomSheet } from "@/components/candidate/EditModeBottomSheet";
 import { LivePreview } from "@/components/candidate/LivePreview";
 import { Segmented } from "@/components/candidate/Segmented";
+import { useStandardFontsReady } from "@/lib/resumeBuilder/ensureStandardFonts";
 
 export const Route = createFileRoute("/_authenticated/candidate/resume-builder")({
   ssr: false,
@@ -154,7 +155,9 @@ function ResumeBuilderPage() {
   const [lastPdfUrl, setLastPdfUrl] = useState<string | null>(null);
   const [previewVersion, setPreviewVersion] = useState<VersionRow | null>(null);
   const [downloadingVersionId, setDownloadingVersionId] = useState<string | null>(null);
+  const [deletingVersionId, setDeletingVersionId] = useState<string | null>(null);
   const getVersionPdfUrl = useServerFn(getResumeVersionPdfUrl);
+  const deleteVersionFn = useServerFn(deleteResumeVersion);
 
   // Builder-authored content (hobbies, certifications, rich-text overrides…).
   // `extras` is the working copy being edited; `savedExtras` is what was last
@@ -173,6 +176,27 @@ function ResumeBuilderPage() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editTab, setEditTab] = useState<"layout" | "extras">("layout");
   const [isVersionModalOpen, setIsVersionModalOpen] = useState(false);
+  const [pendingAnchor, setPendingAnchor] = useState<string | null>(null);
+
+  const openChecklistItem = (anchor?: string) => {
+    if (!anchor) return;
+    setEditTab("extras");
+    setIsEditOpen(true);
+    setPendingAnchor(anchor);
+  };
+
+  // The checklist targets fields inside the edit panel, which only mounts once
+  // it's open. Scroll after it renders, picking the visible copy (desktop drawer
+  // and mobile sheet both render the same ids, one of them hidden per breakpoint).
+  useEffect(() => {
+    if (!pendingAnchor || !isEditOpen || editTab !== "extras") return;
+    const target = Array.from(
+      document.querySelectorAll<HTMLElement>(`[id="${pendingAnchor}"]`),
+    ).find((el) => el.offsetParent !== null);
+    if (!target) return;
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+    setPendingAnchor(null);
+  }, [pendingAnchor, isEditOpen, editTab]);
 
   useEffect(() => {
     (async () => {
@@ -230,26 +254,31 @@ function ResumeBuilderPage() {
     toast.success("Changes saved");
   };
 
+  // The live preview tracks the working draft (`extras`/`layoutDraft`), not the
+  // saved copy — so every Edit Resume control updates it immediately. "Save
+  // changes" still persists the draft to resume_drafts (and is what
+  // Generate & Save reads), it's just no longer the gate for what the preview shows.
   const merged = useMemo(
-    () => (snapshot ? applyResumeExtras(snapshot, savedExtras) : null),
-    [snapshot, savedExtras],
+    () => (snapshot ? applyResumeExtras(snapshot, extras) : null),
+    [snapshot, extras],
   );
   // Section titles in current display order, including not-yet-saved edits, for the order list.
   const workingSections = useMemo(
-    () =>
-      snapshot
-        ? applyResumeExtras(snapshot, extras).sections.map((sec) => ({
-            id: sec.id,
-            title: sec.title,
-          }))
-        : [],
-    [snapshot, extras],
+    () => merged?.sections.map((sec) => ({ id: sec.id, title: sec.title })) ?? [],
+    [merged],
   );
   const checklist = useMemo(() => (merged ? validateResume(merged) : []), [merged]);
   // react-pdf's incremental updates duplicate a node when its siblings are
-  // reordered (a moved section would render twice in the live preview), so the
-  // viewer is remounted whenever the template or the section order/set changes.
-  const previewKey = `${selectedTemplate}|${(merged ?? snapshot)?.sections.map((sec) => sec.id).join(",") ?? ""}`;
+  // reordered (a moved section would render twice in the live preview), so
+  // the viewer is only remounted for that specific case — the section
+  // id *order* signature. Template switches and layout/content edits must
+  // NOT be in this key: PDFViewer renders via an iframe, so keying on
+  // anything that changes on every edit forces a full iframe teardown/rebuild
+  // (the visible flicker/reload) even though react-pdf already re-renders PDF
+  // content in place without that. React also already remounts the <Template>
+  // subtree on its own when templateId changes the component function, so a
+  // template entry in this key was redundant for that case anyway.
+  const previewKey = (merged ?? snapshot)?.sections.map((sec) => sec.id).join(",") ?? "";
   const baseExperiences = useMemo(() => {
     const sec = snapshot?.sections.find((s) => s.content.kind === "experience");
     return sec && sec.content.kind === "experience" ? (sec.content.items as ExperienceItem[]) : [];
@@ -334,11 +363,42 @@ function ResumeBuilderPage() {
     setDownloadingVersionId(v.id);
     try {
       const { url } = await getVersionPdfUrl({ data: { versionNumber: v.version_number } });
-      window.open(url, "_blank", "noopener,noreferrer");
+      // Save the signed PDF in place instead of opening it in a new tab. A cross-origin
+      // link's `download` attribute is ignored, so fetch it and save the blob ourselves.
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const blobUrl = URL.createObjectURL(await res.blob());
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = `resume-v${v.version_number}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(blobUrl);
+      } catch {
+        // Fetch blocked (e.g. CORS): fall back to the previous behaviour so a download is never lost.
+        window.open(url, "_blank", "noopener,noreferrer");
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Couldn't get a download link");
     } finally {
       setDownloadingVersionId(null);
+    }
+  };
+
+  const handleDeleteVersion = async (v: VersionRow) => {
+    if (deletingVersionId) return; // guard against a double-delete while one is in flight
+    setDeletingVersionId(v.id);
+    try {
+      await deleteVersionFn({ data: { versionNumber: v.version_number } });
+      setVersions((prev) => prev.filter((row) => row.id !== v.id));
+      if (previewVersion?.id === v.id) setPreviewVersion(null);
+      toast.success(`Version ${v.version_number} deleted`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't delete this version");
+    } finally {
+      setDeletingVersionId(null);
     }
   };
 
@@ -411,11 +471,7 @@ function ResumeBuilderPage() {
                           <button
                             type="button"
                             className="text-left text-foreground hover:text-primary hover:underline"
-                            onClick={() =>
-                              document
-                                .getElementById(item.anchor ?? "")
-                                ?.scrollIntoView({ behavior: "smooth", block: "center" })
-                            }
+                            onClick={() => openChecklistItem(item.anchor)}
                           >
                             {item.message}
                           </button>
@@ -431,7 +487,12 @@ function ResumeBuilderPage() {
                 <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                   Tailor to a Job
                 </h2>
-                {merged && <JobMatchPanel resume={merged} />}
+                {merged && (
+                  <JobMatchPanel
+                    resume={merged}
+                    onJumpToSummary={() => openChecklistItem("rb-summary")}
+                  />
+                )}
               </section>
 
               {/* Profile summary */}
@@ -504,7 +565,9 @@ function ResumeBuilderPage() {
                   versionsLoading={versionsLoading}
                   onPreview={setPreviewVersion}
                   onDownload={handleDownloadVersion}
+                  onDelete={handleDeleteVersion}
                   downloadingVersionId={downloadingVersionId}
+                  deletingVersionId={deletingVersionId}
                 />
               </section>
             </div>
@@ -526,7 +589,7 @@ function ResumeBuilderPage() {
                 <LivePreview
                   resume={merged ?? snapshot}
                   templateId={selectedTemplate}
-                  layout={savedLayout}
+                  layout={layoutDraft}
                   previewKey={previewKey}
                 />
               </div>
@@ -572,7 +635,7 @@ function ResumeBuilderPage() {
               <LivePreview
                 resume={merged ?? snapshot}
                 templateId={selectedTemplate}
-                layout={savedLayout}
+                layout={layoutDraft}
                 previewKey={previewKey}
                 className="flex-1"
               />
@@ -586,11 +649,7 @@ function ResumeBuilderPage() {
                 disabled={generating}
                 className="flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 disabled:opacity-60"
               >
-                {generating ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Sparkles className="h-4 w-4" />
-                )}
+                  {generating && <Loader2 className="h-4 w-4 animate-spin" />}
                 {generating ? "Generating…" : "Generate & Save Resume"}
               </button>
 
@@ -643,11 +702,7 @@ function ResumeBuilderPage() {
                         <button
                           type="button"
                           className="text-left text-foreground hover:text-primary hover:underline"
-                          onClick={() =>
-                            document
-                              .getElementById(item.anchor ?? "")
-                              ?.scrollIntoView({ behavior: "smooth", block: "center" })
-                          }
+                          onClick={() => openChecklistItem(item.anchor)}
                         >
                           {item.message}
                         </button>
@@ -663,7 +718,12 @@ function ResumeBuilderPage() {
               <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                 Tailor to a Job
               </h2>
-              {merged && <JobMatchPanel resume={merged} />}
+              {merged && (
+                <JobMatchPanel
+                  resume={merged}
+                  onJumpToSummary={() => openChecklistItem("rb-summary")}
+                />
+              )}
             </section>
 
             {/* Profile summary */}
@@ -732,7 +792,9 @@ function ResumeBuilderPage() {
                         setIsVersionModalOpen(false);
                       }}
                       onDownload={handleDownloadVersion}
+                      onDelete={handleDeleteVersion}
                       downloadingVersionId={downloadingVersionId}
+                      deletingVersionId={deletingVersionId}
                     />
                   </div>
                 </div>
@@ -761,8 +823,17 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 
 function VersionPreviewModal({ version, onClose }: { version: VersionRow; onClose: () => void }) {
   const Template = getResumeTemplate(version.template_id);
+  // See ensureStandardFonts.ts — PDFViewer must not mount until this resolves.
+  const fontsReady = useStandardFontsReady();
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={(e) => {
+        // Same pattern as ApplyDialog: only a click landing directly on the backdrop
+        // closes it, never one bubbling up from inside the modal.
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div className="flex h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-card shadow-xl">
         <div className="flex items-center justify-between border-b border-border px-5 py-3">
           <p className="text-sm font-semibold text-foreground">
@@ -776,9 +847,14 @@ function VersionPreviewModal({ version, onClose }: { version: VersionRow; onClos
           </button>
         </div>
         <div className="flex-1">
-          <PDFViewer style={{ width: "100%", height: "100%", border: "none" }} showToolbar={false}>
-            <Template resume={version.snapshot} />
-          </PDFViewer>
+          {fontsReady && (
+            <PDFViewer
+              style={{ width: "100%", height: "100%", border: "none" }}
+              showToolbar={false}
+            >
+              <Template resume={version.snapshot} />
+            </PDFViewer>
+          )}
         </div>
       </div>
     </div>

@@ -3,6 +3,7 @@ import { sendEmail } from "../_shared/resend.ts";
 import { jobMatchEmail, type MatchedJob } from "../_shared/templates.ts";
 import { matchesAlert } from "../_shared/matching.ts";
 import { getCandidateEmailPrefs } from "../_shared/notificationPrefs.ts";
+import { sendWhatsappForEvent } from "../_shared/notify.ts";
 
 type Frequency = "daily" | "weekly";
 
@@ -25,12 +26,17 @@ Deno.serve(async (req) => {
 
   const admin = createAdminClient();
 
+  // Previously filtered to email_enabled alerts only, which silently dropped
+  // alerts configured for WhatsApp-only (email_enabled=false, whatsapp_enabled=true)
+  // now that the alerts form (Phase 1) exposes both as independent toggles.
   const { data: alerts, error: alertsErr } = await admin
     .from("candidate_job_alerts")
-    .select("id, user_id, query, frequency, last_sent_at, created_at")
+    .select(
+      "id, user_id, query, frequency, last_sent_at, created_at, email_enabled, whatsapp_enabled",
+    )
     .eq("frequency", frequency)
     .eq("is_active", true)
-    .eq("email_enabled", true);
+    .or("email_enabled.eq.true,whatsapp_enabled.eq.true");
 
   if (alertsErr) {
     console.error("[alert-digest] failed to load alerts", alertsErr);
@@ -76,35 +82,59 @@ Deno.serve(async (req) => {
       const toSend = matched.filter((j) => !alreadyIds.has(j.id));
 
       if (toSend.length > 0) {
+        // Dedup rows are inserted up front, once per run, regardless of which
+        // channel(s) below actually succeed — matches the existing
+        // "move the window forward regardless of send success" philosophy,
+        // and avoids re-counting the same jobs for a WhatsApp-only alert just
+        // because the (now independent) email leg didn't fire.
+        await admin
+          .from("alert_job_notifications")
+          .insert(toSend.map((j) => ({ alert_id: alert.id, job_id: j.id })))
+          .then(({ error: dedupErr }) => {
+            if (dedupErr && (dedupErr as { code?: string }).code !== "23505") {
+              console.error("[alert-digest] dedup insert failed for alert", alert.id, dedupErr);
+            }
+          });
+
         const { data: profile } = await admin
           .from("profiles")
-          .select("email")
+          .select("email, full_name")
           .eq("id", alert.user_id)
           .maybeSingle();
-        const prefs = profile?.email ? await getCandidateEmailPrefs(admin, alert.user_id) : null;
-        const prefAllows = frequency === "weekly" ? prefs?.weekly_digest : prefs?.email_alerts;
-        if (profile?.email && prefAllows) {
-          const matchedJobs: MatchedJob[] = toSend.map((j) => ({
-            id: j.id,
-            title: j.title,
-            city: j.city,
-            min_salary: j.min_salary,
-            max_salary: j.max_salary,
-            salary_period: j.salary_period,
-            company_name: (j.companies as { name: string } | null)?.name ?? null,
-          }));
-          const { subject, html } = jobMatchEmail(
-            { keyword: query.keyword, city: query.city, frequency: alert.frequency },
-            matchedJobs,
-          );
-          const result = await sendEmail({ to: profile.email, subject, html });
-          if (result.ok) {
-            sent++;
-            await admin
-              .from("alert_job_notifications")
-              .insert(toSend.map((j) => ({ alert_id: alert.id, job_id: j.id })));
-          } else {
-            console.error("[alert-digest] send failed for alert", alert.id, result.error);
+
+        if (alert.whatsapp_enabled) {
+          void sendWhatsappForEvent(admin, {
+            userId: alert.user_id,
+            templateKey: "job_alert_digest",
+            variables: [profile?.full_name ?? "there", toSend.length],
+            source: "alert_digest",
+            reference: { alert_id: alert.id },
+          }).catch(() => undefined);
+        }
+
+        if (alert.email_enabled && profile?.email) {
+          const prefs = await getCandidateEmailPrefs(admin, alert.user_id);
+          const prefAllows = frequency === "weekly" ? prefs.weekly_digest : prefs.email_alerts;
+          if (prefAllows) {
+            const matchedJobs: MatchedJob[] = toSend.map((j) => ({
+              id: j.id,
+              title: j.title,
+              city: j.city,
+              min_salary: j.min_salary,
+              max_salary: j.max_salary,
+              salary_period: j.salary_period,
+              company_name: (j.companies as { name: string } | null)?.name ?? null,
+            }));
+            const { subject, html } = jobMatchEmail(
+              { keyword: query.keyword, city: query.city, frequency: alert.frequency },
+              matchedJobs,
+            );
+            const result = await sendEmail({ to: profile.email, subject, html });
+            if (result.ok) {
+              sent++;
+            } else {
+              console.error("[alert-digest] send failed for alert", alert.id, result.error);
+            }
           }
         }
       }

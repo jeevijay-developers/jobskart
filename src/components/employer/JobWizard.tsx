@@ -60,7 +60,7 @@ import {
 import { buildJd, markdownToHtml, type JdInput } from "@/lib/jd-template";
 import { getRecommendedSkills } from "@/lib/skill-engine";
 import { getRoleBenchmarks } from "@/lib/salary-benchmarks";
-import { polishJobDescription } from "@/lib/jd-polish.functions";
+import { polishJobDescription, type PolishReason } from "@/lib/jd-polish.functions";
 import {
   computeJobQuality,
   getMissingJobImprovements,
@@ -78,6 +78,16 @@ import {
 } from "@/lib/jobs.functions";
 import { embedJobDescription } from "@/lib/embeddings.functions";
 import { TierPicker } from "@/components/employer/TierPicker";
+
+const POLISH_REASON_MESSAGE: Record<PolishReason | "error", string> = {
+  ok: "Tone polished.",
+  unchanged: "The AI didn't find anything to improve — the text is unchanged.",
+  numbers_changed:
+    "Kept your original text — the AI changed a number (salary, experience or openings), which isn't allowed.",
+  empty: "Kept your original text — the AI returned nothing.",
+  timeout: "AI polish took too long. Try again in a moment.",
+  error: "AI polish isn't available right now. Your text is unchanged.",
+};
 
 type Form = {
   title: string;
@@ -107,6 +117,7 @@ type Form = {
   max_experience_years: string;
   english_level: string;
   skills: string[];
+  preferred_skills: string[];
   age_min: string;
   age_max: string;
   preferred_languages: string[];
@@ -123,6 +134,7 @@ type Form = {
   description: string;
   description_html: string;
   hiring_for_company: string;
+  contact_pref: "in_app" | "call" | "whatsapp";
 };
 
 const initialForm: Form = {
@@ -151,6 +163,7 @@ const initialForm: Form = {
   max_experience_years: "",
   english_level: "",
   skills: [],
+  preferred_skills: [],
   age_min: "",
   age_max: "",
   preferred_languages: [],
@@ -166,6 +179,7 @@ const initialForm: Form = {
   description: "",
   description_html: "",
   hiring_for_company: "",
+  contact_pref: "in_app",
 };
 
 // Only the columns the wizard reads back when editing an existing job.
@@ -195,6 +209,7 @@ type JobRow = {
   max_experience_years: number | null;
   english_level: string | null;
   skills: string[] | null;
+  preferred_skills: string[] | null;
   age_min: number | null;
   age_max: number | null;
   preferred_languages: string[] | null;
@@ -210,6 +225,7 @@ type JobRow = {
   description: string | null;
   description_html: string | null;
   hiring_for_company: string | null;
+  contact_pref: string | null;
   status: string;
 };
 
@@ -240,6 +256,7 @@ function jobToForm(job: JobRow): Form {
     max_experience_years: job.max_experience_years != null ? String(job.max_experience_years) : "",
     english_level: job.english_level ?? "",
     skills: job.skills ?? [],
+    preferred_skills: job.preferred_skills ?? [],
     age_min: job.age_min != null ? String(job.age_min) : "",
     age_max: job.age_max != null ? String(job.age_max) : "",
     preferred_languages: job.preferred_languages ?? [],
@@ -255,6 +272,7 @@ function jobToForm(job: JobRow): Form {
     description: job.description ?? "",
     description_html: job.description_html ?? "",
     hiring_for_company: job.hiring_for_company ?? "",
+    contact_pref: (job.contact_pref as Form["contact_pref"]) || "in_app",
   };
 }
 
@@ -288,6 +306,7 @@ function buildFieldsFromForm(
     openings: Number(form.openings) || 1,
     salary_period: "monthly",
     skills: form.skills,
+    preferred_skills: form.preferred_skills.filter((s) => !form.skills.includes(s)),
     perks: form.perks,
     gender_pref: form.gender_pref,
     pay_type: form.pay_type || null,
@@ -297,6 +316,7 @@ function buildFieldsFromForm(
     required_assets: form.required_assets,
     certifications: form.certifications,
     preferred_industries: form.preferred_industries,
+    contact_pref: form.contact_pref,
   };
   if (form.category) p.category = form.category;
   if (form.industry) p.industry = form.industry;
@@ -362,13 +382,9 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
   const [showArea, setShowArea] = useState(false);
   const dirtyRef = useRef(dirty);
   dirtyRef.current = dirty;
-  // Tier-3 skill recommendations: real usage from live postings for similar
-  // roles (suggest_skills_for_roles RPC), merged with the tier-1/tier-2
-  // client-side lists in skill-engine.ts. Kept out of that pure module since
-  // it needs a network call.
-  const [marketSkills, setMarketSkills] = useState<string[]>([]);
   const [jdStyle, setJdStyle] = useState<"standard" | "quick_read" | "detailed">("standard");
   const [polishing, setPolishing] = useState(false);
+  const [jdUndo, setJdUndo] = useState<string | null>(null);
 
   // Job Types (Classic / Classic+ / Trending) — tier picker + entitlements.
   // jobStatus mirrors the loaded job's DB status in edit mode: a still-draft
@@ -405,7 +421,7 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
         setActiveCompanyId(chosen.company_id);
         setCompanyId(chosen.company_id);
         setCompanyName(chosen.companies?.name || "our company");
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
         const { data: co } = await supabase
           .from("companies")
           .select("is_consultant" as any)
@@ -512,20 +528,6 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
     return () => clearTimeout(t);
   }, [form.title, history, editJobId]);
 
-  // Tier-3 market-trend skills — debounced the same way as inference above.
-  useEffect(() => {
-    const title = form.title.trim();
-    if (title.length < 3) {
-      setMarketSkills([]);
-      return;
-    }
-    const t = setTimeout(async () => {
-      const { data } = await supabase.rpc("suggest_skills_for_roles", { _roles: [title] });
-      setMarketSkills(((data ?? []) as { name: string }[]).map((r) => r.name));
-    }, 500);
-    return () => clearTimeout(t);
-  }, [form.title]);
-
   const jdInput: JdInput = useMemo(
     () => ({
       title: form.title,
@@ -631,6 +633,8 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
   }, [jdInput, jdDirty]);
 
   const regenerate = () => {
+    if (jdDirty && !window.confirm("Replace your edited description with the standard JD?")) return;
+    setJdUndo(null);
     const jd = buildJd(jdInput);
     // flushSync commits the new text + preview before the success toast fires.
     flushSync(() => {
@@ -1367,79 +1371,51 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                     required
                     hint="Each skill becomes one bullet in the auto-generated JD."
                   >
-                    <ChipInput
-                      values={form.skills}
-                      onChange={(v) => markDirty("skills", v)}
-                      suggestions={SUGGESTED_SKILLS}
-                    />
+                    <ChipInput values={form.skills} onChange={(v) => markDirty("skills", v)} />
                     {(() => {
-                      const { core, recommended } = getRecommendedSkills(
-                        form.title,
-                        form.category,
-                        form.skills,
-                      );
-                      const marketExtra = marketSkills.filter(
-                        (s) =>
-                          !form.skills.includes(s) && !core.includes(s) && !recommended.includes(s),
-                      );
-                      if (!core.length && !recommended.length && !marketExtra.length) return null;
+                      const { core } = getRecommendedSkills(form.title, form.category, form.skills);
+                      const pending = core.filter((s) => !form.skills.includes(s));
+                      if (!pending.length) return null;
                       return (
-                        <div className="mt-3 space-y-2">
-                          {core.length > 0 && (
-                            <div className="rounded-xl border border-primary/20 bg-primary-light/40 p-3">
-                              <div className="mb-2 flex items-center justify-between gap-2">
-                                <p className="text-xs font-semibold text-primary">
-                                  Core for this role — tap to add
-                                </p>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    markDirty("skills", [
-                                      ...form.skills,
-                                      ...core.filter((s) => !form.skills.includes(s)),
-                                    ])
-                                  }
-                                  className="shrink-0 text-xs font-semibold text-primary underline-offset-2 hover:underline"
-                                >
-                                  + Add all core
-                                </button>
-                              </div>
-                              <div className="flex flex-wrap gap-1.5">
-                                {core.map((s) => (
-                                  <button
-                                    key={s}
-                                    type="button"
-                                    onClick={() => markDirty("skills", [...form.skills, s])}
-                                    className="rounded-full border border-primary/30 bg-white px-3 py-1 text-xs font-medium text-primary hover:bg-primary hover:text-primary-foreground"
-                                  >
-                                    + {s}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                          {(recommended.length > 0 || marketExtra.length > 0) && (
-                            <div className="rounded-xl border border-border bg-surface p-3">
-                              <p className="mb-2 text-xs font-semibold text-foreground/70">
-                                Good to have
-                              </p>
-                              <div className="flex flex-wrap gap-1.5">
-                                {[...recommended, ...marketExtra].map((s) => (
-                                  <button
-                                    key={s}
-                                    type="button"
-                                    onClick={() => markDirty("skills", [...form.skills, s])}
-                                    className="rounded-full border border-border bg-white px-3 py-1 text-xs font-medium text-foreground/80 hover:border-primary hover:text-primary"
-                                  >
-                                    + {s}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
+                        <div className="mt-3 rounded-xl border border-primary/20 bg-primary-light/40 p-3">
+                          <div className="mb-2 flex items-center justify-between gap-2">
+                            <p className="text-xs font-semibold text-primary">
+                              Core for this role — tap to add
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => markDirty("skills", [...form.skills, ...pending])}
+                              className="shrink-0 text-xs font-semibold text-primary underline-offset-2 hover:underline"
+                            >
+                              + Add all core
+                            </button>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {pending.map((s) => (
+                              <button
+                                key={s}
+                                type="button"
+                                onClick={() => markDirty("skills", [...form.skills, s])}
+                                className="rounded-full border border-primary/30 bg-white px-3 py-1 text-xs font-medium text-primary hover:bg-primary hover:text-primary-foreground"
+                              >
+                                + {s}
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       );
                     })()}
+                  </Field>
+
+                  <Field
+                    label="Nice-to-have skills"
+                    hint="Optional. Shown to candidates as a bonus in their resume match check. Nobody is turned away for lacking them."
+                  >
+                    <ChipInput
+                      values={form.preferred_skills}
+                      onChange={(v) => markDirty("preferred_skills", v)}
+                      suggestions={SUGGESTED_SKILLS}
+                    />
                   </Field>
 
                   <Accordion type="single" collapsible>
@@ -1773,8 +1749,8 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                       </button>
                     ))}
                   </div>
-                  <div className="flex items-center justify-between">
-                    <div>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
                       <h3 className="text-sm font-bold">Job description</h3>
                       <p className="text-xs text-muted-foreground">
                         Written from your title, pay, and skills.
@@ -1785,14 +1761,33 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                         </p>
                       )}
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
                       <button
                         type="button"
                         onClick={regenerate}
-                        className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold hover:border-primary hover:text-primary"
+                        className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold hover:border-primary hover:text-primary"
                       >
                         <RefreshCw className="h-3.5 w-3.5" /> Regenerate
                       </button>
+                      {jdUndo !== null && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const previous = jdUndo;
+                            setJdUndo(null);
+                            setJdDirty(true);
+                            setForm((f) => ({
+                              ...f,
+                              description: previous,
+                              description_html: markdownToHtml(previous),
+                            }));
+                            toast.success("Restored the text from before the polish.");
+                          }}
+                          className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold hover:border-primary hover:text-primary"
+                        >
+                          ↶ Undo polish
+                        </button>
+                      )}
                       <button
                         type="button"
                         disabled={polishing || !form.description}
@@ -1814,22 +1809,21 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                               },
                             });
                             if (r.polished) {
+                              setJdUndo(form.description);
                               setJdDirty(true);
                               setForm((f) => ({
                                 ...f,
                                 description: r.markdown,
                                 description_html: markdownToHtml(r.markdown),
                               }));
-                              toast.success("Tone polished.");
+                              toast.success("Tone polished. Use Undo polish to revert.");
                             } else {
                               toast.info(
-                                "Kept the original wording — AI polish wasn't available right now.",
+                                POLISH_REASON_MESSAGE[r.reason] ?? POLISH_REASON_MESSAGE.error,
                               );
                             }
                           } catch {
-                            toast.info(
-                              "Kept the original wording — AI polish wasn't available right now.",
-                            );
+                            toast.info(POLISH_REASON_MESSAGE.error);
                           } finally {
                             setPolishing(false);
                           }
@@ -1858,7 +1852,7 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                           });
                         }}
                         disabled={!form.title.trim()}
-                        className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-50"
+                        className="col-span-2 inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-50 sm:col-span-1"
                       >
                         <Download className="h-3.5 w-3.5" /> Download PDF
                       </button>
@@ -1921,6 +1915,36 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                   {canPickTier && (
                     <TierPicker tier={tier} onChange={setTier} entitlements={entitlements} />
                   )}
+
+                  <div>
+                    <h3 className="text-sm font-bold">Preferred contact method</h3>
+                    <p className="text-xs text-muted-foreground">
+                      How applicants for this job see they'll be reached — doesn't change what
+                      recruiters themselves can do after unlocking a candidate.
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {(
+                        [
+                          { id: "in_app", label: "In-app only" },
+                          { id: "call", label: "Phone call" },
+                          { id: "whatsapp", label: "WhatsApp" },
+                        ] as const
+                      ).map((o) => (
+                        <button
+                          key={o.id}
+                          type="button"
+                          onClick={() => markDirty("contact_pref", o.id)}
+                          className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${
+                            form.contact_pref === o.id
+                              ? "border-primary bg-primary-light text-primary"
+                              : "border-border bg-surface text-foreground/70"
+                          }`}
+                        >
+                          {o.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
 

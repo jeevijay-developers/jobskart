@@ -1,6 +1,15 @@
 import { createAdminClient } from "../_shared/supabaseAdmin.ts";
 import { sendEmail } from "../_shared/resend.ts";
 import { interviewScheduledEmail } from "../_shared/templates.ts";
+import { sendWhatsappForEvent } from "../_shared/notify.ts";
+
+function formatIst(iso: string): string {
+  return new Date(iso).toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
 
 // Invoked server-to-server from src/lib/interview.functions.ts's
 // scheduleInterview (via supabaseAdmin.functions.invoke), right after
@@ -39,6 +48,22 @@ Deno.serve(async (req) => {
     .select("email, full_name")
     .eq("id", iv.candidate_id)
     .maybeSingle();
+
+  void sendWhatsappForEvent(admin, {
+    userId: iv.candidate_id,
+    templateKey: "interview_scheduled",
+    variables: [
+      profile?.full_name ?? "there",
+      iv.jobs?.title ?? "the role",
+      formatIst(iv.scheduled_at),
+    ],
+    source: "interview_scheduled",
+    reference: { interview_id: interviewId },
+    // Includes scheduled_at so a reschedule (new time -> new key) still
+    // notifies, while a retried call for the same schedule doesn't.
+    dedupeKey: `iv_scheduled:${interviewId}:${iv.scheduled_at}`,
+  }).catch(() => undefined);
+
   if (!profile?.email) {
     return new Response(JSON.stringify({ ok: true, skipped: "no_email" }), {
       status: 200,

@@ -24,7 +24,8 @@ export const SUGGESTED_LANGUAGES = ["Hindi","English","Tamil","Telugu","Marathi"
  * equivalent, since no role-relatedness data exists in the DB).
  */
 export const ROLE_SUGGESTIONS: { keyword: string; roles: string[] }[] = [
-  { keyword: "driver", roles: ["Delivery Driver", "Cab Driver", "Commercial Driver", "Personal Driver", "Transport Driver", "Heavy Vehicle Driver"] },
+  { keyword: "driver", roles: ["Bus Driver", "Car Driver", "Truck Driver", "Cab Driver", "Driver cum Office Boy", "Driver cum Helper", "Personal Driver", "Delivery Driver", "Heavy Vehicle Driver"] },
+  { keyword: "lab technician", roles: ["Lab Technician", "Lab Assistant", "Pathology Lab Technician", "Phlebotomist"] },
   { keyword: "delivery", roles: ["Delivery Executive", "Delivery Driver", "Delivery Boy", "Courier Executive", "Last Mile Delivery Associate"] },
   { keyword: "sales", roles: ["Sales Executive", "Field Sales Executive", "Sales Associate", "Business Development Executive", "Retail Sales Associate"] },
   { keyword: "telecaller", roles: ["Telecaller", "Telesales Executive", "Customer Support Executive", "Inside Sales Executive"] },
@@ -59,17 +60,37 @@ const DEFAULT_ROLE_SUGGESTIONS = [
 ];
 
 /**
- * Merges related-role suggestions for every selected/typed interested role,
- * de-duplicated and excluding roles already selected. Falls back to the
- * original static starter list when nothing is selected yet.
+ * The roles suggestions are derived from: every selected interested role plus
+ * the candidate's current/last role (deduplicated). The current role matters
+ * most for people who are already working, so it is a seed even when the
+ * candidate hasn't picked any interested roles yet.
  */
-export function suggestRelatedRoles(selectedRoles: string[]): string[] {
-  const selected = selectedRoles.map((r) => r.trim().toLowerCase()).filter(Boolean);
-  if (!selected.length) return DEFAULT_ROLE_SUGGESTIONS;
+export function suggestionSeeds(selectedRoles: string[], currentRole = ""): string[] {
+  const seeds = selectedRoles.map((r) => r.trim()).filter(Boolean);
+  const current = currentRole.trim();
+  if (current && !seeds.some((s) => s.toLowerCase() === current.toLowerCase())) seeds.push(current);
+  return seeds;
+}
 
+/**
+ * Merges related-role suggestions for the interested roles and the current
+ * role, de-duplicated and excluding roles already selected. The current role
+ * itself is offered first so it can be tapped in one step. Falls back to the
+ * original static starter list when there is nothing to base suggestions on.
+ */
+export function suggestRelatedRoles(selectedRoles: string[], currentRole = ""): string[] {
+  const seeds = suggestionSeeds(selectedRoles, currentRole);
+  if (!seeds.length) return DEFAULT_ROLE_SUGGESTIONS;
+
+  const selected = selectedRoles.map((r) => r.trim().toLowerCase()).filter(Boolean);
+  const current = currentRole.trim();
   const out: string[] = [];
   const seen = new Set<string>(selected);
-  for (const role of selected) {
+  if (current && !seen.has(current.toLowerCase())) {
+    seen.add(current.toLowerCase());
+    out.push(current);
+  }
+  for (const role of seeds.map((r) => r.toLowerCase())) {
     for (const { keyword, roles } of ROLE_SUGGESTIONS) {
       if (!role.includes(keyword)) continue;
       for (const suggestion of roles) {
@@ -116,6 +137,7 @@ export const ROLE_SKILL_SUGGESTIONS: { keyword: string; skills: string[] }[] = [
   { keyword: "engineer", skills: ["Problem Solving", "Debugging", "Git", "System Design", "Testing"] },
   { keyword: "designer", skills: ["Figma", "Adobe Photoshop", "UI/UX Design", "Typography", "Wireframing"] },
   { keyword: "hr", skills: ["Recruitment", "Talent Acquisition", "Candidate Screening", "Interviewing", "Sourcing", "HRMS / ATS", "Onboarding", "Employee Relations", "Communication"] },
+  { keyword: "lab technician", skills: ["Lab Equipment Handling", "Sample Collection", "Microscopy", "Record Keeping", "Lab Safety Compliance"] },
   { keyword: "accountant", skills: ["Tally", "Bookkeeping", "GST Filing", "MS Excel", "Financial Reporting"] },
   { keyword: "marketing", skills: ["Social Media Marketing", "Content Creation", "SEO", "Campaign Management", "Analytics"] },
 ];
@@ -123,17 +145,18 @@ export const ROLE_SKILL_SUGGESTIONS: { keyword: string; skills: string[] }[] = [
 export const DEFAULT_SKILL_SUGGESTIONS = ["Communication", "MS Office", "Customer Service", "Sales", "Hindi", "English"];
 
 /**
- * Merges relevant skills for every selected interested role, de-duplicated.
- * Falls back to the general starter list when no role matches (or none are
- * selected yet) so the field never shows an empty/broken suggestion state.
+ * Merges relevant skills for every interested role and the current role,
+ * de-duplicated. Falls back to the general starter list when no role matches
+ * so the field never shows an empty/broken suggestion state. Returns nothing
+ * only when there is no role at all to base suggestions on.
  */
-export function suggestSkillsForRoles(selectedRoles: string[]): string[] {
-  const selected = selectedRoles.map((r) => r.trim().toLowerCase()).filter(Boolean);
-  if (!selected.length) return [];
+export function suggestSkillsForRoles(selectedRoles: string[], currentRole = ""): string[] {
+  const seeds = suggestionSeeds(selectedRoles, currentRole).map((r) => r.toLowerCase());
+  if (!seeds.length) return [];
 
   const out: string[] = [];
   const seen = new Set<string>();
-  for (const role of selected) {
+  for (const role of seeds) {
     for (const { keyword, skills } of ROLE_SKILL_SUGGESTIONS) {
       if (!role.includes(keyword)) continue;
       for (const skill of skills) {

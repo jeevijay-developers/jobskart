@@ -7,6 +7,7 @@ import {
   type ApplicationStatusNotifyStatus,
 } from "../_shared/templates.ts";
 import { CORS_HEADERS, handleCorsPreflight } from "../_shared/cors.ts";
+import { sendWhatsappForEvent } from "../_shared/notify.ts";
 
 const NOTIFY_STATUSES = new Set<string>(["shortlisted", "interview", "rejected"]);
 
@@ -31,7 +32,10 @@ Deno.serve(async (req) => {
     return new Response("Invalid JSON", { status: 400, headers: CORS_HEADERS });
   }
   if (!applicationId || !status) {
-    return new Response("applicationId and status required", { status: 400, headers: CORS_HEADERS });
+    return new Response("applicationId and status required", {
+      status: 400,
+      headers: CORS_HEADERS,
+    });
   }
   if (!NOTIFY_STATUSES.has(status))
     return new Response("ignored", { status: 200, headers: CORS_HEADERS });
@@ -53,7 +57,8 @@ Deno.serve(async (req) => {
     )
     .eq("id", applicationId)
     .maybeSingle();
-  if (error || !application) return new Response("Not found", { status: 404, headers: CORS_HEADERS });
+  if (error || !application)
+    return new Response("Not found", { status: 404, headers: CORS_HEADERS });
 
   const { data: isMember } = await anon.rpc("has_company_membership", {
     _user_id: user.id,
@@ -67,6 +72,22 @@ Deno.serve(async (req) => {
       status: 200,
       headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
     });
+
+  // WhatsApp leg runs independently of the email-prefs check above (it has
+  // its own eligibility check via should_send_whatsapp) and never blocks
+  // or fails the email response below.
+  void sendWhatsappForEvent(admin, {
+    userId: application.candidate_id,
+    templateKey: "application_status_update",
+    variables: [
+      application.profiles?.full_name ?? "there",
+      application.jobs?.title ?? "the role",
+      status,
+    ],
+    source: "application_status",
+    reference: { application_id: applicationId },
+    dedupeKey: `app_status:${applicationId}:${status}`,
+  }).catch(() => undefined);
 
   const prefs = await getCandidateEmailPrefs(admin, application.candidate_id);
   if (!prefs.email_alerts)

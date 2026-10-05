@@ -278,11 +278,18 @@ export const unlockCandidateContact = createServerFn({ method: "POST" })
       }> | null
     )?.[0];
 
-    const { data: profile } = await supabaseAdmin
-      .from("profiles")
-      .select("full_name, mobile, email, city")
-      .eq("id", data.candidateUserId)
-      .maybeSingle();
+    const [{ data: profile }, { data: candidateProfile }] = await Promise.all([
+      supabaseAdmin
+        .from("profiles")
+        .select("full_name, mobile, email, city")
+        .eq("id", data.candidateUserId)
+        .maybeSingle(),
+      supabaseAdmin
+        .from("candidate_profiles")
+        .select("whatsapp_number, whatsapp_opt_in, whatsapp_number_status")
+        .eq("user_id", data.candidateUserId)
+        .maybeSingle(),
+    ]);
 
     // Audit trail for the leakage-protection rule (rule 3 / rule 6): every
     // contact reveal is logged, not just the credit/allowance spend.
@@ -299,6 +306,14 @@ export const unlockCandidateContact = createServerFn({ method: "POST" })
         mobile: profile?.mobile ?? "",
         email: profile?.email ?? "",
         city: profile?.city ?? "",
+        // D10: only surfaced once unlocked, same rule as mobile/email above.
+        // whatsappAvailable collapses opt-in + number-health into one flag the
+        // UI checks to decide whether to even render the WhatsApp button.
+        whatsappAvailable: !!(
+          candidateProfile?.whatsapp_number &&
+          candidateProfile.whatsapp_opt_in &&
+          candidateProfile.whatsapp_number_status !== "invalid"
+        ),
       },
       alreadyUnlocked: !!result?.already_unlocked,
       // `balance_after` from unlock_candidate() is specifically the contact
@@ -307,6 +322,34 @@ export const unlockCandidateContact = createServerFn({ method: "POST" })
       source: result?.source ?? "credits",
       allowanceLeft: result?.allowance_left ?? null,
     };
+  });
+
+// ---------------- logEmployerWhatsappOutreach ----------------
+// D10: called when an employer clicks the WhatsApp button on an unlocked
+// candidate. Returns the candidate's number so the client can open wa.me —
+// the number itself is never sent to the browser until this exact moment.
+export const logEmployerWhatsappOutreach = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z
+      .object({
+        companyId: z.string().uuid(),
+        jobId: z.string().uuid(),
+        candidateUserId: z.string().uuid(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await assertCompanyMember(context.supabase, context.userId, data.companyId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: number, error } = await supabaseAdmin.rpc("log_employer_whatsapp_outreach", {
+      _company_id: data.companyId,
+      _job_id: data.jobId,
+      _candidate_user_id: data.candidateUserId,
+      _actor: context.userId,
+    });
+    if (error) throw new Error(error.message);
+    return { whatsappNumber: number as string };
   });
 
 // ---------------- listUnlockedCandidateIds ----------------

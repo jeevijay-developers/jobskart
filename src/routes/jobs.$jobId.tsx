@@ -75,6 +75,7 @@ type JobDetail = {
   education: string | null;
   english_level: string | null;
   skills: string[] | null;
+  preferred_skills: string[] | null;
   perks: string[] | null;
   openings: number | null;
   walkin: boolean | null;
@@ -163,7 +164,7 @@ export function JobDetailPage({
       const { data, error } = await supabase
         .from("jobs")
         .select(
-          "id, company_id, title, description, description_html, city, state, locality, min_salary, max_salary, salary_period, fixed_pay, incentives_text, pay_type, avg_incentive_monthly, interview_type, interview_same_as_company, interview_city, interview_locality, interview_address, joining_fee_required, industry, job_type, work_mode, shift, min_experience_years, max_experience_years, education, english_level, skills, perks, openings, walkin, walkin_details, created_at, expires_at, category, companies (name, is_verified, industry, primary_city, description, about, logo_url)",
+          "id, company_id, title, description, description_html, city, state, locality, min_salary, max_salary, salary_period, fixed_pay, incentives_text, pay_type, avg_incentive_monthly, interview_type, interview_same_as_company, interview_city, interview_locality, interview_address, joining_fee_required, industry, job_type, work_mode, shift, min_experience_years, max_experience_years, education, english_level, skills, preferred_skills, perks, openings, walkin, walkin_details, created_at, expires_at, category, companies (name, is_verified, industry, primary_city, description, about, logo_url)",
         )
         .eq("id", jobId)
         // Hide jobs past their expiry even if the sweep hasn't flipped status.
@@ -592,6 +593,21 @@ export function JobDetailPage({
                         </div>
                       ) : (
                         <p className="text-sm text-muted-foreground">No specific skills listed — employer is open to candidates with relevant aptitude.</p>
+                      )}
+                      {(job.preferred_skills?.length || 0) > 0 && (
+                        <div className="mt-4">
+                          <p className="mb-2 text-xs font-semibold text-muted-foreground">Nice to have</p>
+                          <div className="flex flex-wrap gap-2">
+                            {job.preferred_skills!.map((s) => (
+                              <span
+                                key={s}
+                                className="inline-flex items-center rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-foreground/80"
+                              >
+                                {s}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
                       )}
                     </Block>
 
