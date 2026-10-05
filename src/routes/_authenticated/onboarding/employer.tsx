@@ -29,13 +29,6 @@ const SIZES = [
   { value: "500+", label: "Enterprise", hint: "500+ people" },
 ] as const;
 
-const ROLES = [
-  { value: "founder", label: "Founder / Owner" },
-  { value: "hr", label: "HR / Talent Acquisition" },
-  { value: "recruiter", label: "Recruiter / Hiring Manager" },
-  { value: "ops", label: "Operations / Team Lead" },
-] as const;
-
 const TOP_CITIES = [
   "Mumbai", "Delhi", "Bengaluru", "Hyderabad", "Pune", "Chennai",
   "Kolkata", "Ahmedabad", "Jaipur", "Lucknow", "Indore", "Chandigarh",
@@ -54,7 +47,6 @@ function EmployerOnboarding() {
 
   // form state
   const [fullName, setFullName] = useState("");
-  const [yourRole, setYourRole] = useState<string>("founder");
   const [designation, setDesignation] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [industry, setIndustry] = useState("");
@@ -76,7 +68,7 @@ function EmployerOnboarding() {
       if (!uid) throw new Error("Not signed in.");
 
       await supabase.from("profiles").update({ full_name: fullName }).eq("id", uid);
-      void designation; void yourRole;
+      void designation;
 
       const resolvedName =
         companyName.trim() || (isConsultant ? `${fullName.trim()} (Independent recruiter)` : "");
@@ -136,14 +128,6 @@ function EmployerOnboarding() {
             onChange={(e) => setFullName(e.target.value)}
             autoFocus
           />
-          <div>
-            <p className="mb-3 text-sm font-semibold text-foreground">Your role</p>
-            <ChipChoice
-              value={yourRole}
-              onChange={(v) => setYourRole(v as string)}
-              options={ROLES.map((r) => ({ value: r.value, label: r.label }))}
-            />
-          </div>
           <Field label="Designation (optional)" hint="e.g. Head of TA, Founder">
             <input
               value={designation}

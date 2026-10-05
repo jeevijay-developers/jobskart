@@ -7,44 +7,54 @@ import {
   ArrowRight,
   ShieldCheck,
   BadgeCheck,
-  Briefcase,
-  Building2,
   Users,
-  Globe2,
   CheckCircle2,
   Award,
-  Target,
   IndianRupee,
-  TrendingUp,
-  Smartphone,
-  UserCheck,
-  FileText,
-  Wand2,
-  Database,
-  Coins,
-  Quote,
   Zap,
-  Phone,
-  MessageCircle,
   Clock,
   HeartHandshake,
+  Bike,
+  Shield,
+  Car,
+  Headset,
+  Boxes,
+  Sparkles,
+  HeartPulse,
+  ChefHat,
+  Star,
+  Phone,
+  Mail,
+  Send,
+  Building2,
+  MessageCircle,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  type CarouselApi,
+} from "@/components/ui/carousel";
 import { Navbar } from "@/components/site/Navbar";
 import { Footer } from "@/components/site/Footer";
 import { AutocompleteInput } from "@/components/site/AutocompleteInput";
+import { supabase } from "@/integrations/supabase/client";
+import { CONTACT_FALLBACK, type ContactInfo } from "@/lib/site-content";
 import { getPlatformStats } from "@/lib/stats.functions";
 import { useJobTitleSuggestions } from "@/lib/useJobTitleSuggestions";
 import { INDIAN_CITIES } from "@/lib/options";
 import phoneCandidate from "@/assets/landing-phone-candidate.png";
-import resumeParse from "@/assets/landing-resume-parse.jpg";
-import employerDb from "@/assets/landing-employer-db.jpg";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -72,15 +82,14 @@ function LandingPage() {
       <Navbar />
       <main>
         <Hero />
-        <LogosStrip />
-        <StatsStrip />
+        <DirectHiringPartners />
+        <CategoryGrid />
         <HowItWorks />
-        <FeatureRowCandidate />
-        <FeatureRowEmployer />
-        <PricingTeaser />
+        <StatsStrip />
+        <AboutUs />
         <Testimonials />
         <FAQ />
-        <DualCTA />
+        <ContactUs />
       </main>
       <Footer />
     </div>
@@ -107,7 +116,7 @@ function Hero() {
   };
 
   return (
-    <section className="relative overflow-hidden bg-background">
+    <section id="home" className="relative overflow-hidden bg-background">
       {/* color blobs (reference-style geometric accents) */}
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -top-24 -left-24 h-72 w-72 rounded-full bg-primary/10 blur-3xl" />
@@ -307,29 +316,168 @@ function PhoneCluster() {
   );
 }
 
-/* ------------------------------ Logos strip ------------------------------ */
+/* -------------------------- Direct hiring partners ------------------------ */
 
-const LOGOS = ["Amazon", "Flipkart", "Swiggy", "Zomato", "BigBasket", "Reliance"];
+const PARTNERS = [
+  { name: "TATA", tone: "text-neutral-800", sub: "Tata Group" },
+  { name: "Reliance", tone: "text-red-600", sub: "Retail Stores" },
+  { name: "bb", tone: "text-emerald-600", sub: "BigBasket" },
+  { name: "blinkit", tone: "text-amber-500", sub: "Quick Commerce" },
+  { name: "zomato", tone: "text-red-500", sub: "Food Delivery" },
+  { name: "SWIGGY", tone: "text-orange-500", sub: "Instamart & Fleet" },
+  { name: "Flipkart", tone: "text-blue-600", sub: "Supply Chain" },
+  { name: "DELHIVERY", tone: "text-neutral-900", sub: "Logistics Hub" },
+];
 
-function LogosStrip() {
+function DirectHiringPartners() {
   return (
-    <section className="border-y border-border bg-surface py-8">
+    <section id="partners" className="border-y border-border bg-surface py-10">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <p className="text-center text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">
-          Trusted by 1,000+ employers across India
-        </p>
-        <div className="mt-5 flex flex-wrap items-center justify-center gap-x-10 gap-y-4 sm:gap-x-14">
-          {LOGOS.map((l) => (
-            <span
-              key={l}
-              className="text-xl font-extrabold tracking-tight text-muted-foreground/70 grayscale transition-all hover:text-foreground hover:grayscale-0 sm:text-2xl"
+        <div className="text-center">
+          <p className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary">
+            Direct Hiring Partners
+          </p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Trusted by 1,000+ Top Enterprises & 5 Lakh+ MSMEs across India
+          </p>
+        </div>
+        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+          {PARTNERS.map((p) => (
+            <div
+              key={p.name}
+              className="rounded-xl border border-border bg-card px-3 py-4 text-center shadow-sm transition-transform hover:-translate-y-0.5 hover:shadow-md"
             >
-              {l}
-            </span>
+              <p className={`text-lg font-extrabold tracking-tight ${p.tone}`}>{p.name}</p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">{p.sub}</p>
+            </div>
           ))}
         </div>
       </div>
     </section>
+  );
+}
+
+/* ------------------------ Mobile swipe carousel --------------------------- */
+
+function MobileCardCarousel({ children }: { children: React.ReactNode[] }) {
+  const [api, setApi] = useState<CarouselApi>();
+  const [selected, setSelected] = useState(0);
+
+  useEffect(() => {
+    if (!api) return;
+    const onSelect = () => setSelected(api.selectedScrollSnap());
+    onSelect();
+    api.on("select", onSelect);
+    return () => {
+      api.off("select", onSelect);
+    };
+  }, [api]);
+
+  useEffect(() => {
+    if (!api) return;
+    const id = setInterval(() => api.scrollNext(), 3000);
+    return () => clearInterval(id);
+  }, [api]);
+
+  return (
+    <div className="md:hidden">
+      <Carousel setApi={setApi} opts={{ align: "start", loop: true }}>
+        <CarouselContent>
+          {children.map((child, i) => (
+            <CarouselItem key={i} className="basis-full">
+              {child}
+            </CarouselItem>
+          ))}
+        </CarouselContent>
+      </Carousel>
+      <div className="mt-4 flex justify-center gap-1.5">
+        {children.map((_, i) => (
+          <span
+            key={i}
+            className={`h-1.5 rounded-full transition-all ${
+              i === selected ? "w-5 bg-primary" : "w-1.5 bg-border"
+            }`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ----------------------------- Category grid ------------------------------ */
+
+const CATEGORIES = [
+  { icon: Bike, title: "Delivery Executive", openings: "1,42,000+ Openings", desc: "Bike, E-rickshaw, Van delivery in food & e-commerce", salary: "₹18K – ₹32K" },
+  { icon: Shield, title: "Security Guard", openings: "85,000+ Openings", desc: "Residential, IT Parks, Malls & Commercial complex guards", salary: "₹15K – ₹26K" },
+  { icon: Car, title: "Driver & Chauffeur", openings: "64,000+ Openings", desc: "Cab aggregators, personal family driver & heavy truck operators", salary: "₹20K – ₹38K" },
+  { icon: Headset, title: "Sales & Telecaller", openings: "98,000+ Openings", desc: "Inbound support, customer service & field retail executives", salary: "₹18K – ₹30K" },
+  { icon: Boxes, title: "Warehouse & Logistics", openings: "72,000+ Openings", desc: "Pickers, packers, barcode sorters & inventory handlers", salary: "₹16K – ₹25K" },
+  { icon: Sparkles, title: "Housekeeping & Facility", openings: "43,000+ Openings", desc: "Office boys, facility cleaners & maintenance staff", salary: "₹14K – ₹22K" },
+  { icon: HeartPulse, title: "Hospital & Nurse Assistant", openings: "31,000+ Openings", desc: "Ward boys, lab helpers, nursing care & pharmacy helpers", salary: "₹17K – ₹28K" },
+  { icon: ChefHat, title: "Cook, Chef & Kitchen Staff", openings: "29,000+ Openings", desc: "Cloud kitchens, fast-food cooks, commis chefs & helpers", salary: "₹18K – ₹32K" },
+];
+
+function CategoryGrid() {
+  return (
+    <section id="categories" className="py-14 sm:py-20">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary">
+              Sector-Wise Hiring
+            </p>
+            <h2 className="mt-2 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+              Browse Jobs by Category
+            </h2>
+            <p className="mt-2 max-w-xl text-sm text-muted-foreground">
+              Over 10 Lakh vacancies updated in real-time across verified employers
+            </p>
+          </div>
+          <Link
+            to="/jobs"
+            className="inline-flex items-center gap-1 text-sm font-bold text-primary hover:underline"
+          >
+            View All 42 Categories <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+
+        <div className="mt-10">
+          <MobileCardCarousel>
+            {CATEGORIES.slice(0, 3).map((c) => (
+              <CategoryCard key={c.title} c={c} />
+            ))}
+          </MobileCardCarousel>
+          <div className="hidden gap-5 md:grid md:grid-cols-2 lg:grid-cols-4">
+            {CATEGORIES.map((c) => (
+              <CategoryCard key={c.title} c={c} />
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CategoryCard({ c }: { c: (typeof CATEGORIES)[number] }) {
+  return (
+    <div className="flex h-full flex-col rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)] transition-transform hover:-translate-y-0.5">
+      <div className="grid h-11 w-11 place-items-center rounded-xl bg-primary/10 text-primary">
+        <c.icon className="h-5 w-5" strokeWidth={2.25} />
+      </div>
+      <h3 className="mt-4 text-base font-bold text-foreground">{c.title}</h3>
+      <p className="mt-1 text-sm font-bold text-emerald-600">{c.openings}</p>
+      <p className="mt-2 flex-1 text-xs text-muted-foreground">{c.desc}</p>
+      <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
+        <span className="text-xs font-semibold text-muted-foreground">Avg {c.salary}</span>
+        <Link
+          to="/auth"
+          search={{ tab: "candidate" }}
+          className="text-xs font-bold text-primary hover:underline"
+        >
+          Apply Now →
+        </Link>
+      </div>
+    </div>
   );
 }
 
@@ -343,30 +491,21 @@ function StatsStrip() {
   });
 
   const stats = [
-    { icon: Briefcase, label: "Active jobs", value: data?.jobs ?? 0, fallback: "10,00,000+" },
-    {
-      icon: Building2,
-      label: "Verified companies",
-      value: data?.companies ?? 0,
-      fallback: "1,000+",
-    },
-    { icon: Users, label: "Candidates", value: data?.candidates ?? 0, fallback: "5,00,000+" },
-    { icon: Globe2, label: "Cities covered", value: data?.cities ?? 0, fallback: "500+" },
+    { label: "Active Jobs Live", sub: "Across 42 job categories", value: data?.jobs ?? 0, fallback: "10 Lakh+" },
+    { label: "Verified Candidates", sub: "Aadhaar & skill checked", value: data?.candidates ?? 0, fallback: "50 Lakh+" },
+    { label: "Top Employers", sub: "Direct enterprise recruiters", value: data?.companies ?? 0, fallback: "1,000+" },
+    { label: "Cities in India", sub: "Tier-1 to Tier-4 coverage", value: data?.cities ?? 0, fallback: "500+" },
   ];
 
   return (
-    <section className="py-12 sm:py-16">
-      <div className="mx-auto max-w-6xl rounded-3xl border border-border bg-card p-2 shadow-[var(--shadow-card)] sm:mx-6 lg:mx-auto">
-        <div className="grid grid-cols-2 divide-y divide-border sm:grid-cols-4 sm:divide-x sm:divide-y-0">
+    <section id="stats" className="bg-primary py-12 sm:py-16">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
           {stats.map((s) => (
-            <div key={s.label} className="flex items-center gap-3 px-4 py-5 sm:px-6">
-              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
-                <s.icon className="h-5 w-5" strokeWidth={2.25} />
-              </div>
-              <div className="min-w-0">
-                <CountUp end={s.value} fallback={s.fallback} />
-                <p className="truncate text-xs font-medium text-muted-foreground">{s.label}</p>
-              </div>
+            <div key={s.label} className="text-center text-primary-foreground sm:text-left">
+              <CountUp end={s.value} fallback={s.fallback} />
+              <p className="mt-1 text-sm font-semibold text-primary-foreground">{s.label}</p>
+              <p className="text-xs text-primary-foreground/70">{s.sub}</p>
             </div>
           ))}
         </div>
@@ -393,10 +532,12 @@ function CountUp({ end, fallback }: { end: number; fallback: string }) {
   }, [end]);
 
   if (end <= 0) {
-    return <p className="text-xl font-bold text-foreground tabular-nums">{fallback}</p>;
+    return <p className="text-2xl font-extrabold tabular-nums sm:text-3xl">{fallback}</p>;
   }
   return (
-    <p className="text-xl font-bold text-foreground tabular-nums">{val.toLocaleString("en-IN")}+</p>
+    <p className="text-2xl font-extrabold tabular-nums sm:text-3xl">
+      {val.toLocaleString("en-IN")}+
+    </p>
   );
 }
 
@@ -404,14 +545,14 @@ function CountUp({ end, fallback }: { end: number; fallback: string }) {
 
 function HowItWorks() {
   const candidate = [
-    { icon: Smartphone, t: "Enter your mobile", d: "No password, no email. Just OTP." },
-    { icon: UserCheck, t: "Profile in 60 seconds", d: "Upload resume — AI fills the rest." },
-    { icon: Briefcase, t: "Apply in one tap", d: "Speak directly with the HR. No middleman." },
+    { t: "Create Free Profile in 2 Mins", d: "No complicated resume required. Fill in your basic details, qualification, vehicle availability, and preferred job location." },
+    { t: "Direct Call to HR (Zero Middlemen)", d: "Ask verified hiring managers directly via phone or WhatsApp. Ask about salary, shift timings, and perks right away." },
+    { t: "Give Interview & Get Hired", d: "Attend localized walk-in interviews or telephonic onboarding and receive offer letters in as fast as 24 hours." },
   ];
   const employer = [
-    { icon: Building2, t: "Verify your company", d: "GST/CIN check in minutes." },
-    { icon: FileText, t: "Post a job in 4 min", d: "Reach lakhs of relevant candidates." },
-    { icon: Users, t: "Hire in days", d: "Matched candidates + applied pool, one inbox." },
+    { t: "Post Vacancy in 30 Seconds", d: "Specify role, vacancies needed, pincode, and base salary. Form auto-fills industry standards to get live instantly." },
+    { t: "Instant AI Match From 50L+ Pool", d: "Our localized algorithm triggers alerts to verified candidates living within a 7km radius who meet vehicle and license requirements." },
+    { t: "Hire in 48 Hours with 0% Commission", d: "Receive direct applications, conduct batch interviews, and onboard frontline staff without paying recruitment placement fees." },
   ];
 
   return (
@@ -419,328 +560,205 @@ function HowItWorks() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="text-center">
           <p className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary">
-            <Zap className="h-3.5 w-3.5" strokeWidth={2.5} /> How it works
+            <Zap className="h-3.5 w-3.5" strokeWidth={2.5} /> Fast & Transparent
           </p>
           <h2 className="mt-2 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            Built for speed. Verified for trust.
+            How JobsKart Works For You
           </h2>
+          <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground">
+            Engineered to eliminate commission brokers and connect employers directly with
+            candidates in record time.
+          </p>
         </div>
 
-        <div className="mt-12 grid gap-10 lg:grid-cols-2 lg:gap-12">
-          <StepColumn title="For Job Seekers" tone="primary" steps={candidate} />
-          <StepColumn title="For Employers" tone="ink" steps={employer} />
+        <div className="mt-12 grid gap-6 lg:grid-cols-2">
+          <StepColumn
+            title="For Job Seekers"
+            badge="100% Free Forever"
+            tone="primary"
+            steps={candidate}
+            cta={{ label: "Find Jobs Near Me", icon: MapPin, to: "/jobs" }}
+          />
+          <StepColumn
+            id="employers"
+            title="For Employers"
+            badge="Fast Turnaround"
+            tone="ink"
+            steps={employer}
+            cta={{ label: "Post a Job Free", icon: Zap, to: "/auth", search: { tab: "employer" } }}
+          />
         </div>
       </div>
     </section>
   );
 }
 
-type Step = { icon: typeof Smartphone; t: string; d: string };
+type Step = { t: string; d: string };
 function StepColumn({
+  id,
   title,
+  badge,
   tone,
   steps,
+  cta,
 }: {
+  id?: string;
   title: string;
+  badge: string;
   tone: "primary" | "ink";
   steps: Step[];
+  cta: { label: string; icon: typeof MapPin; to: string; search?: Record<string, string> };
 }) {
   const isPrimary = tone === "primary";
   return (
-    <div className="rounded-3xl border border-border bg-card p-6 sm:p-8">
-      <h3
-        className={`text-sm font-bold uppercase tracking-wider ${
-          isPrimary ? "text-primary" : "text-foreground"
-        }`}
-      >
-        {title}
-      </h3>
+    <div id={id} className="rounded-3xl border border-border bg-card p-6 sm:p-8">
+      <div className="flex items-center justify-between gap-3">
+        <h3
+          className={`text-sm font-bold uppercase tracking-wider ${
+            isPrimary ? "text-primary" : "text-foreground"
+          }`}
+        >
+          {title}
+        </h3>
+        <span
+          className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${
+            isPrimary ? "bg-emerald-100 text-emerald-700" : "bg-primary/10 text-primary"
+          }`}
+        >
+          {badge}
+        </span>
+      </div>
       <ol className="mt-6 space-y-5">
         {steps.map((s, i) => (
           <li key={s.t} className="flex gap-4">
             <div
-              className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl ${
-                isPrimary ? "bg-primary/10 text-primary" : "bg-foreground/5 text-foreground"
+              className={`grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-bold ${
+                isPrimary ? "bg-primary text-primary-foreground" : "bg-foreground text-background"
               }`}
             >
-              <s.icon className="h-5 w-5" strokeWidth={2.25} />
+              {i + 1}
             </div>
             <div className="min-w-0">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                Step {i + 1}
-              </p>
               <h4 className="text-base font-bold text-foreground">{s.t}</h4>
               <p className="text-sm text-muted-foreground">{s.d}</p>
             </div>
           </li>
         ))}
       </ol>
+      <Link
+        to={cta.to}
+        search={cta.search as never}
+        className={`mt-8 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl px-6 text-sm font-bold transition-transform hover:translate-y-[-1px] ${
+          isPrimary
+            ? "bg-primary text-primary-foreground shadow-[var(--shadow-elegant)] hover:bg-primary-dark"
+            : "bg-foreground text-background hover:bg-foreground/90"
+        }`}
+      >
+        <cta.icon className="h-4 w-4" /> {cta.label}
+      </Link>
     </div>
-  );
-}
-
-/* ----------------------------- Feature rows ----------------------------- */
-
-function FeatureRowCandidate() {
-  return (
-    <section id="candidates" className="py-14 sm:py-20">
-      <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 sm:px-6 lg:grid-cols-2 lg:gap-16 lg:px-8">
-        <div className="order-2 lg:order-1">
-          <p className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary">
-            <Wand2 className="h-3.5 w-3.5" strokeWidth={2.5} /> AI Resume Parsing
-          </p>
-          <h2 className="mt-2 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            Upload resume. AI fills your profile.
-          </h2>
-          <p className="mt-4 text-muted-foreground">
-            No retyping. Drop your PDF or photo, and our AI extracts your name, skills, experience,
-            and education — ready to apply in under a minute.
-          </p>
-          <ul className="mt-6 space-y-3">
-            {[
-              { i: Wand2, t: "Auto-fill 12+ fields from any resume" },
-              { i: Target, t: "AI matches you to roles in your city" },
-              { i: MessageCircle, t: "Chat with HRs directly on WhatsApp" },
-            ].map((row) => (
-              <li key={row.t} className="flex items-center gap-3">
-                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-                  <row.i className="h-4 w-4" strokeWidth={2.5} />
-                </div>
-                <span className="text-sm font-medium text-foreground">{row.t}</span>
-              </li>
-            ))}
-          </ul>
-          <Link
-            to="/auth"
-            search={{ tab: "candidate" }}
-            className="mt-8 inline-flex h-12 items-center gap-2 rounded-xl bg-primary px-6 text-sm font-bold text-primary-foreground shadow-[var(--shadow-elegant)] transition-transform hover:translate-y-[-1px] hover:bg-primary-dark"
-          >
-            Build my profile <ArrowRight className="h-4 w-4" />
-          </Link>
-        </div>
-        <div className="order-1 lg:order-2">
-          <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-[var(--shadow-soft)]">
-            <img
-              src={resumeParse}
-              alt="Resume auto-fill screen"
-              width={1280}
-              height={896}
-              loading="lazy"
-              className="h-auto w-full"
-            />
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function FeatureRowEmployer() {
-  return (
-    <section id="employers" className="bg-surface py-14 sm:py-20">
-      <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 sm:px-6 lg:grid-cols-2 lg:gap-16 lg:px-8">
-        <div>
-          <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-[var(--shadow-soft)]">
-            <img
-              src={employerDb}
-              alt="Employer candidate database screen"
-              width={1280}
-              height={896}
-              loading="lazy"
-              className="h-auto w-full"
-            />
-          </div>
-        </div>
-        <div>
-          <p className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary">
-            <Database className="h-3.5 w-3.5" strokeWidth={2.5} /> Employer Database
-          </p>
-          <h2 className="mt-2 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            Search 5L+ candidates. Unlock with credits.
-          </h2>
-          <p className="mt-4 text-muted-foreground">
-            Filter by role, city, experience and language. Unlock verified contact details with one
-            credit. Hire from your applied pool or our entire database — same inbox.
-          </p>
-          <ul className="mt-6 space-y-3">
-            {[
-              { i: Database, t: "5L+ verified candidate profiles" },
-              { i: Coins, t: "Pay per unlock — no fake leads" },
-              { i: ShieldCheck, t: "GST/CIN verified employer access" },
-            ].map((row) => (
-              <li key={row.t} className="flex items-center gap-3">
-                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-                  <row.i className="h-4 w-4" strokeWidth={2.5} />
-                </div>
-                <span className="text-sm font-medium text-foreground">{row.t}</span>
-              </li>
-            ))}
-          </ul>
-          <Link
-            to="/auth"
-            search={{ tab: "employer" }}
-            className="mt-8 inline-flex h-12 items-center gap-2 rounded-xl bg-primary px-6 text-sm font-bold text-primary-foreground shadow-[var(--shadow-elegant)] transition-transform hover:translate-y-[-1px] hover:bg-primary-dark"
-          >
-            Start hiring <ArrowRight className="h-4 w-4" />
-          </Link>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ----------------------------- Pricing teaser ----------------------------- */
-
-function PricingTeaser() {
-  const plans = [
-    {
-      name: "Starter",
-      price: 999,
-      credits: 50,
-      perks: ["50 unlocks", "1 active job post", "Email support"],
-      featured: false,
-    },
-    {
-      name: "Growth",
-      price: 4499,
-      credits: 250,
-      perks: ["250 unlocks", "5 active job posts", "Priority placement", "WhatsApp support"],
-      featured: true,
-    },
-    {
-      name: "Enterprise",
-      price: 14999,
-      credits: 1000,
-      perks: ["1,000 unlocks", "Unlimited jobs", "Dedicated manager", "API access"],
-      featured: false,
-    },
-  ];
-  return (
-    <section className="py-14 sm:py-20">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="text-center">
-          <p className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary">
-            <Coins className="h-3.5 w-3.5" strokeWidth={2.5} /> Employer Plans
-          </p>
-          <h2 className="mt-2 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            Simple pricing. Pay per unlock.
-          </h2>
-          <p className="mt-3 text-muted-foreground">
-            No subscriptions. No commitments. Buy credits as you grow.
-          </p>
-        </div>
-
-        <div className="mt-12 grid gap-6 lg:grid-cols-3">
-          {plans.map((p) => (
-            <div
-              key={p.name}
-              className={`relative rounded-3xl border p-6 sm:p-8 ${
-                p.featured
-                  ? "border-primary bg-card shadow-[var(--shadow-elegant)]"
-                  : "border-border bg-card shadow-[var(--shadow-card)]"
-              }`}
-            >
-              {p.featured && (
-                <span className="absolute -top-3 left-6 inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-primary-foreground">
-                  Most popular
-                </span>
-              )}
-              <h3 className="text-lg font-bold text-foreground">{p.name}</h3>
-              <p className="mt-4 flex items-baseline gap-1">
-                <span className="text-4xl font-extrabold tracking-tight text-foreground tabular-nums">
-                  ₹{p.price.toLocaleString("en-IN")}
-                </span>
-                <span className="text-sm text-muted-foreground">/ pack</span>
-              </p>
-              <p className="mt-1 text-xs font-bold uppercase tracking-wider text-primary tabular-nums">
-                {p.credits} credits
-              </p>
-              <ul className="mt-6 space-y-3">
-                {p.perks.map((perk) => (
-                  <li key={perk} className="flex items-center gap-2 text-sm text-foreground">
-                    <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" strokeWidth={2.5} />
-                    {perk}
-                  </li>
-                ))}
-              </ul>
-              <Link
-                to="/auth"
-                search={{ tab: "employer" }}
-                className={`mt-8 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl px-5 text-sm font-bold transition-transform hover:translate-y-[-1px] ${
-                  p.featured
-                    ? "bg-primary text-primary-foreground hover:bg-primary-dark shadow-[var(--shadow-elegant)]"
-                    : "border border-border bg-card text-foreground hover:border-primary hover:text-primary"
-                }`}
-              >
-                Buy {p.name} <ArrowRight className="h-4 w-4" />
-              </Link>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
   );
 }
 
 /* ----------------------------- Testimonials ----------------------------- */
 
-const TESTIS = [
+const FALLBACK_TESTIMONIALS = [
   {
-    n: "Priya M.",
-    r: "Telecaller, Pune",
-    q: "Applied on Monday, joined on Friday. The AI even filled my resume — I just clicked Apply.",
-    init: "PM",
+    name: "Sunil Verma",
+    role_text: "Delivery Rider • Noida, UP",
+    quote:
+      "Earlier agents asked for ₹2,000 just for interview passes. On JobsKart I directly called the Swiggy hub manager in Noida and joined as a rider within 24 hours. My first month salary was credited directly to my bank.",
+    initials: "SV",
+    rating: 5,
   },
   {
-    n: "Sandeep K.",
-    r: "HR Manager, Logistics Co.",
-    q: "We hired 12 delivery executives in 8 days. The candidate database paid for itself.",
-    init: "SK",
+    name: "Pooja Jadhav",
+    role_text: "Retail Executive • Thane, Mumbai",
+    quote:
+      "The filter by neighbourhood helped me find a store executive role just 1.5 km from my home in Thane. The app works fast even on 4G, and the verification badge gave me confidence that the company was genuine.",
+    initials: "PJ",
+    rating: 5,
   },
   {
-    n: "Anjali S.",
-    r: "Fresher, Bengaluru",
-    q: "First job out of college. JobsKart matched me to a verified company — no scam calls.",
-    init: "AS",
+    name: "Anand Kulkarni",
+    role_text: "Warehouse Sorter • Bhiwandi, MH",
+    quote:
+      "I applied for Warehouse Sorter role at Flipkart Bhiwandi. Got an interview call within 30 minutes! Salary structure with overtime allowance was clearly listed upfront. Very transparent platform.",
+    initials: "AK",
+    rating: 5,
   },
 ];
 
 function Testimonials() {
+  const { data } = useQuery({
+    queryKey: ["home-testimonials"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("home_testimonials")
+        .select("name, role_text, quote, initials, rating")
+        .eq("is_active", true)
+        .order("sort")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    staleTime: 60_000,
+  });
+  const testimonials = data?.length ? data : FALLBACK_TESTIMONIALS;
+
   return (
-    <section className="bg-surface py-14 sm:py-20">
+    <section id="testimonials" className="bg-surface py-14 sm:py-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="text-center">
           <p className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary">
-            <HeartHandshake className="h-3.5 w-3.5" strokeWidth={2.5} /> Loved by India
+            <HeartHandshake className="h-3.5 w-3.5" strokeWidth={2.5} /> Candidate Stories
           </p>
           <h2 className="mt-2 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            Real stories. Real hires.
+            Real People. Real Jobs.
           </h2>
+          <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground">
+            Listen to fellow workers who secured direct employment within days of registering on
+            JobsKart.
+          </p>
         </div>
-        <div className="mt-12 grid gap-6 lg:grid-cols-3">
-          {TESTIS.map((t) => (
-            <figure
-              key={t.n}
-              className="rounded-3xl border border-border bg-card p-6 shadow-[var(--shadow-card)] sm:p-8"
-            >
-              <Quote className="h-7 w-7 text-primary/40" strokeWidth={2.25} />
-              <blockquote className="mt-4 text-base font-medium leading-relaxed text-foreground">
-                "{t.q}"
-              </blockquote>
-              <figcaption className="mt-6 flex items-center gap-3">
-                <div className="grid h-11 w-11 place-items-center rounded-full bg-primary/10 text-sm font-bold text-primary">
-                  {t.init}
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-foreground">{t.n}</p>
-                  <p className="text-xs text-muted-foreground">{t.r}</p>
-                </div>
-              </figcaption>
-            </figure>
-          ))}
+        <div className="mt-12">
+          <MobileCardCarousel>
+            {testimonials.map((t) => (
+              <TestimonialCard key={t.name} t={t} />
+            ))}
+          </MobileCardCarousel>
+          <div className="hidden gap-6 md:grid md:grid-cols-3">
+            {testimonials.map((t) => (
+              <TestimonialCard key={t.name} t={t} />
+            ))}
+          </div>
         </div>
       </div>
     </section>
+  );
+}
+
+function TestimonialCard({ t }: { t: (typeof FALLBACK_TESTIMONIALS)[number] }) {
+  return (
+    <figure className="h-full rounded-3xl border border-border bg-card p-6 shadow-[var(--shadow-card)] sm:p-8">
+      <div className="flex items-center gap-0.5">
+        {Array.from({ length: t.rating }).map((_, i) => (
+          <Star key={i} className="h-4 w-4 fill-amber-400 text-amber-400" />
+        ))}
+      </div>
+      <blockquote className="mt-4 text-base font-medium leading-relaxed text-foreground">
+        "{t.quote}"
+      </blockquote>
+      <figcaption className="mt-6 flex items-center gap-3">
+        <div className="grid h-11 w-11 place-items-center rounded-full bg-primary/10 text-sm font-bold text-primary">
+          {t.initials}
+        </div>
+        <div>
+          <p className="text-sm font-bold text-foreground">{t.name}</p>
+          <p className="text-xs text-muted-foreground">{t.role_text}</p>
+        </div>
+      </figcaption>
+    </figure>
   );
 }
 
@@ -775,7 +793,7 @@ const FAQS = [
 
 function FAQ() {
   return (
-    <section className="py-14 sm:py-20">
+    <section id="faq" className="py-14 sm:py-20">
       <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
         <div className="text-center">
           <p className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary">
@@ -800,60 +818,343 @@ function FAQ() {
   );
 }
 
-/* -------------------------------- Dual CTA ------------------------------- */
+/* ------------------------------- About us -------------------------------- */
 
-function DualCTA() {
+const ABOUT_POINTS = [
+  { icon: ShieldCheck, t: "Verified employers only", d: "Every company is GST/CIN checked before it can post or contact candidates." },
+  { icon: IndianRupee, t: "Zero commission", d: "We never take a cut of your salary. Hire directly, pay only for the tools you use." },
+  { icon: Users, t: "Free for job seekers", d: "Build a profile, apply and talk to HR without paying anyone." },
+  { icon: MapPin, t: "Local hiring first", d: "Jobs matched by neighbourhood, so you get to work without a long commute." },
+];
+
+function AboutUs() {
   return (
-    <section className="bg-surface py-14 sm:py-20">
-      <div className="mx-auto grid max-w-7xl gap-6 px-4 sm:px-6 lg:grid-cols-2 lg:px-8">
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary to-primary-dark p-6 text-primary-foreground sm:p-10">
-          <div className="relative z-10 max-w-md">
-            <p className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-white/80">
-              <Phone className="h-3.5 w-3.5" strokeWidth={2.5} /> For job seekers
+    <section id="about" className="py-14 sm:py-20">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2 lg:gap-16">
+          <div className="min-w-0">
+            <p className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary">
+              <Building2 className="h-3.5 w-3.5" strokeWidth={2.5} /> About Us
             </p>
-            <h3 className="mt-3 text-2xl font-bold leading-tight sm:text-4xl">
-              Your next job is one tap away.
-            </h3>
-            <p className="mt-4 text-white/80">
-              Build your profile in 60 seconds. Start applying to verified jobs across India.
+            <h2 className="mt-2 break-words text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+              Blue-collar and grey-collar hiring, done right.
+            </h2>
+            <p className="mt-4 break-words text-muted-foreground">
+              JobsKart connects India's frontline workers with verified employers across field,
+              industrial, retail and service roles. We exist to remove brokers, hidden fees and
+              ghost listings from the hiring process.
             </p>
-            <Link
-              to="/auth"
-              search={{ tab: "candidate" }}
-              className="mt-8 inline-flex h-12 items-center gap-2 rounded-xl bg-background px-6 text-sm font-bold text-primary shadow-lg transition-transform hover:translate-y-[-1px]"
-            >
-              Find jobs <ArrowRight className="h-4 w-4" />
-            </Link>
+            <p className="mt-3 break-words text-muted-foreground">
+              Our mission is simple: every worker gets a fair, transparent offer, and every
+              employer gets people who show up.
+            </p>
           </div>
-          <div
-            aria-hidden
-            className="pointer-events-none absolute -right-20 -bottom-20 h-64 w-64 rounded-full bg-white/10 blur-3xl"
-          />
+          <div className="min-w-0">
+            <MobileCardCarousel>
+              {ABOUT_POINTS.map((p) => (
+                <AboutCard key={p.t} p={p} />
+              ))}
+            </MobileCardCarousel>
+            <div className="hidden gap-4 md:grid md:grid-cols-2">
+              {ABOUT_POINTS.map((p) => (
+                <AboutCard key={p.t} p={p} />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function AboutCard({ p }: { p: (typeof ABOUT_POINTS)[number] }) {
+  return (
+    <div className="h-full rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
+      <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
+        <p.icon className="h-5 w-5" strokeWidth={2.25} />
+      </div>
+      <h3 className="mt-3 text-sm font-bold text-foreground">{p.t}</h3>
+      <p className="mt-1 text-xs text-muted-foreground">{p.d}</p>
+    </div>
+  );
+}
+
+/* ------------------------------ Contact us ------------------------------- */
+
+type ContactAudienceKey = "job_seeker" | "employer";
+type FormAudienceKey = "job_seeker" | "employer";
+
+const LEFT_TABS: { key: ContactAudienceKey; label: string }[] = [
+  { key: "job_seeker", label: "For Job Seekers" },
+  { key: "employer", label: "For Employers" },
+];
+
+const FORM_TABS: { key: FormAudienceKey; label: string }[] = [
+  { key: "job_seeker", label: "Job Seeker" },
+  { key: "employer", label: "Employer" },
+];
+
+function ContactUs() {
+  const { data } = useQuery({
+    queryKey: ["site-content-public", "contact"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("site_content")
+        .select("value")
+        .eq("key", "contact")
+        .maybeSingle();
+      if (error) throw error;
+      return { ...CONTACT_FALLBACK, ...((data?.value as Partial<ContactInfo>) ?? {}) };
+    },
+    staleTime: 60_000,
+  });
+  const info: ContactInfo = data ?? CONTACT_FALLBACK;
+
+  const [leftTab, setLeftTab] = useState<ContactAudienceKey>("job_seeker");
+  const [formAudience, setFormAudience] = useState<FormAudienceKey>("job_seeker");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [subject, setSubject] = useState("");
+  const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const side = leftTab === "job_seeker" ? info.jobSeeker : info.employer;
+  const subjects = info.subjects[formAudience] ?? [];
+
+  const pickFormAudience = (key: FormAudienceKey) => {
+    setFormAudience(key);
+    setSubject("");
+  };
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (name.trim().length < 2) return toast.error("Please enter your name.");
+    if (!/^[6-9]\d{9}$/.test(phone.trim())) return toast.error("Enter a valid 10-digit mobile number.");
+    if (message.trim().length < 10) return toast.error("Message should be at least 10 characters.");
+    setSending(true);
+    try {
+      const { error } = await supabase.from("contact_messages").insert({
+        name: name.trim(),
+        phone: phone.trim(),
+        email: email.trim() || null,
+        message: message.trim(),
+        audience: formAudience,
+        subject: subject || null,
+      });
+      if (error) throw error;
+      toast.success("Thanks! We'll get back to you shortly.");
+      setName("");
+      setPhone("");
+      setEmail("");
+      setSubject("");
+      setMessage("");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not send. Please try again.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const segmented = <K extends string>(
+    tabs: { key: K; label: string }[],
+    active: K,
+    onPick: (k: K) => void,
+  ) => (
+    <div className="inline-flex flex-wrap gap-1 rounded-xl bg-surface p-1">
+      {tabs.map((t) => (
+        <button
+          key={t.key}
+          type="button"
+          onClick={() => onPick(t.key)}
+          className={`rounded-lg px-3.5 py-2 text-sm font-semibold transition-colors ${
+            active === t.key
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          {t.label}
+        </button>
+      ))}
+    </div>
+  );
+
+  return (
+    <section id="contact" className="bg-surface py-14 sm:py-20">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        <div className="text-center">
+          <p className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-primary">
+            <MessageCircle className="h-3.5 w-3.5" strokeWidth={2.5} /> Get in touch
+          </p>
+          <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
+            {info.heading}
+          </h2>
+          <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground">{info.subheading}</p>
         </div>
 
-        <div className="relative overflow-hidden rounded-3xl border border-border bg-foreground p-6 text-background sm:p-10">
-          <div className="relative z-10 max-w-md">
-            <p className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary">
-              <Building2 className="h-3.5 w-3.5" strokeWidth={2.5} /> For employers
-            </p>
-            <h3 className="mt-3 text-2xl font-bold leading-tight sm:text-4xl">
-              Hire from India's largest blue-collar pool.
-            </h3>
-            <p className="mt-4 text-background/70">
-              Post a job in 4 minutes. Get matched candidates plus your applied pool in one inbox.
-            </p>
-            <Link
-              to="/auth"
-              search={{ tab: "employer" }}
-              className="mt-8 inline-flex h-12 items-center gap-2 rounded-xl bg-primary px-6 text-sm font-bold text-primary-foreground shadow-[var(--shadow-elegant)] transition-transform hover:translate-y-[-1px] hover:bg-primary-dark"
-            >
-              Post a job <ArrowRight className="h-4 w-4" />
-            </Link>
+        <div className="mt-10 grid gap-8 lg:grid-cols-[1fr_1.15fr] lg:gap-10">
+          <div className="space-y-4">
+            {segmented(LEFT_TABS, leftTab, setLeftTab)}
+
+            <div className="rounded-xl border border-border bg-card p-5 shadow-[0_4px_20px_-2px_rgba(26,85,189,0.08)]">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                    <Phone className="h-5 w-5" strokeWidth={2.25} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                      Toll-free helpline
+                    </p>
+                    <p className="mt-1 text-lg font-bold text-foreground tabular-nums">{side.helpline}</p>
+                    <p className="text-xs text-muted-foreground">{side.helplineHours}</p>
+                  </div>
+                </div>
+                {info.onlineNow && (
+                  <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Online Now
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-border bg-card p-5 shadow-[0_4px_20px_-2px_rgba(26,85,189,0.08)]">
+              <div className="flex items-start gap-3">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                  <Mail className="h-5 w-5" strokeWidth={2.25} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    Official email support
+                  </p>
+                  <p className="mt-1 truncate text-base font-bold text-foreground">{side.email}</p>
+                  <p className="text-xs text-muted-foreground">For account, billing and verification queries.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-border bg-card p-5 shadow-[0_4px_20px_-2px_rgba(26,85,189,0.08)]">
+              <div className="flex items-start gap-3">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-emerald-100 text-emerald-700">
+                  <MessageCircle className="h-5 w-5" strokeWidth={2.25} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    Direct messaging
+                  </p>
+                  <p className="mt-1 text-base font-bold text-foreground tabular-nums">{side.whatsapp}</p>
+                  <p className="text-xs text-muted-foreground">Chat with support on WhatsApp.</p>
+                  <a
+                    href={`https://wa.me/${side.whatsapp.replace(/\D/g, "")}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-emerald-700 hover:underline"
+                  >
+                    Start WhatsApp Chat <ArrowRight className="h-3.5 w-3.5" />
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-border bg-card p-5 shadow-[0_4px_20px_-2px_rgba(26,85,189,0.08)]">
+              <div className="flex items-start gap-3">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                  <MapPin className="h-5 w-5" strokeWidth={2.25} />
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    Headquarters
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-foreground">{info.hq.company}</p>
+                  <p className="text-xs text-muted-foreground">{info.hq.address}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-800">
+              <Clock className="h-4 w-4 shrink-0" /> {info.responseTime}
+            </div>
           </div>
-          <div
-            aria-hidden
-            className="pointer-events-none absolute -right-20 -bottom-20 h-64 w-64 rounded-full bg-primary/20 blur-3xl"
-          />
+
+          <form
+            onSubmit={submit}
+            className="rounded-xl border border-border bg-card p-6 shadow-[0_8px_24px_-4px_rgba(26,85,189,0.14)] sm:p-8"
+          >
+            <h3 className="text-xl font-bold text-foreground">Send Us a Message</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Fill out the form below and our regional support team will reach out shortly.
+            </p>
+
+            <div className="mt-5">
+              <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">I am a</Label>
+              <div className="mt-2">{segmented(FORM_TABS, formAudience, pickFormAudience)}</div>
+            </div>
+
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label>Full name</Label>
+                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Aarav Kumar" />
+              </div>
+              <div>
+                <Label>WhatsApp / phone</Label>
+                <div className="flex">
+                  <span className="inline-flex items-center rounded-l-lg border border-r-0 border-border bg-surface px-3 text-sm font-semibold text-muted-foreground">
+                    +91
+                  </span>
+                  <Input
+                    className="rounded-l-none"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                    placeholder="10-digit mobile"
+                    inputMode="numeric"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label>Email address (optional)</Label>
+                <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+              </div>
+              <div>
+                <Label>Inquiry subject</Label>
+                <select
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  className="flex h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                >
+                  <option value="">Select a topic</option>
+                  {subjects.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <Label>Message details</Label>
+              <Textarea
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                rows={4}
+                placeholder="Describe how we can help you…"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={sending}
+              className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-primary px-6 text-sm font-bold text-primary-foreground shadow-[var(--shadow-elegant)] transition-transform hover:translate-y-[-1px] hover:bg-primary-dark active:translate-y-px disabled:opacity-60"
+            >
+              <Send className="h-4 w-4" /> {sending ? "Sending…" : "Send Message"}
+            </button>
+            <p className="mt-3 text-center text-[11px] text-muted-foreground">
+              We respect your privacy. Your contact details are shared only with the relevant team and never sold to third parties.
+            </p>
+          </form>
         </div>
       </div>
     </section>

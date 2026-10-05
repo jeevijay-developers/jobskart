@@ -34,6 +34,8 @@ import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AdminMastersRouteImport } from './routes/admin/masters'
 import { Route as AdminPlansRouteImport } from './routes/admin/plans'
 import { Route as AdminResumesRouteImport } from './routes/admin/resumes'
+import { Route as AdminSiteContentRouteImport } from './routes/admin/site-content'
+import { Route as AdminTestimonialsRouteImport } from './routes/admin/testimonials'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminVerificationsRouteImport } from './routes/admin/verifications'
 import { Route as ApiResumeBuilderRouteImport } from './routes/api/resume-builder'
@@ -217,6 +219,16 @@ const AdminPlansRoute = AdminPlansRouteImport.update({
 const AdminResumesRoute = AdminResumesRouteImport.update({
   id: '/resumes',
   path: '/resumes',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminSiteContentRoute = AdminSiteContentRouteImport.update({
+  id: '/site-content',
+  path: '/site-content',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminTestimonialsRoute = AdminTestimonialsRouteImport.update({
+  id: '/testimonials',
+  path: '/testimonials',
   getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminUsersRoute = AdminUsersRouteImport.update({
@@ -576,6 +588,8 @@ export interface FileRoutesByFullPath {
   '/admin/masters': typeof AdminMastersRoute
   '/admin/plans': typeof AdminPlansRoute
   '/admin/resumes': typeof AdminResumesRoute
+  '/admin/site-content': typeof AdminSiteContentRoute
+  '/admin/testimonials': typeof AdminTestimonialsRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/verifications': typeof AdminVerificationsRoute
   '/api/resume-builder': typeof ApiResumeBuilderRoute
@@ -659,6 +673,8 @@ export interface FileRoutesByTo {
   '/admin/masters': typeof AdminMastersRoute
   '/admin/plans': typeof AdminPlansRoute
   '/admin/resumes': typeof AdminResumesRoute
+  '/admin/site-content': typeof AdminSiteContentRoute
+  '/admin/testimonials': typeof AdminTestimonialsRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/verifications': typeof AdminVerificationsRoute
   '/api/resume-builder': typeof ApiResumeBuilderRoute
@@ -745,6 +761,8 @@ export interface FileRoutesById {
   '/admin/masters': typeof AdminMastersRoute
   '/admin/plans': typeof AdminPlansRoute
   '/admin/resumes': typeof AdminResumesRoute
+  '/admin/site-content': typeof AdminSiteContentRoute
+  '/admin/testimonials': typeof AdminTestimonialsRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/verifications': typeof AdminVerificationsRoute
   '/api/resume-builder': typeof ApiResumeBuilderRoute
@@ -831,6 +849,8 @@ export interface FileRouteTypes {
     | '/admin/masters'
     | '/admin/plans'
     | '/admin/resumes'
+    | '/admin/site-content'
+    | '/admin/testimonials'
     | '/admin/users'
     | '/admin/verifications'
     | '/api/resume-builder'
@@ -914,6 +934,8 @@ export interface FileRouteTypes {
     | '/admin/masters'
     | '/admin/plans'
     | '/admin/resumes'
+    | '/admin/site-content'
+    | '/admin/testimonials'
     | '/admin/users'
     | '/admin/verifications'
     | '/api/resume-builder'
@@ -999,6 +1021,8 @@ export interface FileRouteTypes {
     | '/admin/masters'
     | '/admin/plans'
     | '/admin/resumes'
+    | '/admin/site-content'
+    | '/admin/testimonials'
     | '/admin/users'
     | '/admin/verifications'
     | '/api/resume-builder'
@@ -1265,6 +1289,20 @@ declare module '@tanstack/react-router' {
       path: '/resumes'
       fullPath: '/admin/resumes'
       preLoaderRoute: typeof AdminResumesRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/site-content': {
+      id: '/admin/site-content'
+      path: '/site-content'
+      fullPath: '/admin/site-content'
+      preLoaderRoute: typeof AdminSiteContentRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/testimonials': {
+      id: '/admin/testimonials'
+      path: '/testimonials'
+      fullPath: '/admin/testimonials'
+      preLoaderRoute: typeof AdminTestimonialsRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/admin/users': {
@@ -1830,6 +1868,8 @@ interface AdminRouteRouteChildren {
   AdminMastersRoute: typeof AdminMastersRoute
   AdminPlansRoute: typeof AdminPlansRoute
   AdminResumesRoute: typeof AdminResumesRoute
+  AdminSiteContentRoute: typeof AdminSiteContentRoute
+  AdminTestimonialsRoute: typeof AdminTestimonialsRoute
   AdminUsersRoute: typeof AdminUsersRoute
   AdminVerificationsRoute: typeof AdminVerificationsRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -1848,6 +1888,8 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminMastersRoute: AdminMastersRoute,
   AdminPlansRoute: AdminPlansRoute,
   AdminResumesRoute: AdminResumesRoute,
+  AdminSiteContentRoute: AdminSiteContentRoute,
+  AdminTestimonialsRoute: AdminTestimonialsRoute,
   AdminUsersRoute: AdminUsersRoute,
   AdminVerificationsRoute: AdminVerificationsRoute,
   AdminIndexRoute: AdminIndexRoute,

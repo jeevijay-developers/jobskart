@@ -26,15 +26,20 @@ const candidateMenuLinks = [
   { to: "/candidate/settings", label: "Settings", icon: Settings },
 ] as const;
 
-// Public site nav ΓÇö each item scrolls to its matching section on the home
-// page (see the `id`s on HowItWorks/FeatureRowCandidate/FeatureRowEmployer
-// in src/routes/index.tsx) rather than linking out to /jobs or /auth.
-// "Jobs" has no dedicated home-page section, so it's relabelled to match
-// the section it actually points to ("How it works" ΓÇö the find-a-job flow).
+// Public site nav ΓÇö one entry per home-page section, in page order. Each
+// item scrolls to its matching section's `id` in src/routes/index.tsx
+// (Hero="home", CategoryGrid="categories", HowItWorks="how-it-works",
+// AboutUs="about", Testimonials="testimonials", FAQ="faq",
+// ContactUs="contact") rather than linking out to /jobs or /auth. This
+// single array drives both the desktop center nav and the mobile
+// slide-out menu below. "Reviews" points at the Testimonials section.
 const homeNavLinks = [
-  { hash: "how-it-works", label: "How it works" },
-  { hash: "employers", label: "For Employers" },
-  { hash: "candidates", label: "Candidates" },
+  { hash: "home", label: "Home" },
+  { hash: "how-it-works", label: "How it Works" },
+  { hash: "about", label: "About Us" },
+  { hash: "testimonials", label: "Reviews" },
+  { hash: "faq", label: "FAQ" },
+  { hash: "contact", label: "Contact Us" },
 ] as const;
 
 export function Navbar() {
@@ -90,13 +95,13 @@ export function Navbar() {
             <img src={logoAsset} alt="JobsKart" className="h-7 w-auto" />
           </Link>
 
-          <nav className="hidden items-center gap-7 lg:flex lg:justify-self-center xl:gap-10">
+          <nav className="hidden items-center gap-3 lg:flex lg:justify-self-center xl:gap-5">
             {homeNavLinks.map((l) => (
               <Link
                 key={l.hash}
                 to="/"
                 hash={l.hash}
-                className="text-sm font-medium text-foreground/80 transition-colors hover:text-primary"
+                className="whitespace-nowrap text-[13px] font-medium text-foreground/80 transition-colors hover:text-primary xl:text-sm"
               >
                 {l.label}
               </Link>
