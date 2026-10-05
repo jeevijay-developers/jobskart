@@ -136,13 +136,19 @@ function EmployerJobsList() {
 
   const runGetBoostOverview = useServerFn(getBoostOverview);
   const [boostOverview, setBoostOverview] = useState(DEFAULT_BOOST_OVERVIEW);
+  // False until the real wallet/pool figures have loaded. DEFAULT_BOOST_OVERVIEW is
+  // zeros, which the modal must not mistake for "this company has no credits".
+  const [boostOverviewLoaded, setBoostOverviewLoaded] = useState(false);
   const [boostTarget, setBoostTarget] = useState<Job | null>(null);
   const loadBoostOverview = async (companyId: string) => {
     try {
       const overview = await runGetBoostOverview({ data: { companyId } });
       setBoostOverview(overview);
-    } catch {
-      /* non-critical — boost button just falls back to defaults */
+      setBoostOverviewLoaded(true);
+    } catch (e) {
+      // Non-critical for the page, but never silent: the apply_boost RPC still validates.
+      console.error("[boost] couldn't load boost overview", e);
+      setBoostOverviewLoaded(false);
     }
   };
   useEffect(() => { if (cid) loadBoostOverview(cid); /* eslint-disable-next-line */ }, [cid]);
@@ -662,6 +668,7 @@ function EmployerJobsList() {
           onOpenChange={(v) => { if (!v) setBoostTarget(null); }}
           job={{ id: boostTarget.id, title: boostTarget.title, createdAt: boostTarget.created_at }}
           balance={boostOverview.balance}
+          balanceKnown={boostOverviewLoaded}
           monthlyPoolRemaining={boostOverview.monthlyPoolRemaining}
           settings={boostOverview.settings}
           onBoosted={() => {
