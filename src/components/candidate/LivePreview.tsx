@@ -9,6 +9,7 @@ interface LivePreviewProps {
   // it) — see below for why this component stopped using react-pdf's
   // PDFViewer for the live/editing view.
   previewKey?: string;
+  fillViewport?: boolean;
   className?: string;
 }
 
@@ -32,10 +33,16 @@ interface LivePreviewProps {
 // History preview modal — those render the exact real PDF on demand, where a
 // one-time render is expected rather than something the candidate watches
 // flicker on every keystroke.
-export function LivePreview({ resume, templateId, layout, className = "" }: LivePreviewProps) {
+export function LivePreview({
+  resume,
+  templateId,
+  layout,
+  fillViewport = false,
+  className = "",
+}: LivePreviewProps) {
   return (
-    <div className={`h-full w-full overflow-auto bg-surface ${className}`}>
-      <div className="mx-auto py-4">
+    <div className={`h-full w-full overflow-auto ${fillViewport ? "bg-white" : "bg-surface"} ${className}`}>
+      <div className={fillViewport ? "mx-auto min-h-full w-full bg-white" : "mx-auto py-4"}>
         <DomResumeTemplate resume={{ ...resume, templateId, layout }} />
       </div>
     </div>

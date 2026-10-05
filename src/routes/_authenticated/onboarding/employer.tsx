@@ -5,6 +5,7 @@ import { CityTownAutocomplete } from "@/components/candidate/CityTownAutocomplet
 import { supabase } from "@/integrations/supabase/client";
 import { setActiveCompanyId } from "@/lib/employer";
 import { INDIAN_CITIES } from "@/lib/options";
+import { useJobTitleSuggestions } from "@/lib/useJobTitleSuggestions";
 import {
   Questionnaire,
   BigInput,
@@ -37,15 +38,44 @@ const ROLES = [
 ] as const;
 
 const TOP_CITIES = [
-  "Mumbai", "Delhi", "Bengaluru", "Hyderabad", "Pune", "Chennai",
-  "Kolkata", "Ahmedabad", "Jaipur", "Lucknow", "Indore", "Chandigarh",
+  "Mumbai",
+  "Delhi",
+  "Bengaluru",
+  "Hyderabad",
+  "Pune",
+  "Chennai",
+  "Kolkata",
+  "Ahmedabad",
+  "Jaipur",
+  "Lucknow",
+  "Indore",
+  "Chandigarh",
 ];
 
 const INDUSTRY_SUGGEST = [
-  "IT / Software", "Logistics & Delivery", "Retail", "Healthcare",
-  "Education", "Finance", "Manufacturing", "Hospitality", "Real Estate",
-  "Construction", "Media", "Other",
+  "IT / Software",
+  "Logistics & Delivery",
+  "Retail",
+  "Healthcare",
+  "Education",
+  "Finance",
+  "Manufacturing",
+  "Hospitality",
+  "Real Estate",
+  "Construction",
+  "Media",
+  "Other",
 ];
+
+const EMPLOYER_FULL_NAME_RE = /^[A-Za-z ]+$/;
+
+function getEmployerFullNameError(value: string): string | null {
+  if (!value.trim()) return "Please enter your full name";
+  if (value.length > 80) return "Name must be under 80 characters";
+  if (!EMPLOYER_FULL_NAME_RE.test(value)) return "Only letters and spaces are allowed";
+  if (value.trim().length < 2) return "Please enter your full name";
+  return null;
+}
 
 function EmployerOnboarding() {
   const navigate = useNavigate();
@@ -54,6 +84,7 @@ function EmployerOnboarding() {
 
   // form state
   const [fullName, setFullName] = useState("");
+  const [fullNameInputError, setFullNameInputError] = useState<string | null>(null);
   const [yourRole, setYourRole] = useState<string>("founder");
   const [designation, setDesignation] = useState("");
   const [companyName, setCompanyName] = useState("");
@@ -67,6 +98,9 @@ function EmployerOnboarding() {
   const [gst, setGst] = useState("");
   const [isConsultant, setIsConsultant] = useState(false);
   const [postNow, setPostNow] = useState<"yes" | "later">("yes");
+  const designationSuggestions = useJobTitleSuggestions();
+  const fullNameError = fullNameInputError ?? getEmployerFullNameError(fullName);
+  const shouldShowFullNameError = Boolean(fullName || fullNameInputError);
 
   const submit = async () => {
     setSaving(true);
@@ -76,7 +110,8 @@ function EmployerOnboarding() {
       if (!uid) throw new Error("Not signed in.");
 
       await supabase.from("profiles").update({ full_name: fullName }).eq("id", uid);
-      void designation; void yourRole;
+      void designation;
+      void yourRole;
 
       const resolvedName =
         companyName.trim() || (isConsultant ? `${fullName.trim()} (Independent recruiter)` : "");
@@ -96,12 +131,17 @@ function EmployerOnboarding() {
       if (rpcErr || !companyId) throw rpcErr ?? new Error("Could not create company.");
       const cid = companyId as unknown as string;
       if (isConsultant) {
-        await supabase.from("companies").update({ is_consultant: true } as never).eq("id", cid);
+        await supabase
+          .from("companies")
+          .update({ is_consultant: true } as never)
+          .eq("id", cid);
       }
 
       if (logoFile) {
         const path = `${cid}/logo-${Date.now()}-${logoFile.name}`;
-        const up = await supabase.storage.from("company-logos").upload(path, logoFile, { upsert: true });
+        const up = await supabase.storage
+          .from("company-logos")
+          .upload(path, logoFile, { upsert: true });
         if (!up.error) {
           const { data: signed } = await supabase.storage
             .from("company-logos")
@@ -127,15 +167,48 @@ function EmployerOnboarding() {
       key: "you",
       title: "First — who's hiring?",
       hint: "We use this on invites and to address you across the dashboard.",
-      validate: () => (fullName.trim().length < 2 ? "Tell us your name." : null),
+      validate: () => fullNameError,
       render: () => (
         <div className="space-y-6">
-          <BigInput
-            placeholder="Your full name"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            autoFocus
-          />
+          <div>
+            <BigInput
+              placeholder="Your full name"
+              value={fullName}
+              onChange={(e) => {
+                // This onboarding flow accepts only letters and spaces. A
+                // pasted symbol between words becomes a space, while numbers
+                // are removed; the form value is always uppercase.
+                const raw = e.target.value;
+                const lettersAndSpaces = raw.replace(/[0-9]/g, "").replace(/[^A-Za-z ]+/g, " ");
+                const cleaned = lettersAndSpaces.slice(0, 80);
+                const normalized = cleaned.toUpperCase();
+                setFullNameInputError(
+                  raw !== lettersAndSpaces
+                    ? "Only letters and spaces are allowed"
+                    : raw !== cleaned
+                      ? "Name must be under 80 characters"
+                      : null,
+                );
+                setFullName(normalized);
+              }}
+              maxLength={80}
+              aria-invalid={shouldShowFullNameError && !!fullNameError}
+              aria-describedby={
+                shouldShowFullNameError && fullNameError ? "employer-full-name-error" : undefined
+              }
+              className={
+                shouldShowFullNameError && fullNameError
+                  ? "border-destructive focus:border-destructive"
+                  : undefined
+              }
+              autoFocus
+            />
+            {shouldShowFullNameError && fullNameError && (
+              <p id="employer-full-name-error" className="mt-1 text-xs text-destructive">
+                {fullNameError}
+              </p>
+            )}
+          </div>
           <div>
             <p className="mb-3 text-sm font-semibold text-foreground">Your role</p>
             <ChipChoice
@@ -145,18 +218,29 @@ function EmployerOnboarding() {
             />
           </div>
           <Field label="Designation (optional)" hint="e.g. Head of TA, Founder">
-            <input
+            <CityTownAutocomplete
               value={designation}
-              onChange={(e) => setDesignation(e.target.value)}
-              className="form-input"
+              onChange={setDesignation}
+              suggestions={designationSuggestions}
+              minChars={3}
+              maxSuggestions={10}
               placeholder="Optional"
             />
           </Field>
           <label className="flex items-start gap-3 rounded-xl border border-border bg-surface p-3 text-sm">
-            <input type="checkbox" checked={isConsultant} onChange={(e) => setIsConsultant(e.target.checked)} className="mt-0.5 h-4 w-4 accent-primary" />
+            <input
+              type="checkbox"
+              checked={isConsultant}
+              onChange={(e) => setIsConsultant(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-primary"
+            />
             <span>
-              <span className="font-semibold text-foreground">I'm a hiring consultant / recruiter</span>
-              <span className="mt-0.5 block text-xs text-muted-foreground">You'll be asked (optionally) which company each job is for when posting.</span>
+              <span className="font-semibold text-foreground">
+                I'm a hiring consultant / recruiter
+              </span>
+              <span className="mt-0.5 block text-xs text-muted-foreground">
+                You'll be asked (optionally) which company each job is for when posting.
+              </span>
             </span>
           </label>
         </div>
@@ -177,7 +261,9 @@ function EmployerOnboarding() {
       render: () => (
         <div className="space-y-6">
           <BigInput
-            placeholder={isConsultant ? "Your consultancy name (optional)" : "Acme Logistics Pvt Ltd"}
+            placeholder={
+              isConsultant ? "Your consultancy name (optional)" : "Acme Logistics Pvt Ltd"
+            }
             value={companyName}
             onChange={(e) => setCompanyName(e.target.value)}
           />
@@ -328,7 +414,10 @@ function EmployerOnboarding() {
                 placeholder="https://"
               />
             </Field>
-            <Field label="GST number" hint="Required for the verified employer badge — you can add this later from Company → KYC.">
+            <Field
+              label="GST number"
+              hint="Required for the verified employer badge — you can add this later from Company → KYC."
+            >
               <input
                 value={gst}
                 onChange={(e) => setGst(e.target.value.toUpperCase())}
@@ -350,8 +439,16 @@ function EmployerOnboarding() {
           value={postNow}
           onChange={(v) => setPostNow(v as "yes" | "later")}
           options={[
-            { value: "yes", label: "Yes — post my first job now", hint: "Recommended · 3 min wizard" },
-            { value: "later", label: "Maybe later — show me the dashboard", hint: "Browse around first" },
+            {
+              value: "yes",
+              label: "Yes — post my first job now",
+              hint: "Recommended · 3 min wizard",
+            },
+            {
+              value: "later",
+              label: "Maybe later — show me the dashboard",
+              hint: "Browse around first",
+            },
           ]}
         />
       ),

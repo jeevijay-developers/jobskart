@@ -318,6 +318,7 @@ export function OtpInput({
           key={i}
           inputMode="numeric"
           maxLength={1}
+          autoFocus={i === 0}
           value={value[i] ?? ""}
           onChange={(e) => {
             const ch = e.target.value.replace(/\D/g, "").slice(0, 1);

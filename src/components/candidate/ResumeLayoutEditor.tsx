@@ -48,7 +48,7 @@ function SectionHeadingStyleControl({
   onChange,
 }: {
   value: ResumeLayoutSettings["sectionHeaderStyle"];
-  onChange: (value: ResumeLayoutSettings["sectionHeaderStyle"] | undefined) => void;
+  onChange: (value: ResumeLayoutSettings["sectionHeaderStyle"]) => void;
 }) {
   const options: { value: ResumeLayoutSettings["sectionHeaderStyle"]; label: string }[] = [
     { value: "underline", label: "Underline" },
@@ -56,6 +56,12 @@ function SectionHeadingStyleControl({
     { value: "colored", label: "Colored" },
   ];
 
+  // "Plain" (no underline/no color) is the schema's neutral heading style, so
+  // clicking an already-selected option toggles it off by selecting Plain —
+  // the same "click again to deselect" interaction the task asked for,
+  // without needing a 4th "nothing selected" state the schema/PDF don't have.
+  // Clicking Plain itself while it's already active is a no-op (there's
+  // nothing further to fall back to).
   return (
     <div
       className="flex w-full min-w-0 overflow-hidden rounded-lg border border-border lg:w-auto"
@@ -68,7 +74,9 @@ function SectionHeadingStyleControl({
           type="button"
           role="radio"
           aria-checked={value === option.value}
-          onClick={() => onChange(value === option.value ? undefined : option.value)}
+          onClick={() =>
+            onChange(value === option.value && option.value !== "plain" ? "plain" : option.value)
+          }
           className={`min-w-0 flex-1 whitespace-nowrap px-1.5 py-1 text-center text-xs font-medium lg:flex-none lg:px-2.5 ${
             value === option.value
               ? "bg-primary text-primary-foreground"
@@ -219,6 +227,7 @@ export function ResumeLayoutEditor({
   saving = false,
   onSave,
   hideActions = false,
+  defaultOpen = false,
   className = "",
 }: {
   value: ResumeLayoutSettings;
@@ -229,9 +238,11 @@ export function ResumeLayoutEditor({
   onSave?: () => void;
   // When the caller already renders its own Save/Reset bar (e.g. the edit drawer), skip this one.
   hideActions?: boolean;
+  // Desktop edit mode opens the accordion immediately; other callers preserve the collapsed default.
+  defaultOpen?: boolean;
   className?: string;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [hexDraft, setHexDraft] = useState(value.accentColor);
   // Keep the text box in step when the colour changes from outside (reset, template switch).
   useEffect(() => setHexDraft(value.accentColor), [value.accentColor]);

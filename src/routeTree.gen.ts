@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as Caltest999RouteImport } from './routes/caltest999'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as InterviewJoinRouteImport } from './routes/interview-join'
 import { Route as JobsRouteImport } from './routes/jobs'
@@ -113,6 +114,11 @@ const AdminRouteRoute = AdminRouteRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Caltest999Route = Caltest999RouteImport.update({
+  id: '/caltest999',
+  path: '/caltest999',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
@@ -576,6 +582,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/caltest999': typeof Caltest999Route
   '/forgot-password': typeof ForgotPasswordRoute
   '/interview-join': typeof InterviewJoinRoute
   '/jobs': typeof JobsRouteWithChildren
@@ -662,6 +669,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/caltest999': typeof Caltest999Route
   '/forgot-password': typeof ForgotPasswordRoute
   '/interview-join': typeof InterviewJoinRoute
   '/jobs': typeof JobsRouteWithChildren
@@ -751,6 +759,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/admin': typeof AdminRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/caltest999': typeof Caltest999Route
   '/forgot-password': typeof ForgotPasswordRoute
   '/interview-join': typeof InterviewJoinRoute
   '/jobs': typeof JobsRouteWithChildren
@@ -840,6 +849,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/auth'
+    | '/caltest999'
     | '/forgot-password'
     | '/interview-join'
     | '/jobs'
@@ -926,6 +936,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/caltest999'
     | '/forgot-password'
     | '/interview-join'
     | '/jobs'
@@ -1014,6 +1025,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/admin'
     | '/auth'
+    | '/caltest999'
     | '/forgot-password'
     | '/interview-join'
     | '/jobs'
@@ -1103,6 +1115,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AdminRouteRoute: typeof AdminRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  Caltest999Route: typeof Caltest999Route
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   InterviewJoinRoute: typeof InterviewJoinRoute
   JobsRoute: typeof JobsRouteWithChildren
@@ -1157,6 +1170,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/caltest999': {
+      id: '/caltest999'
+      path: '/caltest999'
+      fullPath: '/caltest999'
+      preLoaderRoute: typeof Caltest999RouteImport
       parentRoute: typeof rootRouteImport
     }
     '/forgot-password': {
@@ -1936,6 +1956,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AdminRouteRoute: AdminRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  Caltest999Route: Caltest999Route,
   ForgotPasswordRoute: ForgotPasswordRoute,
   InterviewJoinRoute: InterviewJoinRoute,
   JobsRoute: JobsRouteWithChildren,

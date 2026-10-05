@@ -591,6 +591,7 @@ function ResumeBuilderPage() {
                   templateId={selectedTemplate}
                   layout={layoutDraft}
                   previewKey={previewKey}
+                  fillViewport
                 />
               </div>
               <p className="text-xs text-muted-foreground">
@@ -613,9 +614,12 @@ function ResumeBuilderPage() {
                 experiences={baseExperiences}
                 sections={workingSections}
                 onSave={handleSave}
-                isSaving={savingLayout || savingExtras}
-                isDirty={layoutDirty || isDirty}
+                isSaving={savingExtras}
+                isDirty={isDirty}
                 onReset={handleReset}
+                onSaveLayout={handleSaveLayout}
+                isSavingLayout={savingLayout}
+                isLayoutDirty={layoutDirty}
               />
             )}
           </div>
@@ -630,7 +634,16 @@ function ResumeBuilderPage() {
                   options={RESUME_TEMPLATE_LIST.map((t) => ({ value: t.id, label: t.label }))}
                   onChange={selectTemplate}
                 />
-                <EditModeTrigger isEditOpen={isEditOpen} onToggle={() => setIsEditOpen(true)} />
+                <EditModeTrigger
+                  isEditOpen={isEditOpen}
+                  onToggle={() => {
+                    // Mobile always opens on the Layout tab, per spec — desktop's
+                    // own trigger (above) is untouched and keeps whatever tab was
+                    // last active.
+                    setEditTab("layout");
+                    setIsEditOpen(true);
+                  }}
+                />
               </header>
               <LivePreview
                 resume={merged ?? snapshot}
@@ -763,9 +776,12 @@ function ResumeBuilderPage() {
                 experiences={baseExperiences}
                 sections={workingSections}
                 onSave={handleSave}
-                isSaving={savingLayout || savingExtras}
-                isDirty={layoutDirty || isDirty}
+                isSaving={savingExtras}
+                isDirty={isDirty}
                 onReset={handleReset}
+                onSaveLayout={handleSaveLayout}
+                isSavingLayout={savingLayout}
+                isLayoutDirty={layoutDirty}
               />
             )}
 
