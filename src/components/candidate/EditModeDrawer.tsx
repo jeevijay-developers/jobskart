@@ -59,6 +59,7 @@ export function EditModeDrawer({
         </div>
 
         <Segmented
+          fullWidth
           value={activeTab}
           options={[
             { value: "layout", label: "Layout" },
@@ -82,20 +83,21 @@ export function EditModeDrawer({
           )}
         </div>
 
-        <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+        <div className="flex items-center justify-between gap-2 pt-3 border-t border-border">
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold text-foreground hover:bg-surface"
+            aria-label="Back"
+            className="inline-flex h-9 items-center justify-center rounded-lg border border-border bg-card px-3 text-xs font-semibold text-foreground hover:bg-surface"
           >
-            <ArrowLeft className="h-3.5 w-3.5" /> Back
+            <ArrowLeft className="h-3.5 w-3.5" />
           </button>
           <button
             type="button"
             onClick={onReset}
-            className="text-xs font-semibold text-primary hover:underline"
+            className="inline-flex h-9 items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
           >
-            <RotateCcw className="h-3.5 w-3.5 mr-2" /> Reset to defaults
+            <RotateCcw className="h-3.5 w-3.5" /> Reset to defaults
           </button>
           <button
             type="button"

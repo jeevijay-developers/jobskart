@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Target, CheckCircle2, AlertCircle, Copy } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Target, CheckCircle2, AlertCircle, Copy, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -54,6 +54,35 @@ export function JobMatchPanel({
   const [manualSkill, setManualSkill] = useState("");
   const [history, setHistory] = useState<HistoryRow[]>([]);
   const [saving, setSaving] = useState(false);
+  const [isMobileJobPickerOpen, setIsMobileJobPickerOpen] = useState(false);
+  const mobileJobPickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isMobileJobPickerOpen) return;
+
+    const dismissOnOutsidePointer = (event: PointerEvent) => {
+      if (!mobileJobPickerRef.current?.contains(event.target as Node)) {
+        setIsMobileJobPickerOpen(false);
+      }
+    };
+    const dismissOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsMobileJobPickerOpen(false);
+    };
+    const dismissOnScroll = (event: Event) => {
+      if (!mobileJobPickerRef.current?.contains(event.target as Node)) {
+        setIsMobileJobPickerOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", dismissOnOutsidePointer);
+    document.addEventListener("keydown", dismissOnEscape);
+    window.addEventListener("scroll", dismissOnScroll, true);
+    return () => {
+      document.removeEventListener("pointerdown", dismissOnOutsidePointer);
+      document.removeEventListener("keydown", dismissOnEscape);
+      window.removeEventListener("scroll", dismissOnScroll, true);
+    };
+  }, [isMobileJobPickerOpen]);
 
   const loadHistory = async (forJobId: string) => {
     const { data: u } = await supabase.auth.getUser();
@@ -295,10 +324,59 @@ export function JobMatchPanel({
             </p>
           ) : (
             <>
+              <div ref={mobileJobPickerRef} className="relative lg:hidden">
+                <button
+                  type="button"
+                  onClick={() => setIsMobileJobPickerOpen((open) => !open)}
+                  className="form-input flex h-9 w-full items-center justify-between gap-2 py-0 text-left text-sm"
+                  aria-expanded={isMobileJobPickerOpen}
+                  aria-haspopup="listbox"
+                >
+                  <span className={`min-w-0 flex-1 truncate ${job ? "text-foreground" : "text-muted-foreground"}`}>
+                    {job?.title ?? "Choose a job…"}
+                  </span>
+                  <ChevronDown className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${isMobileJobPickerOpen ? "rotate-180" : ""}`} />
+                </button>
+                {isMobileJobPickerOpen && (
+                  <div
+                    className="absolute z-30 mt-1 max-h-56 w-full overflow-x-hidden overflow-y-auto rounded-lg border border-border bg-card p-1 shadow-lg"
+                    role="listbox"
+                    aria-label="Choose a job"
+                  >
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={!jobId}
+                      onClick={() => {
+                        setJobId("");
+                        setIsMobileJobPickerOpen(false);
+                      }}
+                      className="block w-full truncate rounded-md px-3 py-2 text-left text-sm text-muted-foreground hover:bg-surface"
+                    >
+                      Choose a job…
+                    </button>
+                    {jobs.map((j) => (
+                      <button
+                        key={j.id}
+                        type="button"
+                        role="option"
+                        aria-selected={jobId === j.id}
+                        onClick={() => {
+                          setJobId(j.id);
+                          setIsMobileJobPickerOpen(false);
+                        }}
+                        className={`block w-full truncate rounded-md px-3 py-2 text-left text-sm hover:bg-surface ${jobId === j.id ? "bg-primary/10 font-medium text-primary" : "text-foreground"}`}
+                      >
+                        {j.title}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <select
                 value={jobId}
                 onChange={(e) => setJobId(e.target.value)}
-                className="form-input h-9 w-full py-0 text-sm"
+                className="form-input hidden h-9 w-full py-0 text-sm lg:block"
               >
                 <option value="">Choose a job…</option>
                 {jobs.map((j) => (
