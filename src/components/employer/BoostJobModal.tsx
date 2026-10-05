@@ -12,6 +12,9 @@ type BoostJobModalProps = {
   onOpenChange: (v: boolean) => void;
   job: { id: string; title: string; createdAt: string };
   balance: number;
+  /** False while `balance` is only the page's zero default (overview not loaded) — then the
+   *  client can't know it's insufficient, so it must not block; apply_boost decides. */
+  balanceKnown?: boolean;
   /** Remaining this-month plan allowance — null means unlimited, 0/positive is exact. */
   monthlyPoolRemaining: number | null;
   settings: { costCredits: number; windowHours: number; enabled: boolean };
@@ -33,6 +36,7 @@ export function BoostJobModal({
   onOpenChange,
   job,
   balance,
+  balanceKnown = true,
   monthlyPoolRemaining,
   settings,
   onBoosted,
@@ -54,7 +58,7 @@ export function BoostJobModal({
   // A company can have plan pool capacity left even while its wallet
   // boost_balance reads 0 — don't block the button on wallet balance alone.
   const hasPoolLeft = monthlyPoolRemaining === null || monthlyPoolRemaining > 0;
-  const insufficientBalance = balance < settings.costCredits && !hasPoolLeft;
+  const insufficientBalance = balanceKnown && balance < settings.costCredits && !hasPoolLeft;
   const canBoost = settings.enabled && !createdToday && !insufficientBalance;
   const willUsePool = hasPoolLeft;
 
@@ -106,7 +110,9 @@ export function BoostJobModal({
                   ? monthlyPoolRemaining === null
                     ? "Unlimited"
                     : `${monthlyPoolRemaining} left this month`
-                  : `${balance} credit${balance === 1 ? "" : "s"}`}
+                  : balanceKnown
+                    ? `${balance} credit${balance === 1 ? "" : "s"}`
+                    : "—"}
               </p>
             </div>
           </div>
