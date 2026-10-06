@@ -13,7 +13,7 @@ import { CityTownAutocomplete } from "@/components/candidate/CityTownAutocomplet
 import { supabase } from "@/integrations/supabase/client";
 import { fetchMyCompanies, getActiveCompanyId } from "@/lib/employer";
 import { INDIAN_CITIES } from "@/lib/options";
-import { sanitizeGstinInput, validateGstin } from "@/lib/validators";
+import { sanitizeGstinInput, validateGstin, sanitizeWebsiteInput, validateWebsite } from "@/lib/validators";
 
 export const Route = createFileRoute("/_authenticated/employer/company")({
   head: () => ({ meta: [{ title: "Company Profile · JobsKart" }] }),
@@ -77,6 +77,8 @@ function CompanyPage() {
 
   const save = async () => {
     if (!c) return;
+    const websiteErr = validateWebsite(c.website || "");
+    if (websiteErr) return toast.error(websiteErr);
     const gstErr = validateGstin(c.gst_number || "");
     if (gstErr) return toast.error(gstErr);
     setSaving(true);
@@ -217,7 +219,17 @@ function CompanyPage() {
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field label="Website">
-                  <input disabled={!canEditCompany} value={c.website || ""} onChange={(e) => setC({ ...c, website: e.target.value })} className="form-input disabled:opacity-60" placeholder="https://…" />
+                  <input
+                    disabled={!canEditCompany}
+                    value={c.website || ""}
+                    onChange={(e) => setC({ ...c, website: sanitizeWebsiteInput(e.target.value) })}
+                    className="form-input disabled:opacity-60"
+                    placeholder="example.com"
+                    aria-invalid={!!c.website && !!validateWebsite(c.website)}
+                  />
+                  {!!c.website && validateWebsite(c.website) && (
+                    <p className="mt-1 text-xs text-destructive">{validateWebsite(c.website)}</p>
+                  )}
                 </Field>
                 <Field label="Founded year">
                   {/* Desktop (sm: and up): unchanged native number input with its own

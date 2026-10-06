@@ -12,10 +12,7 @@ export type JdInput = {
   title: string;
   companyName: string;
   industry?: string;
-  category?: string;
-  city?: string;
   workMode?: string;
-  jobType?: string;
 
   payType: "fixed" | "fixed_incentive" | "incentive_only";
   minSalary?: number;
