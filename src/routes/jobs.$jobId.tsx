@@ -121,6 +121,7 @@ export function JobDetailPage({
   basePath = "/jobs",
   listPath = basePath,
   embedded = false,
+  employerView = false,
 }: {
   jobId: string;
   /** Prefix for this specific job's own URL (used to build the post-sign-in redirect back to it). */
@@ -141,6 +142,12 @@ export function JobDetailPage({
    * Navbar/Footer so they don't stack on top of the candidate shell's chrome.
    */
   embedded?: boolean;
+  /**
+   * Employer dashboard view (all viewports): job detail inside the employer
+   * shell. Shows only "Back"; hides "All jobs", Apply now buttons, the mobile
+   * sticky apply bar and Similar jobs.
+   */
+  employerView?: boolean;
 }) {
   const navigate = useNavigate();
   const router = useRouter();
@@ -346,27 +353,35 @@ export function JobDetailPage({
     <div className="flex min-h-screen flex-col bg-surface">
       {!embedded && <Navbar />}
       <main
-        className={`mx-auto w-full ${embedded ? "max-w-none" : "max-w-6xl"} px-4 py-6 pb-28 sm:px-6 lg:px-8 lg:pb-10`}
+        className={`mx-auto w-full ${embedded ? "max-w-none" : "max-w-6xl"} px-4 py-6 ${employerView ? "pb-[calc(1.5rem+env(safe-area-inset-bottom))]" : "pb-28"} sm:px-6 lg:px-8 lg:pb-10`}
       >
         <nav aria-label="Job navigation" className="flex items-center gap-1 text-sm">
-          {canGoBack && (
+          {(canGoBack || employerView) && (
             <>
               <button
                 type="button"
                 onClick={handleBack}
-                className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 -ml-2 text-muted-foreground transition-colors hover:bg-surface hover:text-primary"
+                className={
+                  employerView
+                    ? "inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-foreground transition-colors hover:bg-surface hover:text-primary"
+                    : "inline-flex h-8 items-center gap-1.5 rounded-md px-2 -ml-2 text-muted-foreground transition-colors hover:bg-surface hover:text-primary"
+                }
               >
                 <ArrowLeft className="h-4 w-4" /> Back
               </button>
-              <span aria-hidden="true" className="mx-1 h-4 w-px bg-border" />
+              {!employerView && (
+                <span aria-hidden="true" className="mx-1 h-4 w-px bg-border" />
+              )}
             </>
           )}
-          <Link
-            to={listPath as never}
-            className={`inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-muted-foreground transition-colors hover:bg-surface hover:text-primary ${canGoBack ? "" : "-ml-2"}`}
-          >
-            {canGoBack ? <LayoutGrid className="h-4 w-4" /> : <ArrowLeft className="h-4 w-4" />} All jobs
-          </Link>
+          {!employerView && (
+            <Link
+              to={listPath as never}
+              className={`inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-muted-foreground transition-colors hover:bg-surface hover:text-primary ${canGoBack ? "" : "-ml-2"}`}
+            >
+              {canGoBack ? <LayoutGrid className="h-4 w-4" /> : <ArrowLeft className="h-4 w-4" />} All jobs
+            </Link>
+          )}
         </nav>
 
         <div
@@ -387,7 +402,9 @@ export function JobDetailPage({
                     : "bg-gradient-to-br from-primary-light to-card p-5 sm:p-7"
                 }
               >
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div
+                  className={`flex gap-4 ${employerView ? "items-start justify-between gap-3" : "flex-col sm:flex-row sm:items-start sm:justify-between"}`}
+                >
                   <div className="flex min-w-0 gap-4">
                     <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl border border-border bg-card text-base font-bold text-primary sm:h-16 sm:w-16 sm:text-lg">
                       {job.companies?.logo_url ? (
@@ -422,7 +439,35 @@ export function JobDetailPage({
                       </p>
                     </div>
                   </div>
-                  <div className="hidden shrink-0 gap-2 sm:flex">
+                  {employerView && (
+                    <div className="flex shrink-0 gap-2">
+                      <button
+                        onClick={toggleSave}
+                        disabled={savingBookmark}
+                        aria-pressed={saved}
+                        aria-label={saved ? "Saved" : "Save job"}
+                        title={saved ? "Saved" : "Save"}
+                        className="relative grid h-9 w-9 place-items-center rounded-lg border border-border bg-card text-foreground transition-colors before:absolute before:-inset-1 before:content-[''] hover:bg-surface disabled:opacity-60"
+                      >
+                        {savingBookmark ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : saved ? (
+                          <BookmarkCheck className="h-4 w-4 text-primary" />
+                        ) : (
+                          <Bookmark className="h-4 w-4" />
+                        )}
+                      </button>
+                      <button
+                        onClick={handleShare}
+                        aria-label="Share job"
+                        title="Share"
+                        className="relative grid h-9 w-9 place-items-center rounded-lg border border-border bg-card text-foreground transition-colors before:absolute before:-inset-1 before:content-[''] hover:bg-surface"
+                      >
+                        <Share2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
+                  <div className={`hidden shrink-0 gap-2 ${employerView ? "" : "sm:flex"}`}>
                     <button
                       onClick={handleShare}
                       title="Share"
@@ -453,14 +498,14 @@ export function JobDetailPage({
                       >
                         <CheckCircle2 className="h-4 w-4" /> View application
                       </Link>
-                    ) : (
+                    ) : !employerView ? (
                       <button
                         onClick={handleApply}
-                        className="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-6 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary-dark"
+                        className={`inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-6 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary-dark`}
                       >
                         Apply now
                       </button>
-                    )}
+                    ) : null}
                   </div>
                 </div>
                 {appliedInfo && (
@@ -741,7 +786,7 @@ export function JobDetailPage({
               </div>
             </div>
 
-            {similar.length > 0 && (
+            {!employerView && similar.length > 0 && (
               <section className="mt-8">
                 <h2 className="mb-3 text-lg font-bold text-foreground">Similar jobs you may like</h2>
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -787,14 +832,14 @@ export function JobDetailPage({
                       </span>
                     )}
                   </Link>
-                ) : (
+                ) : !employerView ? (
                   <button
                     onClick={handleApply}
-                    className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary-dark"
+                    className={`mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary-dark`}
                   >
                     Apply now
                   </button>
-                )}
+                ) : null}
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   <button
                     onClick={toggleSave}
@@ -858,48 +903,56 @@ export function JobDetailPage({
       </main>
 
       {/* Mobile sticky apply bar */}
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 p-3 backdrop-blur lg:hidden">
-        <div className="mx-auto flex max-w-6xl items-center gap-2">
-          <button
-            onClick={toggleSave}
-            disabled={savingBookmark}
-            aria-pressed={saved}
-            aria-label={saved ? "Saved" : "Save"}
-            className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-border bg-card text-foreground disabled:opacity-60"
-            title={saved ? "Saved" : "Save"}
+      {!employerView && (
+        <div
+          className={`fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 p-3 backdrop-blur lg:hidden ${employerView ? "pb-[calc(0.75rem+env(safe-area-inset-bottom))]" : ""}`}
+        >
+          <div
+            className={`mx-auto flex max-w-6xl items-center ${employerView ? "justify-center gap-3" : "gap-2"}`}
           >
-            {savingBookmark ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : saved ? (
-              <BookmarkCheck className="h-4 w-4 text-primary" />
-            ) : (
-              <Bookmark className="h-4 w-4" />
-            )}
-          </button>
-          <button
-            onClick={handleShare}
-            className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-border bg-card text-foreground"
-            title="Share"
-          >
-            <Share2 className="h-4 w-4" />
-          </button>
-          {applied ? (
-            <Link
-              to="/candidate/applications"
-              className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-success px-4 text-sm font-semibold text-white shadow-sm"
-            >
-              <CheckCircle2 className="h-4 w-4" /> View application
-            </Link>
-          ) : (
             <button
-              onClick={handleApply}
-              className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm"
+              onClick={toggleSave}
+              disabled={savingBookmark}
+              aria-pressed={saved}
+              aria-label={saved ? "Saved" : "Save job"}
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-border bg-card text-foreground disabled:opacity-60"
+              title={saved ? "Saved" : "Save"}
             >
-              Apply now
+              {savingBookmark ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : saved ? (
+                <BookmarkCheck className="h-4 w-4 text-primary" />
+              ) : (
+                <Bookmark className="h-4 w-4" />
+              )}
             </button>
-          )}
+            <button
+              onClick={handleShare}
+              aria-label="Share job"
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-border bg-card text-foreground"
+              title="Share"
+            >
+              <Share2 className="h-4 w-4" />
+            </button>
+            {!employerView &&
+              (applied ? (
+                <Link
+                  to="/candidate/applications"
+                  className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-success px-4 text-sm font-semibold text-white shadow-sm"
+                >
+                  <CheckCircle2 className="h-4 w-4" /> View application
+                </Link>
+              ) : (
+                <button
+                  onClick={handleApply}
+                  className={`inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm`}
+                >
+                  Apply now
+                </button>
+              ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {userId && job && (
         <ApplyDialog

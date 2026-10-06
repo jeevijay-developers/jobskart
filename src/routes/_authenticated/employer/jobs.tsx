@@ -1,4 +1,4 @@
-import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -76,6 +76,7 @@ const DEFAULT_BOOST_OVERVIEW = {
 };
 
 function EmployerJobsList() {
+  const navigate = useNavigate();
   const [cid, setCid] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
@@ -467,6 +468,11 @@ function EmployerJobsList() {
                     <Link
                       to="/jobs/$jobId"
                       params={{ jobId: j.id }}
+                      onClick={(e) => {
+                        // Open inside the employer shell, not the public page.
+                        e.preventDefault();
+                        navigate({ to: "/employer/jobs/$jobId", params: { jobId: j.id } });
+                      }}
                       className="truncate text-base font-semibold hover:text-primary hover:underline"
                     >
                       {j.title}

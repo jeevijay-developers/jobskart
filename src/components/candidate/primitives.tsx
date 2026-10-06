@@ -172,7 +172,7 @@ export function Field({
       <span className="mb-1.5 block text-sm font-medium text-foreground">
         {label}{" "}
         {required ? (
-          <span className="text-destructive">*</span>
+          <span className="text-destructive" aria-hidden="true">*</span>
         ) : optional ? (
           <span className="font-normal text-muted-foreground">(optional)</span>
         ) : null}
