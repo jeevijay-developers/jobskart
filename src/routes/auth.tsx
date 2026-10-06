@@ -296,6 +296,7 @@ function MobileLoginForm({
               type="tel"
               inputMode="numeric"
               autoComplete="tel-national"
+              autoFocus
               maxLength={10}
               value={mobile}
               onChange={(e) => setMobile(e.target.value.replace(/\D/g, ""))}

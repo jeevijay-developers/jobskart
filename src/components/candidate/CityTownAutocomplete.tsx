@@ -8,6 +8,13 @@ type Props = {
   disabled?: boolean;
   placeholder?: string;
   showDropdownIndicator?: boolean;
+  // Opt-in: suppresses the dropdown (including the "show all on focus" case)
+  // until at least this many characters are typed. Defaults to 0 so existing
+  // callers (City/Town, which show the full list on focus) are unaffected.
+  minChars?: number;
+  // Opt-in cap on how many suggestions render at once. Defaults to unlimited
+  // so existing callers keep their current list length.
+  maxSuggestions?: number;
 };
 
 /** Editable combobox: local suggestions filtered as-you-type, but any typed value is accepted as-is. */
@@ -18,10 +25,13 @@ export function CityTownAutocomplete({
   disabled,
   placeholder,
   showDropdownIndicator = false,
+  minChars = 0,
+  maxSuggestions,
 }: Props) {
   const [q, setQ] = useState(value);
   const [open, setOpen] = useState(false);
   const [openUpward, setOpenUpward] = useState(false);
+  const [highlighted, setHighlighted] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
   const MENU_MAX_HEIGHT = 272; // keep in sync with the themed Select dropdowns (State/Gender)
 
@@ -43,9 +53,20 @@ export function CityTownAutocomplete({
     setOpenUpward(spaceBelow < MENU_MAX_HEIGHT + 16 && rect.top > spaceBelow);
   }, [open]);
 
-  const filtered = q.trim()
+  const meetsMinChars = q.trim().length >= minChars;
+  const matched = q.trim()
     ? suggestions.filter((s) => s.toLowerCase().includes(q.trim().toLowerCase()))
     : suggestions;
+  // Dedupe (case-insensitive) before capping, so the count limit reflects
+  // what's actually shown rather than being skewed by duplicate entries.
+  const deduped = Array.from(new Map(matched.map((s) => [s.toLowerCase(), s])).values());
+  const filtered = meetsMinChars
+    ? typeof maxSuggestions === "number"
+      ? deduped.slice(0, maxSuggestions)
+      : deduped
+    : [];
+
+  useEffect(() => setHighlighted(-1), [q, open]);
 
   const pick = (t: string) => {
     onChange(t);
@@ -65,6 +86,26 @@ export function CityTownAutocomplete({
           setOpen(true);
         }}
         onFocus={() => !disabled && setOpen(true)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") {
+            setOpen(false);
+            return;
+          }
+          if (!open || filtered.length === 0) return;
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            e.stopPropagation();
+            setHighlighted((i) => (i + 1) % filtered.length);
+          } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            e.stopPropagation();
+            setHighlighted((i) => (i <= 0 ? filtered.length - 1 : i - 1));
+          } else if (e.key === "Enter" && highlighted >= 0) {
+            e.preventDefault();
+            e.stopPropagation();
+            pick(filtered[highlighted]);
+          }
+        }}
         placeholder={
           disabled ? "Select a state first" : (placeholder ?? "Select or type city/town")
         }
@@ -80,12 +121,14 @@ export function CityTownAutocomplete({
           }`}
           style={{ maxHeight: MENU_MAX_HEIGHT }}
         >
-          {filtered.map((s) => (
+          {filtered.map((s, i) => (
             <button
               key={s}
               type="button"
               onClick={() => pick(s)}
-              className="block w-full px-3 py-2 text-left text-sm hover:bg-surface"
+              className={`block w-full px-3 py-2 text-left text-sm hover:bg-surface ${
+                i === highlighted ? "bg-surface" : ""
+              }`}
             >
               {s}
             </button>

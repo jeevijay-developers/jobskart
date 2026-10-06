@@ -22,6 +22,11 @@ interface EditModeBottomSheetProps {
   isSaving: boolean;
   isDirty: boolean;
   onReset: () => void;
+  // Layout's own Save (rendered directly under Layout & Design) only saves the
+  // layout draft, independent of Content — mirrors the desktop drawer's split.
+  onSaveLayout: () => void;
+  isSavingLayout: boolean;
+  isLayoutDirty: boolean;
 }
 
 export function EditModeBottomSheet({
@@ -39,12 +44,23 @@ export function EditModeBottomSheet({
   isSaving,
   isDirty,
   onReset,
+  onSaveLayout,
+  isSavingLayout,
+  isLayoutDirty,
 }: EditModeBottomSheetProps) {
   if (!isOpen) return null;
 
+  // The footer is shared by both tabs, but isDirty/isSaving above only ever
+  // reflect Content — Layout edits (margins, font, etc.) never flip isDirty,
+  // so the Save button stayed permanently disabled while on the Layout tab.
+  // onSave (handleSave) already saves whichever of layout/content is dirty,
+  // so only the button's enabled/label state needs to track the active tab.
+  const footerIsDirty = activeTab === "layout" ? isLayoutDirty : isDirty;
+  const footerIsSaving = activeTab === "layout" ? isSavingLayout : isSaving;
+
   return (
     <div className="fixed inset-x-0 bottom-0 z-50">
-      <div className="flex max-h-[82dvh] flex-col gap-2 overflow-hidden rounded-t-2xl bg-card px-3 pb-2 pt-1.5 shadow-xl">
+      <div className="flex max-h-[58dvh] flex-col gap-2 overflow-hidden rounded-t-2xl bg-card px-3 pb-2 pt-1.5 shadow-xl">
         {/* Drag handle */}
         <div className="flex shrink-0 justify-center">
           <div className="w-4 h-0.5 bg-muted-foreground/20 rounded" />
@@ -101,6 +117,8 @@ export function EditModeBottomSheet({
             <ResumeLayoutEditor
               value={layoutDraft}
               onChange={setLayoutDraft}
+              defaultOpen
+              hideActions
               className="flex-1 !rounded-none !border-0 !bg-transparent !p-0 !shadow-none"
             />
           ) : (
@@ -133,12 +151,12 @@ export function EditModeBottomSheet({
           <button
             type="button"
             onClick={onSave}
-            disabled={!isDirty || isSaving}
+            disabled={!footerIsDirty || footerIsSaving}
             className={`inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground shadow-sm transition-all
-               ${isSaving ? "" : "hover:bg-primary/90"}
-               ${!isDirty || isSaving ? "opacity-50" : ""}`}
+               ${footerIsSaving ? "" : "hover:bg-primary/90"}
+               ${!footerIsDirty || footerIsSaving ? "opacity-50" : ""}`}
           >
-            {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save changes"}
+            {footerIsSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save changes"}
           </button>
         </div>
       </div>

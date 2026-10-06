@@ -9,7 +9,11 @@ import { DomResumeSections } from "./DomResumeSections";
 import { CLASSIC_THEME, MODERN_THEME } from "./theme";
 import type { ResumeSchema } from "../schema";
 
-// A4 width at 96dpi, matching the "pt as px" scale used by buildDomStyles.
+// A4 width at 96dpi, matching the "pt as px" scale used by buildDomStyles —
+// used as a max-width ceiling, not a fixed size: the page fills its container
+// up to this width so it doesn't sit undersized with blank space on either
+// side inside a wider preview frame, while never exceeding the real page's
+// design proportions (font sizes/margins are tuned for this width).
 // Height is NOT fixed/min-height'd to A4: with a fixed minHeight, paddingBottom
 // has no visible effect whenever content is shorter than one page (the box
 // stays pinned at the floor height regardless of padding), which reads as
@@ -17,7 +21,7 @@ import type { ResumeSchema } from "../schema";
 // every BOTTOM change visible as real whitespace below the last line, for any
 // resume length. The real PDF (a fixed A4 page) is unaffected — this is a
 // preview-only sizing choice.
-const PAGE_WIDTH = 794;
+const PAGE_MAX_WIDTH = 794;
 
 function getDomTheme(templateId: string) {
   return templateId === "modern" ? MODERN_THEME : CLASSIC_THEME;
@@ -33,7 +37,8 @@ export function DomResumeTemplate({ resume }: { resume: ResumeSchema }) {
   return (
     <div
       style={{
-        width: PAGE_WIDTH,
+        width: "100%",
+        maxWidth: PAGE_MAX_WIDTH,
         margin: "0 auto",
         ...s.page,
       }}
