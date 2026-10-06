@@ -312,6 +312,44 @@ function jobToForm(job: JobRow): Form {
   };
 }
 
+/**
+ * Maps wizard form state to buildJd()'s input shape. Pulled out of the
+ * `jdInput` useMemo so it can also run once, synchronously, right after an
+ * existing job loads — see the edit-mode `jdDirty` check below, which needs
+ * to compare the loaded description against what these exact field values
+ * would generate, before the memo has had a render to catch up.
+ */
+function formToJdInput(form: Form, companyName: string): JdInput {
+  return {
+    title: form.title,
+    companyName,
+    industry: form.industry,
+    workMode: form.work_mode,
+    payType: form.pay_type || "fixed",
+    minSalary: form.min_salary ? Number(form.min_salary) : undefined,
+    maxSalary: form.max_salary ? Number(form.max_salary) : undefined,
+    avgIncentive: form.avg_incentive ? Number(form.avg_incentive) : undefined,
+    experienceBucket: form.experience_bucket,
+    minExp: form.min_experience_years ? Number(form.min_experience_years) : undefined,
+    maxExp: form.max_experience_years ? Number(form.max_experience_years) : undefined,
+    degree: form.degree,
+    specialisation: form.specialisation,
+    skills: form.skills,
+    englishLevel: (form.english_level || undefined) as JdInput["englishLevel"],
+    gender: form.gender_pref as JdInput["gender"],
+    shift: form.shift || undefined,
+    workingDays: form.working_days ? Number(form.working_days) : undefined,
+    assets: form.required_assets,
+    perks: form.perks,
+    joiningFeeRequired: form.joining_fee_required,
+    certifications: form.certifications,
+    ageMin: form.age_min ? Number(form.age_min) : undefined,
+    ageMax: form.age_max ? Number(form.age_max) : undefined,
+    preferredLanguages: form.preferred_languages,
+    preferredIndustries: form.preferred_industries,
+  };
+}
+
 // Shared by both the create ("Post a job") and edit flows — everything that
 // differs (insert vs update, status handling, footer buttons) branches on
 // whether `editJobId` is set.
@@ -494,7 +532,18 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
           // Edit mode never re-infers over saved values — every loaded field
           // starts dirty so history/library inference leaves it alone.
           setDirty(new Set(Object.keys(jobForm)));
-          setJdDirty(Boolean((job as unknown as JobRow).description));
+          // A saved description is only "dirty" (frozen against further field
+          // changes) if it actually diverges from what the current fields would
+          // generate — i.e. a human edited or AI-polished it. A description
+          // that's still exactly what buildJd() would produce (the common case:
+          // auto-generated, saved as a draft, never touched) must stay live, or
+          // Hiring preferences / Requirements & perks filled in on a later edit
+          // session silently never reach the JD.
+          const loadedDescription = (job as unknown as JobRow).description ?? "";
+          const regenerated = buildJd(
+            formToJdInput(jobForm, chosen.companies?.name || "our company"),
+          ).markdown;
+          setJdDirty(loadedDescription.trim() !== regenerated.trim());
           setShowArea(
             Boolean((job as unknown as JobRow).locality || (job as unknown as JobRow).pincode),
           );
@@ -586,37 +635,7 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
   }, [form.title, history, editJobId]);
 
   const jdInput: JdInput = useMemo(
-    () => ({
-      title: form.title,
-      companyName,
-      industry: form.industry,
-      category: form.category,
-      city: form.city,
-      workMode: form.work_mode,
-      jobType: form.job_type,
-      payType: form.pay_type || "fixed",
-      minSalary: form.min_salary ? Number(form.min_salary) : undefined,
-      maxSalary: form.max_salary ? Number(form.max_salary) : undefined,
-      avgIncentive: form.avg_incentive ? Number(form.avg_incentive) : undefined,
-      experienceBucket: form.experience_bucket,
-      minExp: form.min_experience_years ? Number(form.min_experience_years) : undefined,
-      maxExp: form.max_experience_years ? Number(form.max_experience_years) : undefined,
-      degree: form.degree,
-      specialisation: form.specialisation,
-      skills: form.skills,
-      englishLevel: (form.english_level || undefined) as JdInput["englishLevel"],
-      gender: form.gender_pref as JdInput["gender"],
-      shift: form.shift || undefined,
-      workingDays: form.working_days ? Number(form.working_days) : undefined,
-      assets: form.required_assets,
-      perks: form.perks,
-      joiningFeeRequired: form.joining_fee_required,
-      certifications: form.certifications,
-      ageMin: form.age_min ? Number(form.age_min) : undefined,
-      ageMax: form.age_max ? Number(form.age_max) : undefined,
-      preferredLanguages: form.preferred_languages,
-      preferredIndustries: form.preferred_industries,
-    }),
+    () => formToJdInput(form, companyName),
     [form, companyName],
   );
 
