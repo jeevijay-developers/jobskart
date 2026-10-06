@@ -222,7 +222,10 @@ export function JobsList({ embeddedInCandidateApp = false }: { embeddedInCandida
   // The candidate-aware feed (feed_jobs_for_candidate) requires auth.uid(),
   // so only a signed-in non-employer session ever uses it — guests and
   // employers keep the existing public feed_jobs()/direct-query behavior.
-  const isCandidateFeed = !!session && !isEmployer;
+  // Inside the candidate app (/candidate/browse) the viewer is acting as a candidate even if the
+  // same account also has an employer membership — otherwise the public feed_jobs() feed leaks in:
+  // no applied-job exclusion and a raw ranking score where a 0-1 relevance score is expected.
+  const isCandidateFeed = !!session && (embeddedInCandidateApp || !isEmployer);
 
   // Keep state in sync when the URL changes (e.g. navigating from Home).
   useEffect(() => {
@@ -361,6 +364,7 @@ export function JobsList({ embeddedInCandidateApp = false }: { embeddedInCandida
     page: jobsPage,
     setPage: setJobsPage,
     isLoading: loading,
+    refetch: refetchJobs,
   } = usePaginatedQuery<JobCardData>({
     queryKey: ["jobs-list", filters, sort, isCandidateFeed],
     pageSize: JOBS_PAGE_SIZE,
@@ -656,6 +660,7 @@ export function JobsList({ embeddedInCandidateApp = false }: { embeddedInCandida
                     job={j}
                     variant={isCandidateFeed ? "discovery" : "full"}
                     detailBasePath={embeddedInCandidateApp ? "/candidate/jobs" : "/jobs"}
+                    onApplied={() => void refetchJobs()}
                   />
                 ))}
               </div>

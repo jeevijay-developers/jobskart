@@ -23,6 +23,12 @@ interface EditModeDrawerProps {
   isSaving: boolean;
   isDirty: boolean;
   onReset: () => void;
+  // Layout's own Save (under Layout & Design) only saves the layout draft,
+  // independent of Content — separate from onSave/isSaving/isDirty above,
+  // which stay Content-only now that the two footers are visually split.
+  onSaveLayout: () => void;
+  isSavingLayout: boolean;
+  isLayoutDirty: boolean;
 }
 
 export function EditModeDrawer({
@@ -40,6 +46,9 @@ export function EditModeDrawer({
   isSaving,
   isDirty,
   onReset,
+  onSaveLayout,
+  isSavingLayout,
+  isLayoutDirty,
 }: EditModeDrawerProps) {
   if (!isOpen) return null;
 
@@ -59,6 +68,7 @@ export function EditModeDrawer({
         </div>
 
         <Segmented
+          fullWidth
           value={activeTab}
           options={[
             { value: "layout", label: "Layout" },
@@ -67,10 +77,22 @@ export function EditModeDrawer({
           onChange={setActiveTab}
         />
 
-        {/* Only this region scrolls, so the header, tabs and Back/Save footer stay in view. */}
+        {/* Only this region scrolls, so the header, tabs and footer stay in view.
+            Layout renders its own Reset/Save directly under its content (Req: those
+            actions must sit right below Layout & Design, not in the shared footer);
+            Content keeps using the shared footer below instead. */}
         <div className="min-h-0 flex-1 overflow-y-auto">
           {activeTab === "layout" ? (
-            <ResumeLayoutEditor value={layoutDraft} onChange={setLayoutDraft} className="flex-1" />
+            <ResumeLayoutEditor
+              value={layoutDraft}
+              onChange={setLayoutDraft}
+              defaultOpen
+              dirty={isLayoutDirty}
+              saving={isSavingLayout}
+              onSave={onSaveLayout}
+              onReset={onReset}
+              className="flex-1"
+            />
           ) : (
             <ResumeExtrasEditor
               extras={extras}
@@ -82,32 +104,46 @@ export function EditModeDrawer({
           )}
         </div>
 
-        <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
-          <button
-            type="button"
-            onClick={onClose}
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold text-foreground hover:bg-surface"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" /> Back
-          </button>
-          <button
-            type="button"
-            onClick={onReset}
-            className="text-xs font-semibold text-primary hover:underline"
-          >
-            <RotateCcw className="h-3.5 w-3.5 mr-2" /> Reset to defaults
-          </button>
-          <button
-            type="button"
-            onClick={onSave}
-            disabled={!isDirty || isSaving}
-            className={`inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground shadow-sm transition-all
-               ${isSaving ? "" : "hover:bg-primary/90"}
-               ${!isDirty || isSaving ? "opacity-50" : ""}`}
-          >
-            {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save changes"}
-          </button>
-        </div>
+        {activeTab === "layout" ? (
+          <div className="flex items-center justify-start pt-3 border-t border-border">
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Back"
+              className="inline-flex h-9 items-center justify-center rounded-lg border border-border bg-card px-3 text-xs font-semibold text-foreground hover:bg-surface"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between gap-2 pt-3 border-t border-border">
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Back"
+              className="inline-flex h-9 items-center justify-center rounded-lg border border-border bg-card px-3 text-xs font-semibold text-foreground hover:bg-surface"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={onReset}
+              className="inline-flex h-9 items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
+            >
+              <RotateCcw className="h-3.5 w-3.5" /> Reset to defaults
+            </button>
+            <button
+              type="button"
+              onClick={onSave}
+              disabled={!isDirty || isSaving}
+              className={`inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground shadow-sm transition-all
+                 ${isSaving ? "" : "hover:bg-primary/90"}
+                 ${!isDirty || isSaving ? "opacity-50" : ""}`}
+            >
+              {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save changes"}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ChevronDown, Loader2, Minus, Plus, RotateCcw, SlidersHorizontal } from "lucide-react";
+import { ChevronDown, ChevronUp, Loader2, Minus, Plus, RotateCcw, SlidersHorizontal } from "lucide-react";
 import type { ResumeLayoutSettings } from "@/lib/resumeBuilder/schema";
 import {
   ACCENT_SWATCHES,
@@ -24,19 +24,66 @@ function Segmented<T extends string>({
   onChange: (v: T) => void;
 }) {
   return (
-    <div className="inline-flex overflow-hidden rounded-lg border border-border">
+    <div className="flex w-full min-w-0 overflow-hidden rounded-lg border border-border">
       {options.map((o) => (
         <button
           key={o.value}
           type="button"
           onClick={() => onChange(o.value)}
-          className={`px-2.5 py-1 text-xs font-medium ${
+          className={`flex-1 min-w-0 whitespace-nowrap px-1.5 py-1 text-center text-xs font-medium ${
             value === o.value
               ? "bg-primary text-primary-foreground"
               : "bg-background text-muted-foreground hover:bg-surface"
           }`}
         >
           {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function SectionHeadingStyleControl({
+  value,
+  onChange,
+}: {
+  value: ResumeLayoutSettings["sectionHeaderStyle"];
+  onChange: (value: ResumeLayoutSettings["sectionHeaderStyle"]) => void;
+}) {
+  const options: { value: ResumeLayoutSettings["sectionHeaderStyle"]; label: string }[] = [
+    { value: "underline", label: "Underline" },
+    { value: "plain", label: "Plain" },
+    { value: "colored", label: "Colored" },
+  ];
+
+  // "Plain" (no underline/no color) is the schema's neutral heading style, so
+  // clicking an already-selected option toggles it off by selecting Plain —
+  // the same "click again to deselect" interaction the task asked for,
+  // without needing a 4th "nothing selected" state the schema/PDF don't have.
+  // Clicking Plain itself while it's already active is a no-op (there's
+  // nothing further to fall back to).
+  return (
+    <div
+      className="flex w-full min-w-0 overflow-hidden rounded-lg border border-border lg:w-auto"
+      role="radiogroup"
+      aria-label="Section headings"
+    >
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          role="radio"
+          aria-checked={value === option.value}
+          onClick={() =>
+            onChange(value === option.value && option.value !== "plain" ? "plain" : option.value)
+          }
+          className={`min-w-0 flex-1 whitespace-nowrap px-1.5 py-1 text-center text-xs font-medium lg:flex-none lg:px-2.5 ${
+            value === option.value
+              ? "bg-primary text-primary-foreground"
+              : "bg-background text-muted-foreground hover:bg-surface"
+          }`}
+        >
+          {option.label}
         </button>
       ))}
     </div>
@@ -107,6 +154,42 @@ function MarginInput({
   return (
     <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
       {label}
+      <span className="relative mt-0.5 block lg:hidden">
+        <input
+          type="number"
+          min={0}
+          max={120}
+          value={text}
+          onChange={(e) => {
+            setText(e.target.value);
+            if (e.target.value !== "" && Number.isFinite(Number(e.target.value)))
+              onCommit(Number(e.target.value));
+          }}
+          onBlur={() => {
+            if (text === "") setText(String(value));
+          }}
+          className="form-input h-8 w-full min-w-0 py-0 pl-1.5 pr-7 text-xs tabular-nums [appearance:auto]"
+          style={{ boxSizing: "border-box" }}
+        />
+        <span className="absolute inset-y-px right-px flex w-5 flex-col overflow-hidden rounded-r-md border-l border-border bg-background lg:hidden">
+          <button
+            type="button"
+            onClick={() => onCommit(Math.min(120, value + 1))}
+            className="grid flex-1 place-items-center text-muted-foreground hover:bg-surface hover:text-foreground"
+            aria-label={`Increase ${label} margin`}
+          >
+            <ChevronUp className="h-2.5 w-2.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => onCommit(Math.max(0, value - 1))}
+            className="grid flex-1 place-items-center border-t border-border text-muted-foreground hover:bg-surface hover:text-foreground"
+            aria-label={`Decrease ${label} margin`}
+          >
+            <ChevronDown className="h-2.5 w-2.5" />
+          </button>
+        </span>
+      </span>
       <input
         type="number"
         min={0}
@@ -120,7 +203,8 @@ function MarginInput({
         onBlur={() => {
           if (text === "") setText(String(value));
         }}
-        className="form-input mt-0.5 h-8 w-full py-0 text-xs"
+        className="form-input mt-0.5 hidden h-8 w-full min-w-0 py-0 pl-1.5 pr-4 text-xs tabular-nums [appearance:auto] lg:block"
+        style={{ boxSizing: "border-box" }}
       />
     </label>
   );
@@ -143,6 +227,7 @@ export function ResumeLayoutEditor({
   saving = false,
   onSave,
   hideActions = false,
+  defaultOpen = false,
   className = "",
 }: {
   value: ResumeLayoutSettings;
@@ -153,9 +238,11 @@ export function ResumeLayoutEditor({
   onSave?: () => void;
   // When the caller already renders its own Save/Reset bar (e.g. the edit drawer), skip this one.
   hideActions?: boolean;
+  // Desktop edit mode opens the accordion immediately; other callers preserve the collapsed default.
+  defaultOpen?: boolean;
   className?: string;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [hexDraft, setHexDraft] = useState(value.accentColor);
   // Keep the text box in step when the colour changes from outside (reset, template switch).
   useEffect(() => setHexDraft(value.accentColor), [value.accentColor]);
@@ -218,7 +305,7 @@ export function ResumeLayoutEditor({
               />
             </Row>
             {value.marginPreset === "custom" && (
-              <div className="mt-2 grid grid-cols-4 gap-2">
+              <div className="mt-2 grid grid-cols-4 gap-1.5">
                 {(["top", "bottom", "left", "right"] as const).map((side) => (
                   <MarginInput
                     key={side}
@@ -282,14 +369,9 @@ export function ResumeLayoutEditor({
           </Row>
 
           <Row label="Section headings">
-            <Segmented
+            <SectionHeadingStyleControl
               value={value.sectionHeaderStyle}
-              onChange={(v) => set({ sectionHeaderStyle: v })}
-              options={[
-                { value: "underline", label: "Underline" },
-                { value: "plain", label: "Plain" },
-                { value: "colored", label: "Colored" },
-              ]}
+              onChange={(sectionHeaderStyle) => set({ sectionHeaderStyle })}
             />
           </Row>
 

@@ -50,6 +50,7 @@ import {
   PERKS,
   PAY_TYPES,
   GENDERS,
+  WEEKDAYS,
   EXPERIENCE_BUCKETS,
   ENGLISH_LEVELS,
   INTERVIEW_TYPES,
@@ -130,6 +131,7 @@ type Form = {
   joining_fee_required: boolean;
   shift: string;
   working_days: string;
+  working_weekdays: string[];
 
   description: string;
   description_html: string;
@@ -176,6 +178,7 @@ const initialForm: Form = {
   joining_fee_required: false,
   shift: "",
   working_days: "",
+  working_weekdays: [],
   description: "",
   description_html: "",
   hiring_for_company: "",
@@ -222,6 +225,7 @@ type JobRow = {
   joining_fee_required: boolean | null;
   shift: string | null;
   working_days: number | null;
+  working_weekdays: string[] | null;
   description: string | null;
   description_html: string | null;
   hiring_for_company: string | null;
@@ -269,6 +273,7 @@ function jobToForm(job: JobRow): Form {
     joining_fee_required: job.joining_fee_required ?? false,
     shift: job.shift ?? "",
     working_days: job.working_days != null ? String(job.working_days) : "",
+    working_weekdays: job.working_weekdays ?? [],
     description: job.description ?? "",
     description_html: job.description_html ?? "",
     hiring_for_company: job.hiring_for_company ?? "",
@@ -344,6 +349,8 @@ function buildFieldsFromForm(
   if (form.degree) p.education = form.degree;
   if (form.shift) p.shift = form.shift;
   if (form.working_days) p.working_days = Number(form.working_days);
+  // Always sent (even empty) so unticking every day on an edit clears the saved days.
+  p.working_weekdays = form.working_weekdays;
   if (isConsultant && form.hiring_for_company.trim())
     p.hiring_for_company = form.hiring_for_company.trim();
   return p;
@@ -826,7 +833,6 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
 
   const hiringPrefFilled = [
     form.english_level,
-    form.gender_pref !== "any" ? form.gender_pref : "",
     form.age_min,
     form.age_max,
     form.preferred_languages.length,
@@ -1418,6 +1424,21 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                     />
                   </Field>
 
+                  <Field label="Gender preference">
+                    <div className="flex flex-wrap gap-2">
+                      {GENDERS.map((g) => (
+                        <button
+                          key={g.id}
+                          type="button"
+                          onClick={() => markDirty("gender_pref", g.id)}
+                          className={`rounded-full border px-4 py-1.5 text-sm ${form.gender_pref === g.id ? "border-primary bg-primary-light text-primary" : "border-border bg-surface text-foreground/70"}`}
+                        >
+                          {g.label}
+                        </button>
+                      ))}
+                    </div>
+                  </Field>
+
                   <Accordion type="single" collapsible>
                     <AccordionItem value="advanced">
                       <AccordionTrigger>More filters (optional)</AccordionTrigger>
@@ -1443,20 +1464,6 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                                   className={`rounded-full border px-3 py-1.5 text-sm ${form.english_level === l.id ? "border-primary bg-primary-light text-primary" : "border-border bg-surface text-foreground/70"}`}
                                 >
                                   {l.label}
-                                </button>
-                              ))}
-                            </div>
-                          </Field>
-                          <Field label="Gender preference">
-                            <div className="flex flex-wrap gap-2">
-                              {GENDERS.map((g) => (
-                                <button
-                                  key={g.id}
-                                  type="button"
-                                  onClick={() => markDirty("gender_pref", g.id)}
-                                  className={`rounded-full border px-4 py-1.5 text-sm ${form.gender_pref === g.id ? "border-primary bg-primary-light text-primary" : "border-border bg-surface text-foreground/70"}`}
-                                >
-                                  {g.label}
                                 </button>
                               ))}
                             </div>
@@ -1623,6 +1630,33 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                             />
                           </Field>
                         </div>
+
+                        <Field label="Working days">
+                          <div className="flex flex-wrap gap-2">
+                            {WEEKDAYS.map((d) => {
+                              const on = form.working_weekdays.includes(d.id);
+                              return (
+                                <button
+                                  key={d.id}
+                                  type="button"
+                                  aria-pressed={on}
+                                  onClick={() =>
+                                    // Keep Monday→Sunday order regardless of click order.
+                                    markDirty(
+                                      "working_weekdays",
+                                      WEEKDAYS.map((x) => x.id).filter((id) =>
+                                        id === d.id ? !on : form.working_weekdays.includes(id),
+                                      ),
+                                    )
+                                  }
+                                  className={`rounded-full border px-4 py-1.5 text-sm ${on ? "border-primary bg-primary-light text-primary" : "border-border bg-surface text-foreground/70"}`}
+                                >
+                                  {d.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </Field>
 
                         <div className="flex flex-col gap-2 rounded-xl border border-border bg-surface px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                           <p className="text-sm font-medium">

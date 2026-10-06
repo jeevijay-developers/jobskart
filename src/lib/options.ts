@@ -220,6 +220,16 @@ export const PAY_TYPES = [
   { id: "incentive_only", label: "Incentive Only" },
 ];
 
+export const WEEKDAYS = [
+  { id: "monday", label: "Monday" },
+  { id: "tuesday", label: "Tuesday" },
+  { id: "wednesday", label: "Wednesday" },
+  { id: "thursday", label: "Thursday" },
+  { id: "friday", label: "Friday" },
+  { id: "saturday", label: "Saturday" },
+  { id: "sunday", label: "Sunday" },
+];
+
 export const GENDERS = [
   { id: "any", label: "Any" },
   { id: "male", label: "Male" },

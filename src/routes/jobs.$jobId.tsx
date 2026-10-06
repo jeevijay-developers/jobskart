@@ -40,6 +40,7 @@ import { rankSimilarJobs, type RankableJob } from "@/lib/similarJobs";
 import { getSeenJobIds, markJobSeen } from "@/lib/seenJobs";
 import { FormattedJobDescription } from "@/lib/jdFormat";
 import { useShareJob } from "@/hooks/use-share-job";
+import { GENDERS, WEEKDAYS } from "@/lib/options";
 
 // Candidate (embedded) view only: Block renders as its own card there.
 const BlockCardCtx = createContext(false);
@@ -70,6 +71,8 @@ type JobDetail = {
   job_type: string;
   work_mode: string;
   shift: string | null;
+  gender_pref: string | null;
+  working_weekdays: string[] | null;
   min_experience_years: number | null;
   max_experience_years: number | null;
   education: string | null;
@@ -164,7 +167,7 @@ export function JobDetailPage({
       const { data, error } = await supabase
         .from("jobs")
         .select(
-          "id, company_id, title, description, description_html, city, state, locality, min_salary, max_salary, salary_period, fixed_pay, incentives_text, pay_type, avg_incentive_monthly, interview_type, interview_same_as_company, interview_city, interview_locality, interview_address, joining_fee_required, industry, job_type, work_mode, shift, min_experience_years, max_experience_years, education, english_level, skills, preferred_skills, perks, openings, walkin, walkin_details, created_at, expires_at, category, companies (name, is_verified, industry, primary_city, description, about, logo_url)",
+          "id, company_id, title, description, description_html, city, state, locality, min_salary, max_salary, salary_period, fixed_pay, incentives_text, pay_type, avg_incentive_monthly, interview_type, interview_same_as_company, interview_city, interview_locality, interview_address, joining_fee_required, industry, job_type, work_mode, shift, gender_pref, working_weekdays, min_experience_years, max_experience_years, education, english_level, skills, preferred_skills, perks, openings, walkin, walkin_details, created_at, expires_at, category, companies (name, is_verified, industry, primary_city, description, about, logo_url)",
         )
         .eq("id", jobId)
         // Hide jobs past their expiry even if the sweep hasn't flipped status.
@@ -616,6 +619,22 @@ export function JobDetailPage({
                         <ShiftCard icon={shiftIcon(job.shift)} label="Shift" value={job.shift ? `${job.shift}` : "Flexible"} />
                         <ShiftCard icon={Clock} label="Job type" value={jobTypeLabel(job.job_type)} />
                         <ShiftCard icon={MapPin} label="Work mode" value={workModeLabel(job.work_mode)} />
+                        {job.gender_pref ? (
+                          <ShiftCard
+                            icon={Users}
+                            label="Gender"
+                            value={GENDERS.find((g) => g.id === job.gender_pref)?.label ?? job.gender_pref}
+                          />
+                        ) : null}
+                        {(job.working_weekdays?.length ?? 0) > 0 ? (
+                          <ShiftCard
+                            icon={Calendar}
+                            label="Working days"
+                            value={WEEKDAYS.filter((d) => job.working_weekdays!.includes(d.id))
+                              .map((d) => d.label.slice(0, 3))
+                              .join(", ")}
+                          />
+                        ) : null}
                       </div>
                     </Block>
 

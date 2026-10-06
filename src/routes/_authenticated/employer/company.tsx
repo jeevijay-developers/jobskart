@@ -6,7 +6,7 @@ import { EmployerShell } from "@/components/employer/EmployerShell";
 import { useEmployerRole } from "@/hooks/use-employer-role";
 import { Field } from "@/components/candidate/primitives";
 import { Badge } from "@/components/ui/badge";
-import { StateDropdown } from "@/components/candidate/StateDropdown";
+import { CityTownAutocomplete } from "@/components/candidate/CityTownAutocomplete";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchMyCompanies, getActiveCompanyId } from "@/lib/employer";
 import { INDIAN_CITIES } from "@/lib/options";
@@ -190,10 +190,12 @@ function CompanyPage() {
                   <input disabled={!canEditCompany} value={c.industry || ""} onChange={(e) => setC({ ...c, industry: e.target.value })} className="form-input disabled:opacity-60" />
                 </Field>
                 <Field label="HQ city">
-                  <StateDropdown
+                  {/* Type-to-filter: the field itself is the search (no separate search box). */}
+                  <CityTownAutocomplete
                     value={c.hq_city || ""}
-                    options={INDIAN_CITIES}
+                    suggestions={[...INDIAN_CITIES]}
                     placeholder="Select…"
+                    showDropdownIndicator
                     onChange={(v) => canEditCompany && setC({ ...c, hq_city: v })}
                   />
                 </Field>
@@ -213,7 +215,9 @@ function CompanyPage() {
                     <input
                       type="number"
                       disabled={!canEditCompany}
-                      value={c.founded_year || 2000}
+                      // `?? ""` (not `|| 2000`): a cleared field is null and must render empty, otherwise the
+                      // fallback year is painted straight back in while the user is still typing.
+                      value={c.founded_year ?? ""}
                       min={1900}
                       max={new Date().getFullYear()}
                       onChange={(e) => {

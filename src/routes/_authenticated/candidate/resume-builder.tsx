@@ -24,7 +24,7 @@ import {
   getTemplateTheme,
   normalizeLayout,
 } from "@/lib/resumeBuilder/templates/theme";
-import { getResumeVersionPdfUrl } from "@/lib/resumeBuilder.functions";
+import { getResumeVersionPdfUrl, deleteResumeVersion } from "@/lib/resumeBuilder.functions";
 import { applyResumeExtras } from "@/lib/resumeBuilder/snapshot";
 import { validateResume } from "@/lib/resumeBuilder/validateResume";
 import type {
@@ -155,7 +155,9 @@ function ResumeBuilderPage() {
   const [lastPdfUrl, setLastPdfUrl] = useState<string | null>(null);
   const [previewVersion, setPreviewVersion] = useState<VersionRow | null>(null);
   const [downloadingVersionId, setDownloadingVersionId] = useState<string | null>(null);
+  const [deletingVersionId, setDeletingVersionId] = useState<string | null>(null);
   const getVersionPdfUrl = useServerFn(getResumeVersionPdfUrl);
+  const deleteVersionFn = useServerFn(deleteResumeVersion);
 
   // Builder-authored content (hobbies, certifications, rich-text overrides…).
   // `extras` is the working copy being edited; `savedExtras` is what was last
@@ -252,26 +254,31 @@ function ResumeBuilderPage() {
     toast.success("Changes saved");
   };
 
+  // The live preview tracks the working draft (`extras`/`layoutDraft`), not the
+  // saved copy — so every Edit Resume control updates it immediately. "Save
+  // changes" still persists the draft to resume_drafts (and is what
+  // Generate & Save reads), it's just no longer the gate for what the preview shows.
   const merged = useMemo(
-    () => (snapshot ? applyResumeExtras(snapshot, savedExtras) : null),
-    [snapshot, savedExtras],
+    () => (snapshot ? applyResumeExtras(snapshot, extras) : null),
+    [snapshot, extras],
   );
   // Section titles in current display order, including not-yet-saved edits, for the order list.
   const workingSections = useMemo(
-    () =>
-      snapshot
-        ? applyResumeExtras(snapshot, extras).sections.map((sec) => ({
-            id: sec.id,
-            title: sec.title,
-          }))
-        : [],
-    [snapshot, extras],
+    () => merged?.sections.map((sec) => ({ id: sec.id, title: sec.title })) ?? [],
+    [merged],
   );
   const checklist = useMemo(() => (merged ? validateResume(merged) : []), [merged]);
   // react-pdf's incremental updates duplicate a node when its siblings are
-  // reordered (a moved section would render twice in the live preview), so the
-  // viewer is remounted whenever the template or the section order/set changes.
-  const previewKey = `${selectedTemplate}|${(merged ?? snapshot)?.sections.map((sec) => sec.id).join(",") ?? ""}`;
+  // reordered (a moved section would render twice in the live preview), so
+  // the viewer is only remounted for that specific case — the section
+  // id *order* signature. Template switches and layout/content edits must
+  // NOT be in this key: PDFViewer renders via an iframe, so keying on
+  // anything that changes on every edit forces a full iframe teardown/rebuild
+  // (the visible flicker/reload) even though react-pdf already re-renders PDF
+  // content in place without that. React also already remounts the <Template>
+  // subtree on its own when templateId changes the component function, so a
+  // template entry in this key was redundant for that case anyway.
+  const previewKey = (merged ?? snapshot)?.sections.map((sec) => sec.id).join(",") ?? "";
   const baseExperiences = useMemo(() => {
     const sec = snapshot?.sections.find((s) => s.content.kind === "experience");
     return sec && sec.content.kind === "experience" ? (sec.content.items as ExperienceItem[]) : [];
@@ -377,6 +384,21 @@ function ResumeBuilderPage() {
       toast.error(e instanceof Error ? e.message : "Couldn't get a download link");
     } finally {
       setDownloadingVersionId(null);
+    }
+  };
+
+  const handleDeleteVersion = async (v: VersionRow) => {
+    if (deletingVersionId) return; // guard against a double-delete while one is in flight
+    setDeletingVersionId(v.id);
+    try {
+      await deleteVersionFn({ data: { versionNumber: v.version_number } });
+      setVersions((prev) => prev.filter((row) => row.id !== v.id));
+      if (previewVersion?.id === v.id) setPreviewVersion(null);
+      toast.success(`Version ${v.version_number} deleted`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't delete this version");
+    } finally {
+      setDeletingVersionId(null);
     }
   };
 
@@ -543,7 +565,9 @@ function ResumeBuilderPage() {
                   versionsLoading={versionsLoading}
                   onPreview={setPreviewVersion}
                   onDownload={handleDownloadVersion}
+                  onDelete={handleDeleteVersion}
                   downloadingVersionId={downloadingVersionId}
+                  deletingVersionId={deletingVersionId}
                 />
               </section>
             </div>
@@ -565,8 +589,9 @@ function ResumeBuilderPage() {
                 <LivePreview
                   resume={merged ?? snapshot}
                   templateId={selectedTemplate}
-                  layout={savedLayout}
+                  layout={layoutDraft}
                   previewKey={previewKey}
+                  fillViewport
                 />
               </div>
               <p className="text-xs text-muted-foreground">
@@ -589,9 +614,12 @@ function ResumeBuilderPage() {
                 experiences={baseExperiences}
                 sections={workingSections}
                 onSave={handleSave}
-                isSaving={savingLayout || savingExtras}
-                isDirty={layoutDirty || isDirty}
+                isSaving={savingExtras}
+                isDirty={isDirty}
                 onReset={handleReset}
+                onSaveLayout={handleSaveLayout}
+                isSavingLayout={savingLayout}
+                isLayoutDirty={layoutDirty}
               />
             )}
           </div>
@@ -606,12 +634,21 @@ function ResumeBuilderPage() {
                   options={RESUME_TEMPLATE_LIST.map((t) => ({ value: t.id, label: t.label }))}
                   onChange={selectTemplate}
                 />
-                <EditModeTrigger isEditOpen={isEditOpen} onToggle={() => setIsEditOpen(true)} />
+                <EditModeTrigger
+                  isEditOpen={isEditOpen}
+                  onToggle={() => {
+                    // Mobile always opens on the Layout tab, per spec — desktop's
+                    // own trigger (above) is untouched and keeps whatever tab was
+                    // last active.
+                    setEditTab("layout");
+                    setIsEditOpen(true);
+                  }}
+                />
               </header>
               <LivePreview
                 resume={merged ?? snapshot}
                 templateId={selectedTemplate}
-                layout={savedLayout}
+                layout={layoutDraft}
                 previewKey={previewKey}
                 className="flex-1"
               />
@@ -625,11 +662,7 @@ function ResumeBuilderPage() {
                 disabled={generating}
                 className="flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 disabled:opacity-60"
               >
-                {generating ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Sparkles className="h-4 w-4" />
-                )}
+                  {generating && <Loader2 className="h-4 w-4 animate-spin" />}
                 {generating ? "Generating…" : "Generate & Save Resume"}
               </button>
 
@@ -743,9 +776,12 @@ function ResumeBuilderPage() {
                 experiences={baseExperiences}
                 sections={workingSections}
                 onSave={handleSave}
-                isSaving={savingLayout || savingExtras}
-                isDirty={layoutDirty || isDirty}
+                isSaving={savingExtras}
+                isDirty={isDirty}
                 onReset={handleReset}
+                onSaveLayout={handleSaveLayout}
+                isSavingLayout={savingLayout}
+                isLayoutDirty={layoutDirty}
               />
             )}
 
@@ -772,7 +808,9 @@ function ResumeBuilderPage() {
                         setIsVersionModalOpen(false);
                       }}
                       onDownload={handleDownloadVersion}
+                      onDelete={handleDeleteVersion}
                       downloadingVersionId={downloadingVersionId}
+                      deletingVersionId={deletingVersionId}
                     />
                   </div>
                 </div>
