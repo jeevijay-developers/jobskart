@@ -65,6 +65,7 @@ function EmployerOnboarding() {
   const [website, setWebsite] = useState("");
   const [about, setAbout] = useState("");
   const [gst, setGst] = useState("");
+  const [workEmail, setWorkEmail] = useState("");
   const [isConsultant, setIsConsultant] = useState(false);
   const [postNow, setPostNow] = useState<"yes" | "later">("yes");
 
@@ -98,6 +99,11 @@ function EmployerOnboarding() {
       if (isConsultant) {
         await supabase.from("companies").update({ is_consultant: true } as never).eq("id", cid);
       }
+      // Verification and KYC emails go to this address (see verification-notify).
+      await supabase
+        .from("companies")
+        .update({ business_email: workEmail.trim().toLowerCase() } as never)
+        .eq("id", cid);
 
       if (logoFile) {
         const path = `${cid}/logo-${Date.now()}-${logoFile.name}`;
@@ -127,7 +133,11 @@ function EmployerOnboarding() {
       key: "you",
       title: "First — who's hiring?",
       hint: "We use this on invites and to address you across the dashboard.",
-      validate: () => (fullName.trim().length < 2 ? "Tell us your name." : null),
+      validate: () => {
+        if (fullName.trim().length < 2) return "Tell us your name.";
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(workEmail.trim())) return "Enter a valid work email.";
+        return null;
+      },
       render: () => (
         <div className="space-y-6">
           <BigInput
@@ -150,6 +160,16 @@ function EmployerOnboarding() {
               onChange={(e) => setDesignation(e.target.value)}
               className="form-input"
               placeholder="Optional"
+            />
+          </Field>
+          <Field label="Work email" hint="Verification updates and approvals are sent here. Use your company email.">
+            <input
+              type="email"
+              value={workEmail}
+              onChange={(e) => setWorkEmail(e.target.value)}
+              className="form-input"
+              placeholder="you@yourcompany.com"
+              autoComplete="email"
             />
           </Field>
           <label className="flex items-start gap-3 rounded-xl border border-border bg-surface p-3 text-sm">

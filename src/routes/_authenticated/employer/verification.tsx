@@ -15,17 +15,29 @@ export const Route = createFileRoute("/_authenticated/employer/verification")({
 
 type Row = { id: string; method: string; status: string; reference: string | null; notes: string | null; created_at: string };
 type Method = "gst" | "email" | "manual";
+type Draft = { reference: string; notes: string; file: File | null };
+
+const emptyDraft = (): Draft => ({ reference: "", notes: "", file: null });
+
+const GSTIN_RE = /^\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z][A-Z\d]$/;
 
 function VerificationPage() {
   const { canManageVerification } = useEmployerRole();
   const [cid, setCid] = useState<string | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
   const [method, setMethod] = useState<Method>("gst");
-  const [reference, setReference] = useState("");
-  const [notes, setNotes] = useState("");
-  const [file, setFile] = useState<File | null>(null);
+  // One draft per tab, so text typed in one tab never shows up in another.
+  const [drafts, setDrafts] = useState<Record<Method, Draft>>({
+    gst: emptyDraft(),
+    email: emptyDraft(),
+    manual: emptyDraft(),
+  });
   const [saving, setSaving] = useState(false);
   const fileInput = useRef<HTMLInputElement | null>(null);
+
+  const draft = drafts[method];
+  const patchDraft = (patch: Partial<Draft>) =>
+    setDrafts((d) => ({ ...d, [method]: { ...d[method], ...patch } }));
 
   useEffect(() => {
     (async () => {
@@ -47,28 +59,43 @@ function VerificationPage() {
 
   const submit = async () => {
     if (!cid) return toast.error("No active company.");
-    if (method !== "manual" && !reference.trim()) return toast.error("Enter the reference number.");
-    if (method === "manual" && !file) return toast.error("Upload a supporting document.");
+    if (method !== "manual" && !draft.reference.trim()) return toast.error("Enter the reference number.");
+    if (method === "gst" && !GSTIN_RE.test(draft.reference.trim())) return toast.error("Enter a valid 15-character GSTIN.");
+    if (method === "manual" && !draft.file) return toast.error("Upload a supporting document.");
     setSaving(true);
     try {
+      if (method === "gst") {
+        // Instant check runs on the server: it verifies the GSTIN against the GST
+        // registry and records the outcome, falling back to the review queue.
+        const { data: res, error: fnErr } = await supabase.functions.invoke("gst-verify", {
+          body: { companyId: cid, gstin: draft.reference.trim(), notes: draft.notes.trim() || undefined },
+        });
+        if (fnErr) throw fnErr;
+        const out = (res ?? {}) as { verified?: boolean; legalName?: string | null };
+        setDrafts((d) => ({ ...d, gst: emptyDraft() }));
+        const { data: fresh } = await supabase.from("company_verifications").select("*").eq("company_id", cid).order("created_at", { ascending: false });
+        setRows((fresh as Row[]) || []);
+        if (out.verified) toast.success(`Verified instantly${out.legalName ? ` — ${out.legalName}` : ""}.`);
+        else toast.success("We couldn't confirm this GSTIN instantly, so our team will review it within 24 hours.");
+        return;
+      }
       const { data: u } = await supabase.auth.getUser();
       const uid = u.user?.id;
       const docs: { path: string; name: string }[] = [];
-      // Strip values belonging to non-active methods from the payload.
-      if (file && method === "manual") {
-        const path = `${cid}/kyc/${Date.now()}-${file.name}`;
-        const up = await supabase.storage.from("company-docs").upload(path, file, { upsert: false });
+      if (draft.file && method === "manual") {
+        const path = `${cid}/kyc/${Date.now()}-${draft.file.name}`;
+        const up = await supabase.storage.from("company-docs").upload(path, draft.file, { upsert: false });
         if (up.error) throw up.error;
-        docs.push({ path, name: file.name });
+        docs.push({ path, name: draft.file.name });
       }
       const { data, error } = await supabase.from("company_verifications").insert({
         company_id: cid, method: method as never, status: "pending" as never,
-        reference: method === "manual" ? null : reference.trim() || null, notes: notes.trim() || null,
+        reference: method === "manual" ? null : draft.reference.trim() || null, notes: draft.notes.trim() || null,
         docs: docs as never, submitted_by: uid,
       }).select("*").single();
       if (error) throw error;
       setRows((r) => [data as Row, ...r]);
-      setReference(""); setNotes(""); setFile(null);
+      setDrafts((d) => ({ ...d, [method]: emptyDraft() }));
       if (fileInput.current) fileInput.current.value = "";
       toast.success("Submitted — our team will review within 24 hours.");
     } catch (e) { toast.error(e instanceof Error ? e.message : "Could not submit"); }
@@ -89,7 +116,7 @@ function VerificationPage() {
           <fieldset disabled={!canManageVerification} className="contents disabled:opacity-60">
           <div className="mb-4 flex gap-1 sm:gap-2">
             {([
-              { v: "gst", label: "GST / PAN / CIN", icon: Building2 },
+              { v: "gst", label: "GST (GSTIN)", icon: Building2 },
               { v: "email", label: "Business Email", icon: Mail },
               { v: "manual", label: "Manual KYC", icon: ShieldCheck },
             ] as const).map((t) => {
@@ -106,10 +133,10 @@ function VerificationPage() {
 
           <ConditionalField visible={method === "gst"}>
             <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">Instant verification via your GSTIN, PAN, or CIN. We'll fetch official records and issue a Verified badge.</p>
+              <p className="text-sm text-muted-foreground">Instant verification via your 15-character GSTIN. We'll check it against the official GST registry and issue a Verified badge right away. Only have a PAN or CIN? Use Manual KYC instead.</p>
               <label className="block">
-                <span className="mb-1 block text-xs font-semibold">GST / PAN / CIN</span>
-                <input value={reference} onChange={(e) => setReference(e.target.value.toUpperCase())} className="form-input" placeholder="08AARFT8882G1ZA" maxLength={21} />
+                <span className="mb-1 block text-xs font-semibold">GSTIN</span>
+                <input value={drafts.gst.reference} onChange={(e) => setDrafts((d) => ({ ...d, gst: { ...d.gst, reference: e.target.value.toUpperCase() } }))} className="form-input" placeholder="08AARFT8882G1ZA" maxLength={15} />
               </label>
             </div>
           </ConditionalField>
@@ -118,7 +145,7 @@ function VerificationPage() {
               <p className="text-sm text-muted-foreground">Verify with your official work email (no free providers).</p>
               <label className="block">
                 <span className="mb-1 block text-xs font-semibold">Work email</span>
-                <input value={reference} onChange={(e) => setReference(e.target.value)} className="form-input" placeholder="you@yourcompany.com" type="email" />
+                <input value={drafts.email.reference} onChange={(e) => setDrafts((d) => ({ ...d, email: { ...d.email, reference: e.target.value } }))} className="form-input" placeholder="you@yourcompany.com" type="email" />
               </label>
             </div>
           </ConditionalField>
@@ -128,16 +155,16 @@ function VerificationPage() {
               <label className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-dashed border-border bg-surface p-4 hover:border-primary/40">
                 <div className="grid h-12 w-12 place-items-center rounded-lg bg-primary-light text-primary"><Upload className="h-5 w-5" /></div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold">{file ? file.name : "Upload document (PDF/JPG/PNG · max 5 MB)"}</p>
+                  <p className="truncate text-sm font-semibold">{drafts.manual.file ? drafts.manual.file.name : "Upload document (PDF/JPG/PNG · max 10 MB)"}</p>
                   <p className="text-xs text-muted-foreground">Kept private, visible only to our verification team.</p>
                 </div>
-                <input ref={fileInput} type="file" hidden accept="application/pdf,image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+                <input ref={fileInput} type="file" hidden accept="application/pdf,image/*" onChange={(e) => setDrafts((d) => ({ ...d, manual: { ...d.manual, file: e.target.files?.[0] ?? null } }))} />
               </label>
             </div>
           </ConditionalField>
           <label className="mt-3 block">
             <span className="mb-1 block text-xs font-semibold">Notes (optional)</span>
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} className="form-input" placeholder="Any context for our team." />
+            <textarea value={draft.notes} onChange={(e) => patchDraft({ notes: e.target.value })} rows={3} className="form-input" placeholder="Any context for our team." />
           </label>
           <button onClick={submit} disabled={saving} className="mt-4 inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-50">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <BadgeCheck className="h-4 w-4" />}

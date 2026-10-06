@@ -448,6 +448,188 @@ export function applicationStatusEmail(info: ApplicationStatusInfo): {
 }
 
 // ---------------------------------------------------------------------------
+// Template 3b -- Application received (candidate confirmation, sent right after
+// a successful apply). Distinct from the status-change email above: nothing has
+// been decided yet, so it only confirms receipt and links to the applications list.
+// ---------------------------------------------------------------------------
+export type ApplicationReceivedInfo = {
+  candidateName: string | null;
+  jobTitle: string;
+  companyName: string | null;
+};
+
+export function applicationReceivedEmail(info: ApplicationReceivedInfo): {
+  subject: string;
+  html: string;
+  text: string;
+} {
+  const appUrl = getPublicAppUrl();
+  const companyName = escapeHtml(info.companyName || "the employer");
+  const jobTitle = escapeHtml(info.jobTitle);
+  const greetingName = info.candidateName ? escapeHtml(info.candidateName.split(" ")[0]) : "there";
+  const url = appUrl + "/candidate/applications";
+  const subject = "We received your application: " + info.jobTitle;
+
+  const body =
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;">' +
+    "<tr>" +
+    '<td style="width:48px;vertical-align:top;padding-right:14px;">' +
+    '<div style="width:48px;height:48px;background-color:#EEF3FF;border-radius:12px;text-align:center;line-height:48px;font-size:22px;">✅</div>' +
+    "</td>" +
+    '<td style="vertical-align:middle;">' +
+    '<h1 style="margin:0 0 4px;font-size:22px;font-weight:700;color:#111827;line-height:1.2;">Application received</h1>' +
+    '<p style="margin:0;font-size:14px;color:#6B7280;">Hi ' +
+    greetingName +
+    ",</p>" +
+    "</td></tr></table>" +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#F9FAFB;border:1px solid #E5E7EB;border-radius:12px;margin-bottom:28px;">' +
+    '<tr><td style="padding:20px 24px;">' +
+    '<p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#9CA3AF;">' +
+    jobTitle +
+    "</p>" +
+    '<p style="margin:0;font-size:14px;color:#111827;line-height:1.6;">Your application for <strong>' +
+    jobTitle +
+    "</strong> at <strong>" +
+    companyName +
+    "</strong> has been submitted. The employer will review your profile and you'll get an email if your status changes.</p>" +
+    "</td></tr></table>" +
+    '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:8px;">' +
+    '<tr><td style="background-color:#1A55BD;border-radius:8px;">' +
+    '<a href="' +
+    url +
+    '" style="display:inline-block;padding:13px 28px;font-size:14px;font-weight:700;color:#FFFFFF;text-decoration:none;letter-spacing:0.01em;">View my applications &rarr;</a>' +
+    "</td></tr></table>";
+
+  const html = layout("We received your application for " + info.jobTitle + ".", body, {
+    eyebrow: "Application Received",
+    footerHtml:
+      "You're receiving this because you applied to a job on JobsKart.<br>\n" +
+      '            <a href="' +
+      appUrl +
+      '/candidate/applications" style="color:#1A55BD;text-decoration:none;">View your applications</a>',
+  });
+
+  const text = [
+    "JobsKart — Application received",
+    "",
+    "Hi " + greetingName + ",",
+    "",
+    "Your application for " + info.jobTitle + " at " + (info.companyName || "the employer") + " has been submitted.",
+    "",
+    "View my applications: " + url,
+    "—",
+    "JobsKart · " + appUrl,
+  ].join("\n");
+
+  return { subject, html, text };
+}
+
+// ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Template 3c -- Company verification (sent when an employer submits KYC, and
+// again when a super admin approves or rejects it).
+// ---------------------------------------------------------------------------
+export type VerificationEmailInfo = {
+  companyName: string | null;
+  methodLabel: string;
+  reason?: string | null;
+};
+
+const verificationLayoutBody = (icon: string, heading: string, lead: string, companyName: string | null) =>
+  '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;">' +
+  "<tr>" +
+  '<td style="width:48px;vertical-align:top;padding-right:14px;">' +
+  '<div style="width:48px;height:48px;background-color:#EEF3FF;border-radius:12px;text-align:center;line-height:48px;font-size:22px;">' +
+  icon +
+  "</div>" +
+  "</td>" +
+  '<td style="vertical-align:middle;">' +
+  '<h1 style="margin:0 0 4px;font-size:22px;font-weight:700;color:#111827;line-height:1.2;">' +
+  heading +
+  "</h1>" +
+  '<p style="margin:0;font-size:14px;color:#6B7280;">' +
+  escapeHtml(companyName || "your company") +
+  "</p>" +
+  "</td></tr></table>" +
+  '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#F9FAFB;border:1px solid #E5E7EB;border-radius:12px;margin-bottom:28px;">' +
+  '<tr><td style="padding:20px 24px;">' +
+  '<p style="margin:0;font-size:14px;color:#111827;line-height:1.6;">' +
+  lead +
+  "</p>" +
+  "</td></tr></table>";
+
+export function verificationSubmittedEmail(info: VerificationEmailInfo): {
+  subject: string;
+  html: string;
+  text: string;
+} {
+  const appUrl = getPublicAppUrl();
+  const url = appUrl + "/employer/verification";
+  const lead =
+    "We received your " + escapeHtml(info.methodLabel) + " verification request. Our team reviews submissions within 24 hours, and you'll get another email as soon as it's decided.";
+  const body =
+    verificationLayoutBody("⏳", "Verification submitted", lead, info.companyName) +
+    '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:8px;">' +
+    '<tr><td style="background-color:#1A55BD;border-radius:8px;">' +
+    '<a href="' + url + '" style="display:inline-block;padding:13px 28px;font-size:14px;font-weight:700;color:#FFFFFF;text-decoration:none;">View verification status &rarr;</a>' +
+    "</td></tr></table>";
+  const html = layout("We received your verification request.", body, {
+    eyebrow: "Verification",
+    footerHtml:
+      "You're receiving this because a verification was submitted for your company on JobsKart.<br>\n" +
+      '            <a href="' + url + '" style="color:#1A55BD;text-decoration:none;">Open KYC &amp; Verification</a>',
+  });
+  const text = [
+    "JobsKart — Verification submitted",
+    "",
+    "We received your " + info.methodLabel + " verification request for " + (info.companyName || "your company") + ".",
+    "We review submissions within 24 hours and will email you the outcome.",
+    "",
+    "View status: " + url,
+  ].join("\n");
+  return { subject: "Verification submitted: " + info.methodLabel, html, text };
+}
+
+export function verificationDecisionEmail(
+  info: VerificationEmailInfo & { status: "verified" | "rejected" },
+): { subject: string; html: string; text: string } {
+  const appUrl = getPublicAppUrl();
+  const url = appUrl + "/employer/verification";
+  const approved = info.status === "verified";
+  const heading = approved ? "Your company is verified" : "Verification not approved";
+  const reasonText = !approved && info.reason ? " Reason: " + info.reason : "";
+  const lead = approved
+    ? "Your " + escapeHtml(info.methodLabel) + " verification was approved. Your company now shows a Verified badge on job listings."
+    : "Your " + escapeHtml(info.methodLabel) + " verification was not approved." + (info.reason ? " Reason: " + escapeHtml(info.reason) : "") + " You can submit again from KYC &amp; Verification.";
+  const body =
+    verificationLayoutBody(approved ? "✅" : "⚠️", heading, lead, info.companyName) +
+    '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:8px;">' +
+    '<tr><td style="background-color:#1A55BD;border-radius:8px;">' +
+    '<a href="' + url + '" style="display:inline-block;padding:13px 28px;font-size:14px;font-weight:700;color:#FFFFFF;text-decoration:none;">Open KYC &amp; Verification &rarr;</a>' +
+    "</td></tr></table>";
+  const html = layout(heading, body, {
+    eyebrow: "Verification",
+    footerHtml:
+      "You're receiving this because a verification was reviewed for your company on JobsKart.<br>\n" +
+      '            <a href="' + url + '" style="color:#1A55BD;text-decoration:none;">Open KYC &amp; Verification</a>',
+  });
+  const text = [
+    "JobsKart — " + heading,
+    "",
+    (approved
+      ? "Your " + info.methodLabel + " verification for " + (info.companyName || "your company") + " was approved."
+      : "Your " + info.methodLabel + " verification for " + (info.companyName || "your company") + " was not approved." + reasonText),
+    "",
+    "Open: " + url,
+  ].join("\n");
+  return {
+    subject: approved ? "Your company is verified on JobsKart" : "Verification not approved: " + info.methodLabel,
+    html,
+    text,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Template 4 -- Interview scheduled (Email 1: no join link/password, sent
 // immediately after scheduling). The join link is deliberately withheld here
 // regardless of provider (Zoom or external) \u2014 it's sent 30 minutes before via
