@@ -7,6 +7,7 @@ import { ConditionalField } from "@/components/forms/ConditionalField";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchMyCompanies, getActiveCompanyId } from "@/lib/employer";
 import { useEmployerRole } from "@/hooks/use-employer-role";
+import { sanitizeGstinInput, validateGstin } from "@/lib/validators";
 
 export const Route = createFileRoute("/_authenticated/employer/verification")({
   head: () => ({ meta: [{ title: "KYC & Verification · JobsKart Employer" }] }),
@@ -18,8 +19,6 @@ type Method = "gst" | "email" | "manual";
 type Draft = { reference: string; notes: string; file: File | null };
 
 const emptyDraft = (): Draft => ({ reference: "", notes: "", file: null });
-
-const GSTIN_RE = /^\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z][A-Z\d]$/;
 
 function VerificationPage() {
   const { canManageVerification } = useEmployerRole();
@@ -38,6 +37,11 @@ function VerificationPage() {
   const draft = drafts[method];
   const patchDraft = (patch: Partial<Draft>) =>
     setDrafts((d) => ({ ...d, [method]: { ...d[method], ...patch } }));
+
+  // Only shown once the GSTIN reaches full length, so a half-typed value
+  // doesn't flash an error before the user is done.
+  const gstFieldError =
+    drafts.gst.reference.length === 15 ? validateGstin(drafts.gst.reference) : null;
 
   useEffect(() => {
     (async () => {
@@ -60,7 +64,10 @@ function VerificationPage() {
   const submit = async () => {
     if (!cid) return toast.error("No active company.");
     if (method !== "manual" && !draft.reference.trim()) return toast.error("Enter the reference number.");
-    if (method === "gst" && !GSTIN_RE.test(draft.reference.trim())) return toast.error("Enter a valid 15-character GSTIN.");
+    if (method === "gst") {
+      const gstErr = validateGstin(draft.reference, { required: true });
+      if (gstErr) return toast.error(gstErr);
+    }
     if (method === "manual" && !draft.file) return toast.error("Upload a supporting document.");
     setSaving(true);
     try {
@@ -136,7 +143,15 @@ function VerificationPage() {
               <p className="text-sm text-muted-foreground">Instant verification via your 15-character GSTIN. We'll check it against the official GST registry and issue a Verified badge right away. Only have a PAN or CIN? Use Manual KYC instead.</p>
               <label className="block">
                 <span className="mb-1 block text-xs font-semibold">GSTIN</span>
-                <input value={drafts.gst.reference} onChange={(e) => setDrafts((d) => ({ ...d, gst: { ...d.gst, reference: e.target.value.toUpperCase() } }))} className="form-input" placeholder="08AARFT8882G1ZA" maxLength={15} />
+                <input
+                  value={drafts.gst.reference}
+                  onChange={(e) => setDrafts((d) => ({ ...d, gst: { ...d.gst, reference: sanitizeGstinInput(e.target.value) } }))}
+                  className="form-input"
+                  placeholder="08AARFT8882G1ZA"
+                  maxLength={15}
+                  aria-invalid={!!gstFieldError}
+                />
+                {gstFieldError && <p className="mt-1 text-xs text-destructive">{gstFieldError}</p>}
               </label>
             </div>
           </ConditionalField>

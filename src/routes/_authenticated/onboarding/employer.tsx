@@ -18,6 +18,7 @@ import {
 } from "@/components/wizard/Questionnaire";
 import { Field } from "@/components/candidate/primitives";
 import { OptionalSection } from "@/components/forms/OptionalSection";
+import { sanitizeGstinInput, validateGstin } from "@/lib/validators";
 import { Building2, Upload, Loader2, ChevronUp, ChevronDown } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/onboarding/employer")({
@@ -497,6 +498,9 @@ function EmployerOnboarding() {
       key: "brand",
       title: "Add your brand & proof",
       hint: "Verified, branded employers get 4× more applications. All optional — you can complete later.",
+      // GST is optional at this step (can be added later from Company → KYC),
+      // but if something is typed it must be a real GSTIN before continuing.
+      validate: () => validateGstin(gst),
       render: () => (
         <div className="space-y-5">
           <Field label="Company logo">
@@ -564,11 +568,15 @@ function EmployerOnboarding() {
             >
               <input
                 value={gst}
-                onChange={(e) => setGst(e.target.value.toUpperCase())}
+                onChange={(e) => setGst(sanitizeGstinInput(e.target.value))}
                 className="form-input"
                 placeholder="22AAAAA0000A1Z5"
                 maxLength={15}
+                aria-invalid={gst.length === 15 && !!validateGstin(gst)}
               />
+              {gst.length === 15 && validateGstin(gst) && (
+                <p className="mt-1 text-xs text-destructive">{validateGstin(gst)}</p>
+              )}
             </Field>
           </OptionalSection>
         </div>

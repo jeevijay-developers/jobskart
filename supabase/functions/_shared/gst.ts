@@ -10,7 +10,11 @@
 //   GSTIN_API_KEY   required to enable instant verification
 //   GSTIN_API_BASE  optional, defaults to https://gstinapi.com
 
-const GSTIN_PATTERN = /^\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z][A-Z\d]$/;
+// Official GSTIN format: 2-digit state code, 10-char PAN, 1-char entity code
+// (1-9 or A-Z for multiple registrations on one PAN), literal 'Z', 1
+// alphanumeric checksum character. Matches src/lib/validators.ts's gstinSchema
+// (keep both in sync if this ever changes).
+const GSTIN_PATTERN = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
 
 export type GstinLookup =
   | { ok: true; gstin: string; legalName: string | null; tradeName: string | null; status: string | null }

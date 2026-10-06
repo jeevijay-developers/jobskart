@@ -45,9 +45,6 @@ export type JdInput = {
 
   /** Optional employer override for the auto-summary. */
   summaryOverride?: string;
-
-  /** JD length/tone preset. Defaults to "standard" when omitted. */
-  style?: "standard" | "quick_read" | "detailed";
 };
 
 function fmtInr(n?: number) {
@@ -140,13 +137,29 @@ function summaryFor(input: JdInput, tpl: RoleTemplate | null): [string, string] 
   return [generic1, generic2];
 }
 
+function withArticle(title: string) {
+  return /^[aeiou]/i.test(title.trim()) ? `an ${title}` : `a ${title}`;
+}
+
+/**
+ * Single canonical JD, following JD_Auto_Generation_Template.docx:
+ * Opening → Key Responsibilities → Job Requirements → Perks → Notes.
+ * Perks and Notes lines only appear when data exists.
+ */
 export function buildJd(input: JdInput): { markdown: string; html: string } {
-  const style = input.style ?? "standard";
   const tpl = findRoleTemplate(input.title, input.industry);
   const [line1, line2] = summaryFor(input, tpl);
   const responsibilities = responsibilitiesFor(input.skills ?? [], tpl);
+  const allResp = [...responsibilities, ...(tpl?.fixedResponsibilities ?? [])];
 
-  const compClause = `The position offers ${salaryRange(input)}${input.workMode && input.workMode !== "onsite" ? ` (${input.workMode === "remote" ? "Remote" : "Hybrid"})` : ""}.`;
+  const opening = [
+    `We are looking for ${withArticle(input.title || "team member")} to join ${input.companyName || "our team"}${input.industry ? `, in ${input.industry}` : ""}.`,
+    line1,
+    line2,
+    `The position offers ${salaryRange(input)} and opportunities for growth.`,
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   const reqBits: string[] = [];
   if (input.degree) reqBits.push(`Minimum qualification: ${input.degree}${input.specialisation ? ` (${input.specialisation})` : ""}.`);
@@ -164,93 +177,29 @@ export function buildJd(input: JdInput): { markdown: string; html: string } {
 
   const notes: string[] = [];
   if (input.joiningFeeRequired) notes.push("Joining fee applicable");
-  if (input.certifications?.length) notes.push(`Certification: ${input.certifications.join(", ")}`);
+  if (input.certifications?.length) notes.push(`Certification: ${input.certifications.join(", ")} required`);
   if (input.ageMin || input.ageMax) notes.push(`${input.ageMin ?? 18} – ${input.ageMax ?? 45} years preferred`);
   if (input.preferredLanguages?.length) notes.push(`Preferred Language: ${input.preferredLanguages.join(", ")}`);
   if (input.preferredIndustries?.length) notes.push(`Preferred Industry: ${input.preferredIndustries.join(", ")}`);
-
-  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  const allResp = [...responsibilities, ...(tpl?.fixedResponsibilities ?? [])];
-
-  if (style === "quick_read") {
-    // Mobile/WhatsApp-friendly: one summary line, top 3 bullets, salary,
-    // no Notes section — optimised for fast scanning, not completeness.
-    const md = [
-      `${input.title || "Job opening"} @ ${input.companyName || "our team"}${input.city ? ` · ${input.city}` : ""}`,
-      "",
-      compClause,
-      "",
-      "**Top requirements:**",
-      ...allResp.slice(0, 3).map((r) => `- ${r}`),
-      "",
-      reqBits.slice(0, 2).join(" "),
-    ];
-    const html = [
-      `<p><strong>${esc(input.title || "Job opening")}</strong> @ ${esc(input.companyName || "our team")}</p>`,
-      `<p><em>${esc(compClause)}</em></p>`,
-      `<ul>${allResp.slice(0, 3).map((r) => `<li>${esc(r)}</li>`).join("")}</ul>`,
-      `<p>${esc(reqBits.slice(0, 2).join(" "))}</p>`,
-    ];
-    return { markdown: md.join("\n"), html: html.join("") };
+  if (input.workMode === "remote" || input.workMode === "hybrid") {
+    notes.push(`Work Mode: ${input.workMode === "remote" ? "Remote" : "Hybrid"}`);
   }
 
-  if (style === "detailed") {
-    // Enterprise: formal company-intro line + growth-path line ahead of the
-    // standard body, full responsibilities/requirements/perks/notes kept.
-    const intro = `About ${input.companyName || "the company"}: ${input.companyName || "We"} ${input.industry ? `operate in ${input.industry} and are` : "are"} looking to grow our team with driven professionals.`;
-    const growth = "This role offers a clear path for growth within the company for strong performers.";
-    const md: string[] = [intro, "", line1];
-    if (line2) md.push(line2);
-    md.push(growth, "", compClause, "");
-    md.push("**Key Responsibilities:**");
-    allResp.forEach((r) => md.push(`- ${r}`));
-    md.push("", "**Job Requirements:**", reqBits.join(" "));
-    if (input.perks?.length) { md.push("", "**Perks:**", input.perks.join(" · ")); }
-    if (notes.length) { md.push("", "**Notes:**"); notes.forEach((n) => md.push(`- ${n}`)); }
-
-    const html = [
-      `<p><em>${esc(intro)}</em></p>`,
-      `<p>${esc(line1)}${line2 ? ` ${esc(line2)}` : ""}</p>`,
-      `<p>${esc(growth)}</p>`,
-      `<p><em>${esc(compClause)}</em></p>`,
-      `<h4>Key Responsibilities</h4><ul>${allResp.map((r) => `<li>${esc(r)}</li>`).join("")}</ul>`,
-      `<h4>Job Requirements</h4><p>${esc(reqBits.join(" "))}</p>`,
-    ];
-    if (input.perks?.length) html.push(`<h4>Perks</h4><p>${input.perks.map(esc).join(" · ")}</p>`);
-    if (notes.length) html.push(`<h4>Notes</h4><ul>${notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>`);
-    return { markdown: md.join("\n"), html: html.join("") };
-  }
-
-  // "standard" — identical to this function's pre-existing behaviour.
-  const md: string[] = [];
-  md.push(line1);
-  if (line2) md.push(line2);
-  md.push("", compClause, "");
-  md.push("**Key Responsibilities:**");
-  responsibilities.forEach((r) => md.push(`- ${r}`));
-  if (tpl?.fixedResponsibilities?.length) {
-    tpl.fixedResponsibilities.forEach((r) => md.push(`- ${r}`));
-  }
-  md.push("");
-
-  md.push("**Job Requirements:**");
-  md.push(reqBits.join(" "));
-  if (input.perks?.length) {
-    md.push("");
-    md.push("**Perks:**");
-    md.push(input.perks.join(" · "));
-  }
+  const md: string[] = [opening, "", "**Key Responsibilities:**"];
+  allResp.forEach((r) => md.push(`- ${r}`));
+  md.push("", "**Job Requirements:**", reqBits.join(" "));
+  if (input.perks?.length) md.push("", "**Perks:**", input.perks.join(" · "));
   if (notes.length) {
-    md.push("");
-    md.push("**Notes:**");
+    md.push("", "**Notes:**");
     notes.forEach((n) => md.push(`- ${n}`));
   }
 
-  const html: string[] = [];
-  html.push(`<p>${esc(line1)}${line2 ? ` ${esc(line2)}` : ""}</p>`);
-  html.push(`<p><em>${esc(compClause)}</em></p>`);
-  html.push(`<h4>Key Responsibilities</h4><ul>${allResp.map((r) => `<li>${esc(r)}</li>`).join("")}</ul>`);
-  html.push(`<h4>Job Requirements</h4><p>${esc(reqBits.join(" "))}</p>`);
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const html = [
+    `<p>${esc(opening)}</p>`,
+    `<h4>Key Responsibilities</h4><ul>${allResp.map((r) => `<li>${esc(r)}</li>`).join("")}</ul>`,
+    `<h4>Job Requirements</h4><p>${esc(reqBits.join(" "))}</p>`,
+  ];
   if (input.perks?.length) html.push(`<h4>Perks</h4><p>${input.perks.map(esc).join(" · ")}</p>`);
   if (notes.length) html.push(`<h4>Notes</h4><ul>${notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>`);
 
@@ -279,11 +228,73 @@ export function markdownToHtml(md: string): string {
       items.push(inline(line.slice(2)));
     } else {
       flush();
-      out.push(`<p>${inline(line)}</p>`);
+      // A line that is only "**Heading:**" is a section heading, as buildJd's HTML.
+      const heading = line.match(/^\*\*([^*]+?):?\*\*$/);
+      out.push(heading ? `<h4>${esc(heading[1])}</h4>` : `<p>${inline(line)}</p>`);
     }
   }
   flush();
   return out.join("");
+}
+
+/**
+ * Inverse of markdownToHtml for HTML typed into a contentEditable block (which may
+ * contain <div>/<br>/<b>/<i>). Anything outside that subset is reduced to its text,
+ * so the result is safe to re-render with markdownToHtml. Browser-only (DOMParser).
+ */
+export function htmlToMarkdown(html: string): string {
+  const doc = new DOMParser().parseFromString(`<body>${html}</body>`, "text/html");
+  const lines: string[] = [];
+
+  const inline = (node: Node): string => {
+    if (node.nodeType === Node.TEXT_NODE) return (node.textContent ?? "").replace(/\s+/g, " ");
+    if (node.nodeType !== Node.ELEMENT_NODE) return "";
+    const el = node as Element;
+    const tag = el.tagName.toLowerCase();
+    if (tag === "br") return "\n";
+    const inner = Array.from(el.childNodes).map(inline).join("");
+    if ((tag === "strong" || tag === "b") && inner.trim()) return `**${inner.trim()}**`;
+    return inner;
+  };
+  const pushText = (s: string) => {
+    for (const part of s.split("\n")) {
+      const t = part.trim();
+      if (t) lines.push(t);
+    }
+  };
+  const block = (node: Node) => {
+    if (node.nodeType === Node.TEXT_NODE) return pushText(inline(node));
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+    const el = node as Element;
+    const tag = el.tagName.toLowerCase();
+    if (tag === "ul" || tag === "ol") {
+      lines.push("");
+      el.querySelectorAll(":scope > li").forEach((li) => {
+        const t = inline(li).replace(/\s+/g, " ").trim();
+        if (t) lines.push(`- ${t}`);
+      });
+      lines.push("");
+    } else if (/^h[1-6]$/.test(tag)) {
+      const t = inline(el).replace(/\*\*/g, "").replace(/\s+/g, " ").trim().replace(/:$/, "");
+      if (t) lines.push("", `**${t}:**`);
+    } else if (tag === "p" || tag === "div") {
+      if (Array.from(el.children).some((c) => /^(ul|ol|p|div|h[1-6])$/i.test(c.tagName))) {
+        el.childNodes.forEach(block);
+      } else {
+        lines.push("");
+        pushText(inline(el));
+      }
+    } else {
+      pushText(inline(el));
+    }
+  };
+  doc.body.childNodes.forEach(block);
+
+  return lines
+    .join("\n")
+    .replace(/(^\*\*[^*\n]+:\*\*)\n\n/gm, "$1\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 export function earningPotentialLabel(input: Pick<JdInput, "payType" | "minSalary" | "maxSalary" | "avgIncentive">) {

@@ -45,7 +45,6 @@ import {
   JOB_TYPE_OPTIONS,
   WORK_MODES,
   EDUCATION_LEVELS,
-  SUGGESTED_SKILLS,
   JOB_CATEGORIES,
   INDUSTRIES,
   PERKS,
@@ -62,8 +61,8 @@ import {
   SUGGESTED_LANGUAGES,
   ASSETS,
 } from "@/lib/options";
-import { buildJd, markdownToHtml, type JdInput } from "@/lib/jd-template";
-import { getRecommendedSkills } from "@/lib/skill-engine";
+import { buildJd, markdownToHtml, htmlToMarkdown, type JdInput } from "@/lib/jd-template";
+import { getRecommendedSkills, getNiceToHaveSuggestions } from "@/lib/skill-engine";
 import { getRoleBenchmarks } from "@/lib/salary-benchmarks";
 import { polishJobDescription, type PolishReason } from "@/lib/jd-polish.functions";
 import {
@@ -146,6 +145,8 @@ type Form = {
   hiring_contact_name: string;
   hiring_contact_phone: string;
   hiring_contact_email: string;
+  /** Multi-select replacement for contact_pref — can hold several of the same ids. */
+  contact_prefs: string[];
 };
 
 const initialForm: Form = {
@@ -197,6 +198,7 @@ const initialForm: Form = {
   hiring_contact_name: "",
   hiring_contact_phone: "",
   hiring_contact_email: "",
+  contact_prefs: ["in_app"],
 };
 
 // Only the columns the wizard reads back when editing an existing job.
@@ -249,6 +251,7 @@ type JobRow = {
   hiring_contact_name: string | null;
   hiring_contact_phone: string | null;
   hiring_contact_email: string | null;
+  contact_prefs: string[] | null;
   status: string;
 };
 
@@ -302,6 +305,12 @@ function jobToForm(job: JobRow): Form {
     hiring_contact_name: job.hiring_contact_name ?? "",
     hiring_contact_phone: job.hiring_contact_phone ?? "",
     hiring_contact_email: job.hiring_contact_email ?? "",
+    contact_prefs:
+      job.contact_prefs && job.contact_prefs.length
+        ? job.contact_prefs
+        : job.contact_pref
+          ? [job.contact_pref]
+          : ["in_app"],
   };
 }
 
@@ -348,11 +357,12 @@ function buildFieldsFromForm(
     required_assets: form.required_assets,
     certifications: form.certifications,
     preferred_industries: form.preferred_industries,
-    contact_pref: form.contact_pref,
+    contact_pref: (form.contact_prefs[0] as Form["contact_pref"]) || "in_app",
     // Always sent (null when blank) so clearing a field on edit removes it.
     hiring_contact_name: form.hiring_contact_name.trim() || null,
     hiring_contact_phone: form.hiring_contact_phone.trim() || null,
     hiring_contact_email: form.hiring_contact_email.trim() || null,
+    contact_prefs: form.contact_prefs,
   };
   if (form.category) p.category = form.category;
   if (form.industry) p.industry = form.industry;
@@ -420,7 +430,10 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
   const [showArea, setShowArea] = useState(false);
   const dirtyRef = useRef(dirty);
   dirtyRef.current = dirty;
-  const [jdStyle, setJdStyle] = useState<"standard" | "quick_read" | "detailed">("standard");
+  // The JD is edited in place (contentEditable). jdEditorHtml tracks the last HTML the
+  // editor itself emitted, so state changes it caused don't reset the DOM and move the caret.
+  const jdEditorRef = useRef<HTMLDivElement>(null);
+  const jdEditorHtml = useRef<string | null>(null);
   const [polishing, setPolishing] = useState(false);
   const [jdUndo, setJdUndo] = useState<string | null>(null);
 
@@ -573,7 +586,6 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
       industry: form.industry,
       category: form.category,
       city: form.city,
-      style: jdStyle,
       workMode: form.work_mode,
       jobType: form.job_type,
       payType: form.pay_type || "fixed",
@@ -599,7 +611,7 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
       preferredLanguages: form.preferred_languages,
       preferredIndustries: form.preferred_industries,
     }),
-    [form, companyName, jdStyle],
+    [form, companyName],
   );
 
   // Same rubric as compute_job_quality() in the DB (see the job_quality_score
@@ -654,7 +666,7 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
   }, [qualityScore]);
 
   // JD stays live from title/pay/skills/etc until the recruiter edits the
-  // textarea directly (jdDirty) — then only Regenerate touches it again.
+  // JD directly (jdDirty) — then only Regenerate touches it again.
   useEffect(() => {
     if (jdDirty) return;
     if (!form.title.trim()) return;
@@ -670,8 +682,19 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jdInput, jdDirty]);
 
+  // Push description_html into the editor only when it changed from outside it
+  // (auto-generate, Regenerate, Polish, Undo) or the editor was just (re)mounted.
+  useEffect(() => {
+    const el = jdEditorRef.current;
+    if (!el) return;
+    const html = form.description_html || "";
+    if (jdEditorHtml.current === html && (el.innerHTML || !html)) return;
+    el.innerHTML = html;
+    jdEditorHtml.current = html;
+  }, [form.description_html, step]);
+
   const regenerate = () => {
-    if (jdDirty && !window.confirm("Replace your edited description with the standard JD?")) return;
+    if (jdDirty && !window.confirm("Replace your edits with a freshly generated description?")) return;
     setJdUndo(null);
     const jd = buildJd(jdInput);
     // flushSync commits the new text + preview before the success toast fires.
@@ -1451,7 +1474,12 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                     <ChipInput
                       values={form.preferred_skills}
                       onChange={(v) => markDirty("preferred_skills", v)}
-                      suggestions={SUGGESTED_SKILLS}
+                      suggestions={getNiceToHaveSuggestions(
+                        form.title,
+                        form.category,
+                        form.skills,
+                        form.preferred_skills,
+                      )}
                     />
                   </Field>
 
@@ -1919,33 +1947,15 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-xs">
                     {steps[3]}
                   </p>
-                  <div className="flex flex-wrap gap-2">
-                    {(
-                      [
-                        { id: "standard", label: "Standard" },
-                        { id: "quick_read", label: "Quick Read" },
-                        { id: "detailed", label: "Detailed" },
-                      ] as const
-                    ).map((s) => (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => setJdStyle(s.id)}
-                        className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${jdStyle === s.id ? "border-primary bg-primary-light text-primary" : "border-border bg-surface text-foreground/70"}`}
-                      >
-                        {s.label}
-                      </button>
-                    ))}
-                  </div>
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
                       <h3 className="text-sm font-bold">Job description</h3>
                       <p className="text-xs text-muted-foreground">
-                        Written from your title, pay, and skills.
+                        Written from your title, pay, and skills. Click the text to edit it.
                       </p>
                       {jdDirty && (
                         <p className="mt-1 text-xs text-primary">
-                          You're editing the template. Regenerate to restore the standard JD.
+                          You've edited this description. Regenerate to start over from your inputs.
                         </p>
                       )}
                     </div>
@@ -2046,34 +2056,26 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                       </button>
                     </div>
                   </div>
-                  <div className="grid gap-4 lg:grid-cols-2">
-                    <div>
-                      <p className="mb-1.5 text-xs font-medium text-muted-foreground">
-                        Editable text
-                      </p>
-                      <textarea
-                        rows={18}
-                        value={form.description}
-                        onChange={(e) => {
-                          setJdDirty(true);
-                          const text = e.target.value;
-                          setForm((f) => ({
-                            ...f,
-                            description: text,
-                            description_html: markdownToHtml(text),
-                          }));
-                        }}
-                        className="form-input resize-none font-mono text-xs"
-                      />
-                    </div>
-                    <div>
-                      <p className="mb-1.5 text-xs font-medium text-muted-foreground">Preview</p>
-                      <div
-                        className="prose prose-sm max-w-none rounded-xl border border-border bg-surface p-4 text-sm"
-                        dangerouslySetInnerHTML={{ __html: form.description_html || "" }}
-                      />
-                    </div>
-                  </div>
+                  <div
+                    ref={jdEditorRef}
+                    contentEditable
+                    suppressContentEditableWarning
+                    role="textbox"
+                    aria-multiline="true"
+                    aria-label="Job description"
+                    onInput={(e) => {
+                      const md = htmlToMarkdown(e.currentTarget.innerHTML);
+                      const html = markdownToHtml(md);
+                      jdEditorHtml.current = html;
+                      setJdDirty(true);
+                      setForm((f) => ({ ...f, description: md, description_html: html }));
+                    }}
+                    onPaste={(e) => {
+                      e.preventDefault();
+                      document.execCommand("insertText", false, e.clipboardData.getData("text/plain"));
+                    }}
+                    className="prose prose-sm min-h-[24rem] max-w-none rounded-xl border border-border bg-surface p-4 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                  />
 
                   {qualityGaps.length > 0 ? (
                     <div className="rounded-xl border border-border bg-surface p-4">
@@ -2117,21 +2119,50 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                           { id: "call", label: "Phone call" },
                           { id: "whatsapp", label: "WhatsApp" },
                         ] as const
-                      ).map((o) => (
-                        <button
-                          key={o.id}
-                          type="button"
-                          onClick={() => markDirty("contact_pref", o.id)}
-                          className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${
-                            form.contact_pref === o.id
-                              ? "border-primary bg-primary-light text-primary"
-                              : "border-border bg-surface text-foreground/70"
-                          }`}
-                        >
-                          {o.label}
-                        </button>
-                      ))}
+                      ).map((o) => {
+                        const on = form.contact_prefs.includes(o.id);
+                        return (
+                          <button
+                            key={o.id}
+                            type="button"
+                            aria-pressed={on}
+                            onClick={() => {
+                              // Keep at least one method selected.
+                              if (on && form.contact_prefs.length === 1) return;
+                              markDirty(
+                                "contact_prefs",
+                                on
+                                  ? form.contact_prefs.filter((id) => id !== o.id)
+                                  : [...form.contact_prefs, o.id],
+                              );
+                            }}
+                            className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${
+                              on
+                                ? "border-primary bg-primary-light text-primary"
+                                : "border-border bg-surface text-foreground/70"
+                            }`}
+                          >
+                            {o.label}
+                          </button>
+                        );
+                      })}
                     </div>
+                    {(form.contact_prefs.includes("call") || form.contact_prefs.includes("whatsapp")) && (
+                      <div className="mt-2 space-y-1">
+                        {form.contact_prefs.includes("call") && (
+                          <p className="text-xs text-muted-foreground">
+                            You may receive calls from Monday to Saturday, between 9:00 AM and
+                            7:00 PM.
+                          </p>
+                        )}
+                        {form.contact_prefs.includes("whatsapp") && (
+                          <p className="text-xs text-muted-foreground">
+                            You may receive WhatsApp messages from Monday to Saturday, between
+                            9:00 AM and 7:00 PM.
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
