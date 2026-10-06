@@ -143,6 +143,9 @@ type Form = {
   description_html: string;
   hiring_for_company: string;
   contact_pref: "in_app" | "call" | "whatsapp";
+  hiring_contact_name: string;
+  hiring_contact_phone: string;
+  hiring_contact_email: string;
 };
 
 const initialForm: Form = {
@@ -191,6 +194,9 @@ const initialForm: Form = {
   description_html: "",
   hiring_for_company: "",
   contact_pref: "in_app",
+  hiring_contact_name: "",
+  hiring_contact_phone: "",
+  hiring_contact_email: "",
 };
 
 // Only the columns the wizard reads back when editing an existing job.
@@ -240,6 +246,9 @@ type JobRow = {
   description_html: string | null;
   hiring_for_company: string | null;
   contact_pref: string | null;
+  hiring_contact_name: string | null;
+  hiring_contact_phone: string | null;
+  hiring_contact_email: string | null;
   status: string;
 };
 
@@ -290,6 +299,9 @@ function jobToForm(job: JobRow): Form {
     description_html: job.description_html ?? "",
     hiring_for_company: job.hiring_for_company ?? "",
     contact_pref: (job.contact_pref as Form["contact_pref"]) || "in_app",
+    hiring_contact_name: job.hiring_contact_name ?? "",
+    hiring_contact_phone: job.hiring_contact_phone ?? "",
+    hiring_contact_email: job.hiring_contact_email ?? "",
   };
 }
 
@@ -337,6 +349,10 @@ function buildFieldsFromForm(
     certifications: form.certifications,
     preferred_industries: form.preferred_industries,
     contact_pref: form.contact_pref,
+    // Always sent (null when blank) so clearing a field on edit removes it.
+    hiring_contact_name: form.hiring_contact_name.trim() || null,
+    hiring_contact_phone: form.hiring_contact_phone.trim() || null,
+    hiring_contact_email: form.hiring_contact_email.trim() || null,
   };
   if (form.category) p.category = form.category;
   if (form.industry) p.industry = form.industry;
@@ -1611,6 +1627,32 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                                   </button>
                                 );
                               })}
+                            </div>
+                          </Field>
+                          <Field label="Hiring contact">
+                            <div className="grid gap-3 sm:grid-cols-3">
+                              <input
+                                value={form.hiring_contact_name}
+                                onChange={(e) => markDirty("hiring_contact_name", e.target.value)}
+                                className="form-input"
+                                placeholder="Hiring person name"
+                              />
+                              <input
+                                type="tel"
+                                value={form.hiring_contact_phone}
+                                onChange={(e) =>
+                                  markDirty("hiring_contact_phone", e.target.value.replace(/[^\d+ ]/g, ""))
+                                }
+                                className="form-input"
+                                placeholder="Phone number"
+                              />
+                              <input
+                                type="email"
+                                value={form.hiring_contact_email}
+                                onChange={(e) => markDirty("hiring_contact_email", e.target.value)}
+                                className="form-input"
+                                placeholder="Email"
+                              />
                             </div>
                           </Field>
                           <Field label="Perks & benefits">

@@ -196,7 +196,7 @@ export function AssumedFieldsStrip(props: {
           "interview_type",
           <ChipOptionList
             options={[
-              { id: "in_person", label: "In-person" },
+              { id: "in_person", label: "Walk-in" },
               { id: "telephonic", label: "Telephonic" },
             ]}
             value={values.interview_type}
