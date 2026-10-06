@@ -141,6 +141,31 @@ export const gstinSchema = z
   .transform(sanitizeGstinInput)
   .pipe(z.string().regex(GSTIN_RE, GSTIN_ERROR));
 
+// Accepts a bare domain (example.com), a www. host, or a full http(s):// URL —
+// HTTPS is never required. Each label is 1-63 chars, letters/digits/hyphens
+// (no leading/trailing hyphen), 2+ letter TLD, optional path/query/fragment.
+const WEBSITE_RE =
+  /^(https?:\/\/)?(www\.)?[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*\.[a-z]{2,}(\/[^\s]*)?$/i;
+const WEBSITE_ERROR = "Enter a valid website (e.g. example.com)";
+
+// Strips whitespace only — unlike GSTIN this is free text (case, path and
+// query all matter), so onChange should just drop spaces, not reshape it.
+export const sanitizeWebsiteInput = (s: string) => s.replace(/\s+/g, "");
+
+// Plain helper for pages using raw useState (not a zod-backed form). Returns
+// null for a valid or empty value (callers decide if the field is required),
+// or an error string.
+export function validateWebsite(raw: string, { required = false }: { required?: boolean } = {}): string | null {
+  const v = sanitizeWebsiteInput(raw.trim());
+  if (!v) return required ? "Enter your website." : null;
+  return WEBSITE_RE.test(v) ? null : WEBSITE_ERROR;
+}
+
+export const websiteSchema = z
+  .string()
+  .transform((s) => sanitizeWebsiteInput(s.trim()))
+  .pipe(z.string().regex(WEBSITE_RE, WEBSITE_ERROR));
+
 export const QUALIFICATIONS = [
   "10th or Below",
   "12th Pass",
