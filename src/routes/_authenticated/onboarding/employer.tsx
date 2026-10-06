@@ -1,5 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { useRef, useState } from "react";
+import { uploadCompanyLogo } from "@/lib/company-logo.functions";
+import { LOGO_ACCEPT, LOGO_TYPE_ERROR, checkLogoFile, fileToBase64 } from "@/lib/company-logo";
 import { toast } from "sonner";
 import { CityTownAutocomplete } from "@/components/candidate/CityTownAutocomplete";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,7 +18,7 @@ import {
 } from "@/components/wizard/Questionnaire";
 import { Field } from "@/components/candidate/primitives";
 import { OptionalSection } from "@/components/forms/OptionalSection";
-import { Building2, Upload, Loader2 } from "lucide-react";
+import { Building2, Upload, Loader2, ChevronUp, ChevronDown } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/onboarding/employer")({
   head: () => ({ meta: [{ title: "Set up your company · JobsKart" }] }),
@@ -67,7 +70,9 @@ const INDUSTRY_SUGGEST = [
   "Other",
 ];
 
-const EMPLOYER_FULL_NAME_RE = /^[A-Za-z ]+$/;
+const CURRENT_YEAR = new Date().getFullYear();
+const MIN_FOUNDED_YEAR = 1947;
+const EMPLOYER_FULL_NAME_RE =/^[A-Za-z ]+$/;
 
 function getEmployerFullNameError(value: string): string | null {
   if (!value.trim()) return "Please enter your full name";
@@ -81,6 +86,7 @@ function EmployerOnboarding() {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
+  const runUploadCompanyLogo = useServerFn(uploadCompanyLogo);
 
   // form state
   const [fullName, setFullName] = useState("");
@@ -101,6 +107,72 @@ function EmployerOnboarding() {
   const designationSuggestions = useJobTitleSuggestions();
   const fullNameError = fullNameInputError ?? getEmployerFullNameError(fullName);
   const shouldShowFullNameError = Boolean(fullName || fullNameInputError);
+  // Silent fix-up: future year -> current year; below min or incomplete -> empty.
+  const normalizeFoundedYear = (v: string) => {
+    if (v.length !== 4) return "";
+    const n = Number(v);
+    return n > CURRENT_YEAR ? String(CURRENT_YEAR) : n < MIN_FOUNDED_YEAR ? "" : v;
+  };
+
+  const yearNum = foundedYear ? Number(foundedYear) : null;
+  const yearAtMax = yearNum !== null && yearNum >= CURRENT_YEAR;
+  const yearAtMin = yearNum === MIN_FOUNDED_YEAR;
+  // Empty -> current year; out-of-range partial value -> nearest valid year;
+  // otherwise +/-1 clamped to [MIN_FOUNDED_YEAR, CURRENT_YEAR].
+  const stepFoundedYear = (dir: 1 | -1) => {
+    const inRange =
+      yearNum !== null && yearNum >= MIN_FOUNDED_YEAR && yearNum <= CURRENT_YEAR;
+    const next =
+      yearNum === null
+        ? CURRENT_YEAR
+        : Math.min(CURRENT_YEAR, Math.max(MIN_FOUNDED_YEAR, inRange ? yearNum + dir : yearNum));
+    setFoundedYear(String(next));
+  };
+
+  // Live uppercase for the name field; caret is preserved because the
+  // length never changes.
+  const applyConsultancyUppercase = (input: HTMLInputElement) => {
+    const raw = input.value;
+    const upper = raw.toUpperCase();
+    const caret = input.selectionStart ?? raw.length;
+    setCompanyName(upper);
+    if (upper !== raw) {
+      input.value = upper;
+      input.setSelectionRange(caret, caret);
+      requestAnimationFrame(() => input.setSelectionRange(caret, caret));
+    }
+  };
+
+  // Reject invalid characters at input time (typing, paste, autofill, IME) and
+  // keep the caret where the user was, minus any rejected characters before it.
+  const fullNameErrorTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const applyFullNameInput = (input: HTMLInputElement) => {
+    const raw = input.value;
+    const caret = input.selectionStart ?? raw.length;
+    const strip = (s: string) => s.replace(/[^A-Za-z ]/g, "");
+    const lettersAndSpaces = strip(raw);
+    const cleaned = lettersAndSpaces.slice(0, 80);
+    const nextCaret = Math.min(strip(raw.slice(0, caret)).length, cleaned.length);
+    const message =
+      raw !== lettersAndSpaces
+        ? "Only letters and spaces are allowed"
+        : raw !== cleaned
+          ? "Name must be under 80 characters"
+          : null;
+    clearTimeout(fullNameErrorTimer.current);
+    setFullNameInputError(message);
+    if (message) {
+      fullNameErrorTimer.current = setTimeout(() => setFullNameInputError(null), 1500);
+    }
+    setFullName(cleaned.toUpperCase());
+    if (cleaned.toUpperCase() !== raw) {
+      // React may not re-render when the sanitized value equals state, so
+      // restore the caret both synchronously and after the frame.
+      input.value = cleaned.toUpperCase();
+      input.setSelectionRange(nextCaret, nextCaret);
+      requestAnimationFrame(() => input.setSelectionRange(nextCaret, nextCaret));
+    }
+  };
 
   const submit = async () => {
     setSaving(true);
@@ -124,7 +196,9 @@ function EmployerOnboarding() {
           _hq_city: hqCity || "",
           _website: website || "",
           _about: about || "",
-          _founded_year: foundedYear ? Number(foundedYear) : null,
+          _founded_year: normalizeFoundedYear(foundedYear)
+            ? Number(normalizeFoundedYear(foundedYear))
+            : null,
           _gst: gst || "",
         } as never,
       );
@@ -138,17 +212,18 @@ function EmployerOnboarding() {
       }
 
       if (logoFile) {
-        const path = `${cid}/logo-${Date.now()}-${logoFile.name}`;
-        const up = await supabase.storage
-          .from("company-logos")
-          .upload(path, logoFile, { upsert: true });
-        if (!up.error) {
-          const { data: signed } = await supabase.storage
-            .from("company-logos")
-            .createSignedUrl(path, 60 * 60 * 24 * 365);
-          if (signed?.signedUrl) {
-            await supabase.from("companies").update({ logo_url: signed.signedUrl }).eq("id", cid);
-          }
+        // Logo is optional: a server rejection must not block onboarding.
+        try {
+          await runUploadCompanyLogo({
+            data: {
+              companyId: cid,
+              fileName: logoFile.name,
+              mimeType: logoFile.type,
+              dataBase64: await fileToBase64(logoFile),
+            },
+          });
+        } catch (logoErr) {
+          toast.error(logoErr instanceof Error ? logoErr.message : LOGO_TYPE_ERROR);
         }
       }
 
@@ -175,22 +250,18 @@ function EmployerOnboarding() {
               placeholder="Your full name"
               value={fullName}
               onChange={(e) => {
-                // This onboarding flow accepts only letters and spaces. A
-                // pasted symbol between words becomes a space, while numbers
-                // are removed; the form value is always uppercase.
-                const raw = e.target.value;
-                const lettersAndSpaces = raw.replace(/[0-9]/g, "").replace(/[^A-Za-z ]+/g, " ");
-                const cleaned = lettersAndSpaces.slice(0, 80);
-                const normalized = cleaned.toUpperCase();
-                setFullNameInputError(
-                  raw !== lettersAndSpaces
-                    ? "Only letters and spaces are allowed"
-                    : raw !== cleaned
-                      ? "Name must be under 80 characters"
-                      : null,
-                );
-                setFullName(normalized);
+                if (e.nativeEvent instanceof InputEvent && e.nativeEvent.isComposing) {
+                  setFullName(e.target.value); // sanitized on compositionend
+                  return;
+                }
+                applyFullNameInput(e.target);
               }}
+              onCompositionEnd={(e) => applyFullNameInput(e.currentTarget)}
+              type="text"
+              autoComplete="name"
+              autoCapitalize="words"
+              autoCorrect="off"
+              spellCheck={false}
               maxLength={80}
               aria-invalid={shouldShowFullNameError && !!fullNameError}
               aria-describedby={
@@ -265,7 +336,16 @@ function EmployerOnboarding() {
               isConsultant ? "Your consultancy name (optional)" : "Acme Logistics Pvt Ltd"
             }
             value={companyName}
-            onChange={(e) => setCompanyName(e.target.value)}
+            onChange={(e) => {
+              if (e.nativeEvent instanceof InputEvent && e.nativeEvent.isComposing) {
+                setCompanyName(e.target.value); // uppercased on compositionend
+              } else {
+                applyConsultancyUppercase(e.target);
+              }
+            }}
+            onCompositionEnd={(e) => applyConsultancyUppercase(e.currentTarget)}
+            autoCorrect="off"
+            spellCheck={false}
           />
           {isConsultant && (
             <p className="-mt-3 text-xs text-muted-foreground">
@@ -306,15 +386,53 @@ function EmployerOnboarding() {
             hasValues={!!foundedYear}
           >
             <Field label="Founded year">
+              <div className="relative">
               <input
                 type="number"
+                inputMode="numeric"
                 value={foundedYear}
-                onChange={(e) => setFoundedYear(e.target.value)}
-                className="form-input"
+                onChange={(e) => {
+                  const v = e.target.value;
+                  // Digits only, max 4, never above the current year. Rejected
+                  // changes leave state untouched so React restores the value.
+                  if (!/^\d{0,4}$/.test(v) || (v && Number(v) > CURRENT_YEAR)) return;
+                  setFoundedYear(v);
+                }}
+                onKeyDown={(e) => {
+                  if (["e", "E", "+", "-", "."].includes(e.key)) e.preventDefault();
+                }}
+                onPaste={(e) => {
+                  e.preventDefault();
+                  const digits = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 4);
+                  if (digits) setFoundedYear(digits.length === 4 && Number(digits) > CURRENT_YEAR ? String(CURRENT_YEAR) : digits);
+                }}
+                onBlur={() => setFoundedYear((v) => normalizeFoundedYear(v))}
+                className="form-input pr-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                 placeholder="2018"
-                min={1900}
-                max={new Date().getFullYear()}
+                min={MIN_FOUNDED_YEAR}
+                max={CURRENT_YEAR}
               />
+              <div className="absolute inset-y-0 right-0 flex w-8 flex-col">
+                {([1, -1] as const).map((dir) => (
+                  <button
+                    key={dir}
+                    type="button"
+                    tabIndex={-1}
+                    aria-label={dir === 1 ? "Increase year" : "Decrease year"}
+                    disabled={dir === 1 ? yearAtMax : yearAtMin}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => stepFoundedYear(dir)}
+                    className="flex flex-1 items-center justify-center text-muted-foreground disabled:opacity-30"
+                  >
+                    {dir === 1 ? (
+                      <ChevronUp className="h-3.5 w-3.5" />
+                    ) : (
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    )}
+                  </button>
+                ))}
+              </div>
+              </div>
             </Field>
           </OptionalSection>
         </div>
@@ -383,9 +501,15 @@ function EmployerOnboarding() {
               <Upload className="h-5 w-5 text-muted-foreground" />
               <input
                 type="file"
-                accept="image/*"
+                accept={LOGO_ACCEPT}
                 hidden
-                onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)}
+                onChange={(e) => {
+                  const f = e.target.files?.[0] ?? null;
+                  const err = f ? checkLogoFile(f) : null;
+                  if (err) toast.error(err);
+                  setLogoFile(err ? null : f);
+                  if (err) e.target.value = "";
+                }}
               />
             </label>
           </Field>

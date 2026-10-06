@@ -21,7 +21,7 @@ allowed_mime_types = [
 [storage.buckets.company-logos]
 public = false
 file_size_limit = "2MiB"
-allowed_mime_types = ["image/*"]
+allowed_mime_types = ["image/jpeg", "image/png", "image/webp", "image/svg+xml"]
 
 # MIME types are the union of the two upload surfaces, which don't agree with each other:
 # employer/company.tsx uses accept=".pdf,.jpg,.png", employer/verification.tsx uses
@@ -38,4 +38,4 @@ allowed_mime_types = ["application/pdf", "image/*"]
 [storage.buckets.avatars]
 public = true
 file_size_limit = "2MiB"
-allowed_mime_types = ["image/*"]
+allowed_mime_types = ["image/jpeg", "image/png", "image/webp", "image/svg+xml"]

@@ -2,6 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Building2, Camera, ChevronDown, ChevronUp, Loader2, ShieldCheck, Upload } from "lucide-react";
 import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
+import { uploadCompanyLogo } from "@/lib/company-logo.functions";
+import { LOGO_ACCEPT, LOGO_TYPE_ERROR, checkLogoFile, fileToBase64 } from "@/lib/company-logo";
 import { EmployerShell } from "@/components/employer/EmployerShell";
 import { useEmployerRole } from "@/hooks/use-employer-role";
 import { Field } from "@/components/candidate/primitives";
@@ -40,6 +43,7 @@ function CompanyPage() {
   const [saving, setSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const logoRef = useRef<HTMLInputElement>(null);
+  const runUploadCompanyLogo = useServerFn(uploadCompanyLogo);
 
   const load = async () => {
     let cid = getActiveCompanyId();
@@ -88,14 +92,22 @@ function CompanyPage() {
 
   const uploadLogo = async (file: File) => {
     if (!c) return;
-    const path = `${c.id}/logo-${Date.now()}-${file.name}`;
-    const { error } = await supabase.storage.from("company-logos").upload(path, file, { upsert: true });
-    if (error) return toast.error(error.message);
-    const { data: signed } = await supabase.storage.from("company-logos").createSignedUrl(path, 60 * 60 * 24 * 365);
-    if (!signed?.signedUrl) return;
-    await supabase.from("companies").update({ logo_url: signed.signedUrl }).eq("id", c.id);
-    setC({ ...c, logo_url: signed.signedUrl });
-    toast.success("Logo uploaded.");
+    const err = checkLogoFile(file);
+    if (err) return toast.error(err);
+    try {
+      const { logoUrl } = await runUploadCompanyLogo({
+        data: {
+          companyId: c.id,
+          fileName: file.name,
+          mimeType: file.type,
+          dataBase64: await fileToBase64(file),
+        },
+      });
+      setC({ ...c, logo_url: logoUrl });
+      toast.success("Logo uploaded.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : LOGO_TYPE_ERROR);
+    }
   };
 
   const uploadDoc = async (file: File, docType: string) => {
@@ -139,7 +151,7 @@ function CompanyPage() {
                   <Camera className="h-4 w-4" />
                 </button>
               )}
-              <input ref={logoRef} type="file" hidden accept="image/*" onChange={(e) => e.target.files?.[0] && uploadLogo(e.target.files[0])} />
+              <input ref={logoRef} type="file" hidden accept={LOGO_ACCEPT} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) uploadLogo(f); }} />
             </div>
             <h3 className="mt-3 text-lg font-bold">{c.name}</h3>
             <p className="text-xs text-muted-foreground">{c.industry || "Set industry"}</p>
