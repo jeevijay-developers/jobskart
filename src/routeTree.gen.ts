@@ -94,6 +94,7 @@ import { Route as LearnCertificationSlugExamRouteImport } from './routes/learn_.
 import { Route as AuthenticatedCandidateLearningCertificationSlugRouteImport } from './routes/_authenticated/candidate/learning_.certification.$slug'
 import { Route as AuthenticatedCandidateLearningCourseSlugRouteImport } from './routes/_authenticated/candidate/learning_.course.$slug'
 import { Route as AuthenticatedCandidateLearningPostSlugRouteImport } from './routes/_authenticated/candidate/learning_.post.$slug'
+import { Route as AuthenticatedEmployerJobsJobIdIndexRouteImport } from './routes/_authenticated/employer/jobs.$jobId.index'
 import { Route as AuthenticatedEmployerJobsJobIdApplicantsRouteImport } from './routes/_authenticated/employer/jobs.$jobId.applicants'
 import { Route as AuthenticatedEmployerJobsJobIdEditRouteImport } from './routes/_authenticated/employer/jobs.$jobId.edit'
 import { Route as LearnCourseSlugLessonLessonIdRouteImport } from './routes/learn_.course.$slug_.lesson.$lessonId'
@@ -565,6 +566,12 @@ const AuthenticatedCandidateLearningPostSlugRoute =
     path: '/learning/post/$slug',
     getParentRoute: () => AuthenticatedCandidateRouteRoute,
   } as any)
+const AuthenticatedEmployerJobsJobIdIndexRoute =
+  AuthenticatedEmployerJobsJobIdIndexRouteImport.update({
+    id: '/$jobId/',
+    path: '/$jobId/',
+    getParentRoute: () => AuthenticatedEmployerJobsRoute,
+  } as any)
 const AuthenticatedEmployerJobsJobIdApplicantsRoute =
   AuthenticatedEmployerJobsJobIdApplicantsRouteImport.update({
     id: '/$jobId/applicants',
@@ -678,6 +685,7 @@ export interface FileRoutesByFullPath {
   '/employer/jobs/$jobId/applicants': typeof AuthenticatedEmployerJobsJobIdApplicantsRoute
   '/employer/jobs/$jobId/edit': typeof AuthenticatedEmployerJobsJobIdEditRoute
   '/learn/course/$slug/lesson/$lessonId': typeof LearnCourseSlugLessonLessonIdRoute
+  '/employer/jobs/$jobId/': typeof AuthenticatedEmployerJobsJobIdIndexRoute
   '/candidate/learning/course/$slug/lesson/$lessonId': typeof AuthenticatedCandidateLearningCourseSlugLessonLessonIdRoute
 }
 export interface FileRoutesByTo {
@@ -767,6 +775,7 @@ export interface FileRoutesByTo {
   '/employer/jobs/$jobId/applicants': typeof AuthenticatedEmployerJobsJobIdApplicantsRoute
   '/employer/jobs/$jobId/edit': typeof AuthenticatedEmployerJobsJobIdEditRoute
   '/learn/course/$slug/lesson/$lessonId': typeof LearnCourseSlugLessonLessonIdRoute
+  '/employer/jobs/$jobId': typeof AuthenticatedEmployerJobsJobIdIndexRoute
   '/candidate/learning/course/$slug/lesson/$lessonId': typeof AuthenticatedCandidateLearningCourseSlugLessonLessonIdRoute
 }
 export interface FileRoutesById {
@@ -859,6 +868,7 @@ export interface FileRoutesById {
   '/_authenticated/employer/jobs/$jobId/applicants': typeof AuthenticatedEmployerJobsJobIdApplicantsRoute
   '/_authenticated/employer/jobs/$jobId/edit': typeof AuthenticatedEmployerJobsJobIdEditRoute
   '/learn_/course/$slug_/lesson/$lessonId': typeof LearnCourseSlugLessonLessonIdRoute
+  '/_authenticated/employer/jobs/$jobId/': typeof AuthenticatedEmployerJobsJobIdIndexRoute
   '/_authenticated/candidate/learning_/course/$slug_/lesson/$lessonId': typeof AuthenticatedCandidateLearningCourseSlugLessonLessonIdRoute
 }
 export interface FileRouteTypes {
@@ -951,6 +961,7 @@ export interface FileRouteTypes {
     | '/employer/jobs/$jobId/applicants'
     | '/employer/jobs/$jobId/edit'
     | '/learn/course/$slug/lesson/$lessonId'
+    | '/employer/jobs/$jobId/'
     | '/candidate/learning/course/$slug/lesson/$lessonId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -1040,6 +1051,7 @@ export interface FileRouteTypes {
     | '/employer/jobs/$jobId/applicants'
     | '/employer/jobs/$jobId/edit'
     | '/learn/course/$slug/lesson/$lessonId'
+    | '/employer/jobs/$jobId'
     | '/candidate/learning/course/$slug/lesson/$lessonId'
   id:
     | '__root__'
@@ -1131,6 +1143,7 @@ export interface FileRouteTypes {
     | '/_authenticated/employer/jobs/$jobId/applicants'
     | '/_authenticated/employer/jobs/$jobId/edit'
     | '/learn_/course/$slug_/lesson/$lessonId'
+    | '/_authenticated/employer/jobs/$jobId/'
     | '/_authenticated/candidate/learning_/course/$slug_/lesson/$lessonId'
   fileRoutesById: FileRoutesById
 }
@@ -1763,6 +1776,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCandidateLearningPostSlugRouteImport
       parentRoute: typeof AuthenticatedCandidateRouteRoute
     }
+    '/_authenticated/employer/jobs/$jobId/': {
+      id: '/_authenticated/employer/jobs/$jobId/'
+      path: '/$jobId'
+      fullPath: '/employer/jobs/$jobId/'
+      preLoaderRoute: typeof AuthenticatedEmployerJobsJobIdIndexRouteImport
+      parentRoute: typeof AuthenticatedEmployerJobsRoute
+    }
     '/_authenticated/employer/jobs/$jobId/applicants': {
       id: '/_authenticated/employer/jobs/$jobId/applicants'
       path: '/$jobId/applicants'
@@ -1874,6 +1894,7 @@ interface AuthenticatedEmployerJobsRouteChildren {
   AuthenticatedEmployerJobsNewRoute: typeof AuthenticatedEmployerJobsNewRoute
   AuthenticatedEmployerJobsJobIdApplicantsRoute: typeof AuthenticatedEmployerJobsJobIdApplicantsRoute
   AuthenticatedEmployerJobsJobIdEditRoute: typeof AuthenticatedEmployerJobsJobIdEditRoute
+  AuthenticatedEmployerJobsJobIdIndexRoute: typeof AuthenticatedEmployerJobsJobIdIndexRoute
 }
 
 const AuthenticatedEmployerJobsRouteChildren: AuthenticatedEmployerJobsRouteChildren =
@@ -1884,6 +1905,8 @@ const AuthenticatedEmployerJobsRouteChildren: AuthenticatedEmployerJobsRouteChil
       AuthenticatedEmployerJobsJobIdApplicantsRoute,
     AuthenticatedEmployerJobsJobIdEditRoute:
       AuthenticatedEmployerJobsJobIdEditRoute,
+    AuthenticatedEmployerJobsJobIdIndexRoute:
+      AuthenticatedEmployerJobsJobIdIndexRoute,
   }
 
 const AuthenticatedEmployerJobsRouteWithChildren =

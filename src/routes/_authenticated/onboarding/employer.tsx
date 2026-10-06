@@ -73,7 +73,8 @@ const INDUSTRY_SUGGEST = [
 
 const CURRENT_YEAR = new Date().getFullYear();
 const MIN_FOUNDED_YEAR = 1947;
-const EMPLOYER_FULL_NAME_RE =/^[A-Za-z ]+$/;
+const FUTURE_YEAR_ERROR = "Future year is not allowed. Enter the current year or an earlier year.";
+const EMPLOYER_FULL_NAME_RE = /^[A-Za-z ]+$/;
 
 function getEmployerFullNameError(value: string): string | null {
   if (!value.trim()) return "Please enter your full name";
@@ -109,12 +110,14 @@ function EmployerOnboarding() {
   const designationSuggestions = useJobTitleSuggestions();
   const fullNameError = fullNameInputError ?? getEmployerFullNameError(fullName);
   const shouldShowFullNameError = Boolean(fullName || fullNameInputError);
-  // Silent fix-up: future year -> current year; below min or incomplete -> empty.
+  // Silent fix-up: below min or incomplete -> empty. A future year is kept so
+  // the inline message can explain it; it is never saved (see futureYear).
   const normalizeFoundedYear = (v: string) => {
     if (v.length !== 4) return "";
-    const n = Number(v);
-    return n > CURRENT_YEAR ? String(CURRENT_YEAR) : n < MIN_FOUNDED_YEAR ? "" : v;
+    return Number(v) < MIN_FOUNDED_YEAR ? "" : v;
   };
+  const futureYear = foundedYear.length === 4 && Number(foundedYear) > CURRENT_YEAR;
+  const foundedYearRef = useRef<HTMLInputElement>(null);
 
   const yearNum = foundedYear ? Number(foundedYear) : null;
   const yearAtMax = yearNum !== null && yearNum >= CURRENT_YEAR;
@@ -198,9 +201,10 @@ function EmployerOnboarding() {
           _hq_city: hqCity || "",
           _website: website || "",
           _about: about || "",
-          _founded_year: normalizeFoundedYear(foundedYear)
-            ? Number(normalizeFoundedYear(foundedYear))
-            : null,
+          _founded_year:
+            normalizeFoundedYear(foundedYear) && !futureYear
+              ? Number(normalizeFoundedYear(foundedYear))
+              : null,
           _gst: gst || "",
         } as never,
       );
@@ -251,7 +255,7 @@ function EmployerOnboarding() {
       hint: "We use this on invites and to address you across the dashboard.",
       validate: () => {
         if (fullNameError) return fullNameError;
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(workEmail.trim())) return "Enter a valid work email.";
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(workEmail.trim())) return "Enter your work email.";
         return null;
       },
       render: () => (
@@ -309,7 +313,7 @@ function EmployerOnboarding() {
               placeholder="Optional"
             />
           </Field>
-          <Field label="Work email" hint="Verification updates and approvals are sent here. Use your company email.">
+          <Field required label="Work email" hint="Verification updates and approvals are sent here. Use your company email.">
             <input
               type="email"
               value={workEmail}
@@ -317,6 +321,7 @@ function EmployerOnboarding() {
               className="form-input"
               placeholder="you@yourcompany.com"
               autoComplete="email"
+              aria-required="true"
             />
           </Field>
           <label className="flex items-start gap-3 rounded-xl border border-border bg-surface p-3 text-sm">
@@ -348,6 +353,11 @@ function EmployerOnboarding() {
         if (!isConsultant && companyName.trim().length < 2) return "Add your company name.";
         if (companyName.trim().length === 1) return "Add a longer name, or leave it blank.";
         if (!industry) return "Pick an industry to continue.";
+        if (futureYear) {
+          foundedYearRef.current?.focus();
+          foundedYearRef.current?.scrollIntoView({ block: "center" });
+          return FUTURE_YEAR_ERROR;
+        }
         return null;
       },
       render: () => (
@@ -375,18 +385,24 @@ function EmployerOnboarding() {
             </p>
           )}
           <div>
-            <p className="mb-3 text-sm font-semibold text-foreground">Industry</p>
-            <div className="flex flex-wrap gap-2">
+            <p className="mb-3 text-sm font-semibold text-foreground">
+              Industry{" "}
+              <span className="text-destructive" aria-hidden="true">
+                *
+              </span>
+            </p>
+            <div className="flex flex-wrap gap-2" role="radiogroup" aria-required="true">
               {INDUSTRY_SUGGEST.map((i) => (
                 <button
                   key={i}
                   type="button"
+                  role="radio"
+                  aria-checked={industry === i}
                   onClick={() => setIndustry(i)}
-                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${
-                    industry === i
+                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${industry === i
                       ? "border-primary bg-primary text-primary-foreground"
                       : "border-border bg-card text-foreground/80 hover:border-foreground/30"
-                  }`}
+                    }`}
                 >
                   {i}
                 </button>
@@ -408,52 +424,58 @@ function EmployerOnboarding() {
           >
             <Field label="Founded year">
               <div className="relative">
-              <input
-                type="number"
-                inputMode="numeric"
-                value={foundedYear}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  // Digits only, max 4, never above the current year. Rejected
-                  // changes leave state untouched so React restores the value.
-                  if (!/^\d{0,4}$/.test(v) || (v && Number(v) > CURRENT_YEAR)) return;
-                  setFoundedYear(v);
-                }}
-                onKeyDown={(e) => {
-                  if (["e", "E", "+", "-", "."].includes(e.key)) e.preventDefault();
-                }}
-                onPaste={(e) => {
-                  e.preventDefault();
-                  const digits = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 4);
-                  if (digits) setFoundedYear(digits.length === 4 && Number(digits) > CURRENT_YEAR ? String(CURRENT_YEAR) : digits);
-                }}
-                onBlur={() => setFoundedYear((v) => normalizeFoundedYear(v))}
-                className="form-input pr-8 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                placeholder="2018"
-                min={MIN_FOUNDED_YEAR}
-                max={CURRENT_YEAR}
-              />
-              <div className="absolute inset-y-0 right-0 flex w-8 flex-col">
-                {([1, -1] as const).map((dir) => (
-                  <button
-                    key={dir}
-                    type="button"
-                    tabIndex={-1}
-                    aria-label={dir === 1 ? "Increase year" : "Decrease year"}
-                    disabled={dir === 1 ? yearAtMax : yearAtMin}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => stepFoundedYear(dir)}
-                    className="flex flex-1 items-center justify-center text-muted-foreground disabled:opacity-30"
-                  >
-                    {dir === 1 ? (
-                      <ChevronUp className="h-3.5 w-3.5" />
-                    ) : (
-                      <ChevronDown className="h-3.5 w-3.5" />
-                    )}
-                  </button>
-                ))}
+                <input
+                  ref={foundedYearRef}
+                  type="number"
+                  inputMode="numeric"
+                  value={foundedYear}
+                  aria-invalid={futureYear}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    // Digits only, max 4. A future year stays visible with a message.
+                    if (!/^\d{0,4}$/.test(v)) return;
+                    setFoundedYear(v);
+                  }}
+                  onKeyDown={(e) => {
+                    if (["e", "E", "+", "-", "."].includes(e.key)) e.preventDefault();
+                  }}
+                  onPaste={(e) => {
+                    e.preventDefault();
+                    const digits = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 4);
+                    if (digits) setFoundedYear(digits);
+                  }}
+                  onBlur={() => setFoundedYear((v) => normalizeFoundedYear(v))}
+                  className={`form-input pr-8 ${futureYear ? "border-destructive" : ""} [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`}
+                  placeholder="2018"
+                  min={MIN_FOUNDED_YEAR}
+                  max={CURRENT_YEAR}
+                />
+                <div className="absolute inset-y-0 right-0 flex w-8 flex-col">
+                  {([1, -1] as const).map((dir) => (
+                    <button
+                      key={dir}
+                      type="button"
+                      tabIndex={-1}
+                      aria-label={dir === 1 ? "Increase year" : "Decrease year"}
+                      disabled={dir === 1 ? yearAtMax : yearAtMin}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => stepFoundedYear(dir)}
+                      className="flex flex-1 items-center justify-center text-muted-foreground disabled:opacity-30"
+                    >
+                      {dir === 1 ? (
+                        <ChevronUp className="h-3.5 w-3.5" />
+                      ) : (
+                        <ChevronDown className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+                  ))}
+                </div>
               </div>
-              </div>
+              {futureYear && (
+                <p role="alert" className="mt-1 text-xs text-destructive">
+                  {FUTURE_YEAR_ERROR}
+                </p>
+              )}
             </Field>
           </OptionalSection>
         </div>
@@ -472,11 +494,10 @@ function EmployerOnboarding() {
                 key={c}
                 type="button"
                 onClick={() => setHqCity(c)}
-                className={`rounded-xl border-2 px-4 py-2.5 text-sm font-semibold ${
-                  hqCity === c
+                className={`rounded-xl border-2 px-4 py-2.5 text-sm font-semibold ${hqCity === c
                     ? "border-primary bg-primary/5 text-primary"
                     : "border-border bg-card text-foreground/80 hover:border-foreground/30"
-                }`}
+                  }`}
               >
                 {c}
               </button>
