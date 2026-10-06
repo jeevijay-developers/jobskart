@@ -20,7 +20,7 @@ export type CompanyHistoryJob = {
   skills: string[] | null;
   perks: string[] | null;
   shift: string | null;
-  working_days: number | null;
+  working_weekdays: string[] | null;
   english_level: string | null;
 };
 
@@ -43,7 +43,10 @@ export type DraftPatch = {
   skills?: string[];
   perks?: string[];
   shift?: string;
-  working_days?: string;
+  // working_days is derived from working_weekdays.length in the wizard, not
+  // inferred independently — otherwise a pre-filled count with no matching
+  // ticked days silently disagrees with the (empty) weekday pills.
+  working_weekdays?: string[];
   english_level?: string;
 };
 
@@ -260,7 +263,7 @@ function fromHistory(h: CompanyHistoryJob): DraftPatch {
 
   if (h.perks?.length) patch.perks = h.perks;
   if (h.shift) patch.shift = h.shift;
-  if (h.working_days != null) patch.working_days = String(h.working_days);
+  if (h.working_weekdays?.length) patch.working_weekdays = h.working_weekdays;
   if (h.english_level) patch.english_level = h.english_level;
   return patch;
 }
@@ -274,7 +277,7 @@ const COMPANY_WIDE_KEYS = new Set<keyof DraftPatch>([
   "gender_pref",
   "joining_fee_required",
   "shift",
-  "working_days",
+  "working_weekdays",
   "perks",
 ]);
 

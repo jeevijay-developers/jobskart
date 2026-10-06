@@ -96,7 +96,9 @@ export function isRecruiter(role: EmployerRole | null) {
 }
 
 export function canManageBilling(role: EmployerRole | null) {
-  return role === "super_admin";
+  // Credits/plan management is open to every company role — recruiter and
+  // hr_admin can buy credit packs and switch plans, same as super_admin.
+  return role !== null;
 }
 
 export function canManageTeamMembers(role: EmployerRole | null) {

@@ -20,7 +20,7 @@ const salesHistory: CompanyHistoryJob = {
   skills: ["CRM", "Pitching"],
   perks: ["PF"],
   shift: "day",
-  working_days: 6,
+  working_weekdays: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday"],
   english_level: "good",
 };
 
@@ -56,6 +56,25 @@ describe("inferJobDraft", () => {
     assert.deepEqual(r.patch.skills, []); // skills are suggested in the UI, never pre-filled
     assert.equal(r.patch.min_salary, "15000");
     assert.equal(r.matchedHistoryTitle, "Sales Executive");
+  });
+
+  test("history infers the weekday pattern, not a bare day count", () => {
+    const r = inferJobDraft({
+      title: "Sales Executive",
+      history: [salesHistory],
+      dirty: new Set(),
+    });
+    assert.deepEqual(r.patch.working_weekdays, salesHistory.working_weekdays);
+    assert.equal((r.patch as Record<string, unknown>).working_days, undefined);
+  });
+
+  test("dirty working_weekdays is omitted from the patch", () => {
+    const r = inferJobDraft({
+      title: "Sales Executive",
+      history: [salesHistory],
+      dirty: new Set(["working_weekdays"]),
+    });
+    assert.equal(r.patch.working_weekdays, undefined);
   });
 
   test("dirty city is omitted from the patch", () => {

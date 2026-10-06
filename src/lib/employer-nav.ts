@@ -37,7 +37,7 @@ export const EMPLOYER_NAV_LINKS: Array<{
   { to: "/employer/verification", label: "Verification", icon: BadgeCheck, minRole: "hr_admin" },
   { to: "/employer/reports", label: "Reports", icon: BarChart3, minRole: "hr_admin" },
   { to: "/employer/activity", label: "Activity", icon: Activity },
-  { to: "/employer/credits", label: "Credits", icon: Coins, minRole: "super_admin" },
+  { to: "/employer/credits", label: "Credits", icon: Coins },
   { to: "/employer/company", label: "Company", icon: Building2 },
   { to: "/employer/team", label: "Team", icon: Users, minRole: "hr_admin" },
   { to: "/employer/settings", label: "Settings", icon: MessageCircle },

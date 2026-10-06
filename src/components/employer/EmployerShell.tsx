@@ -23,7 +23,7 @@ import { EMPLOYER_NAV_LINKS as nav, EMPLOYER_OVERFLOW_LINKS, isEmployerNavVisibl
 import { useEmployerRole } from "@/hooks/use-employer-role";
 
 export function CreditChip() {
-  const { isSuperAdmin } = useEmployerRole();
+  const { canManageBilling } = useEmployerRole();
   const [balance, setBalance] = useState<number | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -75,7 +75,7 @@ export function CreditChip() {
           style={{ width: `${creditProgress}%` }}
         />
       </div>
-      {isSuperAdmin ? (
+      {canManageBilling ? (
         <Link
           to="/employer/credits"
           className="mt-3 flex h-9 w-full items-center justify-center rounded-lg border border-primary/30 bg-card px-3 text-xs font-semibold text-primary transition-colors hover:border-primary hover:bg-primary-light"
@@ -84,7 +84,7 @@ export function CreditChip() {
         </Link>
       ) : (
         <p className="mt-3 text-center text-[11px] text-muted-foreground">
-          Managed by your Super Admin
+          Managed by your admin
         </p>
       )}
     </div>

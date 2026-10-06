@@ -141,11 +141,12 @@ export async function fetchPublicJobFeed(
  * Candidate feed (recommend_jobs_for_candidate): identity comes from auth.uid()
  * server-side. Returns personalized relevance scores with explainable breakdown.
  * Applied-job exclusion is a discovery invariant (not just for "recommended" sort).
- * The `sort` parameter is now ignored — results are always ranked by personalized score.
+ * `sort` reorders within the same relevance-gated result set — the RPC's
+ * `_sort` param (20261006093130_recommend_jobs_for_candidate_sort.sql).
  */
 export async function fetchCandidateJobFeed(
   filters: JobFeedFilters,
-  _sort: JobFeedSort,  // kept for API compatibility; ignored by new RPC
+  sort: JobFeedSort,
   from: number,
   to: number,
   /** "recommended" requires real skill/role/semantic fit; "top" is the unfiltered
@@ -156,7 +157,7 @@ export async function fetchCandidateJobFeed(
 ): Promise<JobFeedResult> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await supabase.rpc("recommend_jobs_for_candidate" as any,
-    { ...baseRpcArgs(filters, from, to), _relevant_only: mode === "recommended" }
+    { ...baseRpcArgs(filters, from, to), _relevant_only: mode === "recommended", _sort: sort }
   );
   if (error) return { rows: [], total: 0, error: error.message };
   const rows = (data ?? []) as unknown as RecommendRow[];

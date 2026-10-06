@@ -1,6 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type Props = {
   value: string;
@@ -200,5 +206,59 @@ export function StateDropdown({
         return portalToBody ? createPortal(menu, document.body) : menu;
       })()}
     </div>
+  );
+}
+
+/**
+ * Fixed-option multi-select dropdown (checkbox list) — same form-input trigger
+ * look as StateDropdown, built on Radix's DropdownMenu (no hand-rolled portal
+ * positioning needed: short, non-scrolling option lists like this one don't hit
+ * the "visible scrollbar" problem StateDropdown's custom menu exists to solve).
+ */
+export function MultiSelectDropdown({
+  options,
+  values,
+  onChange,
+  placeholder = "Select…",
+  triggerClassName,
+}: {
+  options: readonly string[];
+  values: string[];
+  onChange: (next: string[]) => void;
+  placeholder?: string;
+  triggerClassName?: string;
+}) {
+  const toggle = (opt: string) => {
+    onChange(values.includes(opt) ? values.filter((v) => v !== opt) : [...values, opt]);
+  };
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className={triggerClassName ?? "form-input flex items-center justify-between text-left"}
+        >
+          <span className={`truncate ${values.length ? "" : "text-muted-foreground"}`}>
+            {values.length ? values.join(", ") : placeholder}
+          </span>
+          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="start"
+        className="min-w-[var(--radix-dropdown-menu-trigger-width)]"
+      >
+        {options.map((opt) => (
+          <DropdownMenuCheckboxItem
+            key={opt}
+            checked={values.includes(opt)}
+            onSelect={(e) => e.preventDefault()}
+            onCheckedChange={() => toggle(opt)}
+          >
+            {opt}
+          </DropdownMenuCheckboxItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

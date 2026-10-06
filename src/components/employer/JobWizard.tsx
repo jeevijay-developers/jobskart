@@ -1,4 +1,4 @@
-import { StateDropdown } from "@/components/candidate/StateDropdown";
+import { StateDropdown, MultiSelectDropdown } from "@/components/candidate/StateDropdown";
 import { CityTownAutocomplete } from "@/components/candidate/CityTownAutocomplete";
 import { JobTitleAutocomplete } from "@/components/candidate/JobTitleAutocomplete";
 import { useNavigate } from "@tanstack/react-router";
@@ -14,7 +14,6 @@ import {
   Download,
   Loader2,
   RefreshCw,
-  X,
 } from "lucide-react";
 import { downloadJdPdf } from "@/lib/jd-pdf";
 import { toast } from "sonner";
@@ -52,7 +51,6 @@ import {
   GENDERS,
   WEEKDAYS,
   REQUIRED_DOCUMENTS,
-  LANGUAGE_LEVELS,
   type LanguageRequirement,
   EXPERIENCE_BUCKETS,
   ENGLISH_LEVELS,
@@ -398,7 +396,7 @@ function buildFieldsFromForm(
 }
 
 const HISTORY_COLUMNS =
-  "title, category, industry, job_type, work_mode, city, pay_type, min_salary, max_salary, avg_incentive_monthly, experience_bucket, min_experience_years, max_experience_years, skills, perks, shift, working_days, english_level";
+  "title, category, industry, job_type, work_mode, city, pay_type, min_salary, max_salary, avg_incentive_monthly, experience_bucket, min_experience_years, max_experience_years, skills, perks, shift, working_weekdays, english_level";
 
 export function JobWizard({ editJobId }: { editJobId?: string }) {
   const nav = useNavigate();
@@ -571,7 +569,15 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
     setInferring(true);
     const t = setTimeout(() => {
       const result = inferJobDraft({ title, history, dirty: dirtyRef.current });
-      setForm((f) => ({ ...f, ...result.patch }));
+      setForm((f) => ({
+        ...f,
+        ...result.patch,
+        // working_days always mirrors working_weekdays.length — keep it in sync
+        // whenever history-inference fills in a weekday pattern.
+        ...(result.patch.working_weekdays
+          ? { working_days: String(result.patch.working_weekdays.length) }
+          : {}),
+      }));
       setInferSources(result.sources);
       setMatchedHistoryTitle(result.matchedHistoryTitle);
       setInferring(false);
@@ -1139,8 +1145,15 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                       maxSalary={form.max_salary}
                       companyId={companyId}
                       onUseRange={(min, max, extra) => {
-                        if (extra?.payType)
-                          markDirty("pay_type", extra.payType as Form["pay_type"]);
+                        // Market-range suggestions carry no incentive component, so an
+                        // applied range is "Fixed Only" unless the caller says otherwise
+                        // (explicit payType) or there's already an incentive figure in play.
+                        const payType = extra?.payType
+                          ? (extra.payType as Form["pay_type"])
+                          : extra?.avgIncentive || Number(form.avg_incentive) > 0
+                            ? "fixed_incentive"
+                            : "fixed";
+                        markDirty("pay_type", payType);
                         markDirty("min_salary", String(Math.round(min)));
                         set("max_salary", String(Math.round(max)));
                         if (extra?.avgIncentive) set("avg_incentive", String(extra.avgIncentive));
@@ -1498,322 +1511,220 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                     </div>
                   </Field>
 
+                  <OptionalSection
+                    title="Hiring preferences"
+                    summary="Optional"
+                    badge={hiringPrefFilled}
+                    hasValues={hiringPrefFilled > 0}
+                  >
+                    <Field label="English fluency">
+                      <div className="flex flex-wrap gap-2">
+                        {ENGLISH_LEVELS.map((l) => (
+                          <button
+                            key={l.id}
+                            type="button"
+                            onClick={() =>
+                              markDirty("english_level", form.english_level === l.id ? "" : l.id)
+                            }
+                            className={`rounded-full border px-3 py-1.5 text-sm ${form.english_level === l.id ? "border-primary bg-primary-light text-primary" : "border-border bg-surface text-foreground/70"}`}
+                          >
+                            {l.label}
+                          </button>
+                        ))}
+                      </div>
+                    </Field>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Field label="Age min">
+                        <div className="relative">
+                          <input
+                            type="number"
+                            min={0}
+                            value={form.age_min}
+                            onChange={(e) => setNonNegative("age_min", e.target.value)}
+                            className="form-input max-sm:appearance-none pr-9 sm:pr-3.5 [&::-webkit-inner-spin-button]:max-sm:appearance-none [&::-webkit-outer-spin-button]:max-sm:appearance-none"
+                          />
+                          <div className="absolute inset-y-0 right-1 flex flex-col justify-center gap-0.5 py-1 sm:hidden">
+                            <button
+                              type="button"
+                              aria-label="Increase minimum age"
+                              onClick={() => stepNonNegative("age_min", 1)}
+                              className="grid h-4 w-6 place-items-center rounded-sm text-gray-700 active:bg-surface"
+                            >
+                              <ChevronUp className="h-3.5 w-3.5" strokeWidth={3} />
+                            </button>
+                            <button
+                              type="button"
+                              aria-label="Decrease minimum age"
+                              onClick={() => stepNonNegative("age_min", -1)}
+                              className="grid h-4 w-6 place-items-center rounded-sm text-gray-700 active:bg-surface"
+                            >
+                              <ChevronDown className="h-3.5 w-3.5" strokeWidth={3} />
+                            </button>
+                          </div>
+                        </div>
+                      </Field>
+                      <Field label="Age max">
+                        <div className="relative">
+                          <input
+                            type="number"
+                            min={0}
+                            value={form.age_max}
+                            onChange={(e) => setNonNegative("age_max", e.target.value)}
+                            className="form-input max-sm:appearance-none pr-9 sm:pr-3.5 [&::-webkit-inner-spin-button]:max-sm:appearance-none [&::-webkit-outer-spin-button]:max-sm:appearance-none"
+                          />
+                          <div className="absolute inset-y-0 right-1 flex flex-col justify-center gap-0.5 py-1 sm:hidden">
+                            <button
+                              type="button"
+                              aria-label="Increase maximum age"
+                              onClick={() => stepNonNegative("age_max", 1)}
+                              className="grid h-4 w-6 place-items-center rounded-sm text-gray-700 active:bg-surface"
+                            >
+                              <ChevronUp className="h-3.5 w-3.5" strokeWidth={3} />
+                            </button>
+                            <button
+                              type="button"
+                              aria-label="Decrease maximum age"
+                              onClick={() => stepNonNegative("age_max", -1)}
+                              className="grid h-4 w-6 place-items-center rounded-sm text-gray-700 active:bg-surface"
+                            >
+                              <ChevronDown className="h-3.5 w-3.5" strokeWidth={3} />
+                            </button>
+                          </div>
+                        </div>
+                      </Field>
+                    </div>
+                    <Field label="Preferred languages">
+                      <ChipInput
+                        values={form.preferred_languages}
+                        onChange={(v) => markDirty("preferred_languages", v)}
+                        suggestions={SUGGESTED_LANGUAGES}
+                      />
+                    </Field>
+                    <Field label="Preferred industries">
+                      <ChipInput
+                        values={form.preferred_industries}
+                        onChange={(v) => markDirty("preferred_industries", v)}
+                        suggestions={INDUSTRIES}
+                      />
+                    </Field>
+                  </OptionalSection>
+
+                  <OptionalSection
+                    title="Requirements & perks"
+                    summary="Optional"
+                    badge={reqPerksFilled}
+                    hasValues={reqPerksFilled > 0}
+                  >
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Field label="Degree">
+                        <StateDropdown
+                          value={form.degree}
+                          options={EDUCATION_LEVELS}
+                          placeholder="Any"
+                          onChange={(v) => markDirty("degree", v)}
+                        />
+                      </Field>
+                      <Field label="Specialisation">
+                        <input
+                          value={form.specialisation}
+                          onChange={(e) => markDirty("specialisation", e.target.value)}
+                          className="form-input"
+                          placeholder="e.g. B.Sc IT"
+                        />
+                      </Field>
+                    </div>
+                    <Field label="Certifications">
+                      <ChipInput
+                        values={form.certifications}
+                        onChange={(v) => markDirty("certifications", v)}
+                      />
+                    </Field>
+                    <Field label="Required assets">
+                      <div className="flex flex-wrap gap-2">
+                        {ASSETS.map((a) => {
+                          const on = form.required_assets.includes(a.label);
+                          return (
+                            <button
+                              key={a.id}
+                              type="button"
+                              onClick={() =>
+                                markDirty(
+                                  "required_assets",
+                                  on
+                                    ? form.required_assets.filter((x) => x !== a.label)
+                                    : [...form.required_assets, a.label],
+                                )
+                              }
+                              className={`rounded-full border px-3 py-1.5 text-sm ${on ? "border-primary bg-primary-light text-primary" : "border-border bg-surface text-foreground/70"}`}
+                            >
+                              {on && <Check className="mr-1 inline h-3 w-3" />} {a.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </Field>
+                    <Field label="Hiring contact">
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        <input
+                          value={form.hiring_contact_name}
+                          onChange={(e) => markDirty("hiring_contact_name", e.target.value)}
+                          className="form-input"
+                          placeholder="Hiring person name"
+                        />
+                        <input
+                          type="tel"
+                          value={form.hiring_contact_phone}
+                          onChange={(e) =>
+                            markDirty("hiring_contact_phone", e.target.value.replace(/[^\d+ ]/g, ""))
+                          }
+                          className="form-input"
+                          placeholder="Phone number"
+                        />
+                        <input
+                          type="email"
+                          value={form.hiring_contact_email}
+                          onChange={(e) => markDirty("hiring_contact_email", e.target.value)}
+                          className="form-input"
+                          placeholder="Email"
+                        />
+                      </div>
+                    </Field>
+                    <Field label="Perks & benefits">
+                      <ChipInput
+                        values={form.perks}
+                        onChange={(v) => markDirty("perks", v)}
+                        suggestions={PERKS}
+                      />
+                    </Field>
+                  </OptionalSection>
+
                   <Accordion type="single" collapsible>
                     <AccordionItem value="advanced">
                       <AccordionTrigger>More filters (optional)</AccordionTrigger>
                       <AccordionContent className="space-y-5">
-                        <OptionalSection
-                          title="Hiring preferences"
-                          summary="Optional"
-                          badge={hiringPrefFilled}
-                          hasValues={hiringPrefFilled > 0}
-                        >
-                          <Field label="English fluency">
-                            <div className="flex flex-wrap gap-2">
-                              {ENGLISH_LEVELS.map((l) => (
-                                <button
-                                  key={l.id}
-                                  type="button"
-                                  onClick={() =>
-                                    markDirty(
-                                      "english_level",
-                                      form.english_level === l.id ? "" : l.id,
-                                    )
-                                  }
-                                  className={`rounded-full border px-3 py-1.5 text-sm ${form.english_level === l.id ? "border-primary bg-primary-light text-primary" : "border-border bg-surface text-foreground/70"}`}
-                                >
-                                  {l.label}
-                                </button>
-                              ))}
-                            </div>
-                          </Field>
-                          <div className="grid gap-3 sm:grid-cols-2">
-                            <Field label="Age min">
-                              <div className="relative">
-                                <input
-                                  type="number"
-                                  min={0}
-                                  value={form.age_min}
-                                  onChange={(e) => setNonNegative("age_min", e.target.value)}
-                                  className="form-input max-sm:appearance-none pr-9 sm:pr-3.5 [&::-webkit-inner-spin-button]:max-sm:appearance-none [&::-webkit-outer-spin-button]:max-sm:appearance-none"
-                                />
-                                <div className="absolute inset-y-0 right-1 flex flex-col justify-center gap-0.5 py-1 sm:hidden">
-                                  <button
-                                    type="button"
-                                    aria-label="Increase minimum age"
-                                    onClick={() => stepNonNegative("age_min", 1)}
-                                    className="grid h-4 w-6 place-items-center rounded-sm text-gray-700 active:bg-surface"
-                                  >
-                                    <ChevronUp className="h-3.5 w-3.5" strokeWidth={3} />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    aria-label="Decrease minimum age"
-                                    onClick={() => stepNonNegative("age_min", -1)}
-                                    className="grid h-4 w-6 place-items-center rounded-sm text-gray-700 active:bg-surface"
-                                  >
-                                    <ChevronDown className="h-3.5 w-3.5" strokeWidth={3} />
-                                  </button>
-                                </div>
-                              </div>
-                            </Field>
-                            <Field label="Age max">
-                              <div className="relative">
-                                <input
-                                  type="number"
-                                  min={0}
-                                  value={form.age_max}
-                                  onChange={(e) => setNonNegative("age_max", e.target.value)}
-                                  className="form-input max-sm:appearance-none pr-9 sm:pr-3.5 [&::-webkit-inner-spin-button]:max-sm:appearance-none [&::-webkit-outer-spin-button]:max-sm:appearance-none"
-                                />
-                                <div className="absolute inset-y-0 right-1 flex flex-col justify-center gap-0.5 py-1 sm:hidden">
-                                  <button
-                                    type="button"
-                                    aria-label="Increase maximum age"
-                                    onClick={() => stepNonNegative("age_max", 1)}
-                                    className="grid h-4 w-6 place-items-center rounded-sm text-gray-700 active:bg-surface"
-                                  >
-                                    <ChevronUp className="h-3.5 w-3.5" strokeWidth={3} />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    aria-label="Decrease maximum age"
-                                    onClick={() => stepNonNegative("age_max", -1)}
-                                    className="grid h-4 w-6 place-items-center rounded-sm text-gray-700 active:bg-surface"
-                                  >
-                                    <ChevronDown className="h-3.5 w-3.5" strokeWidth={3} />
-                                  </button>
-                                </div>
-                              </div>
-                            </Field>
-                          </div>
-                          <Field label="Preferred languages">
-                            <ChipInput
-                              values={form.preferred_languages}
-                              onChange={(v) => markDirty("preferred_languages", v)}
-                              suggestions={SUGGESTED_LANGUAGES}
-                            />
-                          </Field>
-                          <Field label="Preferred industries">
-                            <ChipInput
-                              values={form.preferred_industries}
-                              onChange={(v) => markDirty("preferred_industries", v)}
-                              suggestions={INDUSTRIES}
-                            />
-                          </Field>
-                        </OptionalSection>
-
-                        <OptionalSection
-                          title="Requirements & perks"
-                          summary="Optional"
-                          badge={reqPerksFilled}
-                          hasValues={reqPerksFilled > 0}
-                        >
-                          <div className="grid gap-3 sm:grid-cols-2">
-                            <Field label="Degree">
-                              <StateDropdown
-                                value={form.degree}
-                                options={EDUCATION_LEVELS}
-                                placeholder="Any"
-                                onChange={(v) => markDirty("degree", v)}
-                              />
-                            </Field>
-                            <Field label="Specialisation">
-                              <input
-                                value={form.specialisation}
-                                onChange={(e) => markDirty("specialisation", e.target.value)}
-                                className="form-input"
-                                placeholder="e.g. B.Sc IT"
-                              />
-                            </Field>
-                          </div>
-                          <Field label="Certifications">
-                            <ChipInput
-                              values={form.certifications}
-                              onChange={(v) => markDirty("certifications", v)}
-                            />
-                          </Field>
-                          <Field label="Required assets">
-                            <div className="flex flex-wrap gap-2">
-                              {ASSETS.map((a) => {
-                                const on = form.required_assets.includes(a.label);
-                                return (
-                                  <button
-                                    key={a.id}
-                                    type="button"
-                                    onClick={() =>
-                                      markDirty(
-                                        "required_assets",
-                                        on
-                                          ? form.required_assets.filter((x) => x !== a.label)
-                                          : [...form.required_assets, a.label],
-                                      )
-                                    }
-                                    className={`rounded-full border px-3 py-1.5 text-sm ${on ? "border-primary bg-primary-light text-primary" : "border-border bg-surface text-foreground/70"}`}
-                                  >
-                                    {on && <Check className="mr-1 inline h-3 w-3" />} {a.label}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </Field>
-                          <Field label="Hiring contact">
-                            <div className="grid gap-3 sm:grid-cols-3">
-                              <input
-                                value={form.hiring_contact_name}
-                                onChange={(e) => markDirty("hiring_contact_name", e.target.value)}
-                                className="form-input"
-                                placeholder="Hiring person name"
-                              />
-                              <input
-                                type="tel"
-                                value={form.hiring_contact_phone}
-                                onChange={(e) =>
-                                  markDirty("hiring_contact_phone", e.target.value.replace(/[^\d+ ]/g, ""))
-                                }
-                                className="form-input"
-                                placeholder="Phone number"
-                              />
-                              <input
-                                type="email"
-                                value={form.hiring_contact_email}
-                                onChange={(e) => markDirty("hiring_contact_email", e.target.value)}
-                                className="form-input"
-                                placeholder="Email"
-                              />
-                            </div>
-                          </Field>
-                          <Field label="Perks & benefits">
-                            <ChipInput
-                              values={form.perks}
-                              onChange={(v) => markDirty("perks", v)}
-                              suggestions={PERKS}
-                            />
-                          </Field>
-                        </OptionalSection>
-
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          <Field label="Shift">
-                            <StateDropdown
-                              value={SHIFTS.find((s) => s.id === form.shift)?.label || ""}
-                              options={SHIFTS.map((s) => s.label)}
-                              placeholder="Any"
-                              onChange={(label) =>
-                                markDirty("shift", SHIFTS.find((s) => s.label === label)?.id || "")
-                              }
-                            />
-                          </Field>
-                          <Field label="Working days / week">
-                            <input
-                              type="number"
-                              min={1}
-                              max={7}
-                              value={form.working_days}
-                              onChange={(e) => markDirty("working_days", e.target.value)}
-                              className="form-input"
-                              placeholder="6"
-                            />
-                          </Field>
-                        </div>
+                        <Field label="Shift">
+                          <StateDropdown
+                            value={SHIFTS.find((s) => s.id === form.shift)?.label || ""}
+                            options={SHIFTS.map((s) => s.label)}
+                            placeholder="Any"
+                            onChange={(label) =>
+                              markDirty("shift", SHIFTS.find((s) => s.label === label)?.id || "")
+                            }
+                          />
+                        </Field>
 
                         <Field label="Additional documents required">
-                          <div className="flex flex-wrap gap-2">
-                            {REQUIRED_DOCUMENTS.map((d) => {
-                              const on = form.required_documents.includes(d);
-                              return (
-                                <button
-                                  key={d}
-                                  type="button"
-                                  aria-pressed={on}
-                                  onClick={() =>
-                                    markDirty(
-                                      "required_documents",
-                                      REQUIRED_DOCUMENTS.filter((x) =>
-                                        x === d ? !on : form.required_documents.includes(x),
-                                      ),
-                                    )
-                                  }
-                                  className={`rounded-full border px-3 py-1.5 text-sm ${on ? "border-primary bg-primary-light text-primary" : "border-border bg-surface text-foreground/70"}`}
-                                >
-                                  {on && <Check className="mr-1 inline h-3 w-3" />} {d}
-                                </button>
-                              );
-                            })}
-                          </div>
+                          <MultiSelectDropdown
+                            options={REQUIRED_DOCUMENTS}
+                            values={form.required_documents}
+                            onChange={(v) => markDirty("required_documents", v)}
+                            placeholder="Select documents"
+                          />
                         </Field>
 
-                        <Field label="Language proficiency">
-                          <div className="space-y-2">
-                            {form.language_requirements.map((row, i) => (
-                              <div key={i} className="flex items-center gap-2">
-                                <div className="min-w-0 flex-1">
-                                  <StateDropdown
-                                    value={row.language}
-                                    options={SUGGESTED_LANGUAGES}
-                                    placeholder="Language"
-                                    onChange={(language) =>
-                                      markDirty(
-                                        "language_requirements",
-                                        form.language_requirements.map((x, j) =>
-                                          j === i ? { ...x, language } : x,
-                                        ),
-                                      )
-                                    }
-                                  />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <StateDropdown
-                                    value={LANGUAGE_LEVELS.find((l) => l.id === row.level)?.label || ""}
-                                    options={LANGUAGE_LEVELS.map((l) => l.label)}
-                                    placeholder="Level"
-                                    onChange={(label) =>
-                                      markDirty(
-                                        "language_requirements",
-                                        form.language_requirements.map((x, j) =>
-                                          j === i
-                                            ? {
-                                                ...x,
-                                                level:
-                                                  LANGUAGE_LEVELS.find((l) => l.label === label)?.id ||
-                                                  "",
-                                              }
-                                            : x,
-                                        ),
-                                      )
-                                    }
-                                  />
-                                </div>
-                                <button
-                                  type="button"
-                                  aria-label="Remove language"
-                                  onClick={() =>
-                                    markDirty(
-                                      "language_requirements",
-                                      form.language_requirements.filter((_, j) => j !== i),
-                                    )
-                                  }
-                                  className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-border text-muted-foreground hover:text-destructive"
-                                >
-                                  <X className="h-4 w-4" />
-                                </button>
-                              </div>
-                            ))}
-                            <button
-                              type="button"
-                              onClick={() =>
-                                markDirty("language_requirements", [
-                                  ...form.language_requirements,
-                                  { language: "", level: "" },
-                                ])
-                              }
-                              className="rounded-full border border-border bg-surface px-3 py-1.5 text-sm text-foreground/70 hover:border-primary hover:text-primary"
-                            >
-                              + Add language
-                            </button>
-                          </div>
-                        </Field>
-
-                        <Field label="Working days">
+                        <Field
+                          label={`Working days${form.working_weekdays.length ? ` — ${form.working_weekdays.length}/week` : ""}`}
+                        >
                           <div className="flex flex-wrap gap-2">
                             {WEEKDAYS.map((d) => {
                               const on = form.working_weekdays.includes(d.id);
@@ -1822,15 +1733,16 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                                   key={d.id}
                                   type="button"
                                   aria-pressed={on}
-                                  onClick={() =>
+                                  onClick={() => {
                                     // Keep Monday→Sunday order regardless of click order.
-                                    markDirty(
-                                      "working_weekdays",
-                                      WEEKDAYS.map((x) => x.id).filter((id) =>
-                                        id === d.id ? !on : form.working_weekdays.includes(id),
-                                      ),
-                                    )
-                                  }
+                                    const next = WEEKDAYS.map((x) => x.id).filter((id) =>
+                                      id === d.id ? !on : form.working_weekdays.includes(id),
+                                    );
+                                    markDirty("working_weekdays", next);
+                                    // working_days is derived — always "however many are ticked",
+                                    // never a separately-entered number that can disagree with this.
+                                    markDirty("working_days", String(next.length));
+                                  }}
                                   className={`rounded-full border px-4 py-1.5 text-sm ${on ? "border-primary bg-primary-light text-primary" : "border-border bg-surface text-foreground/70"}`}
                                 >
                                   {d.label}
@@ -1959,7 +1871,7 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                         </p>
                       )}
                     </div>
-                    <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+                    <div className="flex flex-wrap items-center gap-2">
                       <button
                         type="button"
                         onClick={regenerate}
@@ -2050,7 +1962,7 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                           });
                         }}
                         disabled={!form.title.trim()}
-                        className="col-span-2 inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-50 sm:col-span-1"
+                        className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-50"
                       >
                         <Download className="h-3.5 w-3.5" /> Download PDF
                       </button>
