@@ -72,14 +72,31 @@ export function findRoleTemplate(title?: string, industry?: string): RoleTemplat
   if (t) {
     const exact = JD_LIBRARY.find((r) => norm(r.title) === t);
     if (exact) return exact;
-    const contains = JD_LIBRARY.find((r) => t.includes(norm(r.title)) || norm(r.title).includes(t));
-    if (contains) return contains;
+    // Prefer the longest (most specific) title overlap, not the first one found.
+    let best: RoleTemplate | null = null;
+    let bestLen = 0;
+    for (const r of JD_LIBRARY) {
+      const rt = norm(r.title);
+      if (!rt) continue;
+      if ((t.includes(rt) || rt.includes(t)) && rt.length > bestLen) {
+        best = r;
+        bestLen = rt.length;
+      }
+    }
+    if (best) return best;
+    // A title was typed but matches no role: don't guess from the industry.
+    return null;
   }
   if (i) {
     const byInd = JD_LIBRARY.find((r) => norm(r.industry) === i);
     if (byInd) return byInd;
   }
   return null;
+}
+
+/** Other roles in the same industry as `tpl` (excluding `tpl` itself). */
+export function siblingRoles(tpl: RoleTemplate): RoleTemplate[] {
+  return JD_LIBRARY.filter((r) => r !== tpl && r.industry === tpl.industry);
 }
 
 /** Suggested skills for a role — used to power a one-tap chip strip. */

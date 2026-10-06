@@ -111,6 +111,36 @@ export const dobSchema = z
     return age >= 14 && age <= 80;
   }, "You must be at least 14 years old");
 
+// Official GSTIN format: 2-digit state code, 10-char PAN, 1-char entity code
+// (1-9 or A-Z for multiple registrations on one PAN), literal 'Z', 1
+// alphanumeric checksum character. Matches the server-side check in
+// supabase/functions/_shared/gst.ts (keep both in sync if this ever changes).
+const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
+const GSTIN_ERROR = "Enter a valid 15-character GSTIN";
+
+// Strips anything that isn't a letter or digit, uppercases, and caps at 15
+// characters — use this in onChange so spaces/symbols/lowercase never even
+// reach state, not just at submit time.
+export const sanitizeGstinInput = (s: string) =>
+  s
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .slice(0, 15);
+
+// Plain helper for pages using raw useState (not a zod-backed form). Returns
+// null for a valid or empty value (callers decide if the field is required),
+// or an error string.
+export function validateGstin(raw: string, { required = false }: { required?: boolean } = {}): string | null {
+  const v = sanitizeGstinInput(raw);
+  if (!v) return required ? "Enter your GST number." : null;
+  return GSTIN_RE.test(v) ? null : GSTIN_ERROR;
+}
+
+export const gstinSchema = z
+  .string()
+  .transform(sanitizeGstinInput)
+  .pipe(z.string().regex(GSTIN_RE, GSTIN_ERROR));
+
 export const QUALIFICATIONS = [
   "10th or Below",
   "12th Pass",

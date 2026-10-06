@@ -211,7 +211,7 @@ export const PERKS = [
   "Flexible Working Hours","Weekly Payout","Overtime Pay","Joining Bonus","Annual Bonus",
   "PF","Travel Allowance (TA)","Petrol Allowance","Mobile Allowance","Internet Allowance",
   "Laptop","Health Insurance","ESI (ESIC)","Food/Meals","Accommodation","5 Working Days",
-  "One-Way Cab","Two-Way Cab",
+  "One-Way Cab","Two-Way Cab","Performance Bonus","Paid Leave","Work From Home",
 ];
 
 export const PAY_TYPES = [
@@ -260,7 +260,7 @@ export const ENGLISH_LEVELS = [
 ];
 
 export const INTERVIEW_TYPES = [
-  { id: "in_person", label: "In-person" },
+  { id: "in_person", label: "Walk-in" },
   { id: "telephonic", label: "Telephonic" },
 ];
 

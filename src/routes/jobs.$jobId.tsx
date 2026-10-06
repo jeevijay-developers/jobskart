@@ -101,6 +101,9 @@ type JobDetail = {
   pay_type?: string | null;
   avg_incentive_monthly?: number | null;
   interview_type?: string | null;
+  hiring_contact_name?: string | null;
+  hiring_contact_phone?: string | null;
+  hiring_contact_email?: string | null;
   interview_same_as_company?: boolean | null;
   interview_city?: string | null;
   interview_locality?: string | null;
@@ -176,7 +179,7 @@ export function JobDetailPage({
       const { data, error } = await supabase
         .from("jobs")
         .select(
-          "id, company_id, title, description, description_html, city, state, locality, min_salary, max_salary, salary_period, fixed_pay, incentives_text, pay_type, avg_incentive_monthly, interview_type, interview_same_as_company, interview_city, interview_locality, interview_address, joining_fee_required, industry, job_type, work_mode, shift, gender_pref, working_weekdays, required_documents, language_requirements, min_experience_years, max_experience_years, education, english_level, skills, preferred_skills, perks, openings, walkin, walkin_details, created_at, expires_at, category, companies (name, is_verified, industry, primary_city, description, about, logo_url)",
+          "id, company_id, title, description, description_html, city, state, locality, min_salary, max_salary, salary_period, fixed_pay, incentives_text, pay_type, avg_incentive_monthly, interview_type, interview_same_as_company, hiring_contact_name, hiring_contact_phone, hiring_contact_email, interview_city, interview_locality, interview_address, joining_fee_required, industry, job_type, work_mode, shift, gender_pref, working_weekdays, required_documents, language_requirements, min_experience_years, max_experience_years, education, english_level, skills, preferred_skills, perks, openings, walkin, walkin_details, created_at, expires_at, category, companies (name, is_verified, industry, primary_city, description, about, logo_url)",
         )
         .eq("id", jobId)
         // Hide jobs past their expiry even if the sweep hasn't flipped status.
@@ -587,7 +590,7 @@ export function JobDetailPage({
                         <div className="mt-4 rounded-lg border border-border bg-surface p-3 text-sm">
                           <p className="font-semibold text-foreground">Interview</p>
                           <p className="mt-1 text-foreground/80">
-                            {job.interview_type === "in_person" ? "In-person" : "Telephonic"}
+                            {job.interview_type === "in_person" ? "Walk-in" : "Telephonic"}
                             {job.interview_type === "in_person" && job.interview_address
                               ? ` · ${[job.interview_address, job.interview_locality, job.interview_city].filter(Boolean).join(", ")}`
                               : job.interview_type === "in_person" && job.interview_same_as_company
@@ -596,10 +599,34 @@ export function JobDetailPage({
                           </p>
                         </div>
                       ) : null}
-                      {job.joining_fee_required ? (
-                        <p className="mt-3 rounded-lg border border-warning/30 bg-warning-light/40 p-3 text-xs text-foreground/80">
-                          <span className="font-semibold text-warning">Note:</span> Joining fee or deposit applicable.
-                        </p>
+                      {job.joining_fee_required != null ? (
+                        job.joining_fee_required ? (
+                          <p className="mt-3 rounded-lg border border-warning/30 bg-warning-light/40 p-3 text-xs text-foreground/80">
+                            <span className="font-semibold text-warning">Note:</span> Joining fee or deposit applicable.
+                          </p>
+                        ) : (
+                          <p className="mt-3 rounded-lg border border-success/20 bg-success-light/40 p-3 text-xs text-foreground/80">
+                            <span className="font-semibold text-success">No joining fee</span> or deposit is required.
+                          </p>
+                        )
+                      ) : null}
+                      {job.hiring_contact_name || job.hiring_contact_phone || job.hiring_contact_email ? (
+                        <div className="mt-4 rounded-lg border border-border bg-surface p-3 text-sm">
+                          <p className="font-semibold text-foreground">Hiring contact</p>
+                          <p className="mt-1 space-y-0.5 text-foreground/80">
+                            {job.hiring_contact_name ? <span className="block">{job.hiring_contact_name}</span> : null}
+                            {job.hiring_contact_phone ? (
+                              <a href={`tel:${job.hiring_contact_phone}`} className="block text-primary hover:underline">
+                                {job.hiring_contact_phone}
+                              </a>
+                            ) : null}
+                            {job.hiring_contact_email ? (
+                              <a href={`mailto:${job.hiring_contact_email}`} className="block text-primary hover:underline">
+                                {job.hiring_contact_email}
+                              </a>
+                            ) : null}
+                          </p>
+                        </div>
                       ) : null}
                     </Block>
 

@@ -3,7 +3,7 @@
 // Tier 2: role-family keyword skills (options.ts ROLE_SKILL_SUGGESTIONS).
 // Tier 3 (live posting trends, suggest_skills_for_roles RPC) is merged in
 // by the caller — this module is pure/sync so it stays unit-testable.
-import { findRoleTemplate } from "./jd-library";
+import { findRoleTemplate, siblingRoles } from "./jd-library";
 import { ROLE_SKILL_SUGGESTIONS, DEFAULT_SKILL_SUGGESTIONS } from "./options";
 
 export type SkillRecommendations = { core: string[]; recommended: string[] };
@@ -22,6 +22,54 @@ function tier2Skills(title: string): string[] {
     }
   }
   return out;
+}
+
+const NICE_TO_HAVE_MAX = 12;
+
+/**
+ * Role-relevant "nice-to-have" suggestions: tier-2 family skills first, then
+ * skills used by sibling roles in the same industry (most-shared first).
+ * Empty when the role can't be matched — never a generic global list.
+ */
+export function getNiceToHaveSuggestions(
+  title: string,
+  category?: string,
+  requiredSkills: string[] = [],
+  preferredSkills: string[] = [],
+): string[] {
+  const t = title.trim();
+  if (!t) return [];
+
+  const tpl = findRoleTemplate(t, category);
+  const out: string[] = [];
+  const seen = new Set<string>(
+    [...requiredSkills, ...preferredSkills, ...(tpl?.skills.map((s) => s.skill) ?? [])].map((s) =>
+      s.toLowerCase(),
+    ),
+  );
+  const add = (s: string) => {
+    const key = s.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(s);
+  };
+
+  tier2Skills(t).forEach(add);
+
+  if (tpl) {
+    const counts = new Map<string, { skill: string; n: number }>();
+    for (const r of siblingRoles(tpl)) {
+      for (const { skill } of r.skills) {
+        const key = skill.toLowerCase();
+        const e = counts.get(key);
+        if (e) e.n += 1;
+        else counts.set(key, { skill, n: 1 });
+      }
+    }
+    [...counts.values()].sort((a, b) => b.n - a.n).forEach((e) => add(e.skill));
+  }
+
+  return out.slice(0, NICE_TO_HAVE_MAX);
 }
 
 export function getRecommendedSkills(

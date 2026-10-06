@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { EmployerShell } from "@/components/employer/EmployerShell";
-import { RoleGate } from "@/components/employer/RoleGate";
 import { useEmployerRole } from "@/hooks/use-employer-role";
 import {
   AlertDialog,
@@ -153,7 +152,7 @@ type Invoice = {
 };
 
 function CreditsPage() {
-  const { isSuperAdmin, isRecruiter, loading: roleLoading } = useEmployerRole();
+  const { canManageBilling, loading: roleLoading } = useEmployerRole();
   const [active, setActive] = useState<EmployerMembership | null>(null);
   const [loading, setLoading] = useState(true);
   const [jobPostBalance, setJobPostBalance] = useState(0);
@@ -442,14 +441,6 @@ function CreditsPage() {
     );
   }
 
-  if (isRecruiter) {
-    return (
-      <EmployerShell title="Credits & usage">
-        <RoleGate allowed={false}>{null}</RoleGate>
-      </EmployerShell>
-    );
-  }
-
   return (
     <EmployerShell
       title="Credits & usage"
@@ -606,9 +597,9 @@ function CreditsPage() {
                   >
                     Current plan
                   </button>
-                ) : !isSuperAdmin ? (
+                ) : !canManageBilling ? (
                   <p className="mt-4 rounded-lg bg-surface px-3 py-2 text-center text-xs text-muted-foreground">
-                    Only Super Admins can change the plan
+                    Ask your admin to change the plan
                   </p>
                 ) : isFree ? (
                   <button
@@ -716,7 +707,7 @@ function CreditsPage() {
                       ₹{formatInr(withGst(p.price_inr))} incl. 18% GST
                     </p>
                   </div>
-                  {isSuperAdmin ? (
+                  {canManageBilling ? (
                     <button
                       onClick={() => handleBuy(p)}
                       disabled={buyingId !== null}
@@ -732,7 +723,7 @@ function CreditsPage() {
                     </button>
                   ) : (
                     <p className="mt-4 rounded-lg bg-surface px-3 py-2 text-center text-xs text-muted-foreground">
-                      Only Super Admins can purchase
+                      Ask your admin to purchase
                     </p>
                   )}
                 </div>

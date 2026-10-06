@@ -13,6 +13,7 @@ import { CityTownAutocomplete } from "@/components/candidate/CityTownAutocomplet
 import { supabase } from "@/integrations/supabase/client";
 import { fetchMyCompanies, getActiveCompanyId } from "@/lib/employer";
 import { INDIAN_CITIES } from "@/lib/options";
+import { sanitizeGstinInput, validateGstin } from "@/lib/validators";
 
 export const Route = createFileRoute("/_authenticated/employer/company")({
   head: () => ({ meta: [{ title: "Company Profile · JobsKart" }] }),
@@ -76,6 +77,8 @@ function CompanyPage() {
 
   const save = async () => {
     if (!c) return;
+    const gstErr = validateGstin(c.gst_number || "");
+    if (gstErr) return toast.error(gstErr);
     setSaving(true);
     // Founded year is already sanitized on every keystroke (see the field's
     // onChange), but guard again here so a negative value can never reach
@@ -266,7 +269,18 @@ function CompanyPage() {
               </Field>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field label="GST number">
-                  <input disabled={!canEditCompany} value={c.gst_number || ""} onChange={(e) => setC({ ...c, gst_number: e.target.value })} className="form-input disabled:opacity-60" />
+                  <input
+                    disabled={!canEditCompany}
+                    value={c.gst_number || ""}
+                    onChange={(e) => setC({ ...c, gst_number: sanitizeGstinInput(e.target.value) })}
+                    className="form-input disabled:opacity-60"
+                    placeholder="22AAAAA0000A1Z5"
+                    maxLength={15}
+                    aria-invalid={(c.gst_number || "").length === 15 && !!validateGstin(c.gst_number || "")}
+                  />
+                  {(c.gst_number || "").length === 15 && validateGstin(c.gst_number || "") && (
+                    <p className="mt-1 text-xs text-destructive">{validateGstin(c.gst_number || "")}</p>
+                  )}
                 </Field>
                 <Field label="PAN number">
                   <input disabled={!canEditCompany} value={c.pan_number || ""} onChange={(e) => setC({ ...c, pan_number: e.target.value })} className="form-input disabled:opacity-60" />
