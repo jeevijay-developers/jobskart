@@ -220,6 +220,17 @@ export const PAY_TYPES = [
   { id: "incentive_only", label: "Incentive Only" },
 ];
 
+export const REQUIRED_DOCUMENTS = ["Portfolio", "GitHub Profile", "Aadhaar", "Certificate"];
+
+export const LANGUAGE_LEVELS = [
+  { id: "basic", label: "Basic" },
+  { id: "conversational", label: "Conversational" },
+  { id: "fluent", label: "Fluent" },
+  { id: "native", label: "Native" },
+];
+
+export type LanguageRequirement = { language: string; level: string };
+
 export const WEEKDAYS = [
   { id: "monday", label: "Monday" },
   { id: "tuesday", label: "Tuesday" },

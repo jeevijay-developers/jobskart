@@ -40,6 +40,9 @@ type Props = {
     min_experience_years?: number | null;
     max_experience_years?: number | null;
     skills?: string[] | null;
+    /** Documents/links and language levels the employer asks applicants for. */
+    required_documents?: string[] | null;
+    language_requirements?: { language: string; level: string }[] | null;
     created_at?: string | null;
   };
   onApplied: () => void;
@@ -231,6 +234,26 @@ export function ApplyDialog({ open, onClose, userId, job, onApplied }: Props) {
             <p className="text-base font-bold text-foreground">
               {formatSalary(job.min_salary, job.max_salary, job.salary_period || "monthly")}
             </p>
+          )}
+
+          {((job.required_documents?.length ?? 0) > 0 ||
+            (job.language_requirements?.length ?? 0) > 0) && (
+            <div className="space-y-1 rounded-lg bg-primary-light px-3 py-2 text-xs text-foreground/80">
+              {(job.required_documents?.length ?? 0) > 0 && (
+                <p>
+                  <span className="font-semibold text-primary">Keep ready: </span>
+                  {job.required_documents!.join(", ")}
+                </p>
+              )}
+              {(job.language_requirements?.length ?? 0) > 0 && (
+                <p>
+                  <span className="font-semibold text-primary">Languages: </span>
+                  {job.language_requirements!
+                    .map((l) => `${l.language} (${l.level})`)
+                    .join(", ")}
+                </p>
+              )}
+            </div>
           )}
 
           {(hasJobType || hasWorkMode) && (
