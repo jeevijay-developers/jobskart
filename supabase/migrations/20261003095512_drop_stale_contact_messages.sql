@@ -1,0 +1,12 @@
+-- public.contact_messages existed live on the remote with a different shape
+-- (id, name, email, subject, body, created_at) than what
+-- 20261003095513_add_contact_messages.sql defines (adds phone, message,
+-- status) and what the live Contact Us form on the home page actually sends
+-- (src/routes/index.tsx: name, phone, email, message, audience, subject).
+-- That stray table predates this migration set and was never created by a
+-- migration file in this repo (likely made directly in the Supabase/Lovable
+-- UI, which `CREATE TABLE IF NOT EXISTS` in 20261003095513 then silently
+-- skipped, since the table already existed under that name). Confirmed empty
+-- (0 rows) before dropping, so there is no data to lose — the next migration
+-- recreates it with the correct columns.
+DROP TABLE IF EXISTS public.contact_messages;

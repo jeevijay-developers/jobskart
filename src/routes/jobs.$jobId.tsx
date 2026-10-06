@@ -40,6 +40,7 @@ import { rankSimilarJobs, type RankableJob } from "@/lib/similarJobs";
 import { getSeenJobIds, markJobSeen } from "@/lib/seenJobs";
 import { FormattedJobDescription } from "@/lib/jdFormat";
 import { useShareJob } from "@/hooks/use-share-job";
+import { GENDERS, WEEKDAYS, LANGUAGE_LEVELS } from "@/lib/options";
 
 // Candidate (embedded) view only: Block renders as its own card there.
 const BlockCardCtx = createContext(false);
@@ -70,6 +71,10 @@ type JobDetail = {
   job_type: string;
   work_mode: string;
   shift: string | null;
+  gender_pref: string | null;
+  working_weekdays: string[] | null;
+  required_documents: string[] | null;
+  language_requirements: { language: string; level: string }[] | null;
   min_experience_years: number | null;
   max_experience_years: number | null;
   education: string | null;
@@ -164,7 +169,7 @@ export function JobDetailPage({
       const { data, error } = await supabase
         .from("jobs")
         .select(
-          "id, company_id, title, description, description_html, city, state, locality, min_salary, max_salary, salary_period, fixed_pay, incentives_text, pay_type, avg_incentive_monthly, interview_type, interview_same_as_company, interview_city, interview_locality, interview_address, joining_fee_required, industry, job_type, work_mode, shift, min_experience_years, max_experience_years, education, english_level, skills, preferred_skills, perks, openings, walkin, walkin_details, created_at, expires_at, category, companies (name, is_verified, industry, primary_city, description, about, logo_url)",
+          "id, company_id, title, description, description_html, city, state, locality, min_salary, max_salary, salary_period, fixed_pay, incentives_text, pay_type, avg_incentive_monthly, interview_type, interview_same_as_company, interview_city, interview_locality, interview_address, joining_fee_required, industry, job_type, work_mode, shift, gender_pref, working_weekdays, required_documents, language_requirements, min_experience_years, max_experience_years, education, english_level, skills, preferred_skills, perks, openings, walkin, walkin_details, created_at, expires_at, category, companies (name, is_verified, industry, primary_city, description, about, logo_url)",
         )
         .eq("id", jobId)
         // Hide jobs past their expiry even if the sweep hasn't flipped status.
@@ -611,11 +616,57 @@ export function JobDetailPage({
                       )}
                     </Block>
 
+                    {((job.required_documents?.length ?? 0) > 0 ||
+                      (job.language_requirements?.length ?? 0) > 0) && (
+                      <Block title="Application requirements">
+                        <div className="space-y-3">
+                          {(job.required_documents?.length ?? 0) > 0 && (
+                            <div>
+                              <p className="mb-1.5 text-xs font-medium text-muted-foreground">Keep ready</p>
+                              <div className="flex flex-wrap gap-2">
+                                {job.required_documents!.map((d) => (
+                                  <Pill key={d}>{d}</Pill>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {(job.language_requirements?.length ?? 0) > 0 && (
+                            <div>
+                              <p className="mb-1.5 text-xs font-medium text-muted-foreground">Languages</p>
+                              <div className="flex flex-wrap gap-2">
+                                {job.language_requirements!.map((l) => (
+                                  <Pill key={l.language}>
+                                    {l.language} — {LANGUAGE_LEVELS.find((x) => x.id === l.level)?.label ?? l.level}
+                                  </Pill>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </Block>
+                    )}
+
                     <Block title="Shift & work schedule">
                       <div className="grid gap-3 sm:grid-cols-3">
                         <ShiftCard icon={shiftIcon(job.shift)} label="Shift" value={job.shift ? `${job.shift}` : "Flexible"} />
                         <ShiftCard icon={Clock} label="Job type" value={jobTypeLabel(job.job_type)} />
                         <ShiftCard icon={MapPin} label="Work mode" value={workModeLabel(job.work_mode)} />
+                        {job.gender_pref ? (
+                          <ShiftCard
+                            icon={Users}
+                            label="Gender"
+                            value={GENDERS.find((g) => g.id === job.gender_pref)?.label ?? job.gender_pref}
+                          />
+                        ) : null}
+                        {(job.working_weekdays?.length ?? 0) > 0 ? (
+                          <ShiftCard
+                            icon={Calendar}
+                            label="Working days"
+                            value={WEEKDAYS.filter((d) => job.working_weekdays!.includes(d.id))
+                              .map((d) => d.label.slice(0, 3))
+                              .join(", ")}
+                          />
+                        ) : null}
                       </div>
                     </Block>
 
@@ -869,6 +920,8 @@ export function JobDetailPage({
             min_experience_years: job.min_experience_years,
             max_experience_years: job.max_experience_years,
             skills: job.skills,
+            required_documents: job.required_documents,
+            language_requirements: job.language_requirements,
             created_at: job.created_at,
           }}
           onApplied={handleApplied}

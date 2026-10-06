@@ -14,6 +14,7 @@ import {
   Download,
   Loader2,
   RefreshCw,
+  X,
 } from "lucide-react";
 import { downloadJdPdf } from "@/lib/jd-pdf";
 import { toast } from "sonner";
@@ -50,6 +51,10 @@ import {
   PERKS,
   PAY_TYPES,
   GENDERS,
+  WEEKDAYS,
+  REQUIRED_DOCUMENTS,
+  LANGUAGE_LEVELS,
+  type LanguageRequirement,
   EXPERIENCE_BUCKETS,
   ENGLISH_LEVELS,
   INTERVIEW_TYPES,
@@ -121,6 +126,8 @@ type Form = {
   age_min: string;
   age_max: string;
   preferred_languages: string[];
+  required_documents: string[];
+  language_requirements: LanguageRequirement[];
   required_assets: string[];
   degree: string;
   specialisation: string;
@@ -130,6 +137,7 @@ type Form = {
   joining_fee_required: boolean;
   shift: string;
   working_days: string;
+  working_weekdays: string[];
 
   description: string;
   description_html: string;
@@ -167,6 +175,8 @@ const initialForm: Form = {
   age_min: "",
   age_max: "",
   preferred_languages: [],
+  required_documents: [],
+  language_requirements: [],
   required_assets: [],
   degree: "",
   specialisation: "",
@@ -176,6 +186,7 @@ const initialForm: Form = {
   joining_fee_required: false,
   shift: "",
   working_days: "",
+  working_weekdays: [],
   description: "",
   description_html: "",
   hiring_for_company: "",
@@ -213,6 +224,8 @@ type JobRow = {
   age_min: number | null;
   age_max: number | null;
   preferred_languages: string[] | null;
+  required_documents: string[] | null;
+  language_requirements: LanguageRequirement[] | null;
   required_assets: string[] | null;
   education: string | null;
   specialisation: string | null;
@@ -222,6 +235,7 @@ type JobRow = {
   joining_fee_required: boolean | null;
   shift: string | null;
   working_days: number | null;
+  working_weekdays: string[] | null;
   description: string | null;
   description_html: string | null;
   hiring_for_company: string | null;
@@ -260,6 +274,8 @@ function jobToForm(job: JobRow): Form {
     age_min: job.age_min != null ? String(job.age_min) : "",
     age_max: job.age_max != null ? String(job.age_max) : "",
     preferred_languages: job.preferred_languages ?? [],
+    required_documents: job.required_documents ?? [],
+    language_requirements: job.language_requirements ?? [],
     required_assets: job.required_assets ?? [],
     degree: job.education ?? "",
     specialisation: job.specialisation ?? "",
@@ -269,6 +285,7 @@ function jobToForm(job: JobRow): Form {
     joining_fee_required: job.joining_fee_required ?? false,
     shift: job.shift ?? "",
     working_days: job.working_days != null ? String(job.working_days) : "",
+    working_weekdays: job.working_weekdays ?? [],
     description: job.description ?? "",
     description_html: job.description_html ?? "",
     hiring_for_company: job.hiring_for_company ?? "",
@@ -313,6 +330,9 @@ function buildFieldsFromForm(
     experience_bucket: form.experience_bucket,
     joining_fee_required: form.joining_fee_required,
     preferred_languages: form.preferred_languages,
+    required_documents: form.required_documents,
+    // Half-filled rows are dropped; always sent so removing every row clears the saved ones.
+    language_requirements: form.language_requirements.filter((l) => l.language && l.level),
     required_assets: form.required_assets,
     certifications: form.certifications,
     preferred_industries: form.preferred_industries,
@@ -344,6 +364,8 @@ function buildFieldsFromForm(
   if (form.degree) p.education = form.degree;
   if (form.shift) p.shift = form.shift;
   if (form.working_days) p.working_days = Number(form.working_days);
+  // Always sent (even empty) so unticking every day on an edit clears the saved days.
+  p.working_weekdays = form.working_weekdays;
   if (isConsultant && form.hiring_for_company.trim())
     p.hiring_for_company = form.hiring_for_company.trim();
   return p;
@@ -826,7 +848,6 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
 
   const hiringPrefFilled = [
     form.english_level,
-    form.gender_pref !== "any" ? form.gender_pref : "",
     form.age_min,
     form.age_max,
     form.preferred_languages.length,
@@ -1418,6 +1439,21 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                     />
                   </Field>
 
+                  <Field label="Gender preference">
+                    <div className="flex flex-wrap gap-2">
+                      {GENDERS.map((g) => (
+                        <button
+                          key={g.id}
+                          type="button"
+                          onClick={() => markDirty("gender_pref", g.id)}
+                          className={`rounded-full border px-4 py-1.5 text-sm ${form.gender_pref === g.id ? "border-primary bg-primary-light text-primary" : "border-border bg-surface text-foreground/70"}`}
+                        >
+                          {g.label}
+                        </button>
+                      ))}
+                    </div>
+                  </Field>
+
                   <Accordion type="single" collapsible>
                     <AccordionItem value="advanced">
                       <AccordionTrigger>More filters (optional)</AccordionTrigger>
@@ -1443,20 +1479,6 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                                   className={`rounded-full border px-3 py-1.5 text-sm ${form.english_level === l.id ? "border-primary bg-primary-light text-primary" : "border-border bg-surface text-foreground/70"}`}
                                 >
                                   {l.label}
-                                </button>
-                              ))}
-                            </div>
-                          </Field>
-                          <Field label="Gender preference">
-                            <div className="flex flex-wrap gap-2">
-                              {GENDERS.map((g) => (
-                                <button
-                                  key={g.id}
-                                  type="button"
-                                  onClick={() => markDirty("gender_pref", g.id)}
-                                  className={`rounded-full border px-4 py-1.5 text-sm ${form.gender_pref === g.id ? "border-primary bg-primary-light text-primary" : "border-border bg-surface text-foreground/70"}`}
-                                >
-                                  {g.label}
                                 </button>
                               ))}
                             </div>
@@ -1623,6 +1645,130 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                             />
                           </Field>
                         </div>
+
+                        <Field label="Additional documents required">
+                          <div className="flex flex-wrap gap-2">
+                            {REQUIRED_DOCUMENTS.map((d) => {
+                              const on = form.required_documents.includes(d);
+                              return (
+                                <button
+                                  key={d}
+                                  type="button"
+                                  aria-pressed={on}
+                                  onClick={() =>
+                                    markDirty(
+                                      "required_documents",
+                                      REQUIRED_DOCUMENTS.filter((x) =>
+                                        x === d ? !on : form.required_documents.includes(x),
+                                      ),
+                                    )
+                                  }
+                                  className={`rounded-full border px-3 py-1.5 text-sm ${on ? "border-primary bg-primary-light text-primary" : "border-border bg-surface text-foreground/70"}`}
+                                >
+                                  {on && <Check className="mr-1 inline h-3 w-3" />} {d}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </Field>
+
+                        <Field label="Language proficiency">
+                          <div className="space-y-2">
+                            {form.language_requirements.map((row, i) => (
+                              <div key={i} className="flex items-center gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <StateDropdown
+                                    value={row.language}
+                                    options={SUGGESTED_LANGUAGES}
+                                    placeholder="Language"
+                                    onChange={(language) =>
+                                      markDirty(
+                                        "language_requirements",
+                                        form.language_requirements.map((x, j) =>
+                                          j === i ? { ...x, language } : x,
+                                        ),
+                                      )
+                                    }
+                                  />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <StateDropdown
+                                    value={LANGUAGE_LEVELS.find((l) => l.id === row.level)?.label || ""}
+                                    options={LANGUAGE_LEVELS.map((l) => l.label)}
+                                    placeholder="Level"
+                                    onChange={(label) =>
+                                      markDirty(
+                                        "language_requirements",
+                                        form.language_requirements.map((x, j) =>
+                                          j === i
+                                            ? {
+                                                ...x,
+                                                level:
+                                                  LANGUAGE_LEVELS.find((l) => l.label === label)?.id ||
+                                                  "",
+                                              }
+                                            : x,
+                                        ),
+                                      )
+                                    }
+                                  />
+                                </div>
+                                <button
+                                  type="button"
+                                  aria-label="Remove language"
+                                  onClick={() =>
+                                    markDirty(
+                                      "language_requirements",
+                                      form.language_requirements.filter((_, j) => j !== i),
+                                    )
+                                  }
+                                  className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-border text-muted-foreground hover:text-destructive"
+                                >
+                                  <X className="h-4 w-4" />
+                                </button>
+                              </div>
+                            ))}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                markDirty("language_requirements", [
+                                  ...form.language_requirements,
+                                  { language: "", level: "" },
+                                ])
+                              }
+                              className="rounded-full border border-border bg-surface px-3 py-1.5 text-sm text-foreground/70 hover:border-primary hover:text-primary"
+                            >
+                              + Add language
+                            </button>
+                          </div>
+                        </Field>
+
+                        <Field label="Working days">
+                          <div className="flex flex-wrap gap-2">
+                            {WEEKDAYS.map((d) => {
+                              const on = form.working_weekdays.includes(d.id);
+                              return (
+                                <button
+                                  key={d.id}
+                                  type="button"
+                                  aria-pressed={on}
+                                  onClick={() =>
+                                    // Keep Monday→Sunday order regardless of click order.
+                                    markDirty(
+                                      "working_weekdays",
+                                      WEEKDAYS.map((x) => x.id).filter((id) =>
+                                        id === d.id ? !on : form.working_weekdays.includes(id),
+                                      ),
+                                    )
+                                  }
+                                  className={`rounded-full border px-4 py-1.5 text-sm ${on ? "border-primary bg-primary-light text-primary" : "border-border bg-surface text-foreground/70"}`}
+                                >
+                                  {d.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </Field>
 
                         <div className="flex flex-col gap-2 rounded-xl border border-border bg-surface px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                           <p className="text-sm font-medium">

@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
-import { Plus, Trash2, Upload } from "lucide-react";
+import { Plus, Trash2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { Input } from "@/components/ui/input";
@@ -62,8 +62,21 @@ type FormState = {
   passMark: string;
   maxAttempts: string;
   validityMonths: string;
-  questionsJson: string;
+  questions: DraftQuestion[];
 };
+
+// One exam question as the admin edits it. `id` is kept across edits so
+// existing candidate answers still line up with the question they answered.
+type DraftQuestion = { id: string; text: string; options: string[]; correct: number };
+
+const MAX_OPTIONS = 8;
+
+const newQuestion = (): DraftQuestion => ({
+  id: `q-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+  text: "",
+  options: ["", ""],
+  correct: 0,
+});
 
 const emptyLesson = (): LessonForm => ({
   title: "",
@@ -95,7 +108,7 @@ const EMPTY_FORM: FormState = {
   passMark: "80",
   maxAttempts: "3",
   validityMonths: "",
-  questionsJson: "[]",
+  questions: [],
 };
 
 type ListRow = {
@@ -214,12 +227,48 @@ function Page() {
       passMark: cert ? String(cert.pass_mark) : "80",
       maxAttempts: cert ? String(cert.max_attempts) : "3",
       validityMonths: cert?.validity_months != null ? String(cert.validity_months) : "",
-      questionsJson: cert ? JSON.stringify(cert.questions ?? [], null, 2) : "[]",
+      questions: cert
+        ? (cert.questions ?? []).map(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (q: any): DraftQuestion => ({
+              id: String(q.id),
+              text: String(q.text ?? ""),
+              options: Array.isArray(q.options) ? q.options.map(String) : ["", ""],
+              correct: Number.isInteger(q.correct) ? q.correct : 0,
+            }),
+          )
+        : [],
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const resetForm = () => setForm(EMPTY_FORM);
+
+  const patchQuestion = (qi: number, patch: Partial<DraftQuestion>) =>
+    setForm((f) => ({
+      ...f,
+      questions: f.questions.map((q, i) => (i === qi ? { ...q, ...patch } : q)),
+    }));
+
+  const addOption = (qi: number) =>
+    setForm((f) => ({
+      ...f,
+      questions: f.questions.map((q, i) =>
+        i === qi && q.options.length < MAX_OPTIONS ? { ...q, options: [...q.options, ""] } : q,
+      ),
+    }));
+
+  // Removing an option shifts the correct index if the removed one sat before it,
+  // and falls back to the first option if the correct one itself was removed.
+  const removeOption = (qi: number, oi: number) =>
+    setForm((f) => ({
+      ...f,
+      questions: f.questions.map((q, i) => {
+        if (i !== qi || q.options.length <= 2) return q;
+        const correct = oi < q.correct ? q.correct - 1 : oi === q.correct ? 0 : q.correct;
+        return { ...q, options: q.options.filter((_, j) => j !== oi), correct };
+      }),
+    }));
 
   const handleCoverUpload = async (file: File) => {
     setUploadingCover(true);
@@ -247,15 +296,24 @@ function Page() {
       toast.error("Title must be at least 3 characters.");
       return;
     }
-    let questions: unknown[] = [];
+    const questions: { id: string; text: string; options: string[]; correct: number }[] = [];
     if (form.type === "certification") {
-      try {
-        const parsed: unknown = JSON.parse(form.questionsJson || "[]");
-        if (!Array.isArray(parsed)) throw new Error("not an array");
-        questions = parsed;
-      } catch {
-        toast.error("Questions must be valid JSON array, e.g. []");
-        return;
+      for (const [i, q] of form.questions.entries()) {
+        const text = q.text.trim();
+        const options = q.options.map((o) => o.trim());
+        if (!text) {
+          toast.error(`Question ${i + 1} needs text.`);
+          return;
+        }
+        if (options.length < 2) {
+          toast.error(`Question ${i + 1} needs at least 2 options.`);
+          return;
+        }
+        if (options.some((o) => !o)) {
+          toast.error(`Question ${i + 1} has an empty option. Fill it in or remove it.`);
+          return;
+        }
+        questions.push({ id: q.id, text, options, correct: q.correct });
       }
     }
 
@@ -647,14 +705,93 @@ function Page() {
                 onChange={(e) => setForm((f) => ({ ...f, validityMonths: e.target.value }))}
               />
             </div>
-            <div className="sm:col-span-2">
-              <Label>Questions (JSON array)</Label>
-              <Textarea
-                rows={6}
-                className="font-mono text-xs"
-                value={form.questionsJson}
-                onChange={(e) => setForm((f) => ({ ...f, questionsJson: e.target.value }))}
-              />
+            <div className="space-y-3 sm:col-span-2">
+              <div className="flex items-center justify-between">
+                <Label>Questions</Label>
+                <span className="text-xs text-muted-foreground">
+                  {form.questions.length} question{form.questions.length === 1 ? "" : "s"}
+                </span>
+              </div>
+
+              {form.questions.map((q, qi) => (
+                <div key={q.id} className="space-y-3 rounded-xl border border-border bg-surface p-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-muted-foreground">Q{qi + 1}</span>
+                    <Input
+                      placeholder="Question text"
+                      value={q.text}
+                      onChange={(e) => patchQuestion(qi, { text: e.target.value })}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Remove question ${qi + 1}`}
+                      onClick={() =>
+                        setForm((f) => ({ ...f, questions: f.questions.filter((_, i) => i !== qi) }))
+                      }
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+
+                  <div className="space-y-2 pl-7">
+                    {q.options.map((opt, oi) => (
+                      <div key={oi} className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name={`correct-${q.id}`}
+                          checked={q.correct === oi}
+                          onChange={() => patchQuestion(qi, { correct: oi })}
+                          aria-label={`Option ${oi + 1} is correct`}
+                          title="Mark as correct answer"
+                          className="h-4 w-4 accent-primary"
+                        />
+                        <Input
+                          placeholder={`Option ${oi + 1}`}
+                          value={opt}
+                          onChange={(e) =>
+                            patchQuestion(qi, {
+                              options: q.options.map((o, j) => (j === oi ? e.target.value : o)),
+                            })
+                          }
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          aria-label={`Remove option ${oi + 1}`}
+                          disabled={q.options.length <= 2}
+                          onClick={() => removeOption(qi, oi)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+
+                    <div className="flex items-center justify-between pt-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={q.options.length >= MAX_OPTIONS}
+                        onClick={() => addOption(qi)}
+                      >
+                        <Plus className="mr-1 h-3.5 w-3.5" /> Add option
+                      </Button>
+                      <p className="text-xs text-muted-foreground">Select the radio button for the correct answer</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setForm((f) => ({ ...f, questions: [...f.questions, newQuestion()] }))}
+              >
+                <Plus className="mr-1 h-4 w-4" /> Add question
+              </Button>
             </div>
           </div>
         )}

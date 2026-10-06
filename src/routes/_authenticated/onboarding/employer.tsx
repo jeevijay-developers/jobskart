@@ -102,6 +102,7 @@ function EmployerOnboarding() {
   const [website, setWebsite] = useState("");
   const [about, setAbout] = useState("");
   const [gst, setGst] = useState("");
+  const [workEmail, setWorkEmail] = useState("");
   const [isConsultant, setIsConsultant] = useState(false);
   const [postNow, setPostNow] = useState<"yes" | "later">("yes");
   const designationSuggestions = useJobTitleSuggestions();
@@ -210,6 +211,11 @@ function EmployerOnboarding() {
           .update({ is_consultant: true } as never)
           .eq("id", cid);
       }
+      // Verification and KYC emails go to this address (see verification-notify).
+      await supabase
+        .from("companies")
+        .update({ business_email: workEmail.trim().toLowerCase() } as never)
+        .eq("id", cid);
 
       if (logoFile) {
         // Logo is optional: a server rejection must not block onboarding.
@@ -242,7 +248,11 @@ function EmployerOnboarding() {
       key: "you",
       title: "First — who's hiring?",
       hint: "We use this on invites and to address you across the dashboard.",
-      validate: () => fullNameError,
+      validate: () => {
+        if (fullNameError) return fullNameError;
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(workEmail.trim())) return "Enter a valid work email.";
+        return null;
+      },
       render: () => (
         <div className="space-y-6">
           <div>
@@ -296,6 +306,16 @@ function EmployerOnboarding() {
               minChars={3}
               maxSuggestions={10}
               placeholder="Optional"
+            />
+          </Field>
+          <Field label="Work email" hint="Verification updates and approvals are sent here. Use your company email.">
+            <input
+              type="email"
+              value={workEmail}
+              onChange={(e) => setWorkEmail(e.target.value)}
+              className="form-input"
+              placeholder="you@yourcompany.com"
+              autoComplete="email"
             />
           </Field>
           <label className="flex items-start gap-3 rounded-xl border border-border bg-surface p-3 text-sm">

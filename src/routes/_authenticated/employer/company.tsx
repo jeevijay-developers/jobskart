@@ -118,14 +118,8 @@ function CompanyPage() {
     await supabase.from("company_documents").insert({
       company_id: c.id, doc_type: docType, file_path: path, file_name: file.name, status: "pending",
     });
-    toast.success("Document uploaded. Verification in progress…");
-    // KYC stub: auto-verify after 2s
-    setTimeout(async () => {
-      await supabase.from("companies").update({ verification_status: "verified" }).eq("id", c.id);
-      await supabase.from("company_documents").update({ status: "verified" }).eq("company_id", c.id);
-      toast.success("✓ Company verified!");
-      load();
-    }, 2000);
+    // Verification is decided by a super admin in the KYC queue, never by the upload itself.
+    toast.success("Document uploaded. Our team will review it within 24 hours.");
     load();
   };
 
@@ -173,7 +167,7 @@ function CompanyPage() {
 
           <div className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
             <h3 className="text-sm font-bold">KYC documents</h3>
-            <p className="mt-1 text-xs text-muted-foreground">Upload GST or PAN to get verified. Auto-verifies in seconds for demo.</p>
+            <p className="mt-1 text-xs text-muted-foreground">Upload a GST or PAN document for manual review. For instant GST verification, use KYC &amp; Verification instead.</p>
             {canEditCompany && (
               <button onClick={() => fileRef.current?.click()} className="mt-3 inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-dashed border-primary bg-primary-light text-sm font-semibold text-primary">
                 <Upload className="h-4 w-4" /> Upload document

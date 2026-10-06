@@ -56,8 +56,10 @@ function chipTooltip(source: FieldSource | undefined, matchedHistoryTitle: strin
   return "Default";
 }
 
+// Same selected-chip look as the wizard's other single-select chips (e.g. Pay type): each chip here
+// is the field's current value, so it is always the highlighted one.
 const chipClass =
-  "rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-medium text-foreground/80 hover:border-primary hover:text-primary";
+  "rounded-full border border-primary bg-primary-light px-3 py-1.5 text-xs font-medium text-primary";
 
 const optionButtonClass = (on: boolean) =>
   `flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
