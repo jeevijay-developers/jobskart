@@ -175,7 +175,7 @@ export const adminListResumes = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // candidate_documents.user_id references auth.users (not profiles), so an
     // embedded `profiles:user_id(...)` join has no relationship to resolve and
-    // fails — profiles are looked up separately below.
+    // fails; profiles are looked up separately below.
     const { data: docs, error } = await supabaseAdmin
       .from("candidate_documents")
       .select("id, user_id, file_name, file_path, created_at")
