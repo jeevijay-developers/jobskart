@@ -224,7 +224,7 @@ function ApplicationsPage() {
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <Link
-                      to="/jobs/$jobId"
+                      to="/candidate/jobs/$jobId"
                       params={{ jobId: a.jobs?.id || "" }}
                       className="text-base font-bold text-foreground hover:text-primary"
                     >

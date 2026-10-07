@@ -7,7 +7,10 @@ import { AdminShell } from "@/components/admin/AdminShell";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Pagination } from "@/components/site/Pagination";
 import { adminListJobs, adminToggleJobFeatured, adminCloseJob } from "@/lib/admin.functions";
+
+const PAGE_SIZE = 10;
 
 export const Route = createFileRoute("/admin/jobs")({
   component: Page,
@@ -15,7 +18,7 @@ export const Route = createFileRoute("/admin/jobs")({
 
 function Page() {
   const [search, setSearch] = useState("");
-  const [visibleCount, setVisibleCount] = useState(5);
+  const [page, setPage] = useState(1);
   const list = useServerFn(adminListJobs);
   const tog = useServerFn(adminToggleJobFeatured);
   const close = useServerFn(adminCloseJob);
@@ -39,7 +42,9 @@ function Page() {
     },
   });
   const rows = data?.rows ?? [];
-  const visibleRows = rows.slice(0, visibleCount);
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const visibleRows = rows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   return (
     <AdminShell title="Jobs" subtitle="Moderate and feature job postings">
@@ -48,7 +53,7 @@ function Page() {
         value={search}
         onChange={(e) => {
           setSearch(e.target.value);
-          setVisibleCount(5);
+          setPage(1);
         }}
         className="mb-4 max-w-xs"
       />
@@ -87,16 +92,14 @@ function Page() {
           ))
         )}
       </div>
-      {visibleCount < rows.length ? (
-        <div className="flex justify-center px-4 pt-4">
-          <Button
-            className="max-w-full"
-            variant="outline"
-            onClick={() => setVisibleCount((count) => count + 5)}
-          >
-            Load More Jobs
-          </Button>
-        </div>
+      {totalPages > 1 ? (
+        <Pagination
+          page={currentPage}
+          totalPages={totalPages}
+          onChange={setPage}
+          ariaLabel="Jobs pagination"
+          className="mt-6 max-sm:flex-nowrap max-sm:gap-0.5 max-sm:overflow-x-auto max-sm:[&_button]:min-w-7 max-sm:[&_button]:px-1.5 max-sm:[&_button]:text-xs max-sm:[&_span]:px-0.5"
+        />
       ) : null}
     </AdminShell>
   );

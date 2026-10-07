@@ -679,7 +679,7 @@ export function JobsList({ embeddedInCandidateApp = false }: { embeddedInCandida
       </div>
 
       <Sheet open={mobileFilters} onOpenChange={setMobileFilters}>
-        <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-2xl p-6">
+        <SheetContent side="right" className="w-full overflow-y-auto p-6 sm:max-w-md">
           <SheetTitle className="mb-4 text-left">Filters</SheetTitle>
           <FilterPanel draft={draft} setDraft={setDraft} apply={apply} reset={reset} grouped />
         </SheetContent>

@@ -173,20 +173,80 @@ export const adminListResumes = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     await assertAdmin(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // candidate_documents.user_id references auth.users (not profiles), so an
+    // embedded `profiles:user_id(...)` join has no relationship to resolve and
+    // fails; profiles are looked up separately below.
     const { data: docs, error } = await supabaseAdmin
       .from("candidate_documents")
-      .select("id, user_id, file_name, file_path, created_at, doc_type, profiles:user_id(full_name, mobile, email)")
+      .select("id, user_id, file_name, file_path, created_at")
       .eq("doc_type", "resume")
       .order("created_at", { ascending: false })
       .limit(200);
     if (error) throw new Error(error.message);
-    // Sign urls
-    const out: any[] = [];
-    for (const d of docs ?? []) {
-      const { data: signed } = await supabaseAdmin.storage.from("candidate-docs").createSignedUrl(d.file_path, 3600);
-      out.push({ ...d, signed_url: signed?.signedUrl ?? null });
+    // Resumes uploaded through the profile's resume import only set
+    // candidate_profiles.resume_url (no candidate_documents row), so include those too.
+    const { data: cps, error: cpErr } = await supabaseAdmin
+      .from("candidate_profiles")
+      .select("user_id, resume_url, resume_name, updated_at")
+      .not("resume_url", "is", null)
+      .order("updated_at", { ascending: false })
+      .limit(200);
+    if (cpErr) throw new Error(cpErr.message);
+
+    const known = new Set((docs ?? []).map((d) => d.file_path));
+    const merged: Array<{
+      id: string;
+      user_id: string;
+      file_name: string;
+      file_path: string;
+      created_at: string;
+    }> = [...(docs ?? [])];
+    for (const c of cps ?? []) {
+      const path = c.resume_url as string;
+      if (!path || known.has(path)) continue;
+      const ts = /resume-(\d{13})-/.exec(path)?.[1];
+      merged.push({
+        id: `cp-${c.user_id}`,
+        user_id: c.user_id,
+        file_name: c.resume_name || path.split("/").pop() || "Resume",
+        file_path: path,
+        created_at: ts ? new Date(Number(ts)).toISOString() : c.updated_at,
+      });
     }
-    return { rows: out };
+    merged.sort((x, y) => (y.created_at > x.created_at ? 1 : -1));
+    const rowsIn = merged.slice(0, 200);
+
+    const ids = [...new Set(rowsIn.map((r) => r.user_id))];
+    const profileById = new Map<string, { full_name: string | null; mobile: string | null; email: string | null }>();
+    for (let i = 0; i < ids.length; i += 100) {
+      const { data: ps, error: pErr } = await supabaseAdmin
+        .from("profiles")
+        .select("id, full_name, mobile, email")
+        .in("id", ids.slice(i, i + 100));
+      if (pErr) throw new Error(pErr.message);
+      for (const p of ps ?? []) profileById.set(p.id, p);
+    }
+
+    // Private bucket: short-lived signed URLs (view inline / force download).
+    const paths = rowsIn.map((r) => r.file_path);
+    const viewByPath = new Map<string, string>();
+    if (paths.length) {
+      const { data: viewUrls } = await supabaseAdmin.storage.from("candidate-docs").createSignedUrls(paths, 3600);
+      for (const u of viewUrls ?? []) if (u.path && u.signedUrl) viewByPath.set(u.path, u.signedUrl);
+    }
+    const rows = [];
+    for (const r of rowsIn) {
+      const { data: dl } = await supabaseAdmin.storage
+        .from("candidate-docs")
+        .createSignedUrl(r.file_path, 3600, { download: r.file_name });
+      rows.push({
+        ...r,
+        profiles: profileById.get(r.user_id) ?? null,
+        signed_url: viewByPath.get(r.file_path) ?? null,
+        download_url: dl?.signedUrl ?? null,
+      });
+    }
+    return { rows };
   });
 
 export const adminStats = createServerFn({ method: "GET" })

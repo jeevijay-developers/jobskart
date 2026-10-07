@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Navbar } from "@/components/site/Navbar";
 import { Footer } from "@/components/site/Footer";
 import { supabase } from "@/integrations/supabase/client";
+import { CertificateActions } from "@/components/candidate/CertificateActions";
 import {
   getCertificationExam,
   submitCertificationExam,
@@ -20,6 +21,19 @@ export const Route = createFileRoute("/learn_/certification/$slug_/exam")({
 
 function ExamPage() {
   const { slug } = Route.useParams();
+  return (
+    <div className="min-h-screen bg-surface">
+      <Navbar />
+      <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
+        <ExamContent slug={slug} />
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
+/** Exam body, shared by the public page and the candidate dashboard. */
+export function ExamContent({ slug, inCandidate }: { slug: string; inCandidate?: boolean }) {
   const fetchExam = useServerFn(getCertificationExam);
   const submit = useServerFn(submitCertificationExam);
 
@@ -86,11 +100,9 @@ function ExamPage() {
   };
 
   return (
-    <div className="min-h-screen bg-surface">
-      <Navbar />
-      <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
+    <>
         <Link
-          to="/learn/certification/$slug"
+          to={inCandidate ? "/candidate/learning/certification/$slug" : "/learn/certification/$slug"}
           params={{ slug }}
           className="inline-flex items-center gap-1 text-sm font-semibold text-primary"
         >
@@ -121,6 +133,15 @@ function ExamPage() {
             <p className="mt-1 text-xs text-muted-foreground">
               Attempt {result.attemptsUsed} of {result.maxAttempts}
             </p>
+            {result.passed && result.certificateId && (
+              <div className="mt-5 rounded-xl border border-success/30 bg-success-light/40 p-4">
+                <p className="font-semibold text-foreground">Certificate Earned</p>
+                <p className="text-xs text-muted-foreground">Certificate No. {result.certificateId}</p>
+                <div className="flex justify-center">
+                  <CertificateActions certificateId={result.certificateId} />
+                </div>
+              </div>
+            )}
             {!result.passed && result.attemptsUsed < result.maxAttempts && (
               <button
                 onClick={() => {
@@ -188,8 +209,6 @@ function ExamPage() {
             )}
           </div>
         )}
-      </main>
-      <Footer />
-    </div>
+    </>
   );
 }

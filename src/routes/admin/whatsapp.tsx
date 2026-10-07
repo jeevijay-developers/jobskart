@@ -139,9 +139,12 @@ function Page() {
           </p>
           <div className="mt-4 divide-y divide-border">
             {templates.map((t) => (
-              <div key={t.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
-                <div className="min-w-0">
-                  <p className="font-mono text-sm font-semibold text-foreground">{t.key}</p>
+              <div
+                key={t.id}
+                className="flex flex-col items-start gap-3 py-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="min-w-0 sm:flex-1">
+                  <p className="break-all font-mono text-sm font-semibold text-foreground">{t.key}</p>
                   <p className="text-xs text-muted-foreground">
                     <span
                       className={`mr-2 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
@@ -167,14 +170,14 @@ function Page() {
                   }
                   onBlur={() => updateTemplate(t, { provider_template_id: t.provider_template_id })}
                   placeholder="Meta template name"
-                  className="h-9 w-52 rounded-lg border border-border bg-surface px-2.5 text-xs"
+                  className="h-9 w-52 shrink-0 rounded-lg border border-border bg-surface px-2.5 text-xs"
                 />
                 <button
                   onClick={() =>
                     updateTemplate(t, { status: t.status === "paused" ? "approved" : "paused" })
                   }
                   disabled={savingTemplateId === t.id}
-                  className={`inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold disabled:opacity-50 ${
+                  className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold disabled:opacity-50 ${
                     t.status === "paused"
                       ? "bg-success-light text-success"
                       : "bg-destructive/10 text-destructive"

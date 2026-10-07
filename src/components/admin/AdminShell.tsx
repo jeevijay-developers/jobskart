@@ -21,6 +21,17 @@ import {
 import { useState, type ReactNode } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import logoAsset from "@/assets/jobskart-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 
 const nav = [
@@ -79,14 +90,15 @@ export function AdminShell({
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const [signOutConfirmOpen, setSignOutConfirmOpen] = useState(false);
   const navigate = useNavigate();
   async function signOut() {
     await supabase.auth.signOut();
     navigate({ to: "/admin/login" });
   }
   return (
-    <div className="min-h-screen bg-surface">
-      <header className="sticky top-0 z-30 border-b border-border bg-card/95 backdrop-blur">
+    <div className="min-h-screen bg-surface pt-[61px] lg:pt-0">
+      <header className="fixed inset-x-0 top-0 z-30 border-b border-border bg-card/95 backdrop-blur lg:hidden">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <div className="flex items-center gap-3">
             <Sheet open={open} onOpenChange={setOpen}>
@@ -106,19 +118,39 @@ export function AdminShell({
               Jobskart Admin
             </p>
           </div>
-          <Button variant="ghost" size="sm" onClick={signOut} className="gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSignOutConfirmOpen(true)}
+            className="gap-2"
+          >
             <LogOut className="h-4 w-4" /> Sign out
           </Button>
         </div>
       </header>
-      <div className="mx-auto flex w-full max-w-7xl gap-6 px-4 py-6 sm:px-6">
-        <aside className="hidden w-60 shrink-0 lg:block">
-          <div className="sticky top-20 rounded-2xl border border-border bg-card p-3 shadow-[var(--shadow-card)]">
-            <NavList />
+      <div className="mx-auto flex w-full max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:mx-0 lg:max-w-none lg:gap-0 lg:p-0">
+        <aside className="fixed bottom-0 left-0 top-0 z-40 hidden w-64 border-r border-border bg-card lg:block">
+          <div className="flex h-full min-h-0 flex-col">
+            <div className="flex items-center gap-2 px-4 pb-2 pt-6">
+              <img src={logoAsset} alt="JobsKart" className="h-7 w-auto" />
+              <span className="text-xs font-bold uppercase tracking-wider text-primary">Admin</span>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6 pt-4">
+              <NavList />
+            </div>
+            <div className="shrink-0 border-t border-border p-4">
+              <button
+                type="button"
+                onClick={() => setSignOutConfirmOpen(true)}
+                className="flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-border px-3 text-xs font-semibold text-foreground/80 transition-colors hover:border-destructive/40 hover:bg-destructive-light hover:text-destructive"
+              >
+                <LogOut className="h-3.5 w-3.5 shrink-0" /> Sign out
+              </button>
+            </div>
           </div>
         </aside>
-        <main className="min-w-0 flex-1">
-          <header className="mb-6 flex flex-wrap items-end justify-between gap-3">
+        <main className="min-w-0 flex-1 lg:ml-64 lg:px-8 lg:py-6 xl:px-10 2xl:px-12">
+          <header className="mb-6 flex flex-wrap items-end justify-between gap-3 lg:items-center">
             <div>
               <h1 className="text-2xl font-bold text-foreground sm:text-3xl">{title}</h1>
               {subtitle ? <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p> : null}
@@ -128,6 +160,19 @@ export function AdminShell({
           {children}
         </main>
       </div>
+
+      <AlertDialog open={signOutConfirmOpen} onOpenChange={setSignOutConfirmOpen}>
+        <AlertDialogContent className="w-[calc(100%-2rem)] max-w-sm rounded-xl border-border bg-card sm:rounded-xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sign out?</AlertDialogTitle>
+            <AlertDialogDescription>Are you sure you want to sign out?</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={signOut}>Sign out</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

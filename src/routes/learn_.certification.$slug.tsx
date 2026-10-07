@@ -8,6 +8,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useCandidateCheckout } from "@/hooks/use-candidate-checkout";
 import { createCertificationOrder, getMyCertificatePurchases } from "@/lib/learning.functions";
+import { getMyCertificate, type MyCertificate } from "@/lib/certificates.functions";
+import { CertificateActions } from "@/components/candidate/CertificateActions";
 
 export const Route = createFileRoute("/learn_/certification/$slug")({
   component: CertificationPage,
@@ -65,6 +67,9 @@ export function CertificationContent({
   const [owned, setOwned] = useState<{ certificate_no: string } | null>(null);
   const createOrder = useServerFn(createCertificationOrder);
   const myPurchases = useServerFn(getMyCertificatePurchases);
+  const fetchMyCertificate = useServerFn(getMyCertificate);
+  // Set once the candidate has passed and a certificate was issued.
+  const [earned, setEarned] = useState<MyCertificate | null>(null);
   const { buying, buy } = useCandidateCheckout((r) =>
     setOwned({ certificate_no: r.certificateNo ?? "" }),
   );
@@ -102,6 +107,20 @@ export function CertificationContent({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
 
+  useEffect(() => {
+    if (cert === null || cert === "not_found" || !owned) return;
+    let cancelled = false;
+    fetchMyCertificate({ data: { certificationId: cert.id } })
+      .then((c) => {
+        if (!cancelled) setEarned(c);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cert, owned]);
+
   const handleBuy = () => {
     if (cert === null || cert === "not_found") return;
     void buy(() => createOrder({ data: { certificationId: cert.id } }));
@@ -137,11 +156,22 @@ export function CertificationContent({
           return (
             <div className="mt-6">
               {cert.cover_url && (
-                <img
-                  src={cert.cover_url}
-                  alt={cert.title}
-                  className="mb-6 w-full rounded-xl object-cover"
-                />
+                inCandidate ? (
+                  // Same fixed-size, contain-fit box as the Articles cover: the image never sets the height.
+                  <div className="relative mb-6 aspect-[16/9] w-full overflow-hidden rounded-2xl bg-surface sm:aspect-[3/1]">
+                    <img
+                      src={cert.cover_url}
+                      alt={cert.title}
+                      className="absolute inset-0 h-full w-full object-contain object-center"
+                    />
+                  </div>
+                ) : (
+                  <img
+                    src={cert.cover_url}
+                    alt={cert.title}
+                    className="mb-6 w-full rounded-xl object-cover"
+                  />
+                )
               )}
               <div className="flex items-center gap-2">
                 <Award className="h-6 w-6 text-primary" />
@@ -181,20 +211,28 @@ export function CertificationContent({
                       <CheckCircle2 className="h-5 w-5" />
                       <div>
                         <p className="font-semibold">You own this certification</p>
-                        {owned.certificate_no && (
+                        {(earned?.certificate_id ?? owned.certificate_no) && (
                           <p className="text-xs text-muted-foreground">
-                            Certificate No. {owned.certificate_no}
+                            Certificate No. {earned?.certificate_id ?? owned.certificate_no}
                           </p>
                         )}
                       </div>
                     </div>
-                    <Link
-                      to="/learn/certification/$slug/exam"
-                      params={{ slug }}
-                      className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                    >
-                      <FileCheck2 className="h-4 w-4" /> Start exam
-                    </Link>
+                    {earned ? (
+                      <CertificateActions certificateId={earned.certificate_id} />
+                    ) : (
+                      <Link
+                        to={
+                          inCandidate
+                            ? "/candidate/learning/certification/$slug/exam"
+                            : "/learn/certification/$slug/exam"
+                        }
+                        params={{ slug }}
+                        className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                      >
+                        <FileCheck2 className="h-4 w-4" /> Start exam
+                      </Link>
+                    )}
                   </>
                 ) : price > 0 ? (
                   <>
