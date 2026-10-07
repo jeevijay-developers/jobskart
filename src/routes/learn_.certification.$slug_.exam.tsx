@@ -20,6 +20,19 @@ export const Route = createFileRoute("/learn_/certification/$slug_/exam")({
 
 function ExamPage() {
   const { slug } = Route.useParams();
+  return (
+    <div className="min-h-screen bg-surface">
+      <Navbar />
+      <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
+        <ExamContent slug={slug} />
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
+/** Exam body, shared by the public page and the candidate dashboard. */
+export function ExamContent({ slug, inCandidate }: { slug: string; inCandidate?: boolean }) {
   const fetchExam = useServerFn(getCertificationExam);
   const submit = useServerFn(submitCertificationExam);
 
@@ -86,11 +99,9 @@ function ExamPage() {
   };
 
   return (
-    <div className="min-h-screen bg-surface">
-      <Navbar />
-      <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
+    <>
         <Link
-          to="/learn/certification/$slug"
+          to={inCandidate ? "/candidate/learning/certification/$slug" : "/learn/certification/$slug"}
           params={{ slug }}
           className="inline-flex items-center gap-1 text-sm font-semibold text-primary"
         >
@@ -188,8 +199,6 @@ function ExamPage() {
             )}
           </div>
         )}
-      </main>
-      <Footer />
-    </div>
+    </>
   );
 }
