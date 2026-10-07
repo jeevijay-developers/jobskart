@@ -129,6 +129,9 @@ type Form = {
   degree: string;
   specialisation: string;
   certifications: string[];
+  /** Explicit "No certification required" opt-out, so Certifications can be
+   *  mandatory without forcing a fake tag onto jobs that need none. */
+  certifications_not_required: boolean;
   preferred_industries: string[];
   perks: string[];
   joining_fee_required: boolean;
@@ -143,6 +146,10 @@ type Form = {
   hiring_contact_name: string;
   hiring_contact_phone: string;
   hiring_contact_email: string;
+  /** Which Hiring contact path the recruiter picked — drives whether the
+   *  three fields below were auto-filled from their own profile or entered
+   *  for someone else. */
+  hiring_contact_mode: "myself" | "other" | "";
   /** Multi-select replacement for contact_pref — can hold several of the same ids. */
   contact_prefs: string[];
 };
@@ -183,6 +190,7 @@ const initialForm: Form = {
   degree: "",
   specialisation: "",
   certifications: [],
+  certifications_not_required: false,
   preferred_industries: [],
   perks: [],
   joining_fee_required: false,
@@ -196,6 +204,7 @@ const initialForm: Form = {
   hiring_contact_name: "",
   hiring_contact_phone: "",
   hiring_contact_email: "",
+  hiring_contact_mode: "",
   contact_prefs: ["in_app"],
 };
 
@@ -236,6 +245,7 @@ type JobRow = {
   education: string | null;
   specialisation: string | null;
   certifications: string[] | null;
+  certifications_not_required: boolean | null;
   preferred_industries: string[] | null;
   perks: string[] | null;
   joining_fee_required: boolean | null;
@@ -249,6 +259,7 @@ type JobRow = {
   hiring_contact_name: string | null;
   hiring_contact_phone: string | null;
   hiring_contact_email: string | null;
+  hiring_contact_mode: string | null;
   contact_prefs: string[] | null;
   status: string;
 };
@@ -290,6 +301,7 @@ function jobToForm(job: JobRow): Form {
     degree: job.education ?? "",
     specialisation: job.specialisation ?? "",
     certifications: job.certifications ?? [],
+    certifications_not_required: job.certifications_not_required ?? false,
     preferred_industries: job.preferred_industries ?? [],
     perks: job.perks ?? [],
     joining_fee_required: job.joining_fee_required ?? false,
@@ -303,6 +315,7 @@ function jobToForm(job: JobRow): Form {
     hiring_contact_name: job.hiring_contact_name ?? "",
     hiring_contact_phone: job.hiring_contact_phone ?? "",
     hiring_contact_email: job.hiring_contact_email ?? "",
+    hiring_contact_mode: (job.hiring_contact_mode as Form["hiring_contact_mode"]) || "",
     contact_prefs:
       job.contact_prefs && job.contact_prefs.length
         ? job.contact_prefs
@@ -392,12 +405,14 @@ function buildFieldsFromForm(
     language_requirements: form.language_requirements.filter((l) => l.language && l.level),
     required_assets: form.required_assets,
     certifications: form.certifications,
+    certifications_not_required: form.certifications_not_required,
     preferred_industries: form.preferred_industries,
     contact_pref: (form.contact_prefs[0] as Form["contact_pref"]) || "in_app",
     // Always sent (null when blank) so clearing a field on edit removes it.
     hiring_contact_name: form.hiring_contact_name.trim() || null,
     hiring_contact_phone: form.hiring_contact_phone.trim() || null,
     hiring_contact_email: form.hiring_contact_email.trim() || null,
+    hiring_contact_mode: form.hiring_contact_mode || null,
     contact_prefs: form.contact_prefs,
   };
   if (form.category) p.category = form.category;
@@ -735,6 +750,8 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
       if (!form.title.trim()) return "Add a job title.";
       if (!form.category) return "Pick a category.";
       if (!form.industry) return "Pick an industry.";
+      if (!form.openings || Number(form.openings) < 1)
+        return "Number of openings must be at least 1.";
     }
     if (targetStep === 1) {
       if (!form.city) return "Pick a city.";
@@ -742,12 +759,27 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
       if (form.pincode && form.pincode.length !== 6) return "Pincode must be 6 digits.";
       if (form.min_salary && form.max_salary && Number(form.max_salary) < Number(form.min_salary))
         return "Max salary must be higher than min salary.";
-      if (form.interview_type === "in_person" && !form.interview_same_as_company) {
-        if (!form.interview_city || !form.interview_address) return "Add interview city & address.";
-      }
     }
     if (targetStep === 2) {
       if (!form.skills.length) return "Add at least one required skill.";
+      if (!form.degree) return "Select the minimum education required.";
+      if (!form.working_weekdays.length) return "Select at least one working day.";
+      if (!form.hiring_contact_mode) return "Choose who candidates should contact.";
+      if (
+        !form.hiring_contact_name.trim() ||
+        !form.hiring_contact_phone.trim() ||
+        !form.hiring_contact_email.trim()
+      )
+        return "Add the hiring contact's name, phone and email.";
+      if (!form.certifications_not_required && !form.certifications.length)
+        return "Add a certification, or mark none required.";
+      if (!form.interview_type) return "Select an interview type.";
+      // Moved here from step 1 — the fields this checks (interview_city/address)
+      // are rendered in this step's JSX, so the check needs to live where the
+      // recruiter can actually see and fill them.
+      if (form.interview_type === "in_person" && !form.interview_same_as_company) {
+        if (!form.interview_city || !form.interview_address) return "Add interview city & address.";
+      }
     }
     return null;
   };
@@ -917,13 +949,10 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
     form.preferred_languages.length,
     form.preferred_industries.length,
   ].filter(Boolean).length;
-  const reqPerksFilled = [
-    form.degree,
-    form.specialisation,
-    form.certifications.length,
-    form.required_assets.length,
-    form.perks.length,
-  ].filter(Boolean).length;
+  // Degree/Certifications/Hiring contact moved out to the always-visible part
+  // of the step (now mandatory) — this badge only covers what's still inside
+  // the "Requirements & perks" OptionalSection.
+  const reqPerksFilled = [form.required_assets.length, form.perks.length].filter(Boolean).length;
 
   const onAssumedChange = (key: AssumedChipKey, value: string | boolean) => {
     if (key === "joining_fee_required") {
@@ -1628,36 +1657,122 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                     </Field>
                   </OptionalSection>
 
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Field label="Degree">
+                      <StateDropdown
+                        value={form.degree}
+                        options={EDUCATION_LEVELS}
+                        placeholder="Select minimum education"
+                        onChange={(v) => markDirty("degree", v)}
+                      />
+                    </Field>
+                    <Field label="Specialisation">
+                      <input
+                        value={form.specialisation}
+                        onChange={(e) => markDirty("specialisation", e.target.value)}
+                        className="form-input"
+                        placeholder="e.g. B.Sc IT"
+                      />
+                    </Field>
+                  </div>
+
+                  <Field label="Certifications">
+                    <label className="mb-2 flex items-center gap-2 text-sm text-foreground/80">
+                      <input
+                        type="checkbox"
+                        checked={form.certifications_not_required}
+                        onChange={(e) => {
+                          markDirty("certifications_not_required", e.target.checked);
+                          if (e.target.checked) markDirty("certifications", []);
+                        }}
+                        className="h-4 w-4 rounded border-border"
+                      />
+                      No certification required
+                    </label>
+                    {!form.certifications_not_required && (
+                      <ChipInput
+                        values={form.certifications}
+                        onChange={(v) => markDirty("certifications", v)}
+                      />
+                    )}
+                  </Field>
+
+                  <Field label="Hiring contact">
+                    <div className="mb-2 flex flex-wrap gap-2">
+                      {(
+                        [
+                          { id: "myself", label: "Yes, to myself" },
+                          { id: "other", label: "Yes, to other recruiter" },
+                        ] as const
+                      ).map((o) => (
+                        <button
+                          key={o.id}
+                          type="button"
+                          onClick={async () => {
+                            if (form.hiring_contact_mode === o.id) return;
+                            markDirty("hiring_contact_mode", o.id);
+                            if (o.id === "myself") {
+                              let name = form.hiring_contact_name;
+                              let phone = form.hiring_contact_phone;
+                              let email = form.hiring_contact_email;
+                              if (userId) {
+                                const { data: prof } = await supabase
+                                  .from("profiles")
+                                  .select("full_name, email, mobile")
+                                  .eq("id", userId)
+                                  .maybeSingle();
+                                const p = prof as { full_name?: string; email?: string; mobile?: string } | null;
+                                name = p?.full_name || name;
+                                phone = p?.mobile || phone;
+                                email = p?.email || email;
+                              }
+                              markDirty("hiring_contact_name", name);
+                              markDirty("hiring_contact_phone", phone);
+                              markDirty("hiring_contact_email", email);
+                            } else {
+                              markDirty("hiring_contact_name", "");
+                              markDirty("hiring_contact_phone", "");
+                              markDirty("hiring_contact_email", "");
+                            }
+                          }}
+                          className={`rounded-full border px-3 py-1.5 text-sm ${form.hiring_contact_mode === o.id ? "border-primary bg-primary-light text-primary" : "border-border bg-surface text-foreground/70"}`}
+                        >
+                          {o.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <input
+                        value={form.hiring_contact_name}
+                        onChange={(e) => markDirty("hiring_contact_name", e.target.value)}
+                        className="form-input"
+                        placeholder="Hiring person name"
+                      />
+                      <input
+                        type="tel"
+                        value={form.hiring_contact_phone}
+                        onChange={(e) =>
+                          markDirty("hiring_contact_phone", e.target.value.replace(/[^\d+ ]/g, ""))
+                        }
+                        className="form-input"
+                        placeholder="Phone number"
+                      />
+                      <input
+                        type="email"
+                        value={form.hiring_contact_email}
+                        onChange={(e) => markDirty("hiring_contact_email", e.target.value)}
+                        className="form-input"
+                        placeholder="Email"
+                      />
+                    </div>
+                  </Field>
+
                   <OptionalSection
                     title="Requirements & perks"
                     summary="Optional"
                     badge={reqPerksFilled}
                     hasValues={reqPerksFilled > 0}
                   >
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <Field label="Degree">
-                        <StateDropdown
-                          value={form.degree}
-                          options={EDUCATION_LEVELS}
-                          placeholder="Any"
-                          onChange={(v) => markDirty("degree", v)}
-                        />
-                      </Field>
-                      <Field label="Specialisation">
-                        <input
-                          value={form.specialisation}
-                          onChange={(e) => markDirty("specialisation", e.target.value)}
-                          className="form-input"
-                          placeholder="e.g. B.Sc IT"
-                        />
-                      </Field>
-                    </div>
-                    <Field label="Certifications">
-                      <ChipInput
-                        values={form.certifications}
-                        onChange={(v) => markDirty("certifications", v)}
-                      />
-                    </Field>
                     <Field label="Required assets">
                       <div className="flex flex-wrap gap-2">
                         {ASSETS.map((a) => {
@@ -1682,32 +1797,6 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                         })}
                       </div>
                     </Field>
-                    <Field label="Hiring contact">
-                      <div className="grid gap-3 sm:grid-cols-3">
-                        <input
-                          value={form.hiring_contact_name}
-                          onChange={(e) => markDirty("hiring_contact_name", e.target.value)}
-                          className="form-input"
-                          placeholder="Hiring person name"
-                        />
-                        <input
-                          type="tel"
-                          value={form.hiring_contact_phone}
-                          onChange={(e) =>
-                            markDirty("hiring_contact_phone", e.target.value.replace(/[^\d+ ]/g, ""))
-                          }
-                          className="form-input"
-                          placeholder="Phone number"
-                        />
-                        <input
-                          type="email"
-                          value={form.hiring_contact_email}
-                          onChange={(e) => markDirty("hiring_contact_email", e.target.value)}
-                          className="form-input"
-                          placeholder="Email"
-                        />
-                      </div>
-                    </Field>
                     <Field label="Perks & benefits">
                       <ChipInput
                         values={form.perks}
@@ -1716,6 +1805,127 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                       />
                     </Field>
                   </OptionalSection>
+
+                  <Field
+                    label={`Working days${form.working_weekdays.length ? ` — ${form.working_weekdays.length}/week` : ""}`}
+                  >
+                    <div className="flex flex-wrap gap-2">
+                      {WEEKDAYS.map((d) => {
+                        const on = form.working_weekdays.includes(d.id);
+                        return (
+                          <button
+                            key={d.id}
+                            type="button"
+                            aria-pressed={on}
+                            onClick={() => {
+                              // Keep Monday→Sunday order regardless of click order.
+                              const next = WEEKDAYS.map((x) => x.id).filter((id) =>
+                                id === d.id ? !on : form.working_weekdays.includes(id),
+                              );
+                              markDirty("working_weekdays", next);
+                              // working_days is derived — always "however many are ticked",
+                              // never a separately-entered number that can disagree with this.
+                              markDirty("working_days", String(next.length));
+                            }}
+                            className={`rounded-full border px-4 py-1.5 text-sm ${on ? "border-primary bg-primary-light text-primary" : "border-border bg-surface text-foreground/70"}`}
+                          >
+                            {d.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </Field>
+
+                  <div className="flex flex-col gap-2 rounded-xl border border-border bg-surface px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                    <p className="text-sm font-medium">
+                      Is there any joining fee or deposit required from the candidate?
+                    </p>
+                    <div className="flex shrink-0 items-center gap-2">
+                      {[
+                        { id: "yes", label: "Yes", val: true },
+                        { id: "no", label: "No", val: false },
+                      ].map((o) => (
+                        <button
+                          key={o.id}
+                          type="button"
+                          onClick={() => markDirty("joining_fee_required", o.val)}
+                          className={`rounded-full border px-4 py-1.5 text-sm ${
+                            form.joining_fee_required === o.val
+                              ? "border-primary bg-primary-light text-primary"
+                              : "border-border bg-card text-foreground/70"
+                          }`}
+                        >
+                          {o.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="mb-1.5 text-sm font-medium">Interview type</p>
+                    <div className="flex flex-wrap gap-2">
+                      {INTERVIEW_TYPES.map((t) => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => markDirty("interview_type", t.id as Form["interview_type"])}
+                          className={`rounded-full border px-4 py-1.5 text-sm ${form.interview_type === t.id ? "border-primary bg-primary-light text-primary" : "border-border bg-surface text-foreground/70"}`}
+                        >
+                          {t.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {form.interview_type === "in_person" && (
+                    <div className="space-y-3 rounded-xl border border-border bg-surface p-4">
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={form.interview_same_as_company}
+                          onChange={(e) => markDirty("interview_same_as_company", e.target.checked)}
+                        />
+                        Interview address is same as company address
+                      </label>
+                      {form.interview_same_as_company && (
+                        <p className="text-xs text-muted-foreground">
+                          Interviews at your company address
+                          {form.city ? ` — ${form.city}` : ""}.
+                        </p>
+                      )}
+                      <ConditionalField visible={!form.interview_same_as_company}>
+                        <div className="space-y-3">
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <Field label="Interview city">
+                              <StateDropdown
+                                value={form.interview_city}
+                                options={INDIAN_CITIES}
+                                placeholder="Select…"
+                                onChange={(v) => markDirty("interview_city", v)}
+                                maxMenuHeight={160}
+                              />
+                            </Field>
+                            <Field label="Locality">
+                              <input
+                                value={form.interview_locality}
+                                onChange={(e) => markDirty("interview_locality", e.target.value)}
+                                className="form-input"
+                                placeholder="Sector 132"
+                              />
+                            </Field>
+                          </div>
+                          <Field label="Full interview address">
+                            <textarea
+                              rows={2}
+                              value={form.interview_address}
+                              onChange={(e) => markDirty("interview_address", e.target.value)}
+                              className="form-input resize-none"
+                            />
+                          </Field>
+                        </div>
+                      </ConditionalField>
+                    </div>
+                  )}
 
                   <Accordion type="single" collapsible>
                     <AccordionItem value="advanced">
@@ -1740,133 +1950,6 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                             placeholder="Select documents"
                           />
                         </Field>
-
-                        <Field
-                          label={`Working days${form.working_weekdays.length ? ` — ${form.working_weekdays.length}/week` : ""}`}
-                        >
-                          <div className="flex flex-wrap gap-2">
-                            {WEEKDAYS.map((d) => {
-                              const on = form.working_weekdays.includes(d.id);
-                              return (
-                                <button
-                                  key={d.id}
-                                  type="button"
-                                  aria-pressed={on}
-                                  onClick={() => {
-                                    // Keep Monday→Sunday order regardless of click order.
-                                    const next = WEEKDAYS.map((x) => x.id).filter((id) =>
-                                      id === d.id ? !on : form.working_weekdays.includes(id),
-                                    );
-                                    markDirty("working_weekdays", next);
-                                    // working_days is derived — always "however many are ticked",
-                                    // never a separately-entered number that can disagree with this.
-                                    markDirty("working_days", String(next.length));
-                                  }}
-                                  className={`rounded-full border px-4 py-1.5 text-sm ${on ? "border-primary bg-primary-light text-primary" : "border-border bg-surface text-foreground/70"}`}
-                                >
-                                  {d.label}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </Field>
-
-                        <div className="flex flex-col gap-2 rounded-xl border border-border bg-surface px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-                          <p className="text-sm font-medium">
-                            Is there any joining fee or deposit required from the candidate?
-                          </p>
-                          <div className="flex shrink-0 items-center gap-2">
-                            {[
-                              { id: "yes", label: "Yes", val: true },
-                              { id: "no", label: "No", val: false },
-                            ].map((o) => (
-                              <button
-                                key={o.id}
-                                type="button"
-                                onClick={() => markDirty("joining_fee_required", o.val)}
-                                className={`rounded-full border px-4 py-1.5 text-sm ${
-                                  form.joining_fee_required === o.val
-                                    ? "border-primary bg-primary-light text-primary"
-                                    : "border-border bg-card text-foreground/70"
-                                }`}
-                              >
-                                {o.label}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div>
-                          <p className="mb-1.5 text-sm font-medium">Interview type</p>
-                          <div className="flex flex-wrap gap-2">
-                            {INTERVIEW_TYPES.map((t) => (
-                              <button
-                                key={t.id}
-                                type="button"
-                                onClick={() =>
-                                  markDirty("interview_type", t.id as Form["interview_type"])
-                                }
-                                className={`rounded-full border px-4 py-1.5 text-sm ${form.interview_type === t.id ? "border-primary bg-primary-light text-primary" : "border-border bg-surface text-foreground/70"}`}
-                              >
-                                {t.label}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {form.interview_type === "in_person" && (
-                          <div className="space-y-3 rounded-xl border border-border bg-surface p-4">
-                            <label className="flex items-center gap-2 text-sm">
-                              <input
-                                type="checkbox"
-                                checked={form.interview_same_as_company}
-                                onChange={(e) =>
-                                  markDirty("interview_same_as_company", e.target.checked)
-                                }
-                              />
-                              Interview address is same as company address
-                            </label>
-                            {form.interview_same_as_company && (
-                              <p className="text-xs text-muted-foreground">
-                                Interviews at your company address
-                                {form.city ? ` — ${form.city}` : ""}.
-                              </p>
-                            )}
-                            <ConditionalField visible={!form.interview_same_as_company}>
-                              <div className="space-y-3">
-                                <div className="grid gap-3 sm:grid-cols-2">
-                                  <Field label="Interview city">
-                                    <StateDropdown
-                                      value={form.interview_city}
-                                      options={INDIAN_CITIES}
-                                      placeholder="Select…"
-                                      onChange={(v) => markDirty("interview_city", v)}
-                                      maxMenuHeight={160}
-                                    />
-                                  </Field>
-                                  <Field label="Locality">
-                                    <input
-                                      value={form.interview_locality}
-                                      onChange={(e) =>
-                                        markDirty("interview_locality", e.target.value)
-                                      }
-                                      className="form-input"
-                                      placeholder="Sector 132"
-                                    />
-                                  </Field>
-                                </div>
-                                <Field label="Full interview address">
-                                  <textarea
-                                    rows={2}
-                                    value={form.interview_address}
-                                    onChange={(e) => markDirty("interview_address", e.target.value)}
-                                    className="form-input resize-none"
-                                  />
-                                </Field>
-                              </div>
-                            </ConditionalField>
-                          </div>
-                        )}
                       </AccordionContent>
                     </AccordionItem>
                   </Accordion>
@@ -2058,14 +2141,27 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                             type="button"
                             aria-pressed={on}
                             onClick={() => {
-                              // Keep at least one method selected.
-                              if (on && form.contact_prefs.length === 1) return;
-                              markDirty(
-                                "contact_prefs",
-                                on
-                                  ? form.contact_prefs.filter((id) => id !== o.id)
-                                  : [...form.contact_prefs, o.id],
-                              );
+                              if (on) {
+                                // Keep at least one method selected.
+                                if (form.contact_prefs.length === 1) return;
+                                markDirty(
+                                  "contact_prefs",
+                                  form.contact_prefs.filter((id) => id !== o.id),
+                                );
+                                return;
+                              }
+                              if (o.id === "in_app") {
+                                // "In-app only" means only in-app — selecting it
+                                // drops Phone call/WhatsApp.
+                                markDirty("contact_prefs", ["in_app"]);
+                              } else {
+                                // Selecting Phone call or WhatsApp means it's no
+                                // longer "in-app only".
+                                markDirty("contact_prefs", [
+                                  ...form.contact_prefs.filter((id) => id !== "in_app"),
+                                  o.id,
+                                ]);
+                              }
                             }}
                             className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${
                               on
