@@ -8,6 +8,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useCandidateCheckout } from "@/hooks/use-candidate-checkout";
 import { createCertificationOrder, getMyCertificatePurchases } from "@/lib/learning.functions";
+import { getMyCertificate, type MyCertificate } from "@/lib/certificates.functions";
+import { CertificateActions } from "@/components/candidate/CertificateActions";
 
 export const Route = createFileRoute("/learn_/certification/$slug")({
   component: CertificationPage,
@@ -65,6 +67,9 @@ export function CertificationContent({
   const [owned, setOwned] = useState<{ certificate_no: string } | null>(null);
   const createOrder = useServerFn(createCertificationOrder);
   const myPurchases = useServerFn(getMyCertificatePurchases);
+  const fetchMyCertificate = useServerFn(getMyCertificate);
+  // Set once the candidate has passed and a certificate was issued.
+  const [earned, setEarned] = useState<MyCertificate | null>(null);
   const { buying, buy } = useCandidateCheckout((r) =>
     setOwned({ certificate_no: r.certificateNo ?? "" }),
   );
@@ -101,6 +106,20 @@ export function CertificationContent({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
+
+  useEffect(() => {
+    if (cert === null || cert === "not_found" || !owned) return;
+    let cancelled = false;
+    fetchMyCertificate({ data: { certificationId: cert.id } })
+      .then((c) => {
+        if (!cancelled) setEarned(c);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cert, owned]);
 
   const handleBuy = () => {
     if (cert === null || cert === "not_found") return;
@@ -192,24 +211,28 @@ export function CertificationContent({
                       <CheckCircle2 className="h-5 w-5" />
                       <div>
                         <p className="font-semibold">You own this certification</p>
-                        {owned.certificate_no && (
+                        {(earned?.certificate_id ?? owned.certificate_no) && (
                           <p className="text-xs text-muted-foreground">
-                            Certificate No. {owned.certificate_no}
+                            Certificate No. {earned?.certificate_id ?? owned.certificate_no}
                           </p>
                         )}
                       </div>
                     </div>
-                    <Link
-                      to={
-                        inCandidate
-                          ? "/candidate/learning/certification/$slug/exam"
-                          : "/learn/certification/$slug/exam"
-                      }
-                      params={{ slug }}
-                      className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                    >
-                      <FileCheck2 className="h-4 w-4" /> Start exam
-                    </Link>
+                    {earned ? (
+                      <CertificateActions certificateId={earned.certificate_id} />
+                    ) : (
+                      <Link
+                        to={
+                          inCandidate
+                            ? "/candidate/learning/certification/$slug/exam"
+                            : "/learn/certification/$slug/exam"
+                        }
+                        params={{ slug }}
+                        className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                      >
+                        <FileCheck2 className="h-4 w-4" /> Start exam
+                      </Link>
+                    )}
                   </>
                 ) : price > 0 ? (
                   <>

@@ -12,6 +12,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { CERT_ASSET_PATH_RE, CERT_PREFIX_RE, COVER_RE } from "@/lib/certificate-layout";
 
 // ── Candidate: buy a certification ──────────────────────────────────────
 
@@ -333,6 +334,8 @@ export type CertificationExamResult = {
   total: number;
   attemptsUsed: number;
   maxAttempts: number;
+  /** Set when a certificate exists for this pass (certificates enabled + generated). */
+  certificateId?: string;
 };
 
 export const getCertificationExam = createServerFn({ method: "POST" })
@@ -364,7 +367,18 @@ export const submitCertificationExam = createServerFn({ method: "POST" })
       _answers: data.answers as Json,
     });
     if (error) throw new Error(friendlyExamError(error.message));
-    return result as unknown as CertificationExamResult;
+    const exam = result as unknown as CertificationExamResult;
+    if (exam.passed) {
+      // Isolated: a certificate problem never changes or hides the recorded exam result.
+      const { generateCertificateForPass } = await import("@/lib/certificates.server");
+      const cert = await generateCertificateForPass({
+        userId: context.userId,
+        certificationId: data.certificationId,
+        score: exam.score,
+      });
+      if (cert) exam.certificateId = cert.certificateId;
+    }
+    return exam;
   });
 
 // ── Admin: author content ───────────────────────────────────────────────
@@ -372,6 +386,33 @@ export const submitCertificationExam = createServerFn({ method: "POST" })
 // "Admins can manage ..." policies added in the schema migration are the
 // actual security boundary; a non-admin's write is rejected by Postgres,
 // not just by a role check in this file.
+
+// Certificate settings (assets are Storage paths inside the private "certificates" bucket).
+const certAssetPath = z.string().regex(CERT_ASSET_PATH_RE).nullish();
+const certificateConfigSchema = z.object({
+  templatePath: certAssetPath,
+  logoPath: certAssetPath,
+  signaturePath: certAssetPath,
+  signature2Path: certAssetPath,
+  issuerName: z.string().trim().max(120).nullish(),
+  prefix: z.string().trim().regex(CERT_PREFIX_RE).nullish(),
+  layout: z
+    .record(
+      z.string().max(30),
+      z.object({
+        x: z.number().min(0).max(100).optional(),
+        y: z.number().min(0).max(100).optional(),
+        w: z.number().min(5).max(100).optional(),
+        hidden: z.boolean().optional(),
+        cover: z.string().regex(COVER_RE).nullish(),
+        cx: z.number().min(0).max(100).optional(),
+        cy: z.number().min(0).max(100).optional(),
+        cw: z.number().min(1).max(100).optional(),
+        ch: z.number().min(0.5).max(100).optional(),
+      }),
+    )
+    .nullish(),
+});
 
 // {id, text, options[], correct} — "correct" is an index into options.
 // Exam grading (submit_certification_exam) reads this shape directly, so it's
@@ -431,6 +472,8 @@ const contentItemSchema = z.object({
       maxAttempts: z.number().int().min(1).max(10).default(3),
       validityMonths: z.number().int().min(1).max(120).nullish(),
       questions: z.array(certQuestionSchema).max(200).default([]),
+      certificateEnabled: z.boolean().default(false),
+      certificateConfig: certificateConfigSchema.default({}),
     })
     .nullish(),
 });
@@ -502,7 +545,9 @@ export const createContentItem = createServerFn({ method: "POST" })
           max_attempts: c?.maxAttempts ?? 3,
           validity_months: c?.validityMonths ?? null,
           questions: (c?.questions ?? []) as Json,
-        });
+          certificate_enabled: c?.certificateEnabled ?? false,
+          certificate_config: (c?.certificateConfig ?? {}) as Json,
+        } as never);
         if (error) throw new Error(error.message);
       }
     } catch (e) {
@@ -589,6 +634,8 @@ const updateContentItemSchema = z.object({
       maxAttempts: z.number().int().min(1).max(10).default(3),
       validityMonths: z.number().int().min(1).max(120).nullish(),
       questions: z.array(certQuestionSchema).max(200).default([]),
+      certificateEnabled: z.boolean().default(false),
+      certificateConfig: certificateConfigSchema.default({}),
     })
     .nullish(),
 });
@@ -667,7 +714,9 @@ export const updateContentItem = createServerFn({ method: "POST" })
         max_attempts: c.maxAttempts,
         validity_months: c.validityMonths ?? null,
         questions: c.questions as Json,
-      });
+        certificate_enabled: c.certificateEnabled,
+        certificate_config: c.certificateConfig as Json,
+      } as never);
       if (error) throw new Error(error.message);
     }
 
@@ -767,7 +816,7 @@ export const getContentItemForEdit = createServerFn({ method: "POST" })
           "courses(price_inr), " +
           "course_modules(id, title, kind, video_url, body_md, free_preview, duration_minutes, position, " +
           "course_lessons(id, title, kind, video_url, body_md, free_preview, duration_minutes, position)), " +
-          "certifications(price_inr, provider, partner_name, pass_mark, max_attempts, validity_months, questions)",
+          "certifications(price_inr, provider, partner_name, pass_mark, max_attempts, validity_months, questions, certificate_enabled, certificate_config)",
       )
       .eq("id", data.id)
       .single();
