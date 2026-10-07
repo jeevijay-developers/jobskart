@@ -137,11 +137,22 @@ export function CertificationContent({
           return (
             <div className="mt-6">
               {cert.cover_url && (
-                <img
-                  src={cert.cover_url}
-                  alt={cert.title}
-                  className="mb-6 w-full rounded-xl object-cover"
-                />
+                inCandidate ? (
+                  // Same fixed-size, contain-fit box as the Articles cover: the image never sets the height.
+                  <div className="relative mb-6 aspect-[16/9] w-full overflow-hidden rounded-2xl bg-surface sm:aspect-[3/1]">
+                    <img
+                      src={cert.cover_url}
+                      alt={cert.title}
+                      className="absolute inset-0 h-full w-full object-contain object-center"
+                    />
+                  </div>
+                ) : (
+                  <img
+                    src={cert.cover_url}
+                    alt={cert.title}
+                    className="mb-6 w-full rounded-xl object-cover"
+                  />
+                )
               )}
               <div className="flex items-center gap-2">
                 <Award className="h-6 w-6 text-primary" />
@@ -189,7 +200,11 @@ export function CertificationContent({
                       </div>
                     </div>
                     <Link
-                      to="/learn/certification/$slug/exam"
+                      to={
+                        inCandidate
+                          ? "/candidate/learning/certification/$slug/exam"
+                          : "/learn/certification/$slug/exam"
+                      }
                       params={{ slug }}
                       className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                     >

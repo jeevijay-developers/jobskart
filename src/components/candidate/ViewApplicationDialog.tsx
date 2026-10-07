@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { getCandidateResume, type CandidateResume } from "@/lib/candidateResume";
 import { ApplicationFormFields } from "@/components/candidate/ApplicationFormFields";
+import { DocumentPreviewModal, type DocPreview } from "@/components/candidate/DocumentPreviewModal";
 
 type Props = {
   open: boolean;
@@ -28,6 +29,7 @@ export function ViewApplicationDialog({ open, onClose, userId, application, jobT
   const [loading, setLoading] = useState(true);
   const [resume, setResume] = useState<CandidateResume>(null);
   const [viewingResume, setViewingResume] = useState(false);
+  const [preview, setPreview] = useState<DocPreview | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -44,15 +46,42 @@ export function ViewApplicationDialog({ open, onClose, userId, application, jobT
   const viewResume = async () => {
     if (!resume) return;
     setViewingResume(true);
-    const { data, error } = await supabase.storage
-      .from("candidate-docs")
-      .createSignedUrl(resume.path, 3600);
-    setViewingResume(false);
+    const sign = (path: string) =>
+      supabase.storage.from("candidate-docs").createSignedUrl(path, 3600);
+    let { data, error } = await sign(resume.path);
     if (error || !data?.signedUrl) {
+      console.error("[ViewApplicationDialog] couldn't sign resume", resume.path, error);
+      // The profile's resume_url can outlive its file (deleting a document on /candidate/documents
+      // removes the storage object and its document row, not the profile pointer). Fall back to the
+      // newest resume document that still exists.
+      const { data: docs } = await supabase
+        .from("candidate_documents")
+        .select("file_path")
+        .eq("user_id", userId)
+        .eq("doc_type", "resume")
+        .order("created_at", { ascending: false })
+        .limit(1);
+      const alt = docs?.[0]?.file_path;
+      if (alt && alt !== resume.path) ({ data, error } = await sign(alt));
+    }
+    if (error || !data?.signedUrl) {
+      setViewingResume(false);
       toast.error("Couldn't open resume. Please try again.");
       return;
     }
-    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+    // Show it in the in-page preview (same viewer as the Documents page) instead of a new tab.
+    try {
+      const res = await fetch(data.signedUrl);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const isImage = blob.type.startsWith("image/") || /\.(png|jpe?g)$/i.test(resume.name);
+      setPreview({ url: URL.createObjectURL(blob), name: resume.name, isImage });
+    } catch (e) {
+      console.error("[ViewApplicationDialog] couldn't load resume for preview", e);
+      toast.error("Couldn't open resume. Please try again.");
+    } finally {
+      setViewingResume(false);
+    }
   };
 
   return (
@@ -120,6 +149,7 @@ export function ViewApplicationDialog({ open, onClose, userId, application, jobT
           </button>
         </div>
       </div>
+      {preview && <DocumentPreviewModal preview={preview} onClose={() => setPreview(null)} />}
     </div>
   );
 }
