@@ -8,7 +8,7 @@ import { CityTownAutocomplete } from "@/components/candidate/CityTownAutocomplet
 import { supabase } from "@/integrations/supabase/client";
 import { setActiveCompanyId } from "@/lib/employer";
 import { INDIAN_CITIES } from "@/lib/options";
-import { useJobTitleSuggestions } from "@/lib/useJobTitleSuggestions";
+import { useJobTitleSearch } from "@/lib/useJobTitleSearch";
 import {
   Questionnaire,
   BigInput,
@@ -71,6 +71,8 @@ const INDUSTRY_SUGGEST = [
   "Other",
 ];
 
+/** "reena MISHRA" -> "Reena Mishra": first letter of each word upper, rest lower. */
+const toTitleCase = (v: string) => v.toLowerCase().replace(/(^|\s)([a-z])/g, (_m, sp, ch) => sp + ch.toUpperCase());
 const CURRENT_YEAR = new Date().getFullYear();
 const MIN_FOUNDED_YEAR = 1947;
 const FUTURE_YEAR_ERROR = "Future year is not allowed. Enter the current year or an earlier year.";
@@ -107,7 +109,7 @@ function EmployerOnboarding() {
   const [workEmail, setWorkEmail] = useState("");
   const [isConsultant, setIsConsultant] = useState(false);
   const [postNow, setPostNow] = useState<"yes" | "later">("yes");
-  const designationSuggestions = useJobTitleSuggestions();
+  const designationSuggestions = useJobTitleSearch(designation);
   const fullNameError = fullNameInputError ?? getEmployerFullNameError(fullName);
   const shouldShowFullNameError = Boolean(fullName || fullNameInputError);
   // Silent fix-up: below min or incomplete -> empty. A future year is kept so
@@ -134,15 +136,17 @@ function EmployerOnboarding() {
     setFoundedYear(String(next));
   };
 
-  // Live uppercase for the name field; caret is preserved because the
-  // length never changes.
+  // Live formatting for the name field; the caret is restored after sanitizing.
+  // Company / consultancy name: letters and spaces only, Title Case.
   const applyConsultancyUppercase = (input: HTMLInputElement) => {
     const raw = input.value;
-    const upper = raw.toUpperCase();
-    const caret = input.selectionStart ?? raw.length;
-    setCompanyName(upper);
-    if (upper !== raw) {
-      input.value = upper;
+    const caretRaw = input.selectionStart ?? raw.length;
+    const strip = (v: string) => v.replace(/[^A-Za-z ]/g, "");
+    const next = toTitleCase(strip(raw));
+    const caret = Math.min(strip(raw.slice(0, caretRaw)).length, next.length);
+    setCompanyName(next);
+    if (next !== raw) {
+      input.value = next;
       input.setSelectionRange(caret, caret);
       requestAnimationFrame(() => input.setSelectionRange(caret, caret));
     }
@@ -169,11 +173,11 @@ function EmployerOnboarding() {
     if (message) {
       fullNameErrorTimer.current = setTimeout(() => setFullNameInputError(null), 1500);
     }
-    setFullName(cleaned.toUpperCase());
-    if (cleaned.toUpperCase() !== raw) {
+    setFullName(toTitleCase(cleaned));
+    if (toTitleCase(cleaned) !== raw) {
       // React may not re-render when the sanitized value equals state, so
       // restore the caret both synchronously and after the frame.
-      input.value = cleaned.toUpperCase();
+      input.value = toTitleCase(cleaned);
       input.setSelectionRange(nextCaret, nextCaret);
       requestAnimationFrame(() => input.setSelectionRange(nextCaret, nextCaret));
     }
@@ -255,6 +259,7 @@ function EmployerOnboarding() {
       hint: "We use this on invites and to address you across the dashboard.",
       validate: () => {
         if (fullNameError) return fullNameError;
+        if (!designation.trim()) return "Designation is required";
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(workEmail.trim())) return "Enter your work email.";
         return null;
       },
@@ -303,14 +308,16 @@ function EmployerOnboarding() {
               options={ROLES.map((r) => ({ value: r.value, label: r.label }))}
             />
           </div>
-          <Field label="Designation (optional)" hint="e.g. Head of TA, Founder">
+          <Field required label="Designation" hint="e.g. Head of TA, Founder">
             <CityTownAutocomplete
               value={designation}
               onChange={setDesignation}
               suggestions={designationSuggestions}
               minChars={3}
               maxSuggestions={10}
-              placeholder="Optional"
+              tallRows
+              required
+              placeholder="Your designation"
             />
           </Field>
           <Field required label="Work email" hint="Verification updates and approvals are sent here. Use your company email.">
@@ -347,11 +354,12 @@ function EmployerOnboarding() {
       key: "company",
       title: isConsultant ? "Which firm do you represent?" : "What's your company called?",
       hint: isConsultant
-        ? "Optional — leave blank if you hire for multiple firms. You can name the client company on each job post."
+        ? "Enter the consultancy you work for. You can name the client company on each job post."
         : "Use your registered or commonly known brand name.",
       validate: () => {
-        if (!isConsultant && companyName.trim().length < 2) return "Add your company name.";
-        if (companyName.trim().length === 1) return "Add a longer name, or leave it blank.";
+        if (companyName.trim().length < 2) {
+          return isConsultant ? "Add your consultancy name." : "Add your company name.";
+        }
         if (!industry) return "Pick an industry to continue.";
         if (futureYear) {
           foundedYearRef.current?.focus();
@@ -364,7 +372,7 @@ function EmployerOnboarding() {
         <div className="space-y-6">
           <BigInput
             placeholder={
-              isConsultant ? "Your consultancy name (optional)" : "Acme Logistics Pvt Ltd"
+              isConsultant ? "Your consultancy name" : "Acme Logistics Pvt Ltd"
             }
             value={companyName}
             onChange={(e) => {
@@ -378,12 +386,6 @@ function EmployerOnboarding() {
             autoCorrect="off"
             spellCheck={false}
           />
-          {isConsultant && (
-            <p className="-mt-3 text-xs text-muted-foreground">
-              Working across multiple firms? Skip this — we&apos;ll create an independent recruiter
-              workspace and ask for the client company on each job.
-            </p>
-          )}
           <div>
             <p className="mb-3 text-sm font-semibold text-foreground">
               Industry{" "}
