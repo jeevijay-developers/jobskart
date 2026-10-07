@@ -15,6 +15,10 @@ type Props = {
   // Opt-in cap on how many suggestions render at once. Defaults to unlimited
   // so existing callers keep their current list length.
   maxSuggestions?: number;
+  // Opt-in: 44px minimum tap height for each suggestion row (mobile tap targets).
+  tallRows?: boolean;
+  // Opt-in: marks the input as required for assistive tech.
+  required?: boolean;
 };
 
 /** Editable combobox: local suggestions filtered as-you-type, but any typed value is accepted as-is. */
@@ -27,6 +31,8 @@ export function CityTownAutocomplete({
   showDropdownIndicator = false,
   minChars = 0,
   maxSuggestions,
+  tallRows = false,
+  required = false,
 }: Props) {
   const [q, setQ] = useState(value);
   const [open, setOpen] = useState(false);
@@ -80,6 +86,7 @@ export function CityTownAutocomplete({
         className={`form-input disabled:cursor-not-allowed disabled:opacity-60 ${showDropdownIndicator ? "pr-10" : ""}`}
         value={q}
         disabled={disabled}
+        aria-required={required || undefined}
         onChange={(e) => {
           setQ(e.target.value);
           onChange(e.target.value);
@@ -126,7 +133,7 @@ export function CityTownAutocomplete({
               key={s}
               type="button"
               onClick={() => pick(s)}
-              className={`block w-full px-3 py-2 text-left text-sm hover:bg-surface ${
+              className={`block w-full px-3 py-2 text-left text-sm hover:bg-surface ${tallRows ? "min-h-11" : ""} ${
                 i === highlighted ? "bg-surface" : ""
               }`}
             >
