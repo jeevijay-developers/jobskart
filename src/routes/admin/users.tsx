@@ -6,8 +6,11 @@ import { AdminShell } from "@/components/admin/AdminShell";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Pagination } from "@/components/site/Pagination";
 import { toast } from "sonner";
 import { adminListUsers, adminSetUserStatus, adminDeleteUser } from "@/lib/admin.functions";
+
+const PAGE_SIZE = 10;
 
 export const Route = createFileRoute("/admin/users")({
   component: UsersPage,
@@ -16,7 +19,7 @@ export const Route = createFileRoute("/admin/users")({
 function UsersPage() {
   const [search, setSearch] = useState("");
   const [userType, setUserType] = useState<"all" | "candidate" | "employer">("all");
-  const [visibleCount, setVisibleCount] = useState(5);
+  const [page, setPage] = useState(1);
   const list = useServerFn(adminListUsers);
   const setStatus = useServerFn(adminSetUserStatus);
   const del = useServerFn(adminDeleteUser);
@@ -41,7 +44,9 @@ function UsersPage() {
     onError: (e: any) => toast.error(e.message),
   });
   const rows = data?.rows ?? [];
-  const visibleRows = rows.slice(0, visibleCount);
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const visibleRows = rows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   return (
     <AdminShell title="Users" subtitle="Manage candidates and employers">
@@ -51,7 +56,7 @@ function UsersPage() {
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
-            setVisibleCount(5);
+            setPage(1);
           }}
           className="max-w-xs"
         />
@@ -61,7 +66,7 @@ function UsersPage() {
               key={t}
               onClick={() => {
                 setUserType(t);
-                setVisibleCount(5);
+                setPage(1);
               }}
               className={`rounded-md px-3 py-1.5 text-xs font-medium ${
                 userType === t
@@ -130,16 +135,14 @@ function UsersPage() {
           ))
         )}
       </div>
-      {visibleCount < rows.length ? (
-        <div className="flex justify-center px-4 pt-4">
-          <Button
-            className="max-w-full"
-            variant="outline"
-            onClick={() => setVisibleCount((count) => count + 5)}
-          >
-            Load More Users
-          </Button>
-        </div>
+      {totalPages > 1 ? (
+        <Pagination
+          page={currentPage}
+          totalPages={totalPages}
+          onChange={setPage}
+          ariaLabel="Users pagination"
+          className="mt-6 max-sm:flex-nowrap max-sm:gap-0.5 max-sm:overflow-x-auto max-sm:[&_button]:min-w-7 max-sm:[&_button]:px-1.5 max-sm:[&_button]:text-xs max-sm:[&_span]:px-0.5"
+        />
       ) : null}
     </AdminShell>
   );
