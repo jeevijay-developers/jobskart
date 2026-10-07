@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Navbar } from "@/components/site/Navbar";
 import { Footer } from "@/components/site/Footer";
 import { supabase } from "@/integrations/supabase/client";
+import { CertificateActions } from "@/components/candidate/CertificateActions";
 import {
   getCertificationExam,
   submitCertificationExam,
@@ -132,6 +133,15 @@ export function ExamContent({ slug, inCandidate }: { slug: string; inCandidate?:
             <p className="mt-1 text-xs text-muted-foreground">
               Attempt {result.attemptsUsed} of {result.maxAttempts}
             </p>
+            {result.passed && result.certificateId && (
+              <div className="mt-5 rounded-xl border border-success/30 bg-success-light/40 p-4">
+                <p className="font-semibold text-foreground">Certificate Earned</p>
+                <p className="text-xs text-muted-foreground">Certificate No. {result.certificateId}</p>
+                <div className="flex justify-center">
+                  <CertificateActions certificateId={result.certificateId} />
+                </div>
+              </div>
+            )}
             {!result.passed && result.attemptsUsed < result.maxAttempts && (
               <button
                 onClick={() => {

@@ -25,6 +25,13 @@ import {
   updateContentItem,
   uploadCoverImage,
 } from "@/lib/learning.functions";
+import { getCertificateAssetUrls } from "@/lib/certificates.functions";
+import {
+  CertificateSettings,
+  EMPTY_CERT_SETTINGS,
+  type CertSettingsState,
+} from "@/components/admin/CertificateSettings";
+import { CERT_PREFIX_RE } from "@/lib/certificate-layout";
 
 export const Route = createFileRoute("/admin/content")({
   component: Page,
@@ -63,6 +70,7 @@ type FormState = {
   maxAttempts: string;
   validityMonths: string;
   questions: DraftQuestion[];
+  cert: CertSettingsState;
 };
 
 // One exam question as the admin edits it. `id` is kept across edits so
@@ -109,7 +117,28 @@ const EMPTY_FORM: FormState = {
   maxAttempts: "3",
   validityMonths: "",
   questions: [],
+  cert: EMPTY_CERT_SETTINGS,
 };
+
+// Saved certificate_config (+ enabled flag) -> form state. Preview URLs are filled in after load.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function certSettingsFromRow(cert: any): CertSettingsState {
+  const c = (cert?.certificate_config ?? {}) as Record<string, string | null | undefined>;
+  return {
+    enabled: !!cert?.certificate_enabled,
+    paths: {
+      template: c.templatePath ?? "",
+      logo: c.logoPath ?? "",
+      signature: c.signaturePath ?? "",
+      signature2: c.signature2Path ?? "",
+    },
+    urls: {},
+    names: {},
+    issuerName: c.issuerName ?? "",
+    prefix: c.prefix ?? "JK-CERT",
+    layout: (cert?.certificate_config?.layout ?? {}) as CertSettingsState["layout"],
+  };
+}
 
 type ListRow = {
   id: string;
@@ -166,6 +195,7 @@ function Page() {
     void load();
   }, []);
 
+  const getCertUrls = useServerFn(getCertificateAssetUrls);
   const startEdit = async (row: ListRow) => {
     // course_lessons body_md/video_url and certifications.questions are revoked
     // from the browser client's role entirely (see 20260930150000/1) — this has
@@ -227,6 +257,7 @@ function Page() {
       passMark: cert ? String(cert.pass_mark) : "80",
       maxAttempts: cert ? String(cert.max_attempts) : "3",
       validityMonths: cert?.validity_months != null ? String(cert.validity_months) : "",
+      cert: certSettingsFromRow(cert),
       questions: cert
         ? (cert.questions ?? []).map(
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -240,6 +271,27 @@ function Page() {
         : [],
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
+
+    // Signed preview URLs for the saved certificate assets (private bucket) — display only.
+    const cs = certSettingsFromRow(cert);
+    const entries = (Object.entries(cs.paths) as [keyof typeof cs.paths, string][]).filter(([, p]) => p);
+    if (entries.length) {
+      getCertUrls({ data: { paths: entries.map(([, p]) => p) } })
+        .then((urls) =>
+          setForm((f) =>
+            f.id === d.id
+              ? {
+                  ...f,
+                  cert: {
+                    ...f.cert,
+                    urls: Object.fromEntries(entries.map(([k, p]) => [k, urls[p]])),
+                  },
+                }
+              : f,
+          ),
+        )
+        .catch(() => {});
+    }
   };
 
   const resetForm = () => setForm(EMPTY_FORM);
@@ -297,6 +349,16 @@ function Page() {
       return;
     }
     const questions: { id: string; text: string; options: string[]; correct: number }[] = [];
+    if (form.type === "certification" && form.cert.enabled) {
+      if (!form.cert.paths.template) {
+        toast.error("Upload a certificate template, or turn Enable Certificate off.");
+        return;
+      }
+      if (form.cert.prefix.trim() && !CERT_PREFIX_RE.test(form.cert.prefix.trim())) {
+        toast.error("Certificate prefix can only contain letters, numbers and dashes (max 16).");
+        return;
+      }
+    }
     if (form.type === "certification") {
       for (const [i, q] of form.questions.entries()) {
         const text = q.text.trim();
@@ -360,6 +422,16 @@ function Page() {
                 passMark: num(form.passMark, 80),
                 maxAttempts: num(form.maxAttempts, 3),
                 validityMonths: form.validityMonths ? num(form.validityMonths) : null,
+                certificateEnabled: form.cert.enabled,
+                certificateConfig: {
+                  templatePath: form.cert.paths.template || null,
+                  logoPath: form.cert.paths.logo || null,
+                  signaturePath: form.cert.paths.signature || null,
+                  signature2Path: form.cert.paths.signature2 || null,
+                  issuerName: form.cert.issuerName.trim() || null,
+                  prefix: form.cert.prefix.trim() || null,
+                  layout: form.cert.layout,
+                },
                 questions,
               }
             : undefined,
@@ -793,6 +865,13 @@ function Page() {
                 <Plus className="mr-1 h-4 w-4" /> Add question
               </Button>
             </div>
+            <CertificateSettings
+              value={form.cert}
+              onChange={(cert) => setForm((f) => ({ ...f, cert }))}
+              courseTitle={form.title}
+              providerLabel={form.provider === "partner" && form.partnerName ? form.partnerName : "JobsKart"}
+              validityMonths={form.validityMonths ? num(form.validityMonths) : null}
+            />
           </div>
         )}
 
