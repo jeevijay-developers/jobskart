@@ -222,6 +222,13 @@ export function JobDetailPage({
 
       const excludeIds = getSeenJobIds();
       if (uid) {
+        // Server dedupes per IST day and ignores non-candidates (employers). Fire-and-forget.
+        supabase
+          .rpc("log_job_view" as never, { _job_id: jobData.id } as never)
+          .then(
+            () => {},
+            () => {},
+          );
         const [{ data: app }, { data: sav }, { data: appliedJobs }] = await Promise.all([
           supabase
             .from("applications")
