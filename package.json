@@ -12,7 +12,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "postinstall": "patch-package",
-    "test": "jest"
+    "test": "jest",
+    "test:unit": "bun test src"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
