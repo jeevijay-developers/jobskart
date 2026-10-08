@@ -294,7 +294,7 @@ export function JobsList({ embeddedInCandidateApp = false }: { embeddedInCandida
         rows,
         total: count,
         error,
-      } = await fetchCandidateJobFeed(feedFilters, sort, from, to, "top");
+      } = await fetchCandidateJobFeed(feedFilters, sort, from, to, "top", "browse");
       return error
         ? { data: null, count: null, error: { message: error } }
         : { data: rows, count, error: null };

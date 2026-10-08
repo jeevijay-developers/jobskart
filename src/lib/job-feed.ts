@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { JobCardData } from "@/components/site/JobCard";
+import { rpcWithFallback } from "@/lib/rpc-fallback";
 
 /**
  * Shared feed adapter — the one place Dashboard and `/jobs` build RPC args
@@ -12,6 +13,9 @@ import type { JobCardData } from "@/components/site/JobCard";
  */
 
 export type JobFeedSort = "recommended" | "newest" | "oldest" | "salary_high" | "salary_low";
+
+/** Which screen asked for the feed; the server uses it only to label impression logs. */
+export type FeedSurface = "dashboard" | "browse";
 
 export type JobFeedFilters = {
   q?: string;
@@ -138,11 +142,11 @@ export async function fetchPublicJobFeed(
 }
 
 /**
- * Candidate feed (recommend_jobs_for_candidate): identity comes from auth.uid()
- * server-side. Returns personalized relevance scores with explainable breakdown.
- * Applied-job exclusion is a discovery invariant (not just for "recommended" sort).
- * `sort` reorders within the same relevance-gated result set — the RPC's
- * `_sort` param (20261006093130_recommend_jobs_for_candidate_sort.sql).
+ * Candidate feed: identity comes from auth.uid() server-side. Goes through the
+ * routed RPC (recommend_jobs_routed), which serves the same rows as
+ * recommend_jobs_for_candidate and records server-side impression logs. If the
+ * router is missing or errors, falls back to the V1 RPC so the feed never breaks.
+ * `sort` reorders within the same relevance-gated result set.
  */
 export async function fetchCandidateJobFeed(
   filters: JobFeedFilters,
@@ -154,10 +158,20 @@ export async function fetchCandidateJobFeed(
    *  jobs and the dashboard want different behavior and a silent default here
    *  previously let Browse jobs inherit the strict filter unintentionally. */
   mode: "recommended" | "top",
+  /** Required for the same reason as `mode`: it labels logs, so it must be explicit. */
+  surface: FeedSurface,
 ): Promise<JobFeedResult> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await supabase.rpc("recommend_jobs_for_candidate" as any,
-    { ...baseRpcArgs(filters, from, to), _relevant_only: mode === "recommended", _sort: sort }
+  const args = {
+    ...baseRpcArgs(filters, from, to),
+    _relevant_only: mode === "recommended",
+    _sort: sort,
+  };
+  const { data, error } = await rpcWithFallback(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    () => supabase.rpc("recommend_jobs_routed" as any, { ...args, _surface: surface }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    () => supabase.rpc("recommend_jobs_for_candidate" as any, args),
+    (message) => console.warn("[job-feed] routed feed unavailable, using V1:", message),
   );
   if (error) return { rows: [], total: 0, error: error.message };
   const rows = (data ?? []) as unknown as RecommendRow[];
