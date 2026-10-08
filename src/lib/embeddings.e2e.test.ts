@@ -69,7 +69,8 @@ describe("embedding freshness e2e (local stack)", { skip: !ENABLED }, () => {
       assert.ifError(error);
       return data!;
     };
-    const original = (await read()).skills as string[];
+    const snapshot = await read();
+    const original = snapshot.skills as string[];
     try {
       const first = await embedCandidateProfileCore({
         supabase: sb as never,
@@ -118,7 +119,23 @@ describe("embedding freshness e2e (local stack)", { skip: !ENABLED }, () => {
         "timestamp advanced",
       );
     } finally {
-      await sb.from("candidate_profiles").update({ skills: original }).eq("user_id", CANDIDATE_ID);
+      // Leave the shared local fixtures exactly as found. Order matters: restoring `skills` fires
+      // the invalidation trigger (clears the hash), so restore the embedding columns AFTER it.
+      const skillsBack = await sb
+        .from("candidate_profiles")
+        .update({ skills: original })
+        .eq("user_id", CANDIDATE_ID);
+      assert.ifError(skillsBack.error);
+      const embeddingBack = await sb
+        .from("candidate_profiles")
+        .update({
+          profile_embedding: snapshot.profile_embedding,
+          profile_embedding_hash: snapshot.profile_embedding_hash,
+          profile_embedding_model: snapshot.profile_embedding_model,
+          profile_embedded_at: snapshot.profile_embedded_at,
+        })
+        .eq("user_id", CANDIDATE_ID);
+      assert.ifError(embeddingBack.error);
     }
   });
 
@@ -145,6 +162,7 @@ describe("embedding freshness e2e (local stack)", { skip: !ENABLED }, () => {
       assert.ifError(error);
       return data!;
     };
+    const snapshot = await read();
     try {
       const first = await embedJobDescriptionCore({ supabase: sb as never, jobId, deps });
       assert.deepEqual(first, { ok: true, skipped: false });
@@ -177,7 +195,20 @@ describe("embedding freshness e2e (local stack)", { skip: !ENABLED }, () => {
           new Date(r1.description_embedded_at as string).getTime(),
       );
     } finally {
-      await sb.from("jobs").update({ skills: original }).eq("id", jobId);
+      // Same ordering rule as the candidate test: skills first (fires the invalidation trigger),
+      // then put the original embedding columns back.
+      const skillsBack = await sb.from("jobs").update({ skills: original }).eq("id", jobId);
+      assert.ifError(skillsBack.error);
+      const embeddingBack = await sb
+        .from("jobs")
+        .update({
+          description_embedding: snapshot.description_embedding,
+          description_embedding_hash: snapshot.description_embedding_hash,
+          description_embedding_model: snapshot.description_embedding_model,
+          description_embedded_at: snapshot.description_embedded_at,
+        })
+        .eq("id", jobId);
+      assert.ifError(embeddingBack.error);
     }
   });
 });
