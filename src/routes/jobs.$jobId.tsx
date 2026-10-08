@@ -60,6 +60,11 @@ type JobDetail = {
   company_id: string;
   title: string;
   description: string;
+  /** Consultancy override: the client company this job is actually for, if
+   *  the posting account is a consultancy posting on a client's behalf.
+   *  Falls back to companies.name (the posting account's own name) everywhere
+   *  this is displayed — see `displayCompanyName` below. */
+  hiring_for_company: string | null;
   city: string | null;
   state: string | null;
   locality: string | null;
@@ -179,7 +184,7 @@ export function JobDetailPage({
       const { data, error } = await supabase
         .from("jobs")
         .select(
-          "id, company_id, title, description, description_html, city, state, locality, min_salary, max_salary, salary_period, fixed_pay, incentives_text, pay_type, avg_incentive_monthly, interview_type, interview_same_as_company, hiring_contact_name, hiring_contact_phone, hiring_contact_email, interview_city, interview_locality, interview_address, joining_fee_required, industry, job_type, work_mode, shift, gender_pref, working_weekdays, required_documents, language_requirements, min_experience_years, max_experience_years, education, english_level, skills, preferred_skills, perks, openings, walkin, walkin_details, created_at, expires_at, category, companies (name, is_verified, industry, primary_city, description, about, logo_url)",
+          "id, company_id, title, description, description_html, city, state, locality, min_salary, max_salary, salary_period, fixed_pay, incentives_text, pay_type, avg_incentive_monthly, interview_type, interview_same_as_company, hiring_contact_name, hiring_contact_phone, hiring_contact_email, interview_city, interview_locality, interview_address, joining_fee_required, industry, job_type, work_mode, shift, gender_pref, working_weekdays, required_documents, language_requirements, min_experience_years, max_experience_years, education, english_level, skills, preferred_skills, perks, openings, walkin, walkin_details, created_at, expires_at, category, hiring_for_company, companies (name, is_verified, industry, primary_city, description, about, logo_url)",
         )
         .eq("id", jobId)
         // Hide jobs past their expiry even if the sweep hasn't flipped status.
@@ -194,7 +199,7 @@ export function JobDetailPage({
       const jobData = data as unknown as JobDetail;
       setJob(jobData);
       if (typeof document !== "undefined") {
-        document.title = `${jobData.title} · ${jobData.companies?.name || "JobsKart"}`;
+        document.title = `${jobData.title} · ${jobData.hiring_for_company?.trim() || jobData.companies?.name || "JobsKart"}`;
       }
       markJobSeen(jobData.id);
 
@@ -350,7 +355,10 @@ export function JobDetailPage({
   }
 
   const location = [job.locality, job.city, job.state].filter(Boolean).join(", ");
-  const initials = (job.companies?.name || "JK")
+  // A consultancy posting on a client's behalf overrides the displayed name;
+  // everyone else just shows their own company name as usual.
+  const displayCompanyName = job.hiring_for_company?.trim() || job.companies?.name;
+  const initials = (displayCompanyName || "JK")
     .split(" ")
     .map((p) => p[0])
     .join("")
@@ -418,7 +426,7 @@ export function JobDetailPage({
                   <div className="flex min-w-0 gap-4">
                     <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl border border-border bg-card text-base font-bold text-primary sm:h-16 sm:w-16 sm:text-lg">
                       {job.companies?.logo_url ? (
-                        <img src={job.companies.logo_url} alt={job.companies.name} className="h-full w-full object-cover" />
+                        <img src={job.companies.logo_url} alt={displayCompanyName || ""} className="h-full w-full object-cover" />
                       ) : (
                         initials
                       )}
@@ -427,7 +435,7 @@ export function JobDetailPage({
                       <h1 className="text-xl font-bold leading-tight text-foreground sm:text-2xl lg:text-3xl">{job.title}</h1>
                       <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-foreground/80">
                         <Building2 className="h-4 w-4 text-primary" />
-                        <span className="font-medium">{job.companies?.name || "Confidential employer"}</span>
+                        <span className="font-medium">{displayCompanyName || "Confidential employer"}</span>
                         {job.companies?.is_verified ? (
                           <span className="inline-flex items-center gap-1 rounded-full bg-success-light px-2 py-0.5 text-xs font-semibold text-success">
                             <CheckCircle2 className="h-3 w-3" /> Verified
@@ -799,13 +807,13 @@ export function JobDetailPage({
                     <div className="flex items-start gap-4">
                       <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl border border-border bg-surface text-base font-bold text-primary">
                         {job.companies?.logo_url ? (
-                          <img src={job.companies.logo_url} alt={job.companies.name} className="h-full w-full object-cover" />
+                          <img src={job.companies.logo_url} alt={displayCompanyName || ""} className="h-full w-full object-cover" />
                         ) : (
                           initials
                         )}
                       </div>
                       <div>
-                        <h2 className="text-lg font-semibold text-foreground">{job.companies?.name || "Confidential employer"}</h2>
+                        <h2 className="text-lg font-semibold text-foreground">{displayCompanyName || "Confidential employer"}</h2>
                         {job.companies?.industry || job.companies?.primary_city ? (
                           <p className="text-sm text-muted-foreground">
                             {[job.companies?.industry, job.companies?.primary_city].filter(Boolean).join(" · ")}
@@ -813,7 +821,16 @@ export function JobDetailPage({
                         ) : null}
                       </div>
                     </div>
-                    <p className="text-sm leading-6 text-foreground/80">{job.companies?.about || job.companies?.description || `${job.companies?.name || "This employer"} is hiring on JobsKart. Apply now to hear back directly from the recruiter.`}</p>
+                    <p className="text-sm leading-6 text-foreground/80">
+                      {job.hiring_for_company?.trim()
+                        ? // A consultancy's own "about" text describes the consultancy, not
+                          // the client company whose name is shown here — skip straight to
+                          // the generic line rather than show a mismatched bio.
+                          `${displayCompanyName} is hiring on JobsKart. Apply now to hear back directly from the recruiter.`
+                        : job.companies?.about ||
+                          job.companies?.description ||
+                          `${displayCompanyName || "This employer"} is hiring on JobsKart. Apply now to hear back directly from the recruiter.`}
+                    </p>
                   </div>
                 )}
                 </BlockCardCtx.Provider>
@@ -900,7 +917,7 @@ export function JobDetailPage({
                 <button
                   onClick={() => downloadJdPdf({
                     title: job.title,
-                    company: job.companies?.name,
+                    company: displayCompanyName,
                     city: job.city || undefined,
                     jobType: job.job_type?.replace("_", " ") || undefined,
                     workMode: job.work_mode || undefined,
@@ -1000,7 +1017,7 @@ export function JobDetailPage({
             min_salary: job.min_salary,
             max_salary: job.max_salary,
             salary_period: job.salary_period,
-            company_name: job.companies?.name,
+            company_name: displayCompanyName,
             company_verified: job.companies?.is_verified,
             job_type: job.job_type,
             work_mode: job.work_mode,

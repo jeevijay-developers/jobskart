@@ -14,6 +14,7 @@ import {
   Download,
   Loader2,
   RefreshCw,
+  X,
 } from "lucide-react";
 import { downloadJdPdf } from "@/lib/jd-pdf";
 import { toast } from "sonner";
@@ -38,7 +39,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchMyCompanies, getActiveCompanyId, setActiveCompanyId } from "@/lib/employer";
+import {
+  fetchMyCompanies,
+  getActiveCompanyId,
+  setActiveCompanyId,
+  type EmployerMembership,
+} from "@/lib/employer";
 import {
   INDIAN_CITIES,
   JOB_TYPE_OPTIONS,
@@ -468,6 +474,15 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
   >(null);
   const saving = activeAction !== null;
   const [isConsultant, setIsConsultant] = useState(false);
+  // Every company the signed-in user belongs to — lets a consultant switch
+  // which of their own companies they're posting as (see "Company you're
+  // hiring for" below). Only meaningful when creating a job: an existing
+  // job's company_id is fixed, so this path is hidden in edit mode.
+  const [memberships, setMemberships] = useState<EmployerMembership[]>([]);
+  const [hiringForChangeOpen, setHiringForChangeOpen] = useState(false);
+  // Whether "Company you're hiring for" shows the editable client-company
+  // override or the locked default (the consultant's own company name).
+  const [postingForClient, setPostingForClient] = useState(false);
   const [form, setForm] = useState<Form>(initialForm);
 
   // Confirm-a-draft: company history + JD library inference, dirty tracking,
@@ -514,6 +529,7 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
         }
         setUserId(user.user.id);
         const memberships = await fetchMyCompanies(user.user.id);
+        setMemberships(memberships);
         const storedId = getActiveCompanyId();
         const chosen = memberships.find((m) => m.company_id === storedId) ?? memberships[0] ?? null;
         if (!chosen) {
@@ -544,6 +560,7 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
           }
           const jobForm = jobToForm(job as unknown as JobRow);
           setForm(jobForm);
+          setPostingForClient(Boolean(jobForm.hiring_for_company.trim()));
           // Edit mode never re-infers over saved values — every loaded field
           // starts dirty so history/library inference leaves it alone.
           setDirty(new Set(Object.keys(jobForm)));
@@ -594,6 +611,26 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
   }, [companyId, runGetEntitlements]);
 
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
+
+  // "I changed my company" — re-picks which of the signed-in user's own
+  // company memberships this post goes under. Create flow only (see
+  // `memberships` comment); the wizard re-derives everything company-scoped
+  // (consultant flag, history-inference source, salary suggestions) from
+  // companyId, so switching it here is enough to carry through everywhere else.
+  const switchCompany = async (m: EmployerMembership) => {
+    setActiveCompanyId(m.company_id);
+    setCompanyId(m.company_id);
+    setCompanyName(m.companies?.name || "our company");
+    const { data: co } = await supabase
+      .from("companies")
+      .select("is_consultant" as any)
+      .eq("id", m.company_id)
+      .maybeSingle();
+    setIsConsultant(Boolean((co as { is_consultant?: boolean } | null)?.is_consultant));
+    // Back to the new company's own name until the recruiter overrides it again.
+    markDirty("hiring_for_company", "");
+    setHiringForChangeOpen(false);
+  };
 
   // Every user-facing control (as opposed to inference) routes through this so
   // a later re-infer (title change, history load) never overwrites a value the
@@ -1122,16 +1159,100 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                     </div>
                   </Field>
                   {isConsultant && (
-                    <Field
-                      label="Company you're hiring for"
-                      hint="Optional — shown to candidates so they know the actual employer."
-                    >
-                      <input
-                        value={form.hiring_for_company}
-                        onChange={(e) => markDirty("hiring_for_company", e.target.value)}
-                        className="form-input"
-                        placeholder="e.g. Acme Retail Pvt Ltd"
-                      />
+                    <Field label="Company you're hiring for" required>
+                      <div className="relative">
+                        {postingForClient ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              autoFocus
+                              value={form.hiring_for_company}
+                              onChange={(e) => markDirty("hiring_for_company", e.target.value)}
+                              className="form-input"
+                              placeholder="e.g. Acme Retail Pvt Ltd"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPostingForClient(false);
+                                markDirty("hiring_for_company", "");
+                              }}
+                              className="shrink-0 text-xs font-semibold text-primary hover:underline"
+                            >
+                              Reset to {companyName}
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <input
+                              disabled
+                              value={companyName}
+                              className="form-input flex-1 text-muted-foreground disabled:opacity-100"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setHiringForChangeOpen((o) => !o)}
+                              className="shrink-0 text-xs font-semibold text-primary hover:underline"
+                            >
+                              Change
+                            </button>
+                          </div>
+                        )}
+                        {hiringForChangeOpen && (
+                          <>
+                            <div
+                              className="fixed inset-0 z-10"
+                              onClick={() => setHiringForChangeOpen(false)}
+                            />
+                            <div className="absolute right-0 top-full z-20 mt-2 w-80 rounded-xl border border-border bg-card p-3 shadow-xl">
+                              <div className="mb-2 flex items-center justify-between">
+                                <p className="text-sm font-semibold">
+                                  Reason to change the company name
+                                </p>
+                                <button
+                                  type="button"
+                                  onClick={() => setHiringForChangeOpen(false)}
+                                  aria-label="Close"
+                                  className="text-muted-foreground hover:text-foreground"
+                                >
+                                  <X className="h-4 w-4" />
+                                </button>
+                              </div>
+                              <div className="space-y-2">
+                                {!editJobId && memberships.length > 1 && (
+                                  <div className="rounded-lg border border-border p-2">
+                                    <p className="mb-1.5 text-sm">I changed my company</p>
+                                    <div className="space-y-1">
+                                      {memberships
+                                        .filter((m) => m.company_id !== companyId)
+                                        .map((m) => (
+                                          <button
+                                            key={m.company_id}
+                                            type="button"
+                                            onClick={() => switchCompany(m)}
+                                            className="block w-full rounded-md px-2 py-1 text-left text-xs text-foreground/80 hover:bg-surface"
+                                          >
+                                            {m.companies?.name || "Unnamed company"}
+                                          </button>
+                                        ))}
+                                    </div>
+                                  </div>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setPostingForClient(true);
+                                    setHiringForChangeOpen(false);
+                                  }}
+                                  className="block w-full rounded-lg border border-border p-2 text-left text-sm hover:border-primary hover:bg-primary-light/40"
+                                >
+                                  I belong to a consultancy &amp; want to post for my client's
+                                  company
+                                </button>
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </Field>
                   )}
                 </div>
