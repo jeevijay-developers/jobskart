@@ -59,7 +59,6 @@ const candRows = {
 };
 const candText = buildCandidateEmbeddingText({
   headline: "Driver",
-  fullName: "Asha Rao",
   lastRole: "Cab driver",
   yearsExperience: 4,
   skills: ["driving", "navigation"],

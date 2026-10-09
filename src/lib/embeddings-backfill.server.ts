@@ -158,7 +158,6 @@ async function backfillCandidates(
       const p = profById.get(r.user_id);
       const text = buildCandidateEmbeddingText({
         headline: r.headline,
-        fullName: p?.full_name ?? null,
         lastRole: r.last_role,
         yearsExperience: r.years_experience,
         skills: r.skills,

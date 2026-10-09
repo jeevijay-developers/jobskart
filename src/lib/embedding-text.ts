@@ -40,7 +40,6 @@ export function buildCandidateEmbeddingText(i: CandidateEmbeddingInput): string 
   return cap(
     [
       i.headline,
-      i.fullName ? `Candidate: ${i.fullName}` : null,
       i.lastRole ? `Most recent role: ${i.lastRole}` : null,
       i.yearsExperience != null ? `${i.yearsExperience} years of experience` : null,
       i.skills?.length ? `Skills: ${i.skills.join(", ")}` : null,
@@ -71,4 +70,40 @@ export async function embeddingInputHash(modelId: string, text: string): Promise
   const data = new TextEncoder().encode(`${modelId}\n${text}`);
   const digest = await crypto.subtle.digest("SHA-256", data);
   return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+export function buildCandidateSkillsEmbeddingText(skills: string[] | null | undefined): string {
+  return cap((skills ?? []).filter(Boolean).join(", "));
+}
+
+export type CandidateRoleInput = {
+  headline?: string | null;
+  lastRole?: string | null;
+  interestedRoles?: string[] | null;
+};
+
+export function buildCandidateRoleEmbeddingText(i: CandidateRoleInput): string {
+  return cap(
+    [
+      i.headline ? `${i.headline}.` : null,
+      i.lastRole ? `Most recent role: ${i.lastRole}.` : null,
+      i.interestedRoles?.length ? `Interested in: ${i.interestedRoles.join(", ")}.` : null,
+    ]
+      .filter(Boolean)
+      .join(" "),
+  );
+}
+
+export function buildJobSkillsEmbeddingText(skills: string[] | null | undefined): string {
+  return cap((skills ?? []).filter(Boolean).join(", "));
+}
+
+export type JobRoleInput = { title?: string | null; category?: string | null };
+
+export function buildJobRoleEmbeddingText(i: JobRoleInput): string {
+  return cap(
+    [i.title ? `${i.title}.` : null, i.category ? `Category: ${i.category}.` : null]
+      .filter(Boolean)
+      .join(" "),
+  );
 }

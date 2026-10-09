@@ -3,15 +3,18 @@ import assert from "node:assert/strict";
 import {
   MAX_EMBED_CHARS,
   buildCandidateEmbeddingText,
+  buildCandidateRoleEmbeddingText,
+  buildCandidateSkillsEmbeddingText,
   buildJobEmbeddingText,
+  buildJobRoleEmbeddingText,
+  buildJobSkillsEmbeddingText,
   embeddingInputHash,
 } from "./embedding-text.ts";
 
 describe("buildCandidateEmbeddingText (characterizes today's output)", () => {
-  it("joins every present field in the existing order with '. '", () => {
+  it("joins every present field EXCEPT the candidate's name, in the existing order with '. '", () => {
     const text = buildCandidateEmbeddingText({
       headline: "Delivery Executive",
-      fullName: "Asha Verma",
       lastRole: "Rider",
       yearsExperience: 3,
       skills: ["Two-wheeler", "Navigation"],
@@ -20,7 +23,7 @@ describe("buildCandidateEmbeddingText (characterizes today's output)", () => {
     });
     assert.equal(
       text,
-      "Delivery Executive. Candidate: Asha Verma. Most recent role: Rider. 3 years of experience. Skills: Two-wheeler, Navigation. Based in Pune. Reliable and punctual.",
+      "Delivery Executive. Most recent role: Rider. 3 years of experience. Skills: Two-wheeler, Navigation. Based in Pune. Reliable and punctual.",
     );
   });
 
@@ -146,5 +149,59 @@ describe("embeddingInputHash", () => {
     const a = await embeddingInputHash("gemini-embedding-001/1536", "hello");
     const b = await embeddingInputHash("openai/text-embedding-3-small", "hello");
     assert.notEqual(a, b);
+  });
+});
+
+describe("buildCandidateSkillsEmbeddingText", () => {
+  it("joins skills as a comma list", () => {
+    assert.equal(
+      buildCandidateSkillsEmbeddingText(["Two-wheeler", "Navigation", "Customer handling"]),
+      "Two-wheeler, Navigation, Customer handling",
+    );
+  });
+  it("returns empty string for no skills", () => {
+    assert.equal(buildCandidateSkillsEmbeddingText([]), "");
+    assert.equal(buildCandidateSkillsEmbeddingText(null), "");
+    assert.equal(buildCandidateSkillsEmbeddingText(undefined), "");
+  });
+});
+
+describe("buildCandidateRoleEmbeddingText", () => {
+  it("joins headline, last role, and interested roles", () => {
+    assert.equal(
+      buildCandidateRoleEmbeddingText({
+        headline: "Delivery Executive",
+        lastRole: "Rider",
+        interestedRoles: ["Driver", "Warehouse"],
+      }),
+      "Delivery Executive. Most recent role: Rider. Interested in: Driver, Warehouse.",
+    );
+  });
+  it("omits missing parts", () => {
+    assert.equal(buildCandidateRoleEmbeddingText({ headline: "Rider" }), "Rider.");
+  });
+  it("returns empty string when nothing is present", () => {
+    assert.equal(buildCandidateRoleEmbeddingText({}), "");
+  });
+});
+
+describe("buildJobSkillsEmbeddingText", () => {
+  it("joins job skills as a comma list", () => {
+    assert.equal(buildJobSkillsEmbeddingText(["Bike", "Maps"]), "Bike, Maps");
+  });
+  it("returns empty string for no skills", () => {
+    assert.equal(buildJobSkillsEmbeddingText([]), "");
+  });
+});
+
+describe("buildJobRoleEmbeddingText", () => {
+  it("joins title and category", () => {
+    assert.equal(
+      buildJobRoleEmbeddingText({ title: "Delivery Boy", category: "Delivery" }),
+      "Delivery Boy. Category: Delivery.",
+    );
+  });
+  it("omits missing category", () => {
+    assert.equal(buildJobRoleEmbeddingText({ title: "Delivery Boy" }), "Delivery Boy.");
   });
 });

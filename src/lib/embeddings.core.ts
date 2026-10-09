@@ -98,7 +98,6 @@ export async function embedCandidateProfileCore(args: {
 
     const text = buildCandidateEmbeddingText({
       headline: str(cprof.headline),
-      fullName: str(profile?.full_name),
       lastRole: str(cprof.last_role),
       yearsExperience: typeof cprof.years_experience === "number" ? cprof.years_experience : null,
       skills: strArr(cprof.skills),
