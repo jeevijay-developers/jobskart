@@ -7,7 +7,13 @@
 import { buildResumeDomStyles } from "./buildDomStyles";
 import { DomResumeSections } from "./DomResumeSections";
 import { getTemplateTheme } from "./theme";
-import { WATERMARK_TEXT } from "./watermark";
+import {
+  DIAGONAL_ANGLE,
+  DIAGONAL_COLOR,
+  DIAGONAL_OPACITY,
+  DIAGONAL_SIZE_PT,
+  WATERMARK_TEXT,
+} from "./watermark";
 import type { ResumeSchema } from "../schema";
 
 // A4 width at 96dpi, matching the "pt as px" scale used by buildDomStyles —
@@ -38,8 +44,37 @@ export function DomResumeTemplate({ resume }: { resume: ResumeSchema }) {
         maxWidth: PAGE_MAX_WIDTH,
         margin: "0 auto",
         ...s.page,
+        position: "relative",
+        containerType: "inline-size",
       }}
     >
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          pointerEvents: "none",
+          overflow: "hidden",
+        }}
+      >
+        <span
+          style={{
+            fontFamily: "Helvetica, Arial, sans-serif",
+            fontWeight: 700,
+            fontSize: `${(DIAGONAL_SIZE_PT / 595) * 100}cqw`,
+            color: DIAGONAL_COLOR,
+            opacity: DIAGONAL_OPACITY,
+            transform: `rotate(-${DIAGONAL_ANGLE}deg)`,
+            whiteSpace: "nowrap",
+            userSelect: "none",
+          }}
+        >
+          JOBSKART
+        </span>
+      </div>
       {theme.bandHeader ? (
         <div style={s.header}>
           <p style={s.name}>{resume.candidateName || "Resume"}</p>

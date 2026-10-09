@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { Mail, X } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { getCandidateResume, type ResumeFile } from "@/lib/candidateResume";
+import { getApplicationResume, getCandidateResume, type ResumeFile } from "@/lib/candidateResume";
 import { ApplicationFormFields } from "@/components/candidate/ApplicationFormFields";
 import { ApplicantStatusMenu } from "./ApplicantStatusMenu";
 import { CandidateContactActions } from "./CandidateContactActions";
@@ -90,7 +90,11 @@ export function ApplicantReviewPanel({
           .select("id, level, institute, board_or_university, year_of_passing")
           .eq("user_id", a.candidate_id)
           .order("year_of_passing", { ascending: false, nullsFirst: false }),
-        getCandidateResume(a.candidate_id),
+        // Copy submitted with this application, else the profile resume (a.id is not always an
+        // application id; then nothing is found and the fallback applies).
+        getApplicationResume(a.candidate_id, a.id).then(
+          (c) => c ?? getCandidateResume(a.candidate_id),
+        ),
       ]);
       if (cancelled) return;
       setExperiences((expRes.data || []) as Experience[]);
