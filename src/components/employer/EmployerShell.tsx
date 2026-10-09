@@ -19,8 +19,14 @@ import logoAsset from "@/assets/jobskart-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import { signOut } from "@/lib/auth";
 import { fetchMyCompanies, getActiveCompanyId } from "@/lib/employer";
-import { EMPLOYER_NAV_LINKS as nav, EMPLOYER_OVERFLOW_LINKS, isEmployerNavVisible } from "@/lib/employer-nav";
+import {
+  EMPLOYER_NAV_LINKS as nav,
+  EMPLOYER_OVERFLOW_LINKS,
+  EMPLOYER_PRIMARY_LINKS,
+  isEmployerNavVisible,
+} from "@/lib/employer-nav";
 import { useEmployerRole } from "@/hooks/use-employer-role";
+import { useEmployerInboxUnread } from "@/hooks/use-employer-inbox-unread";
 
 export function CreditChip() {
   const { canManageBilling } = useEmployerRole();
@@ -110,12 +116,13 @@ export function EmployerShell({
 }) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const { role } = useEmployerRole();
+  const { role, companyId } = useEmployerRole();
   const visibleNav = nav.filter((item) => isEmployerNavVisible(item.minRole, role));
   const visibleOverflow = EMPLOYER_OVERFLOW_LINKS.filter((item) =>
     isEmployerNavVisible(item.minRole, role),
   );
-  const primary = nav.slice(0, 4);
+  const primary = EMPLOYER_PRIMARY_LINKS;
+  const unreadInbox = useEmployerInboxUnread(companyId);
   const [moreOpen, setMoreOpen] = useState(false);
   const [signOutConfirmOpen, setSignOutConfirmOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -166,13 +173,14 @@ export function EmployerShell({
               {visibleNav.map((item) => {
                 const active = pathname === item.to || pathname.startsWith(item.to + "/");
                 const Icon = item.icon;
+                const badge = item.to === "/employer/inbox" && unreadInbox > 0 ? unreadInbox : 0;
                 return (
                   <Link
                     key={item.to}
                     to={item.to}
                     title={collapsed ? item.label : undefined}
                     aria-label={collapsed ? item.label : undefined}
-                    className={`flex items-center gap-3 whitespace-nowrap rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                    className={`relative flex items-center gap-3 whitespace-nowrap rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                       active
                         ? "bg-primary-light text-primary"
                         : "text-foreground/80 hover:bg-surface"
@@ -180,6 +188,14 @@ export function EmployerShell({
                   >
                     <Icon className="h-4 w-4 shrink-0" />
                     {!collapsed && item.label}
+                    {badge > 0 &&
+                      (collapsed ? (
+                        <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-destructive" />
+                      ) : (
+                        <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
+                          {badge > 99 ? "99+" : badge}
+                        </span>
+                      ))}
                   </Link>
                 );
               })}
@@ -289,6 +305,7 @@ export function EmployerShell({
           >
             {visibleOverflow.map((item) => {
               const Icon = item.icon;
+              const badge = item.to === "/employer/inbox" && unreadInbox > 0 ? unreadInbox : 0;
               return (
                 <Link
                   key={item.to}
@@ -297,6 +314,11 @@ export function EmployerShell({
                   className="flex items-center gap-2 rounded-lg px-3 py-3 text-base font-medium text-foreground hover:bg-surface"
                 >
                   <Icon className="h-4 w-4" /> {item.label}
+                  {badge > 0 && (
+                    <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
+                      {badge > 99 ? "99+" : badge}
+                    </span>
+                  )}
                 </Link>
               );
             })}

@@ -68,6 +68,7 @@ import { Route as AuthenticatedEmployerCreditsRouteImport } from './routes/_auth
 import { Route as AuthenticatedEmployerCrmRouteImport } from './routes/_authenticated/employer/crm'
 import { Route as AuthenticatedEmployerDashboardRouteImport } from './routes/_authenticated/employer/dashboard'
 import { Route as AuthenticatedEmployerDatabaseRouteImport } from './routes/_authenticated/employer/database'
+import { Route as AuthenticatedEmployerInboxRouteImport } from './routes/_authenticated/employer/inbox'
 import { Route as AuthenticatedEmployerInterviewsRouteImport } from './routes/_authenticated/employer/interviews'
 import { Route as AuthenticatedEmployerJobsRouteImport } from './routes/_authenticated/employer/jobs'
 import { Route as AuthenticatedEmployerReportsRouteImport } from './routes/_authenticated/employer/reports'
@@ -414,6 +415,12 @@ const AuthenticatedEmployerDatabaseRoute =
     path: '/employer/database',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedEmployerInboxRoute =
+  AuthenticatedEmployerInboxRouteImport.update({
+    id: '/employer/inbox',
+    path: '/employer/inbox',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedEmployerInterviewsRoute =
   AuthenticatedEmployerInterviewsRouteImport.update({
     id: '/employer/interviews',
@@ -663,6 +670,7 @@ export interface FileRoutesByFullPath {
   '/employer/crm': typeof AuthenticatedEmployerCrmRouteWithChildren
   '/employer/dashboard': typeof AuthenticatedEmployerDashboardRoute
   '/employer/database': typeof AuthenticatedEmployerDatabaseRoute
+  '/employer/inbox': typeof AuthenticatedEmployerInboxRoute
   '/employer/interviews': typeof AuthenticatedEmployerInterviewsRoute
   '/employer/jobs': typeof AuthenticatedEmployerJobsRouteWithChildren
   '/employer/reports': typeof AuthenticatedEmployerReportsRoute
@@ -754,6 +762,7 @@ export interface FileRoutesByTo {
   '/employer/crm': typeof AuthenticatedEmployerCrmRouteWithChildren
   '/employer/dashboard': typeof AuthenticatedEmployerDashboardRoute
   '/employer/database': typeof AuthenticatedEmployerDatabaseRoute
+  '/employer/inbox': typeof AuthenticatedEmployerInboxRoute
   '/employer/interviews': typeof AuthenticatedEmployerInterviewsRoute
   '/employer/jobs': typeof AuthenticatedEmployerJobsRouteWithChildren
   '/employer/reports': typeof AuthenticatedEmployerReportsRoute
@@ -848,6 +857,7 @@ export interface FileRoutesById {
   '/_authenticated/employer/crm': typeof AuthenticatedEmployerCrmRouteWithChildren
   '/_authenticated/employer/dashboard': typeof AuthenticatedEmployerDashboardRoute
   '/_authenticated/employer/database': typeof AuthenticatedEmployerDatabaseRoute
+  '/_authenticated/employer/inbox': typeof AuthenticatedEmployerInboxRoute
   '/_authenticated/employer/interviews': typeof AuthenticatedEmployerInterviewsRoute
   '/_authenticated/employer/jobs': typeof AuthenticatedEmployerJobsRouteWithChildren
   '/_authenticated/employer/reports': typeof AuthenticatedEmployerReportsRoute
@@ -942,6 +952,7 @@ export interface FileRouteTypes {
     | '/employer/crm'
     | '/employer/dashboard'
     | '/employer/database'
+    | '/employer/inbox'
     | '/employer/interviews'
     | '/employer/jobs'
     | '/employer/reports'
@@ -1033,6 +1044,7 @@ export interface FileRouteTypes {
     | '/employer/crm'
     | '/employer/dashboard'
     | '/employer/database'
+    | '/employer/inbox'
     | '/employer/interviews'
     | '/employer/jobs'
     | '/employer/reports'
@@ -1126,6 +1138,7 @@ export interface FileRouteTypes {
     | '/_authenticated/employer/crm'
     | '/_authenticated/employer/dashboard'
     | '/_authenticated/employer/database'
+    | '/_authenticated/employer/inbox'
     | '/_authenticated/employer/interviews'
     | '/_authenticated/employer/jobs'
     | '/_authenticated/employer/reports'
@@ -1607,6 +1620,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedEmployerDatabaseRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/employer/inbox': {
+      id: '/_authenticated/employer/inbox'
+      path: '/employer/inbox'
+      fullPath: '/employer/inbox'
+      preLoaderRoute: typeof AuthenticatedEmployerInboxRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/employer/interviews': {
       id: '/_authenticated/employer/interviews'
       path: '/employer/interviews'
@@ -1945,6 +1965,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedEmployerCrmRoute: typeof AuthenticatedEmployerCrmRouteWithChildren
   AuthenticatedEmployerDashboardRoute: typeof AuthenticatedEmployerDashboardRoute
   AuthenticatedEmployerDatabaseRoute: typeof AuthenticatedEmployerDatabaseRoute
+  AuthenticatedEmployerInboxRoute: typeof AuthenticatedEmployerInboxRoute
   AuthenticatedEmployerInterviewsRoute: typeof AuthenticatedEmployerInterviewsRoute
   AuthenticatedEmployerJobsRoute: typeof AuthenticatedEmployerJobsRouteWithChildren
   AuthenticatedEmployerReportsRoute: typeof AuthenticatedEmployerReportsRoute
@@ -1966,6 +1987,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedEmployerCrmRoute: AuthenticatedEmployerCrmRouteWithChildren,
   AuthenticatedEmployerDashboardRoute: AuthenticatedEmployerDashboardRoute,
   AuthenticatedEmployerDatabaseRoute: AuthenticatedEmployerDatabaseRoute,
+  AuthenticatedEmployerInboxRoute: AuthenticatedEmployerInboxRoute,
   AuthenticatedEmployerInterviewsRoute: AuthenticatedEmployerInterviewsRoute,
   AuthenticatedEmployerJobsRoute: AuthenticatedEmployerJobsRouteWithChildren,
   AuthenticatedEmployerReportsRoute: AuthenticatedEmployerReportsRoute,

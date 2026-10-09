@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Briefcase, Eye, Loader2, MapPin } from "lucide-react";
+import { Briefcase, Eye, Loader2, MapPin, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { CandidateShell } from "@/components/candidate/CandidateShell";
@@ -9,6 +9,7 @@ import { timeAgo, formatSalary } from "@/lib/format";
 import { InterviewInfo, type Interview } from "@/components/candidate/InterviewInfo";
 import { ViewApplicationDialog } from "@/components/candidate/ViewApplicationDialog";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
+import { FollowUpDialog } from "@/components/candidate/FollowUpDialog";
 
 const TOP_TABS = ["all", "shortlisted", "interview"] as const;
 type TopTab = (typeof TOP_TABS)[number];
@@ -66,6 +67,8 @@ type Row = {
     min_salary: number | null;
     max_salary: number | null;
     salary_period: string | null;
+    hiring_contact_phone?: string | null;
+    hiring_contact_email?: string | null;
     companies: { name: string } | null;
   } | null;
   interviews: Interview[] | null;
@@ -83,6 +86,7 @@ function ApplicationsPage() {
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [reviewing, setReviewing] = useState<Row | null>(null);
+  const [followingUp, setFollowingUp] = useState<Row | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -93,7 +97,7 @@ function ApplicationsPage() {
     const { data, error } = await supabase
       .from("applications")
       .select(
-        "id, status, created_at, expected_salary, available_from, cover_note, jobs (id, title, city, min_salary, max_salary, salary_period, companies (name)), interviews (id, scheduled_at, duration_min, mode, provider, status, location, meeting_url, notes)",
+        "id, status, created_at, expected_salary, available_from, cover_note, jobs (id, title, city, min_salary, max_salary, salary_period, hiring_contact_phone, hiring_contact_email, companies (name)), interviews (id, scheduled_at, duration_min, mode, provider, status, location, meeting_url, notes)",
       )
       .eq("candidate_id", uid)
       .order("created_at", { ascending: false });
@@ -251,12 +255,20 @@ function ApplicationsPage() {
                     <span>Applied {timeAgo(a.created_at)}</span>
                   </div>
                 </div>
-                <button
-                  onClick={() => setReviewing(a)}
-                  className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-semibold text-foreground hover:bg-surface"
-                >
-                  <Eye className="h-3.5 w-3.5" /> View application
-                </button>
+                <div className="flex shrink-0 flex-wrap gap-2">
+                  <button
+                    onClick={() => setFollowingUp(a)}
+                    className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-semibold text-foreground hover:bg-surface"
+                  >
+                    <MessageCircle className="h-3.5 w-3.5" /> Follow up
+                  </button>
+                  <button
+                    onClick={() => setReviewing(a)}
+                    className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-semibold text-foreground hover:bg-surface"
+                  >
+                    <Eye className="h-3.5 w-3.5" /> View application
+                  </button>
+                </div>
               </div>
 
               {a.interviews && a.interviews.length > 0 && (
@@ -278,6 +290,29 @@ function ApplicationsPage() {
           ))}
         </div>
       )}
+
+      {followingUp ? (
+        <FollowUpDialog
+          open
+          onClose={() => setFollowingUp(null)}
+          applicationId={followingUp.id}
+          phone={followingUp.jobs?.hiring_contact_phone}
+          email={followingUp.jobs?.hiring_contact_email}
+          jobTitle={followingUp.jobs?.title || "Job removed"}
+          companyName={followingUp.jobs?.companies?.name || "Confidential employer"}
+          city={followingUp.jobs?.city}
+          minSalary={followingUp.jobs?.min_salary}
+          maxSalary={followingUp.jobs?.max_salary}
+          salaryPeriod={followingUp.jobs?.salary_period}
+          appliedOn={new Date(followingUp.created_at).toLocaleDateString("en-IN", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+          })}
+          status={followingUp.status}
+          statusVariant={statusVariant[followingUp.status] || "muted"}
+        />
+      ) : null}
 
       {reviewing && userId && (
         <ViewApplicationDialog
