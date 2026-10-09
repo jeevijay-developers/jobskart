@@ -44,3 +44,37 @@ CREATE OR REPLACE FUNCTION public.recommendation_bucket(_uid uuid, _salt text)
 RETURNS int LANGUAGE sql IMMUTABLE AS $$
     SELECT ((hashtextextended(_uid::text || _salt, 0) & 2147483647) % 100)::int
 $$;
+
+-- ── B. Settings + rollout flag ──────────────────────────────
+ALTER TABLE public.recommendation_settings
+    ADD COLUMN IF NOT EXISTS v2_enabled boolean NOT NULL DEFAULT false,
+    ADD COLUMN IF NOT EXISTS v2_rollout_pct int NOT NULL DEFAULT 0
+        CHECK (v2_rollout_pct BETWEEN 0 AND 100),
+    ADD COLUMN IF NOT EXISTS v2_salt text NOT NULL DEFAULT 'jk-rec-v2',
+    ADD COLUMN IF NOT EXISTS v2_allowlist uuid[] NOT NULL DEFAULT '{}',
+    ADD COLUMN IF NOT EXISTS v2_window int NOT NULL DEFAULT 140
+        CHECK (v2_window BETWEEN 28 AND 300),
+    ADD COLUMN IF NOT EXISTS v2_intent_weight numeric NOT NULL DEFAULT 0.10
+        CHECK (v2_intent_weight BETWEEN 0 AND 0.4),
+    ADD COLUMN IF NOT EXISTS v2_similarity_weight numeric NOT NULL DEFAULT 0.15
+        CHECK (v2_similarity_weight BETWEEN 0 AND 0.4),
+    ADD COLUMN IF NOT EXISTS v2_fatigue_min_days int NOT NULL DEFAULT 3
+        CHECK (v2_fatigue_min_days BETWEEN 2 AND 7),
+    ADD COLUMN IF NOT EXISTS v2_fatigue_multiplier numeric NOT NULL DEFAULT 0.85
+        CHECK (v2_fatigue_multiplier BETWEEN 0.5 AND 1);
+
+-- Kill switch first, then allowlist (staff dogfooding), then percentage bucket.
+CREATE OR REPLACE FUNCTION public.recommendation_v2_active(_uid uuid)
+RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$
+    SELECT COALESCE((
+        SELECT rs.v2_enabled
+               AND (_uid = ANY(rs.v2_allowlist)
+                    OR public.recommendation_bucket(_uid, rs.v2_salt) < rs.v2_rollout_pct)
+        FROM public.recommendation_settings rs
+        WHERE rs.id = 1
+    ), false)
+$$;
+
+REVOKE ALL ON FUNCTION public.recommendation_v2_active(uuid) FROM PUBLIC, anon, authenticated;

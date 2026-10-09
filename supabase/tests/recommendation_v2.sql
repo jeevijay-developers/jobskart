@@ -68,3 +68,37 @@ BEGIN
     WHERE d;
     ASSERT differing >= 900, format('changing the salt reshuffles buckets, got %s differing', differing);
 END $$;
+
+-- ── 5. rollout flag logic (WRITES settings inside a transaction, then ROLLS BACK) ──
+BEGIN;
+
+UPDATE public.recommendation_settings
+SET v2_enabled = false, v2_rollout_pct = 100, v2_allowlist = '{}' WHERE id = 1;
+DO $$ BEGIN
+    ASSERT NOT public.recommendation_v2_active(gen_random_uuid()), 'kill switch beats a 100% rollout';
+END $$;
+
+UPDATE public.recommendation_settings SET v2_enabled = true, v2_rollout_pct = 0 WHERE id = 1;
+DO $$ BEGIN
+    ASSERT NOT public.recommendation_v2_active(gen_random_uuid()), '0% rollout => nobody';
+END $$;
+
+UPDATE public.recommendation_settings SET v2_rollout_pct = 100 WHERE id = 1;
+DO $$ BEGIN
+    ASSERT public.recommendation_v2_active(gen_random_uuid()), '100% rollout => everyone';
+END $$;
+
+UPDATE public.recommendation_settings
+SET v2_rollout_pct = 0, v2_allowlist = ARRAY['00000000-0000-0000-0000-000000000001'::uuid] WHERE id = 1;
+DO $$ BEGIN
+    ASSERT public.recommendation_v2_active('00000000-0000-0000-0000-000000000001'::uuid), 'allowlisted user is in at 0%';
+    ASSERT NOT public.recommendation_v2_active('00000000-0000-0000-0000-000000000002'::uuid), 'others are not';
+END $$;
+
+UPDATE public.recommendation_settings SET v2_enabled = false WHERE id = 1;
+DO $$ BEGIN
+    ASSERT NOT public.recommendation_v2_active('00000000-0000-0000-0000-000000000001'::uuid),
+        'kill switch also beats the allowlist';
+END $$;
+
+ROLLBACK;
