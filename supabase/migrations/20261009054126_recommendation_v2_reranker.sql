@@ -225,3 +225,153 @@ $$;
 
 REVOKE ALL ON FUNCTION public.recommendation_rerank(uuid, public.job_feed_row[])
     FROM PUBLIC, anon, authenticated;
+
+-- ── D. Router: arm assignment + V2 branch + automatic V1 fallback ─
+-- Replaces Plan 1's recommend_jobs_routed (same 21-param signature). With
+-- v2_enabled = false it is behaviorally identical to Plan 1's router.
+-- variant = the user's ARM for every row they receive (intention-to-treat),
+-- including explicit-sort pages, window-tail rows and V2_FALLBACK rows.
+CREATE OR REPLACE FUNCTION public.recommend_jobs_routed(
+    _limit int DEFAULT 20, _offset int DEFAULT 0, _q text DEFAULT NULL,
+    _city text DEFAULT NULL, _category text DEFAULT NULL, _job_type text DEFAULT NULL,
+    _work_mode text DEFAULT NULL, _min_salary int DEFAULT NULL, _max_salary int DEFAULT NULL,
+    _min_exp int DEFAULT NULL, _max_exp int DEFAULT NULL, _posted_after timestamptz DEFAULT NULL,
+    _education text DEFAULT NULL, _shift text DEFAULT NULL, _english_level text DEFAULT NULL,
+    _company text DEFAULT NULL, _vehicle boolean DEFAULT false, _verified_only boolean DEFAULT false,
+    _relevant_only boolean DEFAULT false, _sort text DEFAULT 'recommended',
+    _surface text DEFAULT 'browse'
+) RETURNS SETOF public.job_feed_row
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public
+AS $$
+#variable_conflict use_column
+DECLARE
+    _uid uuid := auth.uid();
+    _request_id uuid := gen_random_uuid();
+    _s public.recommendation_settings%ROWTYPE;
+    _sort_norm text;
+    _source text;
+    _arm text := 'v1';
+    _use_v2 boolean := false;
+    _fallback boolean := false;
+    _rows public.job_feed_row[];
+    _window_rows public.job_feed_row[];
+    _tail public.job_feed_row[];
+BEGIN
+    IF _uid IS NULL THEN
+        RAISE EXCEPTION 'not_authenticated';
+    END IF;
+
+    _sort_norm := CASE
+        WHEN _sort IN ('recommended', 'newest', 'oldest', 'salary_high', 'salary_low') THEN _sort
+        ELSE 'recommended' END;
+    _source := CASE
+        WHEN _surface = 'dashboard' THEN 'recommended'
+        WHEN NULLIF(btrim(COALESCE(_q, '')), '') IS NOT NULL THEN 'search'
+        ELSE 'browse' END;
+
+    SELECT * INTO _s FROM public.recommendation_settings WHERE id = 1;
+
+    -- A broken flag lookup must never take the feed down.
+    BEGIN
+        IF public.recommendation_v2_active(_uid) THEN _arm := 'v2'; END IF;
+    EXCEPTION WHEN OTHERS THEN
+        RAISE WARNING 'recommend_jobs_routed: arm lookup failed, serving v1: %', SQLERRM;
+        _arm := 'v1';
+    END;
+
+    -- V2 only re-ranks the default relevance ordering, inside its window.
+    -- Explicit sorts, and pages entirely beyond the window, are plain V1.
+    _use_v2 := COALESCE(_arm = 'v2' AND _sort_norm = 'recommended' AND _offset < _s.v2_window, false);
+
+    IF _use_v2 THEN
+        BEGIN
+            _window_rows := ARRAY(
+                SELECT r FROM public.recommendation_fetch_v1(
+                    'v2', _request_id, NULL::text[],
+                    _s.v2_window, 0, _q, _city, _category, _job_type, _work_mode,
+                    _min_salary, _max_salary, _min_exp, _max_exp, _posted_after,
+                    _education, _shift, _english_level, _company,
+                    _vehicle, _verified_only, _relevant_only, 'recommended'
+                ) AS r
+            );
+            -- Slicing past the end (or a NULL/empty array) yields an empty/NULL page, never an error.
+            _rows := (public.recommendation_rerank(_uid, _window_rows))[_offset + 1 : _offset + _limit];
+
+            -- A page that straddles the window edge continues in V1 order right after it.
+            IF _offset + _limit > _s.v2_window THEN
+                _tail := ARRAY(
+                    SELECT r FROM public.recommendation_fetch_v1(
+                        'v2', _request_id, NULL::text[],
+                        _offset + _limit - _s.v2_window, _s.v2_window, _q, _city, _category, _job_type, _work_mode,
+                        _min_salary, _max_salary, _min_exp, _max_exp, _posted_after,
+                        _education, _shift, _english_level, _company,
+                        _vehicle, _verified_only, _relevant_only, 'recommended'
+                    ) AS r
+                );
+                _rows := COALESCE(_rows, ARRAY[]::public.job_feed_row[])
+                      || COALESCE(_tail, ARRAY[]::public.job_feed_row[]);
+            END IF;
+        EXCEPTION WHEN OTHERS THEN
+            RAISE WARNING 'recommend_jobs_routed: v2 failed, serving v1: %', SQLERRM;
+            _use_v2 := false;
+            _fallback := true;
+            _rows := NULL;
+        END;
+    END IF;
+
+    IF NOT _use_v2 THEN
+        _rows := ARRAY(
+            SELECT r FROM public.recommendation_fetch_v1(
+                _arm, _request_id,
+                CASE WHEN _fallback THEN ARRAY['V2_FALLBACK']::text[] ELSE NULL::text[] END,
+                _limit, _offset, _q, _city, _category, _job_type, _work_mode,
+                _min_salary, _max_salary, _min_exp, _max_exp, _posted_after,
+                _education, _shift, _english_level, _company,
+                _vehicle, _verified_only, _relevant_only, _sort_norm
+            ) AS r
+        );
+    END IF;
+
+    IF COALESCE(cardinality(_rows), 0) = 0 THEN
+        RETURN;
+    END IF;
+
+    -- Best-effort logging (as the Plan 1 router): never fails the feed.
+    IF EXISTS (SELECT 1 FROM public.candidate_profiles cp WHERE cp.user_id = _uid) THEN
+        BEGIN
+            INSERT INTO public.job_impressions (
+                candidate_user_id, job_id, source, "position", request_id, variant,
+                score, rank_score, recommendation_stage, sort, relevant_only,
+                reason_codes, features
+            )
+            SELECT _uid, u.id, _source, (_offset + u.ordinality - 1)::int, _request_id, u.variant,
+                   u.score, u.rank_score, u.recommendation_stage, _sort_norm, _relevant_only,
+                   u.reason_codes, COALESCE(u.features, u.score_breakdown - 'weights')
+            FROM unnest(_rows) WITH ORDINALITY AS u
+            WHERE NOT EXISTS (
+                -- burst guard (double fetch / retry): same job, same sort, SAME SURFACE
+                -- (source) and filter mode, last 10 s. Two tabs/surfaces never suppress each other.
+                SELECT 1 FROM public.job_impressions x
+                WHERE x.candidate_user_id = _uid AND x.job_id = u.id
+                  AND x.sort = _sort_norm
+                  AND x.source = _source
+                  AND x.relevant_only IS NOT DISTINCT FROM _relevant_only
+                  AND x.shown_at > now() - interval '10 seconds'
+            );
+        EXCEPTION WHEN OTHERS THEN
+            RAISE WARNING 'recommend_jobs_routed: impression logging failed: %', SQLERRM;
+        END;
+    END IF;
+
+    RETURN QUERY SELECT * FROM unnest(_rows);
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.recommend_jobs_routed(
+    int, int, text, text, text, text, text, int, int, int, int, timestamptz,
+    text, text, text, text, boolean, boolean, boolean, text, text
+) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.recommend_jobs_routed(
+    int, int, text, text, text, text, text, int, int, int, int, timestamptz,
+    text, text, text, text, boolean, boolean, boolean, text, text
+) TO authenticated;

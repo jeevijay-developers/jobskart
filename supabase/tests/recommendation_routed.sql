@@ -191,6 +191,35 @@ BEGIN
   SELECT count(*) INTO _n FROM public.job_impressions WHERE candidate_user_id = _uid;
   ASSERT _n = _before + cardinality(_ret), 'c: identical call after 11 s must log again';
 
+  -- c4b. burst guard is per (job, sort, source, relevant_only): other surfaces/tabs are not suppressed
+  DELETE FROM public.job_impressions WHERE candidate_user_id = _uid;
+  SELECT count(*) INTO _n FROM public.recommend_jobs_routed(_limit => 10, _sort => 'recommended', _relevant_only => true, _surface => 'dashboard');
+  ASSERT _n > 0, 'c4b: baseline call returned nothing';
+  SELECT count(*) INTO _before FROM public.job_impressions WHERE candidate_user_id = _uid;
+  ASSERT _before = _n, 'c4b: baseline logged all rows';
+  -- identical repeat => 0 new rows
+  PERFORM count(*) FROM public.recommend_jobs_routed(_limit => 10, _sort => 'recommended', _relevant_only => true, _surface => 'dashboard');
+  ASSERT (SELECT count(*) FROM public.job_impressions WHERE candidate_user_id = _uid) = _before, 'c4b: identical repeat must add 0 rows';
+  -- same sort + surface, different _relevant_only => rows ARE added (all of them)
+  SELECT count(*) INTO _n FROM public.recommend_jobs_routed(_limit => 10, _sort => 'recommended', _relevant_only => false, _surface => 'dashboard');
+  ASSERT _n > 0, 'c4b: relevant_only=false returned nothing';
+  ASSERT (SELECT count(*) FROM public.job_impressions WHERE candidate_user_id = _uid AND relevant_only IS FALSE) = _n,
+    'c4b: different _relevant_only must log all of its rows';
+  -- repeat of the relevant_only=false call is deduped
+  PERFORM count(*) FROM public.recommend_jobs_routed(_limit => 10, _sort => 'recommended', _relevant_only => false, _surface => 'dashboard');
+  ASSERT (SELECT count(*) FROM public.job_impressions WHERE candidate_user_id = _uid AND relevant_only IS FALSE) = _n,
+    'c4b: repeat of relevant_only=false must add 0 rows';
+  -- same sort + relevant_only, different surface => different source => rows added
+  SELECT count(*) INTO _before FROM public.job_impressions WHERE candidate_user_id = _uid;
+  SELECT count(*) INTO _n FROM public.recommend_jobs_routed(_limit => 10, _sort => 'recommended', _relevant_only => true, _surface => 'browse');
+  ASSERT _n > 0, 'c4b: browse call returned nothing';
+  ASSERT (SELECT count(*) FROM public.job_impressions WHERE candidate_user_id = _uid AND source = 'browse') = _n,
+    'c4b: different source (surface) must log all of its rows';
+  ASSERT (SELECT count(*) FROM public.job_impressions WHERE candidate_user_id = _uid) = _before + _n, 'c4b: only the browse rows were added';
+  -- search source (query typed) is also distinct from browse
+  PERFORM count(*) FROM public.recommend_jobs_routed(_limit => 5, _q => 'driver', _sort => 'recommended', _relevant_only => true, _surface => 'browse');
+  ASSERT EXISTS (SELECT 1 FROM public.job_impressions WHERE candidate_user_id = _uid AND source = 'search'), 'c4b: search source logged';
+
   -- c5. source mapping
   DELETE FROM public.job_impressions WHERE candidate_user_id = _uid;
   PERFORM count(*) FROM public.recommend_jobs_routed(_limit => 5, _sort => 'recommended', _surface => 'browse');
