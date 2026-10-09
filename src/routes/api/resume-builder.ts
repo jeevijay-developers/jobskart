@@ -146,7 +146,10 @@ POST: async ({ request }) => {
           .select("extras")
           .eq("user_id", userId)
           .maybeSingle();
-        const withExtras = applyResumeExtras(snapshot, (draftRow?.extras ?? {}) as ResumeExtras);
+        const withExtras = applyResumeExtras(
+          { ...snapshot, templateId: finalTemplateId },
+          (draftRow?.extras ?? {}) as ResumeExtras,
+        );
 
         // buildResumeSnapshot() always sets templateId internally to the
         // default — overwrite it with the actually-selected template before
