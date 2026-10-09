@@ -45,6 +45,16 @@
 --                    numbers; run scen_ords=1 -v plan_mode=auto -v warmup=0 -v reps=9 to see the flip.
 --   explain_generic  1 = also EXPLAIN under a generic plan                default 0
 --
+--   mode             timing | equivalence                                  default timing
+--                    timing: as before. Scenario 9 ("legacy") times pg_temp.v1_legacy, the verbatim
+--                    pre-rewrite V1 copy, in the same session on the same data (before/after baseline);
+--                    scenario 10 is an explicit salary_high sort.
+--                    equivalence: loads the same synthetic data, then compares pg_temp.v1_legacy with
+--                    public.recommend_jobs_for_candidate for 6 profiles x {recommended,newest,salary_high}
+--                    x 4 argument sets (full list), plus paged (7 per page, first 10 pages) determinism
+--                    of the NEW function. Timing is skipped. Any mismatch raises and exits non-zero.
+--                    Everything is inside the rolled-back transaction.
+--
 -- Run commands (measured on 4 CPU / 8 GB Docker, shared_buffers 128MB; runtime = wall clock
 -- incl. ~10-40 s load). Do NOT pipe psql into `head`: the backend keeps running after the client dies.
 --   smoke 2k : -v n_jobs=2000  -v n_candidates=300   -v n_companies=400  -v n_applications=6000
@@ -77,6 +87,12 @@ SELECT (:n_jobs / 4)::int AS n_closed \gset
 \if :{?prof_ns} \else \set prof_ns '1,2,3,4' \endif
 \if :{?plan_mode} \else \set plan_mode auto \endif
 \if :{?explain_generic} \else \set explain_generic 0 \endif
+\if :{?mode} \else \set mode timing \endif
+SELECT (:'mode' = 'equivalence')::text AS is_eq, (:'mode' IN ('timing', 'equivalence'))::text AS mode_ok \gset
+\if :mode_ok \else
+\echo 'benchmark: mode must be timing or equivalence'
+\q
+\endif
 
 \echo
 \echo '== recommendation scale benchmark =='
@@ -442,6 +458,316 @@ SELECT (SELECT count(*) FROM public.jobs WHERE status = 'active' AND (expires_at
        pg_size_pretty(pg_relation_size('public.idx_jobs_description_embedding')) AS jobs_hnsw_size;
 SELECT label AS load_step, round(extract(epoch FROM t - lag(t) OVER (ORDER BY t))::numeric, 1) AS seconds FROM b_clock ORDER BY t;
 
+-- ---- legacy V1 copy (scenario 9 / equivalence mode): verbatim from supabase/tests/v1_equivalence.sql ----
+CREATE OR REPLACE FUNCTION pg_temp.v1_legacy(
+    _limit int DEFAULT 20, _offset int DEFAULT 0, _q text DEFAULT NULL,
+    _city text DEFAULT NULL, _category text DEFAULT NULL, _job_type text DEFAULT NULL,
+    _work_mode text DEFAULT NULL, _min_salary int DEFAULT NULL, _max_salary int DEFAULT NULL,
+    _min_exp int DEFAULT NULL, _max_exp int DEFAULT NULL, _posted_after timestamptz DEFAULT NULL,
+    _education text DEFAULT NULL, _shift text DEFAULT NULL, _english_level text DEFAULT NULL,
+    _company text DEFAULT NULL, _vehicle boolean DEFAULT false, _verified_only boolean DEFAULT false,
+    _relevant_only boolean DEFAULT false,
+    _sort text DEFAULT 'recommended'
+) RETURNS TABLE (
+    id uuid, company_id uuid, title text, city text, state text, locality text,
+    min_salary integer, max_salary integer, salary_period text,
+    job_type text, work_mode text, min_experience_years integer, max_experience_years integer,
+    education text, skills text[], created_at timestamptz, pay_type text,
+    avg_incentive_monthly integer, company_name text, company_is_verified boolean,
+    boosted boolean, score numeric, score_breakdown jsonb, recommendation_stage text, total_count bigint
+)
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
+AS $$
+#variable_conflict use_column
+DECLARE
+    _uid uuid := auth.uid();
+    _prefs record;
+    _cand_skill_ids uuid[];
+    _cand_skill_text text[];
+    _cand_cities text[];
+    _role_words text[];
+    _cand_categories text[];
+    _cand_adjacent text[];
+    _cand_embedding vector(1536);
+    _cand_years int;
+    _exp_salary numeric;
+    _month_start timestamptz;
+    _is_cold_start boolean;
+BEGIN
+    IF _uid IS NULL THEN
+        RAISE EXCEPTION 'not_authenticated';
+    END IF;
+
+    -- Defense-in-depth: an unrecognised sort value falls back to the default
+    -- relevance ranking instead of silently matching no ORDER BY branch below.
+    IF _sort NOT IN ('recommended', 'newest', 'oldest', 'salary_high', 'salary_low') THEN
+        _sort := 'recommended';
+    END IF;
+
+    SELECT * INTO _prefs FROM public.candidate_preferences cp WHERE cp.user_id = _uid;
+
+    -- Role signals: last role, headline and interested roles (onboarding).
+    SELECT cp.profile_embedding, cp.years_experience, cp.expected_salary,
+           COALESCE((SELECT array_agg(DISTINCT lower(trim(s))) FROM unnest(COALESCE(cp.skills, '{}'::text[])) s WHERE trim(s) <> ''), '{}'::text[]),
+           (SELECT array_agg(DISTINCT w) FROM unnest(regexp_split_to_array(lower(COALESCE(cp.last_role, '') || ' ' || COALESCE(cp.headline, '') || ' ' || array_to_string(COALESCE(cp.interested_roles, '{}'::text[]), ' ')), '[^a-z0-9+#.]+')) w
+             WHERE length(w) >= 3 AND w <> ALL (ARRAY['and', 'the', 'for', 'with']))
+    INTO _cand_embedding, _cand_years, _exp_salary, _cand_skill_text, _role_words
+    FROM public.candidate_profiles cp WHERE cp.user_id = _uid;
+
+    -- Departments the candidate's roles map to, plus neighbouring departments.
+    SELECT COALESCE(array_agg(DISTINCT public.role_category(r)) FILTER (WHERE public.role_category(r) IS NOT NULL), '{}'::text[])
+    INTO _cand_categories
+    FROM public.candidate_profiles cp,
+         unnest(ARRAY[cp.last_role, cp.headline] || COALESCE(cp.interested_roles, '{}'::text[])) r
+    WHERE cp.user_id = _uid;
+
+    SELECT COALESCE(array_agg(DISTINCT x), '{}'::text[]) INTO _cand_adjacent
+    FROM unnest(COALESCE(_cand_categories, '{}'::text[])) c,
+         unnest(public.role_adjacent_categories(c)) x
+    WHERE x <> ALL (COALESCE(_cand_categories, '{}'::text[]));
+
+    -- Candidate skills: explicit preferences first, else derive from profile text
+    IF _prefs IS NOT NULL AND COALESCE(cardinality(_prefs.skill_ids), 0) > 0 THEN
+        _cand_skill_ids := _prefs.skill_ids;
+    ELSE
+        SELECT array_agg(DISTINCT cs.id) INTO _cand_skill_ids
+        FROM public.canonical_skills cs,
+             unnest(COALESCE(_cand_skill_text, '{}'::text[])) s
+        WHERE (cs.name ILIKE s OR s ILIKE ANY(cs.aliases)) AND cs.is_active;
+    END IF;
+
+    -- Candidate cities: preference city ids, profile city, and preferred_cities
+    IF _prefs IS NOT NULL AND COALESCE(cardinality(_prefs.city_ids), 0) > 0 THEN
+        SELECT array_agg(LOWER(c.name)) INTO _cand_cities
+        FROM public.cities c
+        WHERE c.id = ANY(_prefs.city_ids) AND c.is_active;
+    END IF;
+
+    SELECT array_agg(DISTINCT x) INTO _cand_cities
+    FROM unnest(
+        COALESCE(_cand_cities, '{}'::text[])
+        || COALESCE((SELECT ARRAY[LOWER(trim(p.city))] FROM public.profiles p WHERE p.id = _uid AND p.city IS NOT NULL AND trim(p.city) <> ''), '{}'::text[])
+        || COALESCE((SELECT array_agg(LOWER(trim(pc))) FROM public.candidate_profiles cp2, unnest(COALESCE(cp2.preferred_cities, '{}'::text[])) pc WHERE cp2.user_id = _uid AND trim(pc) <> ''), '{}'::text[])
+    ) x;
+
+    -- Cold start only when there is genuinely no signal at all. A candidate
+    -- who gave any role (last role, headline, interested roles) is never cold
+    -- start, so the relevance gate below always applies to them.
+    _is_cold_start := COALESCE(cardinality(_cand_skill_ids), 0) = 0
+                      AND COALESCE(cardinality(_cand_skill_text), 0) = 0
+                      AND COALESCE(cardinality(_cand_cities), 0) = 0
+                      AND COALESCE(cardinality(_role_words), 0) = 0
+                      AND COALESCE(cardinality(_cand_categories), 0) = 0;
+
+    _month_start := date_trunc('month', now() AT TIME ZONE 'Asia/Kolkata') AT TIME ZONE 'Asia/Kolkata';
+
+    RETURN QUERY
+    WITH s AS (
+        SELECT * FROM public.recommendation_settings rs WHERE rs.id = 1
+    ),
+    eligible_jobs AS (
+        SELECT
+            j.id, j.company_id, j.title, j.city, j.state, j.locality,
+            j.min_salary, j.max_salary, j.salary_period,
+            j.job_type::text AS job_type, j.work_mode::text AS work_mode,
+            j.min_experience_years, j.max_experience_years, j.education, j.skills,
+            j.created_at, j.pay_type, j.avg_incentive_monthly,
+            c.name AS company_name, c.is_verified AS company_is_verified,
+            j.tier, j.category, j.description_embedding,
+            lb.ends_at AS boost_ends_at, lb.starts_at AS boost_starts_at,
+            (j.tier = 'trending' AND j.created_at >= _month_start) AS is_trending
+        FROM public.jobs j
+        JOIN public.companies c ON c.id = j.company_id
+        LEFT JOIN LATERAL (
+            SELECT jb.ends_at, jb.starts_at FROM public.job_boosts jb
+            WHERE jb.job_id = j.id AND jb.ends_at > now()
+            ORDER BY jb.ends_at DESC LIMIT 1
+        ) lb ON true
+        WHERE j.status = 'active'
+          AND (j.expires_at IS NULL OR j.expires_at > now())
+          AND NOT EXISTS (
+              SELECT 1 FROM public.applications a
+              WHERE a.job_id = j.id AND a.candidate_id = _uid
+          )
+          AND (_q IS NULL OR j.title ILIKE '%' || _q || '%')
+          AND (_city IS NULL OR j.city ILIKE '%' || _city || '%')
+          AND (_category IS NULL OR j.category = _category)
+          AND (_job_type IS NULL OR j.job_type::text = _job_type)
+          AND (_work_mode IS NULL OR j.work_mode::text = _work_mode)
+          AND (_min_salary IS NULL OR j.min_salary >= _min_salary)
+          AND (_max_salary IS NULL OR j.max_salary <= _max_salary)
+          AND (_max_exp IS NULL OR j.min_experience_years <= _max_exp)
+          AND (_min_exp IS NULL OR j.max_experience_years >= _min_exp OR j.max_experience_years IS NULL)
+          AND (_posted_after IS NULL OR j.created_at >= _posted_after)
+          AND (_education IS NULL OR j.education = _education)
+          AND (_shift IS NULL OR j.shift::text = _shift)
+          AND (_english_level IS NULL OR j.english_level = _english_level)
+          AND (_company IS NULL OR c.name ILIKE '%' || _company || '%')
+          AND (_vehicle IS NOT TRUE OR j.required_assets @> ARRAY['Two-wheeler'])
+          AND (_verified_only IS NOT TRUE OR c.is_verified = true)
+          AND (_prefs IS NULL OR _prefs.min_salary_monthly IS NULL OR j.max_salary IS NULL OR j.max_salary >= _prefs.min_salary_monthly)
+          AND (_prefs IS NULL OR _prefs.max_salary_monthly IS NULL OR j.min_salary IS NULL OR j.min_salary <= _prefs.max_salary_monthly)
+          AND (_prefs IS NULL OR _prefs.min_experience_years IS NULL OR j.max_experience_years IS NULL OR j.max_experience_years >= _prefs.min_experience_years)
+          AND (_prefs IS NULL OR _prefs.max_experience_years IS NULL OR j.min_experience_years IS NULL OR j.min_experience_years <= _prefs.max_experience_years)
+          AND (_prefs IS NULL OR COALESCE(cardinality(_prefs.job_types), 0) = 0 OR j.job_type::text = ANY(_prefs.job_types))
+          AND (_prefs IS NULL OR COALESCE(cardinality(_prefs.work_modes), 0) = 0 OR j.work_mode::text = ANY(_prefs.work_modes))
+    ),
+    category_popularity AS (
+        SELECT j.category, count(*) AS app_count
+        FROM public.applications a
+        JOIN public.jobs j ON j.id = a.job_id
+        WHERE a.created_at >= now() - interval '30 days'
+        GROUP BY j.category
+    ),
+    category_popularity_bounds AS (
+        SELECT COALESCE(MAX(app_count), 0) AS max_app_count FROM category_popularity
+    ),
+    scored AS (
+        SELECT ej.*,
+            s.skill_weight, s.role_weight, s.location_weight, s.salary_weight, s.experience_weight,
+            s.freshness_weight, s.boost_weight, s.trending_weight, s.cold_start_weight, s.semantic_weight,
+            -- Skill coverage of the JOB's required skills (0..1); neutral when the job lists none
+            CASE WHEN COALESCE(cardinality(ej.skills), 0) = 0 THEN 0.3
+                 WHEN COALESCE(cardinality(_cand_skill_ids), 0) = 0 AND COALESCE(cardinality(_cand_skill_text), 0) = 0 THEN 0.1
+            ELSE (
+                SELECT (count(*) FILTER (WHERE
+                            lower(trim(js)) = ANY(COALESCE(_cand_skill_text, '{}'::text[]))
+                            OR EXISTS (
+                                SELECT 1 FROM public.canonical_skills cs
+                                WHERE cs.is_active AND cs.id = ANY(COALESCE(_cand_skill_ids, '{}'::uuid[]))
+                                  AND (cs.name ILIKE js OR js ILIKE ANY(cs.aliases))
+                            )
+                       ))::numeric / cardinality(ej.skills)::numeric
+                FROM unnest(ej.skills) AS js
+            ) END::numeric AS skill_score,
+            -- Role fit: department first (exact 1.0, neighbouring 0.75), then title words
+            CASE WHEN ej.category IS NOT NULL AND ej.category = ANY(COALESCE(_cand_categories, '{}'::text[])) THEN 1.0
+                 WHEN ej.category IS NOT NULL AND ej.category = ANY(COALESCE(_cand_adjacent, '{}'::text[])) THEN 0.75
+                 WHEN COALESCE(cardinality(_role_words), 0) = 0 THEN 0.5
+                 WHEN EXISTS (SELECT 1 FROM unnest(_role_words) rw
+                              WHERE rw = ANY(regexp_split_to_array(lower(ej.title), '[^a-z0-9+#.]+'))) THEN 1.0
+                 WHEN EXISTS (SELECT 1 FROM unnest(COALESCE(_cand_skill_text, '{}'::text[])) sk
+                              WHERE length(sk) >= 3 AND lower(ej.title) LIKE '%' || sk || '%') THEN 0.7
+                 ELSE 0.0 END::numeric AS role_score,
+            CASE WHEN COALESCE(cardinality(_cand_cities), 0) > 0 THEN
+                CASE
+                    WHEN LOWER(ej.city) = ANY(_cand_cities) THEN 1.0
+                    WHEN ej.work_mode = 'remote' THEN 0.8
+                    ELSE 0.3
+                END
+            ELSE 0.5 END::numeric AS location_score,
+            CASE
+                WHEN _prefs IS NOT NULL AND _prefs.min_salary_monthly IS NOT NULL AND _prefs.max_salary_monthly IS NOT NULL
+                     AND ej.min_salary IS NOT NULL AND ej.max_salary IS NOT NULL THEN
+                    GREATEST(0, 1 - ABS((ej.min_salary + ej.max_salary)/2.0 - (_prefs.min_salary_monthly + _prefs.max_salary_monthly)/2.0)
+                        / GREATEST((_prefs.max_salary_monthly - _prefs.min_salary_monthly), 1)::numeric)
+                WHEN COALESCE(_exp_salary, 0) > 0 AND COALESCE(ej.max_salary, ej.min_salary) IS NOT NULL THEN
+                    LEAST(1, COALESCE(ej.max_salary, ej.min_salary)::numeric / _exp_salary)
+                ELSE 0.5 END::numeric AS salary_score,
+            CASE
+                WHEN _prefs IS NOT NULL AND _prefs.min_experience_years IS NOT NULL AND _prefs.max_experience_years IS NOT NULL
+                     AND ej.min_experience_years IS NOT NULL AND ej.max_experience_years IS NOT NULL THEN
+                    1.0 - GREATEST(0, ej.min_experience_years - _prefs.max_experience_years, _prefs.min_experience_years - ej.max_experience_years)::numeric / 10.0
+                WHEN _cand_years IS NOT NULL AND (ej.min_experience_years IS NOT NULL OR ej.max_experience_years IS NOT NULL) THEN
+                    GREATEST(0, 1 - GREATEST(0, COALESCE(ej.min_experience_years, 0) - _cand_years,
+                                                _cand_years - COALESCE(ej.max_experience_years, _cand_years))::numeric / 5.0)
+                ELSE 0.5 END::numeric AS experience_score,
+            GREATEST(0, 1 - EXTRACT(epoch FROM (now() - ej.created_at)) / 86400.0 / 30.0)::numeric AS freshness_score,
+            CASE WHEN ej.boost_ends_at IS NOT NULL THEN
+                COALESCE(s.boost_bonus_max, 0.3) * GREATEST(0, 1 - EXTRACT(epoch FROM (now() - ej.boost_starts_at)) / 3600.0 / COALESCE(s.boost_window_hours, 24))::numeric
+            ELSE 0 END::numeric AS boost_score,
+            CASE WHEN ej.is_trending THEN COALESCE(s.trending_bonus_max, 0.15) ELSE 0 END::numeric AS trending_score,
+            CASE WHEN _is_cold_start AND cpb.max_app_count > 0 THEN
+                COALESCE(cp.app_count, 0)::numeric / cpb.max_app_count::numeric
+            ELSE 0 END::numeric AS cold_start_score,
+            (_is_cold_start AND COALESCE(cp.app_count, 0) >= s.cold_start_min_applications) AS category_has_signal,
+            CASE WHEN _cand_embedding IS NOT NULL AND ej.description_embedding IS NOT NULL THEN
+                GREATEST(0, LEAST(1, (1 - (ej.description_embedding <=> _cand_embedding))::numeric))
+            ELSE 0.5 END::numeric AS semantic_score
+        FROM eligible_jobs ej
+        CROSS JOIN s
+        CROSS JOIN category_popularity_bounds cpb
+        LEFT JOIN category_popularity cp ON cp.category = ej.category
+    ),
+    final_scored AS (
+        SELECT s.*,
+            LEAST(1, GREATEST(0,
+                s.skill_score * s.skill_weight + s.role_score * s.role_weight +
+                s.location_score * s.location_weight + s.salary_score * s.salary_weight +
+                s.experience_score * s.experience_weight + s.freshness_score * s.freshness_weight +
+                s.boost_score * s.boost_weight + s.trending_score * s.trending_weight +
+                s.cold_start_score * s.cold_start_weight + s.semantic_score * s.semantic_weight
+            )) AS final_score,
+            jsonb_build_object(
+                'skill', round(s.skill_score * 100) / 100.0,
+                'role', round(s.role_score * 100) / 100.0,
+                'location', round(s.location_score * 100) / 100.0,
+                'salary', round(s.salary_score * 100) / 100.0,
+                'experience', round(s.experience_score * 100) / 100.0,
+                'freshness', round(s.freshness_score * 100) / 100.0,
+                'boost', round(s.boost_score * 100) / 100.0,
+                'trending', round(s.trending_score * 100) / 100.0,
+                'cold_start', round(s.cold_start_score * 100) / 100.0,
+                'semantic', round(s.semantic_score * 100) / 100.0,
+                'weights', jsonb_build_object(
+                    'skill', s.skill_weight, 'role', s.role_weight, 'location', s.location_weight,
+                    'salary', s.salary_weight, 'experience', s.experience_weight,
+                    'freshness', s.freshness_weight, 'boost', s.boost_weight,
+                    'trending', s.trending_weight, 'cold_start', s.cold_start_weight,
+                    'semantic', s.semantic_weight
+                )
+            ) AS score_breakdown,
+            CASE
+                WHEN NOT _is_cold_start THEN 'personalized'
+                WHEN s.category_has_signal THEN 'popular_in_category'
+                ELSE 'citywide_fresh'
+            END AS recommendation_stage,
+            ROW_NUMBER() OVER (PARTITION BY s.company_id ORDER BY
+                s.skill_score * s.skill_weight + s.role_score * s.role_weight +
+                s.location_score * s.location_weight + s.salary_score * s.salary_weight +
+                s.experience_score * s.experience_weight + s.freshness_score * s.freshness_weight +
+                s.boost_score * s.boost_weight + s.trending_score * s.trending_weight +
+                s.cold_start_score * s.cold_start_weight + s.semantic_score * s.semantic_weight DESC
+            ) AS company_rank
+        FROM scored s
+    )
+    SELECT
+        fs.id, fs.company_id, fs.title, fs.city, fs.state, fs.locality,
+        fs.min_salary, fs.max_salary, fs.salary_period, fs.job_type, fs.work_mode,
+        fs.min_experience_years, fs.max_experience_years, fs.education, fs.skills,
+        fs.created_at, fs.pay_type, fs.avg_incentive_monthly, fs.company_name, fs.company_is_verified,
+        (fs.boost_ends_at IS NOT NULL) AS boosted,
+        round(fs.final_score::numeric, 4) AS score,
+        fs.score_breakdown,
+        fs.recommendation_stage,
+        count(*) OVER() AS total_count
+    FROM final_scored fs
+    CROSS JOIN s
+    -- Relevance gate: a department match (role 1.0 or neighbouring 0.75) counts,
+    -- as does a real skill, title or semantic fit. Cold start is the only bypass.
+    -- Applies regardless of sort — "Newest"/"Salary high" etc. still only show
+    -- jobs relevant to the candidate, they just reorder within that set.
+    WHERE (
+        _relevant_only IS NOT TRUE OR _is_cold_start OR
+        fs.skill_score >= s.relevant_skill_threshold OR
+        fs.role_score >= s.relevant_role_threshold OR
+        fs.semantic_score >= s.relevant_semantic_threshold
+    )
+    ORDER BY
+        -- Exactly one of these CASE expressions is non-null for every row (the
+        -- one matching _sort); the rest evaluate to NULL for every row and so
+        -- contribute no ordering, falling through to the next column.
+        CASE WHEN _sort = 'recommended' THEN (fs.company_rank > s.max_same_company_in_top) END ASC,
+        CASE WHEN _sort = 'recommended' THEN fs.final_score END DESC,
+        CASE WHEN _sort = 'newest' THEN fs.created_at END DESC,
+        CASE WHEN _sort = 'oldest' THEN fs.created_at END ASC,
+        CASE WHEN _sort = 'salary_high' THEN fs.max_salary END DESC NULLS LAST,
+        CASE WHEN _sort = 'salary_low' THEN fs.min_salary END ASC NULLS LAST,
+        fs.created_at DESC
+    LIMIT _limit OFFSET _offset;
+END;
+$$;
+
 -- ---- timing harness ------------------------------------------------------------------------
 CREATE TEMP TABLE b_res(scenario text, profile text, rep int, ms numeric, n_rows bigint);
 
@@ -493,7 +819,193 @@ INSERT INTO b_scn VALUES
  (5, 'd3 V1 sort=newest',                    false, false, 'select count(*) from public.recommend_jobs_for_candidate(_limit=>14, _sort=>''newest'')'),
  (6, 'b  router, V2 off p1',                 false, true,  'select count(*) from public.recommend_jobs_routed(_limit=>14, _surface=>''browse'')'),
  (7, 'c1 router, V2 on p1',                  true,  true,  'select count(*) from public.recommend_jobs_routed(_limit=>14, _surface=>''browse'')'),
- (8, 'c2 router, V2 on p5 (offset 56)',      true,  true,  'select count(*) from public.recommend_jobs_routed(_limit=>14, _offset=>56, _surface=>''browse'')');
+ (8, 'c2 router, V2 on p5 (offset 56)',      true,  true,  'select count(*) from public.recommend_jobs_routed(_limit=>14, _offset=>56, _surface=>''browse'')'),
+ (9, 'L  legacy V1 (pre-rewrite copy) p1',   false, false, 'select count(*) from pg_temp.v1_legacy(_limit=>14, _sort=>''recommended'')'),
+ (10,'e1 V1 sort=salary_high',               false, false, 'select count(*) from public.recommend_jobs_for_candidate(_limit=>14, _sort=>''salary_high'')');
+
+-- ---- mode=equivalence: legacy vs new on this synthetic data (rolled back with everything else) -----
+\if :is_eq
+\set skip_timing 1
+\set explain 0
+CREATE TEMP TABLE v1_stats (
+    compared int NOT NULL DEFAULT 0, nonempty int NOT NULL DEFAULT 0, rows_total bigint NOT NULL DEFAULT 0,
+    order_differs int NOT NULL DEFAULT 0, paged int NOT NULL DEFAULT 0,
+    b_empty int NOT NULL DEFAULT 0, b_small int NOT NULL DEFAULT 0, b_mid int NOT NULL DEFAULT 0, b_large int NOT NULL DEFAULT 0
+);
+INSERT INTO v1_stats DEFAULT VALUES;
+
+CREATE FUNCTION pg_temp.act_as(_uid uuid) RETURNS void LANGUAGE plpgsql AS $f$
+BEGIN
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', _uid, 'role', 'authenticated')::text, true);
+    IF auth.uid() IS DISTINCT FROM _uid THEN
+        RAISE EXCEPTION 'v1_equivalence harness: auth.uid() is % after impersonating %', auth.uid(), _uid;
+    END IF;
+END $f$;
+
+CREATE FUNCTION pg_temp.v1_equiv(_uid uuid, _label text, _sort text, _call_args text,
+                                 _limit int DEFAULT 200000, _offset int DEFAULT 0) RETURNS int
+LANGUAGE plpgsql AS $f$
+DECLARE
+    a jsonb; b jsonb; a_slice jsonb;
+    skey text; ka jsonb; kb jsonb;
+    n_a int; n_b int; n_slice int;
+    full_mode boolean := (_limit = 200000 AND _offset = 0);
+    tag text := format('%s [uid=%s sort=%s limit=%s offset=%s]', _label, right(_uid::text, 4), _sort, _limit, _offset);
+    pos int;
+BEGIN
+    skey := CASE _sort WHEN 'recommended' THEN 'score' WHEN 'salary_high' THEN 'max_salary'
+                       WHEN 'salary_low' THEN 'min_salary' WHEN 'newest' THEN 'created_at' WHEN 'oldest' THEN 'created_at' END;
+    IF skey IS NULL THEN RAISE EXCEPTION 'v1_equivalence harness: unknown sort %', _sort; END IF;
+    PERFORM pg_temp.act_as(_uid);
+
+    EXECUTE format($q$SELECT coalesce(jsonb_agg((to_jsonb(x) - 'ordinality') || jsonb_build_object('ord', x.ordinality) ORDER BY x.ordinality), '[]'::jsonb)
+        FROM pg_temp.v1_legacy(_limit => 200000, _offset => 0, _sort => %L %s) WITH ORDINALITY AS x$q$, _sort, _call_args) INTO a;
+    EXECUTE format($q$SELECT coalesce(jsonb_agg((to_jsonb(x) - 'ordinality') || jsonb_build_object('ord', x.ordinality) ORDER BY x.ordinality), '[]'::jsonb)
+        FROM public.recommend_jobs_for_candidate(_limit => %s, _offset => %s, _sort => %L %s) WITH ORDINALITY AS x$q$,
+        _limit, _offset, _sort, _call_args) INTO b;
+
+    n_a := jsonb_array_length(a);
+    n_b := jsonb_array_length(b);
+
+    -- Harness self-checks: the legacy list must be complete, duplicate-free, 25 columns wide, and carry a
+    -- total_count equal to its own length (otherwise the comparison below would be meaningless).
+    IF n_a >= 200000 THEN RAISE EXCEPTION '%: legacy result hit the harness limit of 200000 rows (truncated)', tag; END IF;
+    IF n_a > 0 THEN
+        IF (SELECT count(DISTINCT e->>'id') FROM jsonb_array_elements(a) e) <> n_a THEN
+            RAISE EXCEPTION '%: legacy result contains duplicate ids', tag; END IF;
+        IF EXISTS (SELECT 1 FROM jsonb_array_elements(a) e WHERE (SELECT count(*) FROM jsonb_object_keys(e)) <> 26) THEN
+            RAISE EXCEPTION '%: legacy row does not have 25 columns + ord', tag; END IF;
+        IF (a->0->>'total_count')::int <> n_a THEN
+            RAISE EXCEPTION '%: legacy total_count % <> row count %', tag, a->0->>'total_count', n_a; END IF;
+    END IF;
+    IF n_b > 0 AND EXISTS (SELECT 1 FROM jsonb_array_elements(b) e WHERE (SELECT count(*) FROM jsonb_object_keys(e)) <> 26) THEN
+        RAISE EXCEPTION '%: new function row does not have 25 columns + ord', tag; END IF;
+
+    SELECT coalesce(jsonb_agg(e ORDER BY (e->>'ord')::int), '[]'::jsonb) INTO a_slice
+    FROM jsonb_array_elements(a) e WHERE (e->>'ord')::int > _offset AND (e->>'ord')::int <= _offset + _limit;
+    n_slice := jsonb_array_length(a_slice);
+
+    -- 1. row count
+    IF n_slice <> n_b THEN RAISE EXCEPTION '%: row count legacy=% new=%', tag, n_slice, n_b; END IF;
+    -- 2. total_count (every row of the new result must report the legacy total)
+    IF n_b > 0 AND EXISTS (SELECT 1 FROM jsonb_array_elements(b) e WHERE e->>'total_count' IS DISTINCT FROM a->0->>'total_count') THEN
+        RAISE EXCEPTION '%: total_count legacy=% new=%', tag, a->0->>'total_count',
+            (SELECT string_agg(DISTINCT e->>'total_count', ',') FROM jsonb_array_elements(b) e); END IF;
+    -- 3. ids unique and (full mode) the same set
+    IF (SELECT count(DISTINCT e->>'id') FROM jsonb_array_elements(b) e) <> n_b THEN
+        RAISE EXCEPTION '%: new result contains duplicate ids', tag; END IF;
+    IF full_mode AND (SELECT coalesce(jsonb_agg(e->>'id' ORDER BY e->>'id'), '[]') FROM jsonb_array_elements(a) e)
+                  IS DISTINCT FROM (SELECT coalesce(jsonb_agg(e->>'id' ORDER BY e->>'id'), '[]') FROM jsonb_array_elements(b) e) THEN
+        RAISE EXCEPTION '%: id set differs', tag; END IF;
+    -- 4. every returned row equals the legacy row with the same id, column by column
+    IF EXISTS (
+        SELECT 1 FROM jsonb_array_elements(b) eb
+        LEFT JOIN jsonb_array_elements(a) ea ON ea->>'id' = eb->>'id'
+        WHERE ea IS NULL OR (ea - 'ord') IS DISTINCT FROM (eb - 'ord')) THEN
+        RAISE EXCEPTION '%: row content differs for id %', tag, (
+            SELECT eb->>'id' FROM jsonb_array_elements(b) eb LEFT JOIN jsonb_array_elements(a) ea ON ea->>'id' = eb->>'id'
+            WHERE ea IS NULL OR (ea - 'ord') IS DISTINCT FROM (eb - 'ord') ORDER BY (eb->>'ord')::int LIMIT 1);
+    END IF;
+    -- 5. sort-key sequence, position by position
+    SELECT coalesce(jsonb_agg(e->skey ORDER BY (e->>'ord')::int), '[]') INTO ka FROM jsonb_array_elements(a_slice) e;
+    SELECT coalesce(jsonb_agg(e->skey ORDER BY (e->>'ord')::int), '[]') INTO kb FROM jsonb_array_elements(b) e;
+    IF ka IS DISTINCT FROM kb THEN
+        SELECT min(i) INTO pos FROM generate_series(0, n_b - 1) i WHERE ka->i IS DISTINCT FROM kb->i;
+        RAISE EXCEPTION '%: sort-key (%) sequence differs at position % (legacy % vs new %)', tag, skey, pos + 1, ka->pos, kb->pos;
+    END IF;
+
+    UPDATE pg_temp.v1_stats SET
+        compared = compared + 1,
+        nonempty = nonempty + (n_b > 0)::int,
+        rows_total = rows_total + n_b,
+        paged = paged + (NOT full_mode)::int,
+        order_differs = order_differs + ((SELECT jsonb_agg(e->>'id' ORDER BY (e->>'ord')::int) FROM jsonb_array_elements(a_slice) e)
+                                         IS DISTINCT FROM (SELECT jsonb_agg(e->>'id' ORDER BY (e->>'ord')::int) FROM jsonb_array_elements(b) e))::int,
+        b_empty = b_empty + (full_mode AND n_b = 0)::int,
+        b_small = b_small + (full_mode AND n_b BETWEEN 1 AND 5)::int,
+        b_mid   = b_mid   + (full_mode AND n_b BETWEEN 6 AND 20)::int,
+        b_large = b_large + (full_mode AND n_b > 20)::int;
+    RETURN n_a;
+END $f$;
+
+-- Two profiles the default loader does not create (n=5 with preferences, n=6 roles but no skills).
+UPDATE public.candidate_profiles
+   SET skills = ARRAY['driving', 'night driving'], interested_roles = ARRAY['Car Driver'],
+       preferred_cities = ARRAY['Delhi'], onboarding_completed = true
+ WHERE user_id = (SELECT id FROM b_cand WHERE n = 5);
+INSERT INTO public.candidate_preferences (user_id, min_salary_monthly, max_salary_monthly, job_types, work_modes,
+                                          min_experience_years, max_experience_years)
+SELECT id, 12000, 30000, ARRAY['full_time'], ARRAY['onsite', 'field'], 0, 6
+FROM b_cand bc WHERE bc.n = 5
+  AND NOT EXISTS (SELECT 1 FROM public.candidate_preferences cp WHERE cp.user_id = bc.id);
+UPDATE public.candidate_profiles
+   SET skills = '{}', interested_roles = ARRAY['Car Driver'], preferred_cities = ARRAY['Delhi'],
+       last_role = NULL, onboarding_completed = true
+ WHERE user_id = (SELECT id FROM b_cand WHERE n = 6);
+
+-- Matrix: 6 profiles x 3 sorts x 4 argument sets. Each comparison is a full list (limit 200000).
+DO $eq$
+DECLARE
+  p record; s text; arg text; n_prof int := 0; n_cmp int := 0;
+  args text[] := ARRAY['', ', _relevant_only => true', ', _city => ''Delhi''', ', _category => ''Driver'''];
+BEGIN
+  FOR p IN SELECT v.n, v.label, bc.id
+           FROM (VALUES (1, 'Driver'), (2, 'Sales'), (3, 'ColdStart'), (4, 'ManyApplications'),
+                        (5, 'Preferences'), (6, 'RolesNoSkills')) v(n, label)
+           JOIN b_cand bc ON bc.n = v.n
+           ORDER BY v.n LOOP
+    FOREACH s IN ARRAY ARRAY['recommended', 'newest', 'salary_high'] LOOP
+      FOREACH arg IN ARRAY args LOOP
+        PERFORM pg_temp.v1_equiv(p.id, p.label, s, arg);
+        n_cmp := n_cmp + 1;
+      END LOOP;
+    END LOOP;
+    n_prof := n_prof + 1;
+    RAISE NOTICE 'equivalence: % ok so far (profiles done: %)', n_cmp, n_prof;
+  END LOOP;
+  RAISE NOTICE 'equivalence: % full-list comparisons passed (% profiles x 3 sorts x 4 argument sets)', n_cmp, n_prof;
+END $eq$;
+
+-- Determinism of the NEW function: first 10 pages of 7 concatenated == the head of its own full list,
+-- id by id, and no duplicate ids. Same profiles x sorts x argument sets.
+DO $det$
+DECLARE
+  p record; s text; arg text; off int;
+  full_ids text[]; paged_ids text[]; page_ids text[]; n_chk int := 0;
+  args text[] := ARRAY['', ', _relevant_only => true', ', _city => ''Delhi''', ', _category => ''Driver'''];
+BEGIN
+  FOR p IN SELECT bc.id, bc.n FROM b_cand bc WHERE bc.n BETWEEN 1 AND 6 ORDER BY bc.n LOOP
+    PERFORM pg_temp.act_as(p.id);
+    FOREACH s IN ARRAY ARRAY['recommended', 'newest', 'salary_high'] LOOP
+      FOREACH arg IN ARRAY args LOOP
+        EXECUTE format($q$SELECT coalesce(array_agg(x.id::text ORDER BY x.ordinality), '{}'::text[])
+                          FROM public.recommend_jobs_for_candidate(_limit => 200000, _offset => 0, _sort => %L %s) WITH ORDINALITY AS x$q$,
+                       s, arg) INTO full_ids;
+        paged_ids := '{}'::text[];
+        FOR off IN 0 .. 9 LOOP
+          EXECUTE format($q$SELECT coalesce(array_agg(x.id::text ORDER BY x.ordinality), '{}'::text[])
+                            FROM public.recommend_jobs_for_candidate(_limit => 7, _offset => %s, _sort => %L %s) WITH ORDINALITY AS x$q$,
+                         off * 7, s, arg) INTO page_ids;
+          paged_ids := paged_ids || page_ids;
+        END LOOP;
+        full_ids := coalesce(full_ids, '{}'::text[]);
+        IF (SELECT count(DISTINCT x) FROM unnest(full_ids) x) <> cardinality(full_ids) THEN
+          RAISE EXCEPTION 'determinism: full list of profile % / % / % has duplicate ids', p.n, s, arg;
+        END IF;
+        IF paged_ids IS DISTINCT FROM full_ids[1:70] THEN
+          RAISE EXCEPTION 'determinism: paged(7) list of profile % / % / % differs from the full list (paged % ids, full head % ids)',
+            p.n, s, arg, cardinality(paged_ids), cardinality(full_ids[1:70]);
+        END IF;
+        n_chk := n_chk + 1;
+      END LOOP;
+    END LOOP;
+  END LOOP;
+  RAISE NOTICE 'determinism: % paged(7) x 10-page checks of the new function passed', n_chk;
+END $det$;
+
+SELECT 'equivalence_stats' AS phase, compared, nonempty, rows_total, paged, b_empty, b_small, b_mid, b_large
+FROM pg_temp.v1_stats;
+\endif
 
 \if :skip_timing
 \else
@@ -544,6 +1056,13 @@ SELECT scenario, count(*) AS samples,
        round(percentile_cont(0.95) WITHIN GROUP (ORDER BY ms)::numeric, 1) AS p95_ms,
        round(max(ms), 1) AS max_ms, round(avg(ms), 1) AS mean_ms
 FROM b_res GROUP BY scenario ORDER BY scenario;
+
+\echo
+\echo '== per-call ms in call order (plan-flip check: look for a call above 1.5x the median) =='
+SELECT scenario, profile,
+       (SELECT string_agg(round(r2.ms)::text, ' ' ORDER BY r2.rep) FROM b_res r2
+         WHERE r2.scenario = r.scenario AND r2.profile = r.profile) AS ms_by_call
+FROM b_res r GROUP BY scenario, profile ORDER BY scenario, profile;
 
 \echo
 \echo '== plan gate: routed-V2 / V1 (ratio of means, per profile; gate <= 1.4) =='
