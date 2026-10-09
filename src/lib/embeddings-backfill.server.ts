@@ -22,7 +22,11 @@
 import { embed as providerEmbed, embeddingModelId as providerModelId } from "./ai/provider.ts";
 import {
   buildCandidateEmbeddingText,
+  buildCandidateRoleEmbeddingText,
+  buildCandidateSkillsEmbeddingText,
   buildJobEmbeddingText,
+  buildJobRoleEmbeddingText,
+  buildJobSkillsEmbeddingText,
   embeddingInputHash,
 } from "./embedding-text.ts";
 import type { BackfillMode } from "./embeddings-backfill-params.ts";
@@ -90,20 +94,125 @@ export async function backfillEmbeddings(opts: BackfillOpts): Promise<BackfillRe
   return { model: modelId, candidates, jobs };
 }
 
-/** Applies the shared "missing" / "refresh" filter to a `select` already scoped to one table. */
+/**
+ * One embedding facet of a row. Candidates and jobs each have three: the whole-document vector
+ * (`profile_*` / `description_*`) plus the skills-only and role-only vectors (`skills_*`, `role_*`).
+ */
+type Facet = {
+  vecCol: string;
+  hashCol: string;
+  modelCol: string;
+  atCol: string;
+  text: string;
+};
+
+type FacetCols = Pick<Facet, "vecCol" | "hashCol" | "modelCol" | "atCol">;
+
+const facetCols = (prefix: string, atPrefix = prefix): FacetCols => ({
+  vecCol: `${prefix}_embedding`,
+  hashCol: `${prefix}_embedding_hash`,
+  modelCol: `${prefix}_embedding_model`,
+  atCol: `${atPrefix}_embedded_at`,
+});
+
+const CANDIDATE_FACETS = {
+  main: facetCols("profile"),
+  skills: facetCols("skills"),
+  role: facetCols("role"),
+};
+const JOB_FACETS = {
+  main: facetCols("description"),
+  skills: facetCols("skills"),
+  role: facetCols("role"),
+};
+
+const facetColumnList = (f: Record<string, FacetCols>): string =>
+  Object.values(f)
+    .flatMap((c) => [c.vecCol, c.hashCol, c.modelCol])
+    .join(", ");
+
+/**
+ * Applies the shared "missing" / "refresh" filter to a `select` already scoped to one table. A
+ * row needs work when ANY of its three facets does. The skills facet is only considered for rows
+ * that actually have skills: an empty skills array yields empty embedding text, which can never
+ * be fixed by re-running, so such a row would otherwise be re-selected forever and starve the
+ * batch.
+ */
 function withNeedingWorkFilter(
   query: BackfillQuery,
   mode: BackfillMode,
   model: string,
-  embeddingCol: string,
-  hashCol: string,
-  modelCol: string,
+  facets: { main: FacetCols; skills: FacetCols; role: FacetCols },
 ): BackfillQuery {
-  return mode === "missing"
-    ? query.is(embeddingCol, null)
-    : query.or(
-        `${embeddingCol}.is.null,${hashCol}.is.null,${modelCol}.is.null,${modelCol}.neq."${model}"`,
-      );
+  const clause = (c: FacetCols): string =>
+    mode === "missing"
+      ? `${c.vecCol}.is.null`
+      : `${c.vecCol}.is.null,${c.hashCol}.is.null,${c.modelCol}.is.null,${c.modelCol}.neq."${model}"`;
+  const skillsClause =
+    mode === "missing"
+      ? `and(skills.neq.{},${clause(facets.skills)})`
+      : `and(skills.neq.{},or(${clause(facets.skills)}))`;
+  return query.or([clause(facets.main), skillsClause, clause(facets.role)].join(","));
+}
+
+/**
+ * Embeds and writes the facets of one row that are not already current, independently: each
+ * facet is hash-checked against what is stored (so an unchanged facet is never re-embedded), and
+ * a failure in one facet does not stop the others. Writes go straight to the table (service role;
+ * see the header comment for why not the RPCs).
+ *
+ * `missing` mode only fills facets whose vector is absent; `refresh` also redoes stale ones.
+ * Returns whether the row counts as processed: at least one facet written, or nothing left to do
+ * and nothing failed. A row where nothing could be written (empty text, or every attempt threw)
+ * is failed.
+ */
+async function backfillRowFacets(args: {
+  db: BackfillSupabase;
+  table: string;
+  keyCol: string;
+  keyVal: unknown;
+  row: BackfillRow;
+  facets: Facet[];
+  embedFn: (text: string) => Promise<number[]>;
+  model: string;
+  mode: BackfillMode;
+}): Promise<boolean> {
+  let written = 0;
+  let current = 0;
+  let errors = 0;
+  for (const f of args.facets) {
+    try {
+      if (!f.text.trim()) {
+        // Nothing to embed for this facet. Only the main facet's emptiness is a failure signal
+        // for the row (skills/role are legitimately empty for many rows).
+        if (f === args.facets[0]) errors++;
+        continue;
+      }
+      const hash = await embeddingInputHash(args.model, f.text);
+      const hasVector = args.row[f.vecCol] != null;
+      const isCurrent =
+        hasVector && args.row[f.hashCol] === hash && args.row[f.modelCol] === args.model;
+      if (args.mode === "missing" ? hasVector : isCurrent) {
+        current++;
+        continue;
+      }
+      const vector = await args.embedFn(f.text);
+      const { error } = await args.db
+        .from(args.table)
+        .update({
+          [f.vecCol]: vector,
+          [f.hashCol]: hash,
+          [f.modelCol]: args.model,
+          [f.atCol]: new Date().toISOString(),
+        })
+        .eq(args.keyCol, args.keyVal);
+      if (error) throw new Error(error.message);
+      written++;
+    } catch {
+      errors++;
+    }
+  }
+  return written > 0 || (errors === 0 && current > 0);
 }
 
 type CandidateRow = {
@@ -113,6 +222,7 @@ type CandidateRow = {
   skills: string[] | null;
   years_experience: number | null;
   last_role: string | null;
+  interested_roles: string[] | null;
 };
 
 type ProfileRow = { id: string; full_name: string | null; city: string | null };
@@ -127,17 +237,17 @@ async function backfillCandidates(
   const selectQuery = withNeedingWorkFilter(
     db
       .from("candidate_profiles")
-      .select("user_id, headline, bio, skills, years_experience, last_role")
+      .select(
+        `user_id, headline, bio, skills, years_experience, last_role, interested_roles, ${facetColumnList(CANDIDATE_FACETS)}`,
+      )
       .eq("onboarding_completed", true),
     mode,
     model,
-    "profile_embedding",
-    "profile_embedding_hash",
-    "profile_embedding_model",
+    CANDIDATE_FACETS,
   );
   const { data, error } = await selectQuery.order("updated_at", { ascending: false }).limit(limit);
   if (error) throw new Error(error.message);
-  const rows = (data ?? []) as unknown as CandidateRow[];
+  const rows = (data ?? []) as unknown as Array<CandidateRow & BackfillRow>;
 
   const ids = rows.map((r) => r.user_id);
   let profiles: ProfileRow[] = [];
@@ -156,29 +266,40 @@ async function backfillCandidates(
   for (const r of rows) {
     try {
       const p = profById.get(r.user_id);
-      const text = buildCandidateEmbeddingText({
-        headline: r.headline,
-        lastRole: r.last_role,
-        yearsExperience: r.years_experience,
-        skills: r.skills,
-        city: p?.city ?? null,
-        bio: r.bio,
+      const ok = await backfillRowFacets({
+        db,
+        table: "candidate_profiles",
+        keyCol: "user_id",
+        keyVal: r.user_id,
+        row: r,
+        embedFn,
+        model,
+        mode,
+        facets: [
+          {
+            ...CANDIDATE_FACETS.main,
+            text: buildCandidateEmbeddingText({
+              headline: r.headline,
+              lastRole: r.last_role,
+              yearsExperience: r.years_experience,
+              skills: r.skills,
+              city: p?.city ?? null,
+              bio: r.bio,
+            }),
+          },
+          { ...CANDIDATE_FACETS.skills, text: buildCandidateSkillsEmbeddingText(r.skills) },
+          {
+            ...CANDIDATE_FACETS.role,
+            text: buildCandidateRoleEmbeddingText({
+              headline: r.headline,
+              lastRole: r.last_role,
+              interestedRoles: r.interested_roles,
+            }),
+          },
+        ],
       });
-      if (!text.trim()) throw new Error("empty embedding text");
-
-      const vector = await embedFn(text);
-      const hash = await embeddingInputHash(model, text);
-      const { error: upErr } = await db
-        .from("candidate_profiles")
-        .update({
-          profile_embedding: vector,
-          profile_embedding_hash: hash,
-          profile_embedding_model: model,
-          profile_embedded_at: new Date().toISOString(),
-        })
-        .eq("user_id", r.user_id);
-      if (upErr) throw new Error(upErr.message);
-      processed++;
+      if (ok) processed++;
+      else failed++;
     } catch {
       failed++;
     }
@@ -191,9 +312,7 @@ async function backfillCandidates(
       .eq("onboarding_completed", true),
     mode,
     model,
-    "profile_embedding",
-    "profile_embedding_hash",
-    "profile_embedding_model",
+    CANDIDATE_FACETS,
   );
   const { count, error: countErr } = await remainingQuery;
   if (countErr) throw new Error(countErr.message);
@@ -217,43 +336,51 @@ async function backfillJobs(
   limit: number,
 ): Promise<Counts> {
   const selectQuery = withNeedingWorkFilter(
-    db.from("jobs").select("id, title, category, skills, city, description").eq("status", "active"),
+    db
+      .from("jobs")
+      .select(`id, title, category, skills, city, description, ${facetColumnList(JOB_FACETS)}`)
+      .eq("status", "active"),
     mode,
     model,
-    "description_embedding",
-    "description_embedding_hash",
-    "description_embedding_model",
+    JOB_FACETS,
   );
   const { data, error } = await selectQuery.order("created_at", { ascending: false }).limit(limit);
   if (error) throw new Error(error.message);
-  const rows = (data ?? []) as unknown as JobRow[];
+  const rows = (data ?? []) as unknown as Array<JobRow & BackfillRow>;
 
   let processed = 0;
   let failed = 0;
   for (const r of rows) {
     try {
-      const text = buildJobEmbeddingText({
-        title: r.title,
-        category: r.category,
-        skills: r.skills,
-        city: r.city,
-        description: r.description,
+      const ok = await backfillRowFacets({
+        db,
+        table: "jobs",
+        keyCol: "id",
+        keyVal: r.id,
+        row: r,
+        embedFn,
+        model,
+        mode,
+        facets: [
+          {
+            ...JOB_FACETS.main,
+            text: buildJobEmbeddingText({
+              title: r.title,
+              category: r.category,
+              skills: r.skills,
+              city: r.city,
+              description: r.description,
+            }),
+          },
+          { ...JOB_FACETS.skills, text: buildJobSkillsEmbeddingText(r.skills) },
+          {
+            ...JOB_FACETS.role,
+            text: buildJobRoleEmbeddingText({ title: r.title, category: r.category }),
+          },
+        ],
       });
-      if (!text.trim()) throw new Error("empty embedding text");
-
-      const vector = await embedFn(text);
-      const hash = await embeddingInputHash(model, text);
-      const { error: upErr } = await db
-        .from("jobs")
-        .update({
-          description_embedding: vector,
-          description_embedding_hash: hash,
-          description_embedding_model: model,
-          description_embedded_at: new Date().toISOString(),
-        })
-        .eq("id", r.id);
-      if (upErr) throw new Error(upErr.message);
-      processed++;
+      if (ok) processed++;
+      else failed++;
     } catch {
       failed++;
     }
@@ -263,9 +390,7 @@ async function backfillJobs(
     db.from("jobs").select("id", { count: "exact", head: true }).eq("status", "active"),
     mode,
     model,
-    "description_embedding",
-    "description_embedding_hash",
-    "description_embedding_model",
+    JOB_FACETS,
   );
   const { count, error: countErr } = await remainingQuery;
   if (countErr) throw new Error(countErr.message);

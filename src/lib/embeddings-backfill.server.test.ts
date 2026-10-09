@@ -26,13 +26,40 @@ function makeFakeDb(tables: Record<string, Row[]>, calls: SelectCall[]): Backfil
           const preds: Array<(r: Row) => boolean> = [];
           let limitN: number | null = null;
 
-          const parseOrClause = (clause: string) => {
-            const m = clause.match(/^([a-zA-Z0-9_]+)\.(is|neq)\.(.*)$/);
-            if (!m) return () => false;
+          // Recursive PostgREST logic-tree parser: top-level comma list (OR), nested
+          // `and(...)` / `or(...)`, and leaves `col.is.null` / `col.neq."v"` / `col.neq.{}`
+          // (the last = "array is non-empty", which is how the real server reads it).
+          const splitTop = (str: string): string[] => {
+            const out: string[] = [];
+            let depth = 0;
+            let cur = "";
+            for (const ch of str) {
+              if (ch === "(") depth++;
+              if (ch === ")") depth--;
+              if (ch === "," && depth === 0) {
+                out.push(cur);
+                cur = "";
+              } else cur += ch;
+            }
+            if (cur) out.push(cur);
+            return out;
+          };
+          const parseNode = (node: string): ((r: Row) => boolean) => {
+            const g = node.match(/^(and|or)\((.*)\)$/);
+            if (g) {
+              const kids = splitTop(g[2]).map(parseNode);
+              return g[1] === "and"
+                ? (r) => kids.every((k) => k(r))
+                : (r) => kids.some((k) => k(r));
+            }
+            const m = node.match(/^([a-zA-Z0-9_]+)\.(is|neq)\.(.*)$/);
+            if (!m) throw new Error(`fake db cannot parse: ${node}`);
             const [, col, op, rawVal] = m;
-            if (op === "is") return (r: Row) => (r[col] ?? null) === null;
+            if (op === "is") return (r) => (r[col] ?? null) === null;
+            if (rawVal === "{}")
+              return (r) => Array.isArray(r[col]) && (r[col] as unknown[]).length > 0;
             const val = rawVal.replace(/^"|"$/g, "");
-            return (r: Row) => r[col] !== val;
+            return (r) => r[col] !== val;
           };
 
           const builder: BackfillQuery = {
@@ -45,7 +72,7 @@ function makeFakeDb(tables: Record<string, Row[]>, calls: SelectCall[]): Backfil
               return builder;
             },
             or(filters) {
-              const clausePreds = filters.split(",").map(parseOrClause);
+              const clausePreds = splitTop(filters).map(parseNode);
               preds.push((r) => clausePreds.some((p) => p(r)));
               return builder;
             },
@@ -110,6 +137,9 @@ describe("backfillEmbeddings", () => {
         onboarding_completed: true,
         profile_embedding: [1],
         profile_embedding_hash: "h",
+        role_embedding: [1],
+        role_embedding_hash: "h",
+        role_embedding_model: MODEL,
         profile_embedding_model: MODEL,
         headline: "B",
       },
@@ -118,6 +148,7 @@ describe("backfillEmbeddings", () => {
         onboarding_completed: true,
         profile_embedding: [1],
         profile_embedding_hash: null, // stale, but NOT missing
+        role_embedding: [1],
         profile_embedding_model: MODEL,
         headline: "C",
       },
@@ -151,6 +182,9 @@ describe("backfillEmbeddings", () => {
         onboarding_completed: true,
         profile_embedding: [1],
         profile_embedding_hash: "h",
+        role_embedding: [1],
+        role_embedding_hash: "h",
+        role_embedding_model: MODEL,
         profile_embedding_model: MODEL,
         headline: "B", // current, must be excluded
       },
@@ -167,6 +201,9 @@ describe("backfillEmbeddings", () => {
         onboarding_completed: true,
         profile_embedding: [1],
         profile_embedding_hash: "h",
+        role_embedding: [1],
+        role_embedding_hash: "h",
+        role_embedding_model: MODEL,
         profile_embedding_model: "old-model/999",
         headline: "D", // stale model
       },
@@ -337,5 +374,226 @@ describe("backfillEmbeddings", () => {
       /not configured/i,
     );
     assert.equal(embedCalls, 0);
+  });
+
+  describe("faceted (skills / role) embeddings", () => {
+    const hashOf = async (text: string) => {
+      const { embeddingInputHash } = await import("./embedding-text.ts");
+      return embeddingInputHash(MODEL, text);
+    };
+
+    it("a candidate missing only the skills/role facets is picked up; only missing facets are embedded in missing mode", async () => {
+      const tables = baseTables();
+      tables.candidate_profiles = [
+        {
+          user_id: "c1",
+          onboarding_completed: true,
+          headline: "Driver",
+          skills: ["driving"],
+          interested_roles: ["Delivery"],
+          profile_embedding: [1],
+          profile_embedding_hash: "stale-but-present",
+          profile_embedding_model: MODEL,
+          skills_embedding: null,
+          role_embedding: null,
+        },
+      ];
+      const embedded: string[] = [];
+      const embed = async (t: string) => {
+        embedded.push(t);
+        return [0.5];
+      };
+      const result = await backfillEmbeddings({
+        mode: "missing",
+        limit: 25,
+        db: makeFakeDb(tables, []),
+        embed,
+        modelId: () => MODEL,
+      });
+      const row = tables.candidate_profiles[0];
+      assert.equal(result.candidates.processed, 1);
+      assert.equal(result.candidates.remaining, 0);
+      assert.deepEqual(row.skills_embedding, [0.5]);
+      assert.deepEqual(row.role_embedding, [0.5]);
+      assert.equal(row.skills_embedding_model, MODEL);
+      assert.equal(row.role_embedding_model, MODEL);
+      assert.ok(row.skills_embedding_hash && row.role_embedding_hash);
+      assert.equal(embedded.length, 2, "missing mode must not re-embed the present main vector");
+      assert.deepEqual(row.profile_embedding, [1], "present main facet untouched in missing mode");
+    });
+
+    it("refresh mode does not re-embed a facet whose stored hash already matches", async () => {
+      const { buildCandidateSkillsEmbeddingText } = await import("./embedding-text.ts");
+      const skillsText = buildCandidateSkillsEmbeddingText(["driving"]);
+      const tables = baseTables();
+      tables.candidate_profiles = [
+        {
+          user_id: "c1",
+          onboarding_completed: true,
+          headline: "Driver",
+          skills: ["driving"],
+          interested_roles: null,
+          profile_embedding: [1],
+          profile_embedding_hash: null, // stale -> row selected, main re-embedded
+          profile_embedding_model: MODEL,
+          skills_embedding: [9],
+          skills_embedding_hash: await hashOf(skillsText), // current -> must be skipped
+          skills_embedding_model: MODEL,
+          role_embedding: [9],
+          role_embedding_hash: "x",
+          role_embedding_model: MODEL,
+        },
+      ];
+      const embedded: string[] = [];
+      const embed = async (t: string) => {
+        embedded.push(t);
+        return [0.5];
+      };
+      await backfillEmbeddings({
+        mode: "refresh",
+        limit: 25,
+        db: makeFakeDb(tables, []),
+        embed,
+        modelId: () => MODEL,
+      });
+      const row = tables.candidate_profiles[0];
+      assert.ok(!embedded.includes(skillsText), "current skills facet must not be re-embedded");
+      assert.deepEqual(row.skills_embedding, [9]);
+      assert.deepEqual(row.profile_embedding, [0.5]);
+    });
+
+    it("one facet failing does not abort the row or the batch; the row still counts processed", async () => {
+      const tables = baseTables();
+      tables.candidate_profiles = [
+        {
+          user_id: "c1",
+          onboarding_completed: true,
+          headline: "Driver",
+          skills: ["boom-skill"],
+          profile_embedding: null,
+        },
+        {
+          user_id: "c2",
+          onboarding_completed: true,
+          headline: "Cook",
+          skills: ["cooking"],
+          profile_embedding: null,
+        },
+      ];
+      const embed = async (t: string) => {
+        if (t === "boom-skill") throw new Error("skills provider failure");
+        return [0.5];
+      };
+      const result = await backfillEmbeddings({
+        mode: "missing",
+        limit: 25,
+        db: makeFakeDb(tables, []),
+        embed,
+        modelId: () => MODEL,
+      });
+      assert.equal(result.candidates.processed, 2);
+      assert.equal(result.candidates.failed, 0);
+      assert.deepEqual(tables.candidate_profiles[0].profile_embedding, [0.5]);
+      assert.equal(tables.candidate_profiles[0].skills_embedding ?? null, null);
+      assert.deepEqual(tables.candidate_profiles[1].skills_embedding, [0.5]);
+      assert.equal(result.candidates.remaining, 1, "c1 still lacks its skills facet");
+    });
+
+    it("a row is failed only when every attempted facet fails", async () => {
+      const tables = baseTables();
+      tables.candidate_profiles = [
+        {
+          user_id: "c1",
+          onboarding_completed: true,
+          headline: "Driver",
+          skills: ["a"],
+          profile_embedding: null,
+        },
+        {
+          user_id: "c2",
+          onboarding_completed: true,
+          headline: "Cook",
+          skills: ["b"],
+          profile_embedding: null,
+        },
+      ];
+      const embed = async (t: string) => {
+        if (t.includes("Driver") || t === "a") throw new Error("down");
+        return [0.5];
+      };
+      const result = await backfillEmbeddings({
+        mode: "missing",
+        limit: 25,
+        db: makeFakeDb(tables, []),
+        embed,
+        modelId: () => MODEL,
+      });
+      assert.equal(result.candidates.failed, 1, "c1: all facets threw");
+      assert.equal(result.candidates.processed, 1, "c2 succeeded");
+    });
+
+    it("candidates with no skills are not selected for the skills facet (no perpetual re-selection)", async () => {
+      const tables = baseTables();
+      tables.candidate_profiles = [
+        {
+          user_id: "c1",
+          onboarding_completed: true,
+          headline: "Driver",
+          skills: [],
+          profile_embedding: [1],
+          profile_embedding_hash: "h",
+          profile_embedding_model: MODEL,
+          role_embedding: [1],
+          role_embedding_hash: "h",
+          role_embedding_model: MODEL,
+          skills_embedding: null,
+        },
+      ];
+      let calls = 0;
+      const result = await backfillEmbeddings({
+        mode: "refresh",
+        limit: 25,
+        db: makeFakeDb(tables, []),
+        embed: async () => {
+          calls++;
+          return [0.5];
+        },
+        modelId: () => MODEL,
+      });
+      assert.equal(calls, 0);
+      assert.equal(result.candidates.processed, 0);
+      assert.equal(result.candidates.remaining, 0);
+    });
+
+    it("jobs: a job missing only the facets is selected and both facets are written", async () => {
+      const tables = baseTables();
+      tables.jobs = [
+        {
+          id: "j1",
+          status: "active",
+          title: "Driver",
+          category: "Logistics",
+          skills: ["driving"],
+          description: "Deliver",
+          description_embedding: [1],
+          description_embedding_hash: "x",
+          description_embedding_model: MODEL,
+          skills_embedding: null,
+          role_embedding: null,
+        },
+      ];
+      const result = await backfillEmbeddings({
+        mode: "missing",
+        limit: 25,
+        db: makeFakeDb(tables, []),
+        embed: stubEmbed,
+        modelId: () => MODEL,
+      });
+      assert.equal(result.jobs.processed, 1);
+      assert.equal(result.jobs.remaining, 0);
+      assert.ok(tables.jobs[0].skills_embedding);
+      assert.ok(tables.jobs[0].role_embedding);
+      assert.equal(tables.jobs[0].role_embedding_model, MODEL);
+    });
   });
 });
