@@ -77,6 +77,7 @@ import { Route as AuthenticatedEmployerTeamRouteImport } from './routes/_authent
 import { Route as AuthenticatedEmployerVerificationRouteImport } from './routes/_authenticated/employer/verification'
 import { Route as AuthenticatedOnboardingCandidateRouteImport } from './routes/_authenticated/onboarding/candidate'
 import { Route as AuthenticatedOnboardingEmployerRouteImport } from './routes/_authenticated/onboarding/employer'
+import { Route as ApiPublicEmbeddingsBackfillRouteImport } from './routes/api/public/embeddings-backfill'
 import { Route as LearnCertificationSlugRouteImport } from './routes/learn_.certification.$slug'
 import { Route as LearnCourseSlugRouteImport } from './routes/learn_.course.$slug'
 import { Route as LearnPostSlugRouteImport } from './routes/learn_.post.$slug'
@@ -468,6 +469,12 @@ const AuthenticatedOnboardingEmployerRoute =
     path: '/onboarding/employer',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiPublicEmbeddingsBackfillRoute =
+  ApiPublicEmbeddingsBackfillRouteImport.update({
+    id: '/api/public/embeddings-backfill',
+    path: '/api/public/embeddings-backfill',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const LearnCertificationSlugRoute = LearnCertificationSlugRouteImport.update({
   id: '/learn_/certification/$slug',
   path: '/learn/certification/$slug',
@@ -672,6 +679,7 @@ export interface FileRoutesByFullPath {
   '/employer/verification': typeof AuthenticatedEmployerVerificationRoute
   '/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
   '/onboarding/employer': typeof AuthenticatedOnboardingEmployerRoute
+  '/api/public/embeddings-backfill': typeof ApiPublicEmbeddingsBackfillRoute
   '/learn/certification/$slug': typeof LearnCertificationSlugRoute
   '/learn/course/$slug': typeof LearnCourseSlugRoute
   '/learn/post/$slug': typeof LearnPostSlugRoute
@@ -763,6 +771,7 @@ export interface FileRoutesByTo {
   '/employer/verification': typeof AuthenticatedEmployerVerificationRoute
   '/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
   '/onboarding/employer': typeof AuthenticatedOnboardingEmployerRoute
+  '/api/public/embeddings-backfill': typeof ApiPublicEmbeddingsBackfillRoute
   '/learn/certification/$slug': typeof LearnCertificationSlugRoute
   '/learn/course/$slug': typeof LearnCourseSlugRoute
   '/learn/post/$slug': typeof LearnPostSlugRoute
@@ -857,6 +866,7 @@ export interface FileRoutesById {
   '/_authenticated/employer/verification': typeof AuthenticatedEmployerVerificationRoute
   '/_authenticated/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
   '/_authenticated/onboarding/employer': typeof AuthenticatedOnboardingEmployerRoute
+  '/api/public/embeddings-backfill': typeof ApiPublicEmbeddingsBackfillRoute
   '/learn_/certification/$slug': typeof LearnCertificationSlugRoute
   '/learn_/course/$slug': typeof LearnCourseSlugRoute
   '/learn_/post/$slug': typeof LearnPostSlugRoute
@@ -951,6 +961,7 @@ export interface FileRouteTypes {
     | '/employer/verification'
     | '/onboarding/candidate'
     | '/onboarding/employer'
+    | '/api/public/embeddings-backfill'
     | '/learn/certification/$slug'
     | '/learn/course/$slug'
     | '/learn/post/$slug'
@@ -1042,6 +1053,7 @@ export interface FileRouteTypes {
     | '/employer/verification'
     | '/onboarding/candidate'
     | '/onboarding/employer'
+    | '/api/public/embeddings-backfill'
     | '/learn/certification/$slug'
     | '/learn/course/$slug'
     | '/learn/post/$slug'
@@ -1135,6 +1147,7 @@ export interface FileRouteTypes {
     | '/_authenticated/employer/verification'
     | '/_authenticated/onboarding/candidate'
     | '/_authenticated/onboarding/employer'
+    | '/api/public/embeddings-backfill'
     | '/learn_/certification/$slug'
     | '/learn_/course/$slug'
     | '/learn_/post/$slug'
@@ -1183,6 +1196,7 @@ export interface RootRouteChildren {
   SignupEmployerRoute: typeof SignupEmployerRoute
   USlugRoute: typeof USlugRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
+  ApiPublicEmbeddingsBackfillRoute: typeof ApiPublicEmbeddingsBackfillRoute
   LearnCertificationSlugRoute: typeof LearnCertificationSlugRoute
   LearnCourseSlugRoute: typeof LearnCourseSlugRoute
   LearnPostSlugRoute: typeof LearnPostSlugRoute
@@ -1670,6 +1684,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedOnboardingEmployerRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/embeddings-backfill': {
+      id: '/api/public/embeddings-backfill'
+      path: '/api/public/embeddings-backfill'
+      fullPath: '/api/public/embeddings-backfill'
+      preLoaderRoute: typeof ApiPublicEmbeddingsBackfillRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/learn_/certification/$slug': {
       id: '/learn_/certification/$slug'
       path: '/learn/certification/$slug'
@@ -2063,6 +2084,7 @@ const rootRouteChildren: RootRouteChildren = {
   SignupEmployerRoute: SignupEmployerRoute,
   USlugRoute: USlugRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
+  ApiPublicEmbeddingsBackfillRoute: ApiPublicEmbeddingsBackfillRoute,
   LearnCertificationSlugRoute: LearnCertificationSlugRoute,
   LearnCourseSlugRoute: LearnCourseSlugRoute,
   LearnPostSlugRoute: LearnPostSlugRoute,
