@@ -78,3 +78,150 @@ AS $$
 $$;
 
 REVOKE ALL ON FUNCTION public.recommendation_v2_active(uuid) FROM PUBLIC, anon, authenticated;
+
+-- ── C. Re-ranker ────────────────────────────────────────────
+-- Input: V1's top window (already filtered/gated/diversified by V1).
+-- Output: the same rows, re-ordered.
+--   rank = clamp( (1-wI-wS)*V1score + wI*intent + wS*similarity ) * (fatigued ? mult : 1)
+--   intent     = strongest recent engagement (view .4 / save .8 / apply 1.0, 3.5-day
+--                half-life, 14-day window) on a DIFFERENT job in the same category
+--   similarity = strongest (engagement strength × pgvector cosine) to a DIFFERENT engaged job
+--   fatigued   = shown on >= v2_fatigue_min_days distinct IST days in 7 days AND never
+--                viewed/saved/applied (counts distinct DAYS, so refetch noise cannot demote)
+-- No engagement events => intent/similarity weights forced to 0 => V1 order (+ fatigue only).
+CREATE OR REPLACE FUNCTION public.recommendation_rerank(_uid uuid, _rows public.job_feed_row[])
+RETURNS public.job_feed_row[]
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
+AS $$
+#variable_conflict use_column
+DECLARE
+    _s public.recommendation_settings%ROWTYPE;
+    _out public.job_feed_row[];
+BEGIN
+    IF _rows IS NULL OR cardinality(_rows) = 0 THEN
+        RETURN _rows;
+    END IF;
+
+    SELECT * INTO _s FROM public.recommendation_settings WHERE id = 1;
+
+    WITH win AS (
+        SELECT u.id, u.company_id, u.title, u.city, u.state, u.locality,
+               u.min_salary, u.max_salary, u.salary_period, u.job_type, u.work_mode,
+               u.min_experience_years, u.max_experience_years, u.education, u.skills,
+               u.created_at, u.pay_type, u.avg_incentive_monthly, u.company_name, u.company_is_verified,
+               u.boosted, u.score, u.score_breakdown, u.recommendation_stage, u.total_count, u.request_id
+        FROM unnest(_rows) AS u
+    ),
+    ev_raw AS (
+        SELECT f.job_id, 0.4::numeric AS w, f.created_at AS at
+        FROM public.job_recommendation_feedback f
+        WHERE f.candidate_user_id = _uid AND f.action = 'viewed'
+          AND f.created_at > now() - interval '14 days'
+        UNION ALL
+        SELECT sj.job_id, 0.8::numeric, sj.created_at
+        FROM public.saved_jobs sj
+        WHERE sj.user_id = _uid AND sj.created_at > now() - interval '14 days'
+        UNION ALL
+        SELECT a.job_id, 1.0::numeric, a.created_at
+        FROM public.applications a
+        WHERE a.candidate_id = _uid AND a.created_at > now() - interval '14 days'
+    ),
+    ev AS (
+        SELECT DISTINCT ON (r.job_id) r.job_id,
+               public.recommendation_event_strength(
+                   r.w, (extract(epoch FROM (now() - r.at)) / 86400.0)::numeric) AS strength
+        FROM ev_raw r
+        ORDER BY r.job_id,
+                 public.recommendation_event_strength(
+                     r.w, (extract(epoch FROM (now() - r.at)) / 86400.0)::numeric) DESC
+    ),
+    ev_top AS (
+        SELECT e.job_id, e.strength, j.category, j.description_embedding
+        FROM ev e
+        JOIN public.jobs j ON j.id = e.job_id
+        ORDER BY e.strength DESC
+        LIMIT 30
+    ),
+    ev_n AS (
+        SELECT count(*)::int AS n FROM ev_top
+    ),
+    engaged AS (
+        SELECT f.job_id FROM public.job_recommendation_feedback f
+        WHERE f.candidate_user_id = _uid AND f.action IN ('viewed', 'saved', 'applied')
+        UNION
+        SELECT sj.job_id FROM public.saved_jobs sj WHERE sj.user_id = _uid
+        UNION
+        SELECT a.job_id FROM public.applications a WHERE a.candidate_id = _uid
+    ),
+    fatigued_jobs AS (
+        SELECT i.job_id
+        FROM public.job_impressions i
+        WHERE i.candidate_user_id = _uid
+          AND i.shown_at > now() - interval '7 days'
+          AND i.job_id IN (SELECT w.id FROM win w)
+          AND i.job_id NOT IN (SELECT e.job_id FROM engaged e)
+        GROUP BY i.job_id
+        HAVING count(DISTINCT (i.shown_at AT TIME ZONE 'Asia/Kolkata')::date) >= _s.v2_fatigue_min_days
+    ),
+    sig AS (
+        SELECT w.*,
+               COALESCE((
+                   SELECT max(e.strength) FROM ev_top e
+                   WHERE e.job_id <> w.id AND e.category IS NOT NULL AND e.category = jj.category
+               ), 0)::numeric AS intent_score,
+               COALESCE((
+                   SELECT max(e.strength * GREATEST(0::numeric, LEAST(1::numeric,
+                              (1 - (e.description_embedding <=> jj.description_embedding))::numeric)))
+                   FROM ev_top e
+                   WHERE e.job_id <> w.id
+                     AND e.description_embedding IS NOT NULL
+                     AND jj.description_embedding IS NOT NULL
+               ), 0)::numeric AS similarity_score,
+               (w.id IN (SELECT fj.job_id FROM fatigued_jobs fj)) AS fatigued
+        FROM win w
+        JOIN public.jobs jj ON jj.id = w.id
+    ),
+    ranked AS (
+        SELECT s.*,
+               public.recommendation_blend(
+                   s.score, s.intent_score, s.similarity_score,
+                   CASE WHEN en.n = 0 THEN 0::numeric ELSE _s.v2_intent_weight END,
+                   CASE WHEN en.n = 0 THEN 0::numeric ELSE _s.v2_similarity_weight END,
+                   s.fatigued, _s.v2_fatigue_multiplier
+               ) AS rank_score
+        FROM sig s
+        CROSS JOIN ev_n en
+    ),
+    ordered AS (
+        SELECT r.*,
+               row_number() OVER (
+                   PARTITION BY r.company_id ORDER BY r.rank_score DESC, r.created_at DESC
+               ) AS company_rank
+        FROM ranked r
+    )
+    SELECT array_agg(
+               ROW(o.id, o.company_id, o.title, o.city, o.state, o.locality,
+                   o.min_salary, o.max_salary, o.salary_period, o.job_type, o.work_mode,
+                   o.min_experience_years, o.max_experience_years, o.education, o.skills,
+                   o.created_at, o.pay_type, o.avg_incentive_monthly, o.company_name, o.company_is_verified,
+                   o.boosted, o.score, o.score_breakdown, o.recommendation_stage, o.total_count,
+                   o.request_id, 'v2'::text, round(o.rank_score, 4),
+                   public.recommendation_reason_codes(o.score_breakdown, o.intent_score, o.similarity_score, o.fatigued),
+                   COALESCE(o.score_breakdown - 'weights', '{}'::jsonb)
+                       || jsonb_build_object('intent', round(o.intent_score, 3),
+                                             'similarity', round(o.similarity_score, 3),
+                                             'fatigued', o.fatigued)
+               )::public.job_feed_row
+               -- same diversity rule V1 uses: a company's extra jobs sink below others
+               ORDER BY (o.company_rank > _s.max_same_company_in_top) ASC,
+                        o.rank_score DESC, o.created_at DESC
+           )
+    INTO _out
+    FROM ordered o;
+
+    RETURN _out;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.recommendation_rerank(uuid, public.job_feed_row[])
+    FROM PUBLIC, anon, authenticated;

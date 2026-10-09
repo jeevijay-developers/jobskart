@@ -102,3 +102,81 @@ DO $$ BEGIN
 END $$;
 
 ROLLBACK;
+
+-- ── 6. recommendation_rerank: shape + set-preservation + cold-start blend ──
+-- Read-only (no writes outside the DO blocks' own set_config session var).
+-- Requires fixtures loaded: candidates c001 (has recent applications/saved_jobs),
+-- c013 and c014 (no engagement rows) from supabase/tests/fixtures/seed_local.sql.
+DO $$
+DECLARE
+    r1 public.job_feed_row[];
+    r2 public.job_feed_row[];
+BEGIN
+    r1 := public.recommendation_rerank('00000000-0000-4000-8000-00000000c001'::uuid, NULL);
+    ASSERT r1 IS NULL, 'NULL _rows must pass through as NULL';
+    r2 := public.recommendation_rerank('00000000-0000-4000-8000-00000000c001'::uuid, ARRAY[]::public.job_feed_row[]);
+    ASSERT r2 IS NOT NULL AND cardinality(r2) = 0, 'empty-array _rows must pass through as empty array';
+END $$;
+
+DO $$
+DECLARE
+    cand uuid;
+    win public.job_feed_row[];
+    out public.job_feed_row[];
+    n_added int;
+    n_removed int;
+    n_dup int;
+BEGIN
+    FOR cand IN SELECT unnest(ARRAY[
+        '00000000-0000-4000-8000-00000000c001'::uuid,  -- has engagement
+        '00000000-0000-4000-8000-00000000c013'::uuid,  -- cold start
+        '00000000-0000-4000-8000-00000000c014'::uuid   -- cold start
+    ])
+    LOOP
+        PERFORM set_config('request.jwt.claims', json_build_object('sub', cand, 'role', 'authenticated')::text, true);
+        win := ARRAY(SELECT r FROM public.recommendation_fetch_v1(
+            'v1', gen_random_uuid(), NULL::text[], 140, 0, NULL, NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, false, false, false, 'recommended'
+        ) AS r);
+        out := public.recommendation_rerank(cand, win);
+
+        ASSERT cardinality(win) = cardinality(out), format('candidate %s: row count changed', cand);
+
+        SELECT count(*) INTO n_added
+        FROM (SELECT (u).id FROM unnest(out) u EXCEPT ALL SELECT (u).id FROM unnest(win) u) x;
+        SELECT count(*) INTO n_removed
+        FROM (SELECT (u).id FROM unnest(win) u EXCEPT ALL SELECT (u).id FROM unnest(out) u) x;
+        SELECT count(*) - count(DISTINCT (u).id) INTO n_dup FROM unnest(out) u;
+
+        ASSERT n_added = 0, format('candidate %s: rerank added ids', cand);
+        ASSERT n_removed = 0, format('candidate %s: rerank removed ids', cand);
+        ASSERT n_dup = 0, format('candidate %s: rerank duplicated ids', cand);
+    END LOOP;
+END $$;
+
+-- Cold start (no engagement rows at all): weights are forced to 0, so rank_score
+-- must equal score exactly (both rounded to 4dp) and no RECENT_INTENT/SIMILAR_JOB codes.
+DO $$
+DECLARE
+    cand uuid := '00000000-0000-4000-8000-00000000c013'::uuid;
+    win public.job_feed_row[];
+    out public.job_feed_row[];
+    rec record;
+BEGIN
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', cand, 'role', 'authenticated')::text, true);
+    win := ARRAY(SELECT r FROM public.recommendation_fetch_v1(
+        'v1', gen_random_uuid(), NULL::text[], 140, 0, NULL, NULL, NULL, NULL, NULL,
+        NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, false, false, false, 'recommended'
+    ) AS r);
+    out := public.recommendation_rerank(cand, win);
+
+    FOR rec IN SELECT (u).score AS score, (u).rank_score AS rank_score, (u).reason_codes AS reason_codes
+               FROM unnest(out) u
+    LOOP
+        ASSERT abs(rec.score - rec.rank_score) < 1e-4, format('cold start: score %s != rank_score %s', rec.score, rec.rank_score);
+        ASSERT NOT (rec.reason_codes IS NOT NULL AND 'RECENT_INTENT' = ANY(rec.reason_codes)),
+            'cold start must not surface RECENT_INTENT';
+        ASSERT NOT (rec.reason_codes IS NOT NULL AND 'SIMILAR_JOB' = ANY(rec.reason_codes)),
+            'cold start must not surface SIMILAR_JOB';
+    END LOOP;
+END $$;
