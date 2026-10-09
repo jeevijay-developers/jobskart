@@ -62,7 +62,7 @@ describe("embedding freshness e2e (local stack)", { skip: !ENABLED }, () => {
       const { data, error } = await sb
         .from("candidate_profiles")
         .select(
-          "skills, profile_embedding, profile_embedding_hash, profile_embedding_model, profile_embedded_at",
+          "skills, profile_embedding, profile_embedding_hash, profile_embedding_model, profile_embedded_at, skills_embedding, skills_embedding_hash, skills_embedding_model, skills_embedded_at, role_embedding, role_embedding_hash, role_embedding_model, role_embedded_at",
         )
         .eq("user_id", CANDIDATE_ID)
         .single();
@@ -84,6 +84,13 @@ describe("embedding freshness e2e (local stack)", { skip: !ENABLED }, () => {
       assert.match(r1.profile_embedding_hash as string, /^[0-9a-f]{64}$/);
       assert.equal(r1.profile_embedding_model, MODEL);
       assert.ok(r1.profile_embedded_at);
+      // Faceted: skills-only and role-only vectors are written alongside the whole-document one.
+      for (const f of ["skills", "role"] as const) {
+        assert.ok(r1[`${f}_embedding`], `${f} embedding stored`);
+        assert.match(r1[`${f}_embedding_hash`] as string, /^[0-9a-f]{64}$/);
+        assert.equal(r1[`${f}_embedding_model`], MODEL);
+        assert.ok(r1[`${f}_embedded_at`]);
+      }
 
       await sleep(20);
       const second = await embedCandidateProfileCore({
@@ -95,6 +102,8 @@ describe("embedding freshness e2e (local stack)", { skip: !ENABLED }, () => {
       const r2 = await read();
       assert.equal(r2.profile_embedded_at, r1.profile_embedded_at, "timestamp unchanged on skip");
       assert.equal(r2.profile_embedding_hash, r1.profile_embedding_hash);
+      assert.equal(r2.skills_embedded_at, r1.skills_embedded_at, "skills facet skipped");
+      assert.equal(r2.role_embedded_at, r1.role_embedded_at, "role facet skipped");
 
       const { error: upErr } = await sb
         .from("candidate_profiles")
@@ -103,6 +112,8 @@ describe("embedding freshness e2e (local stack)", { skip: !ENABLED }, () => {
       assert.ifError(upErr);
       const stale = await read();
       assert.equal(stale.profile_embedding_hash, null, "trigger invalidated the hash");
+      assert.equal(stale.skills_embedding_hash, null, "trigger invalidated the skills facet hash");
+      assert.equal(stale.role_embedding_hash, r1.role_embedding_hash, "role facet hash untouched");
 
       await sleep(20);
       const third = await embedCandidateProfileCore({
@@ -118,6 +129,12 @@ describe("embedding freshness e2e (local stack)", { skip: !ENABLED }, () => {
           new Date(r1.profile_embedded_at as string).getTime(),
         "timestamp advanced",
       );
+      assert.ok(
+        new Date(r3.skills_embedded_at as string).getTime() >
+          new Date(r1.skills_embedded_at as string).getTime(),
+        "skills facet re-embedded",
+      );
+      assert.equal(r3.role_embedded_at, r1.role_embedded_at, "role facet not re-embedded");
     } finally {
       // Leave the shared local fixtures exactly as found. Order matters: restoring `skills` fires
       // the invalidation trigger (clears the hash), so restore the embedding columns AFTER it.
@@ -133,6 +150,14 @@ describe("embedding freshness e2e (local stack)", { skip: !ENABLED }, () => {
           profile_embedding_hash: snapshot.profile_embedding_hash,
           profile_embedding_model: snapshot.profile_embedding_model,
           profile_embedded_at: snapshot.profile_embedded_at,
+          skills_embedding: snapshot.skills_embedding,
+          skills_embedding_hash: snapshot.skills_embedding_hash,
+          skills_embedding_model: snapshot.skills_embedding_model,
+          skills_embedded_at: snapshot.skills_embedded_at,
+          role_embedding: snapshot.role_embedding,
+          role_embedding_hash: snapshot.role_embedding_hash,
+          role_embedding_model: snapshot.role_embedding_model,
+          role_embedded_at: snapshot.role_embedded_at,
         })
         .eq("user_id", CANDIDATE_ID);
       assert.ifError(embeddingBack.error);
@@ -155,7 +180,7 @@ describe("embedding freshness e2e (local stack)", { skip: !ENABLED }, () => {
       const { data, error } = await sb
         .from("jobs")
         .select(
-          "description_embedding, description_embedding_hash, description_embedding_model, description_embedded_at",
+          "description_embedding, description_embedding_hash, description_embedding_model, description_embedded_at, skills_embedding, skills_embedding_hash, skills_embedding_model, skills_embedded_at, role_embedding, role_embedding_hash, role_embedding_model, role_embedded_at",
         )
         .eq("id", jobId)
         .single();
@@ -171,19 +196,30 @@ describe("embedding freshness e2e (local stack)", { skip: !ENABLED }, () => {
       assert.match(r1.description_embedding_hash as string, /^[0-9a-f]{64}$/);
       assert.equal(r1.description_embedding_model, MODEL);
       assert.ok(r1.description_embedded_at);
+      for (const f of ["skills", "role"] as const) {
+        assert.ok(r1[`${f}_embedding`], `${f} embedding stored`);
+        assert.match(r1[`${f}_embedding_hash`] as string, /^[0-9a-f]{64}$/);
+        assert.equal(r1[`${f}_embedding_model`], MODEL);
+        assert.ok(r1[`${f}_embedded_at`]);
+      }
 
       await sleep(20);
       const second = await embedJobDescriptionCore({ supabase: sb as never, jobId, deps });
       assert.deepEqual(second, { ok: true, skipped: true });
       const r2 = await read();
       assert.equal(r2.description_embedded_at, r1.description_embedded_at);
+      assert.equal(r2.skills_embedded_at, r1.skills_embedded_at, "skills facet skipped");
+      assert.equal(r2.role_embedded_at, r1.role_embedded_at, "role facet skipped");
 
       const { error: upErr } = await sb
         .from("jobs")
         .update({ skills: [...original, "e2e-extra-skill"] })
         .eq("id", jobId);
       assert.ifError(upErr);
-      assert.equal((await read()).description_embedding_hash, null, "trigger invalidated the hash");
+      const stale = await read();
+      assert.equal(stale.description_embedding_hash, null, "trigger invalidated the hash");
+      assert.equal(stale.skills_embedding_hash, null, "trigger invalidated the skills facet hash");
+      assert.equal(stale.role_embedding_hash, r1.role_embedding_hash, "role facet hash untouched");
 
       await sleep(20);
       const third = await embedJobDescriptionCore({ supabase: sb as never, jobId, deps });
@@ -194,6 +230,12 @@ describe("embedding freshness e2e (local stack)", { skip: !ENABLED }, () => {
         new Date(r3.description_embedded_at as string).getTime() >
           new Date(r1.description_embedded_at as string).getTime(),
       );
+      assert.ok(
+        new Date(r3.skills_embedded_at as string).getTime() >
+          new Date(r1.skills_embedded_at as string).getTime(),
+        "skills facet re-embedded",
+      );
+      assert.equal(r3.role_embedded_at, r1.role_embedded_at, "role facet not re-embedded");
     } finally {
       // Same ordering rule as the candidate test: skills first (fires the invalidation trigger),
       // then put the original embedding columns back.
@@ -206,6 +248,14 @@ describe("embedding freshness e2e (local stack)", { skip: !ENABLED }, () => {
           description_embedding_hash: snapshot.description_embedding_hash,
           description_embedding_model: snapshot.description_embedding_model,
           description_embedded_at: snapshot.description_embedded_at,
+          skills_embedding: snapshot.skills_embedding,
+          skills_embedding_hash: snapshot.skills_embedding_hash,
+          skills_embedding_model: snapshot.skills_embedding_model,
+          skills_embedded_at: snapshot.skills_embedded_at,
+          role_embedding: snapshot.role_embedding,
+          role_embedding_hash: snapshot.role_embedding_hash,
+          role_embedding_model: snapshot.role_embedding_model,
+          role_embedded_at: snapshot.role_embedded_at,
         })
         .eq("id", jobId);
       assert.ifError(embeddingBack.error);

@@ -13,7 +13,11 @@
 import { embed as providerEmbed, embeddingModelId } from "./ai/provider.ts";
 import {
   buildCandidateEmbeddingText,
+  buildCandidateRoleEmbeddingText,
+  buildCandidateSkillsEmbeddingText,
   buildJobEmbeddingText,
+  buildJobRoleEmbeddingText,
+  buildJobSkillsEmbeddingText,
   embeddingInputHash,
 } from "./embedding-text.ts";
 
@@ -76,6 +80,43 @@ async function hashCheckAndWrite(args: {
   return { ok: true, skipped: false };
 }
 
+type FacetSpec = {
+  text: string;
+  currentRpc: string;
+  writeRpc: string;
+  extra: Record<string, unknown>;
+};
+
+/**
+ * Skills-only and role-only facets, each independently hash-checked so an edit to one does not
+ * re-embed the other. Best-effort by design: a facet failure (embed, RPC, or an empty text) is
+ * swallowed and never affects the main embedding's result or the caller's flow.
+ */
+async function embedFacets(args: {
+  supabase: EmbeddingSupabase;
+  modelId: string;
+  embed: (text: string) => Promise<number[]>;
+  facets: FacetSpec[];
+}): Promise<void> {
+  await Promise.all(
+    args.facets.map(async (f) => {
+      if (!f.text.trim()) return;
+      try {
+        await hashCheckAndWrite({
+          supabase: args.supabase,
+          text: f.text,
+          modelId: args.modelId,
+          embed: args.embed,
+          currentRpc: { name: f.currentRpc, extra: f.extra },
+          writeRpc: { name: f.writeRpc, extra: f.extra },
+        });
+      } catch {
+        // Facet is best-effort; the backfill worker retries missing/stale facets.
+      }
+    }),
+  );
+}
+
 export async function embedCandidateProfileCore(args: {
   supabase: EmbeddingSupabase;
   userId: string;
@@ -87,10 +128,10 @@ export async function embedCandidateProfileCore(args: {
     if (modelId === "unsupported") return FAILED;
 
     const [{ data: profile }, { data: cprof }] = await Promise.all([
-      supabase.from("profiles").select("full_name, city").eq("id", userId).maybeSingle(),
+      supabase.from("profiles").select("city").eq("id", userId).maybeSingle(),
       supabase
         .from("candidate_profiles")
-        .select("headline, bio, skills, years_experience, last_role")
+        .select("headline, bio, skills, years_experience, last_role, interested_roles")
         .eq("user_id", userId)
         .maybeSingle(),
     ]);
@@ -104,16 +145,50 @@ export async function embedCandidateProfileCore(args: {
       city: str(profile?.city),
       bio: str(cprof.bio),
     });
-    if (!text.trim()) return FAILED;
+    const embed = args.deps?.embed ?? providerEmbed;
 
-    return await hashCheckAndWrite({
+    // Main (whole-document) facet first; its outcome is the function's result. A thrown error here
+    // must not skip the narrower facets, so it is caught locally.
+    let main: EmbedResult = FAILED;
+    if (text.trim()) {
+      try {
+        main = await hashCheckAndWrite({
+          supabase,
+          text,
+          modelId,
+          embed,
+          currentRpc: { name: "candidate_embedding_is_current", extra: {} },
+          writeRpc: { name: "update_candidate_profile_embedding", extra: {} },
+        });
+      } catch {
+        main = FAILED;
+      }
+    }
+
+    await embedFacets({
       supabase,
-      text,
       modelId,
-      embed: args.deps?.embed ?? providerEmbed,
-      currentRpc: { name: "candidate_embedding_is_current", extra: {} },
-      writeRpc: { name: "update_candidate_profile_embedding", extra: {} },
+      embed,
+      facets: [
+        {
+          text: buildCandidateSkillsEmbeddingText(strArr(cprof.skills)),
+          currentRpc: "candidate_skills_embedding_is_current",
+          writeRpc: "update_candidate_skills_embedding",
+          extra: {},
+        },
+        {
+          text: buildCandidateRoleEmbeddingText({
+            headline: str(cprof.headline),
+            lastRole: str(cprof.last_role),
+            interestedRoles: strArr(cprof.interested_roles),
+          }),
+          currentRpc: "candidate_role_embedding_is_current",
+          writeRpc: "update_candidate_role_embedding",
+          extra: {},
+        },
+      ],
     });
+    return main;
   } catch {
     return FAILED;
   }
@@ -143,16 +218,45 @@ export async function embedJobDescriptionCore(args: {
       city: str(job.city),
       description: str(job.description),
     });
-    if (!text.trim()) return FAILED;
+    const embed = args.deps?.embed ?? providerEmbed;
+    const extra = { _job_id: jobId };
 
-    return await hashCheckAndWrite({
+    let main: EmbedResult = FAILED;
+    if (text.trim()) {
+      try {
+        main = await hashCheckAndWrite({
+          supabase,
+          text,
+          modelId,
+          embed,
+          currentRpc: { name: "job_embedding_is_current", extra },
+          writeRpc: { name: "update_job_description_embedding", extra },
+        });
+      } catch {
+        main = FAILED;
+      }
+    }
+
+    await embedFacets({
       supabase,
-      text,
       modelId,
-      embed: args.deps?.embed ?? providerEmbed,
-      currentRpc: { name: "job_embedding_is_current", extra: { _job_id: jobId } },
-      writeRpc: { name: "update_job_description_embedding", extra: { _job_id: jobId } },
+      embed,
+      facets: [
+        {
+          text: buildJobSkillsEmbeddingText(strArr(job.skills)),
+          currentRpc: "job_skills_embedding_is_current",
+          writeRpc: "update_job_skills_embedding",
+          extra,
+        },
+        {
+          text: buildJobRoleEmbeddingText({ title: str(job.title), category: str(job.category) }),
+          currentRpc: "job_role_embedding_is_current",
+          writeRpc: "update_job_role_embedding",
+          extra,
+        },
+      ],
     });
+    return main;
   } catch {
     return FAILED;
   }
