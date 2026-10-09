@@ -43,6 +43,7 @@ import { Route as AdminWhatsappRouteImport } from './routes/admin/whatsapp'
 import { Route as ApiResumeBuilderRouteImport } from './routes/api/resume-builder'
 import { Route as CSlugRouteImport } from './routes/c.$slug'
 import { Route as CandidateLoginRouteImport } from './routes/candidate.login'
+import { Route as DeleteAccountTokenRouteImport } from './routes/delete-account.$token'
 import { Route as EmployerLoginRouteImport } from './routes/employer.login'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as JobsJobIdRouteImport } from './routes/jobs.$jobId'
@@ -270,6 +271,11 @@ const CSlugRoute = CSlugRouteImport.update({
 const CandidateLoginRoute = CandidateLoginRouteImport.update({
   id: '/candidate/login',
   path: '/candidate/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DeleteAccountTokenRoute = DeleteAccountTokenRouteImport.update({
+  id: '/delete-account/$token',
+  path: '/delete-account/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EmployerLoginRoute = EmployerLoginRouteImport.update({
@@ -637,6 +643,7 @@ export interface FileRoutesByFullPath {
   '/api/resume-builder': typeof ApiResumeBuilderRoute
   '/c/$slug': typeof CSlugRoute
   '/candidate/login': typeof CandidateLoginRoute
+  '/delete-account/$token': typeof DeleteAccountTokenRoute
   '/employer/login': typeof EmployerLoginRoute
   '/invite/$token': typeof InviteTokenRoute
   '/jobs/$jobId': typeof JobsJobIdRoute
@@ -728,6 +735,7 @@ export interface FileRoutesByTo {
   '/api/resume-builder': typeof ApiResumeBuilderRoute
   '/c/$slug': typeof CSlugRoute
   '/candidate/login': typeof CandidateLoginRoute
+  '/delete-account/$token': typeof DeleteAccountTokenRoute
   '/employer/login': typeof EmployerLoginRoute
   '/invite/$token': typeof InviteTokenRoute
   '/jobs/$jobId': typeof JobsJobIdRoute
@@ -822,6 +830,7 @@ export interface FileRoutesById {
   '/api/resume-builder': typeof ApiResumeBuilderRoute
   '/c/$slug': typeof CSlugRoute
   '/candidate/login': typeof CandidateLoginRoute
+  '/delete-account/$token': typeof DeleteAccountTokenRoute
   '/employer/login': typeof EmployerLoginRoute
   '/invite/$token': typeof InviteTokenRoute
   '/jobs/$jobId': typeof JobsJobIdRoute
@@ -916,6 +925,7 @@ export interface FileRouteTypes {
     | '/api/resume-builder'
     | '/c/$slug'
     | '/candidate/login'
+    | '/delete-account/$token'
     | '/employer/login'
     | '/invite/$token'
     | '/jobs/$jobId'
@@ -1007,6 +1017,7 @@ export interface FileRouteTypes {
     | '/api/resume-builder'
     | '/c/$slug'
     | '/candidate/login'
+    | '/delete-account/$token'
     | '/employer/login'
     | '/invite/$token'
     | '/jobs/$jobId'
@@ -1100,6 +1111,7 @@ export interface FileRouteTypes {
     | '/api/resume-builder'
     | '/c/$slug'
     | '/candidate/login'
+    | '/delete-account/$token'
     | '/employer/login'
     | '/invite/$token'
     | '/jobs/$jobId'
@@ -1176,6 +1188,7 @@ export interface RootRouteChildren {
   ApiResumeBuilderRoute: typeof ApiResumeBuilderRoute
   CSlugRoute: typeof CSlugRoute
   CandidateLoginRoute: typeof CandidateLoginRoute
+  DeleteAccountTokenRoute: typeof DeleteAccountTokenRoute
   EmployerLoginRoute: typeof EmployerLoginRoute
   InviteTokenRoute: typeof InviteTokenRoute
   LegalWhatsappExtensionRoute: typeof LegalWhatsappExtensionRoute
@@ -1430,6 +1443,13 @@ declare module '@tanstack/react-router' {
       path: '/candidate/login'
       fullPath: '/candidate/login'
       preLoaderRoute: typeof CandidateLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/delete-account/$token': {
+      id: '/delete-account/$token'
+      path: '/delete-account/$token'
+      fullPath: '/delete-account/$token'
+      preLoaderRoute: typeof DeleteAccountTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/employer/login': {
@@ -2056,6 +2076,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiResumeBuilderRoute: ApiResumeBuilderRoute,
   CSlugRoute: CSlugRoute,
   CandidateLoginRoute: CandidateLoginRoute,
+  DeleteAccountTokenRoute: DeleteAccountTokenRoute,
   EmployerLoginRoute: EmployerLoginRoute,
   InviteTokenRoute: InviteTokenRoute,
   LegalWhatsappExtensionRoute: LegalWhatsappExtensionRoute,
