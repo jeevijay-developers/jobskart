@@ -8,6 +8,7 @@ import {
   Flame,
   LayoutGrid,
   List,
+  Loader2,
   Lock,
   Mail,
   MapPin,
@@ -20,6 +21,7 @@ import { toast } from "sonner";
 import { EmployerShell } from "@/components/employer/EmployerShell";
 import { ApplicantCard } from "@/components/employer/ApplicantCard";
 import { ApplicantReviewPanel } from "@/components/employer/ApplicantReviewPanel";
+import { CandidateContactActions } from "@/components/employer/CandidateContactActions";
 import { ScheduleInterviewModal } from "@/components/employer/ScheduleInterviewModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -31,6 +33,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { APPLICANT_STATUSES, applicantStatusLabel } from "@/lib/applicantStatus";
 import { mapCrmError, moveStage, type ApplicationStatus } from "@/lib/crm.functions";
+import { inviteCandidateToApply, unlockCandidateContact } from "@/lib/credits.functions";
 
 type ApplicantsSearch = { source?: "applied" | "recommended" };
 
@@ -256,6 +259,11 @@ function RecommendedCard({
   onUnlock,
   onExplain,
   inviting,
+  invited,
+  unlocking,
+  contact,
+  companyId,
+  jobId,
 }: {
   candidate: RecommendedCandidate;
   onInvite: (id: string) => void;
@@ -263,6 +271,11 @@ function RecommendedCard({
   onUnlock: (id: string) => void;
   onExplain: (candidate: RecommendedCandidate) => void;
   inviting: boolean;
+  invited: boolean;
+  unlocking: boolean;
+  contact: { mobile: string; whatsappAvailable: boolean } | undefined;
+  companyId: string;
+  jobId: string;
 }) {
   const name = candidate.full_name ?? "Candidate";
   const isAnonymous = !candidate.is_unlocked;
@@ -351,22 +364,43 @@ function RecommendedCard({
           {!candidate.is_unlocked ? (
             <button
               onClick={() => onUnlock(candidate.user_id)}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary-dark"
+              disabled={unlocking}
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-60"
             >
-              <Lock className="h-3.5 w-3.5" /> Unlock Profile
+              {unlocking ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Lock className="h-3.5 w-3.5" />
+              )}
+              Unlock Profile
             </button>
           ) : (
-            <span className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-success-light px-3 text-xs font-semibold text-success">
-              ✓ Unlocked
-            </span>
+            <>
+              <span className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-success-light px-3 text-xs font-semibold text-success">
+                ✓ Unlocked
+              </span>
+              <CandidateContactActions
+                companyId={companyId}
+                jobId={jobId}
+                candidateUserId={candidate.user_id}
+                mobile={contact?.mobile ?? null}
+                whatsappAvailable={!!contact?.whatsappAvailable}
+              />
+            </>
           )}
-          <button
-            onClick={() => onInvite(candidate.user_id)}
-            disabled={inviting}
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold hover:bg-surface disabled:opacity-60"
-          >
-            <Mail className="h-3.5 w-3.5" /> Invite to Apply
-          </button>
+          {invited ? (
+            <span className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-success-light px-3 text-xs font-semibold text-success">
+              ✓ Invited
+            </span>
+          ) : (
+            <button
+              onClick={() => onInvite(candidate.user_id)}
+              disabled={inviting}
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold hover:bg-surface disabled:opacity-60"
+            >
+              <Mail className="h-3.5 w-3.5" /> Invite to Apply
+            </button>
+          )}
           <button
             onClick={() => onDismiss(candidate.user_id)}
             className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-medium text-muted-foreground hover:bg-surface"
@@ -473,6 +507,14 @@ function ApplicantsPage() {
   const [recPage, setRecPage] = useState(0);
   const [recTotal, setRecTotal] = useState(0);
   const [invitingId, setInvitingId] = useState<string | null>(null);
+  const [invitedSet, setInvitedSet] = useState<Set<string>>(new Set());
+  const [unlockingId, setUnlockingId] = useState<string | null>(null);
+  const [contacts, setContacts] = useState<
+    Record<
+      string,
+      { full_name: string; mobile: string; email: string; city: string; whatsappAvailable: boolean }
+    >
+  >({});
 
   const REC_PAGE_SIZE = 20;
 
@@ -623,15 +665,28 @@ function ApplicantsPage() {
   };
 
   // ─── Recommended: actions ────────────────────────────────────────────────
+  const invite = useServerFn(inviteCandidateToApply);
+
   const handleInvite = async (candidateUserId: string) => {
     setInvitingId(candidateUserId);
-    const { error } = await supabase.rpc("invite_candidate_to_apply", {
-      _job_id: jobId,
-      _candidate_user_id: candidateUserId,
-    });
-    setInvitingId(null);
-    if (error) return toast.error(error.message);
-    toast.success("Invitation sent! The candidate will be notified.");
+    try {
+      const r = await invite({ data: { jobId, candidateUserId } });
+      setInvitedSet((prev) => new Set(prev).add(candidateUserId));
+      if (r.refunded) {
+        toast.error("Couldn't reach this candidate — credits refunded.");
+      } else if (r.emailSent && r.whatsappSent) {
+        toast.success("Invited via email + WhatsApp.");
+      } else if (r.emailSent || r.whatsappSent) {
+        toast.success(`Invited via ${r.emailSent ? "email" : "WhatsApp"}.`);
+      } else {
+        toast.success("Invitation sent! The candidate will be notified.");
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to send invitation";
+      toast.error(msg.includes("no_credits") ? "Out of credits. Buy a pack to invite." : msg);
+    } finally {
+      setInvitingId(null);
+    }
   };
 
   const handleDismiss = async (candidateUserId: string) => {
@@ -644,10 +699,38 @@ function ApplicantsPage() {
     toast.success("Removed from recommendations.");
   };
 
+  const unlock = useServerFn(unlockCandidateContact);
+
   const handleUnlock = async (candidateUserId: string) => {
-    // Redirect to unlock flow via candidate database page with the candidate pre-selected
-    toast.info("Unlocking candidates uses credits. Redirecting to candidate database...");
-    window.location.href = `/employer/database?unlock=${candidateUserId}`;
+    if (!job) return;
+    setUnlockingId(candidateUserId);
+    try {
+      const r = await unlock({
+        data: { companyId: job.company_id, jobId, candidateUserId },
+      });
+      setContacts((prev) => ({ ...prev, [candidateUserId]: r.contact }));
+      setRecommended((prev) =>
+        prev.map((c) =>
+          c.user_id === candidateUserId
+            ? { ...c, is_unlocked: true, full_name: r.contact.full_name }
+            : c,
+        ),
+      );
+      if (r.alreadyUnlocked) {
+        toast.success("Already unlocked.");
+      } else if (r.source === "allowance") {
+        toast.success(`Unlocked · ${r.allowanceLeft} of this job's unlocks left`);
+      } else if (r.source === "monthly_pool") {
+        toast.success("Unlocked using your plan's monthly contact allowance — no credits spent.");
+      } else {
+        toast.success(`Unlocked with contact credits · ${r.contactBalance} credits left`);
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Unlock failed.";
+      toast.error(msg.includes("no_credits") ? "Out of credits. Buy a pack to unlock." : msg);
+    } finally {
+      setUnlockingId(null);
+    }
   };
 
   // ─── Applied candidates: derived state ───────────────────────────────────
@@ -1018,6 +1101,11 @@ function ApplicantsPage() {
                     onUnlock={handleUnlock}
                     onExplain={setExplaining}
                     inviting={invitingId === c.user_id}
+                    invited={invitedSet.has(c.user_id)}
+                    unlocking={unlockingId === c.user_id}
+                    contact={contacts[c.user_id]}
+                    companyId={job?.company_id ?? ""}
+                    jobId={jobId}
                   />
                 ))}
               </div>
