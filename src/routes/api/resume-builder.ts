@@ -7,6 +7,7 @@ import type { ResumeExtras } from "@/lib/resumeBuilder/schema";
 import { getTemplateTheme, normalizeLayout } from "@/lib/resumeBuilder/templates/theme";
 import { renderResumeToPdf } from "@/lib/resumeBuilder/renderResumePdf.server";
 import { uploadResumePdf } from "@/lib/resumeBuilder/storage";
+import { MAX_RESUME_VERSIONS, RESUME_VERSION_LIMIT_MESSAGE } from "@/lib/resumeBuilder/limits";
 
 /**
  * Fetches the candidate profile + relations the same way the candidate
@@ -110,7 +111,7 @@ POST: async ({ request }) => {
         }
         const getUserId = (fallback?: string) => authUserId ?? fallback;
 
-        let body: { userId?: string; templateId?: string; layout?: unknown } = {};
+        let body: { userId?: string; templateId?: string; layout?: unknown; versionNumber?: number } = {};
         try {
           body = await request.json();
         } catch {}
@@ -156,32 +157,83 @@ POST: async ({ request }) => {
         const layout = body.layout ? normalizeLayout(body.layout, getTemplateTheme(finalTemplateId)) : undefined;
         const finalSnapshot = { ...withExtras, templateId: finalTemplateId, layout };
 
-        const { data: versionData, error: versionError } = await supabaseAdmin
-          .from("resume_versions")
-          .select("version_number")
-          .eq("user_id", userId)
-          .order("version_number", { ascending: false })
-          .limit(1);
+        const json = (status: number, payload: Record<string, unknown>) =>
+          new Response(JSON.stringify(payload), { status, headers: { "Content-Type": "application/json" } });
 
-        let nextVersion = 1;
-        if (!versionError && versionData && versionData.length > 0) {
-          nextVersion = (versionData[0].version_number ?? 0) + 1;
-        }
+        let nextVersion: number;
+        let versionRecord: ResumeVersion;
+        const editing = typeof body.versionNumber === "number" && Number.isInteger(body.versionNumber);
 
-        const { data: inserted, error: insertError } = await supabaseAdmin
-          .from("resume_versions")
-          .insert({
-            user_id: userId,
-            snapshot: finalSnapshot as unknown as Json,
-            template_id: finalTemplateId,
-            version_number: nextVersion,
-            created_at: new Date().toISOString(),
-          })
-          .select();
+        if (editing) {
+          // Editing an existing version updates that same row (and its PDF) — it never adds a version
+          // and never takes another slot. Ownership: filtered by the authenticated user id.
+          nextVersion = body.versionNumber as number;
+          const { data: updated, error: updateError } = await supabaseAdmin
+            .from("resume_versions")
+            .update({ snapshot: finalSnapshot as unknown as Json, template_id: finalTemplateId })
+            .eq("user_id", userId)
+            .eq("version_number", nextVersion)
+            .select();
+          if (updateError) {
+            console.error("Failed to update resume version:", updateError);
+            return json(500, { error: "Unable to update resume version" });
+          }
+          if (!updated || updated.length === 0) return json(404, { error: "Resume version not found" });
+          versionRecord = updated[0] as ResumeVersion;
+        } else {
+          // Lifetime limit, checked up front for a clear message; the database trigger is the real
+          // guard. Deleting a version doesn't give a generation back: use the lifetime counter, or
+          // (before it exists / has a row) the best historical record - versions held or the highest
+          // version number ever issued.
+          let used: number | null = null;
+          const counter = await supabaseAdmin
+            .from("resume_generation_counts" as never)
+            .select("total")
+            .eq("user_id", userId)
+            .maybeSingle();
+          if (!counter.error && counter.data) used = (counter.data as unknown as { total: number }).total;
+          if (used === null) {
+            const { data: held } = await supabaseAdmin
+              .from("resume_versions")
+              .select("version_number")
+              .eq("user_id", userId);
+            used = Math.max(held?.length ?? 0, ...(held ?? []).map((v) => v.version_number ?? 0));
+          }
+          if (used >= MAX_RESUME_VERSIONS) {
+            return json(409, { error: RESUME_VERSION_LIMIT_MESSAGE, code: "version_limit" });
+          }
 
-        if (insertError) {
-          console.error("Failed to save resume version:", insertError);
-          return new Response(JSON.stringify({ error: "Unable to save resume version" }), { status: 500, headers: { "Content-Type": "application/json" } });
+          const { data: versionData, error: versionError } = await supabaseAdmin
+            .from("resume_versions")
+            .select("version_number")
+            .eq("user_id", userId)
+            .order("version_number", { ascending: false })
+            .limit(1);
+
+          nextVersion = 1;
+          if (!versionError && versionData && versionData.length > 0) {
+            nextVersion = (versionData[0].version_number ?? 0) + 1;
+          }
+
+          const { data: inserted, error: insertError } = await supabaseAdmin
+            .from("resume_versions")
+            .insert({
+              user_id: userId,
+              snapshot: finalSnapshot as unknown as Json,
+              template_id: finalTemplateId,
+              version_number: nextVersion,
+              created_at: new Date().toISOString(),
+            })
+            .select();
+
+          if (insertError) {
+            if (insertError.message?.includes("resume_generation_limit")) {
+              return json(409, { error: RESUME_VERSION_LIMIT_MESSAGE, code: "version_limit" });
+            }
+            console.error("Failed to save resume version:", insertError);
+            return json(500, { error: "Unable to save resume version" });
+          }
+          versionRecord = inserted[0] as ResumeVersion;
         }
 
         let pdfUrl: string | null = null;
@@ -192,8 +244,10 @@ POST: async ({ request }) => {
           console.error("PDF generation/upload failed:", pdfError);
         }
 
-        const versionRecord = inserted[0] as ResumeVersion;
-        return new Response(JSON.stringify({ version: versionRecord, pdfUrl }), { status: 201, headers: { "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ version: versionRecord, pdfUrl }), {
+          status: editing ? 200 : 201,
+          headers: { "Content-Type": "application/json" },
+        });
       },
     },
   },

@@ -24,7 +24,12 @@ import {
   getTemplateTheme,
   normalizeLayout,
 } from "@/lib/resumeBuilder/templates/theme";
-import { getResumeVersionPdfUrl, deleteResumeVersion } from "@/lib/resumeBuilder.functions";
+import {
+  getResumeVersionPdfUrl,
+  deleteResumeVersion,
+  renameResumeVersion,
+} from "@/lib/resumeBuilder.functions";
+import { MAX_RESUME_VERSIONS, RESUME_VERSION_LIMIT_MESSAGE } from "@/lib/resumeBuilder/limits";
 import { applyResumeExtras } from "@/lib/resumeBuilder/snapshot";
 import { validateResume } from "@/lib/resumeBuilder/validateResume";
 import type {
@@ -68,6 +73,7 @@ async function generateVersion(
   token: string,
   templateId: string,
   layout: ResumeLayoutSettings,
+  versionNumber?: number,
 ): Promise<{ version: Record<string, unknown>; pdfUrl: string | null }> {
   const res = await fetch("/api/resume-builder", {
     method: "POST",
@@ -75,7 +81,7 @@ async function generateVersion(
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ templateId, layout }),
+    body: JSON.stringify({ templateId, layout, versionNumber }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -89,6 +95,7 @@ type VersionRow = {
   version_number: number;
   template_id: string;
   created_at: string;
+  name?: string | null;
   snapshot: ResumeSchema;
 };
 
@@ -158,6 +165,9 @@ function ResumeBuilderPage() {
   const [deletingVersionId, setDeletingVersionId] = useState<string | null>(null);
   const getVersionPdfUrl = useServerFn(getResumeVersionPdfUrl);
   const deleteVersionFn = useServerFn(deleteResumeVersion);
+  const renameVersionFn = useServerFn(renameResumeVersion);
+  // Version currently loaded in the editor; saving updates it instead of creating a new one.
+  const [editingVersion, setEditingVersion] = useState<VersionRow | null>(null);
 
   // Builder-authored content (hobbies, certifications, rich-text overrides…).
   // `extras` is the working copy being edited; `savedExtras` is what was last
@@ -314,13 +324,26 @@ function ResumeBuilderPage() {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) return;
-      const { data } = await supabase
-        .from("resume_versions")
-        .select("id, version_number, template_id, created_at, snapshot")
-        .eq("user_id", user.id)
-        .order("version_number", { ascending: false })
-        .limit(10);
-      setVersions((data as unknown as VersionRow[]) ?? []);
+      const query = (cols: string) =>
+        supabase
+          .from("resume_versions")
+          .select(cols)
+          .eq("user_id", user.id)
+          .order("version_number", { ascending: false })
+          .limit(MAX_RESUME_VERSIONS + 5);
+      let res = await query("id, version_number, template_id, created_at, name, snapshot");
+      if (res.error) {
+        // The optional `name` column comes from a newer migration; if it isn't applied yet, still list
+        // the saved versions (without custom names) instead of showing an empty list.
+        console.error("[resume-builder] version query failed, retrying without name:", res.error.message);
+        res = await query("id, version_number, template_id, created_at, snapshot");
+      }
+      if (res.error) {
+        console.error("[resume-builder] couldn't load versions:", res.error.message);
+        toast.error("Couldn't load your saved versions. Please refresh.");
+        return;
+      }
+      setVersions((res.data as unknown as VersionRow[]) ?? []);
     } catch {
       // silently ignore
     } finally {
@@ -348,8 +371,26 @@ function ResumeBuilderPage() {
         toast.error("Save your changes first, then generate.");
         return;
       }
-      const { version, pdfUrl } = await generateVersion(token, selectedTemplate, savedLayout);
-      toast.success(`Resume v${(version as VersionRow).version_number} saved!`);
+      // A new version is blocked client-side too (clear message); the server and database enforce it.
+      if (!editingVersion && versions.length >= MAX_RESUME_VERSIONS) {
+        toast.error(RESUME_VERSION_LIMIT_MESSAGE);
+        return;
+      }
+      const { version, pdfUrl } = await generateVersion(
+        token,
+        selectedTemplate,
+        savedLayout,
+        editingVersion?.version_number,
+      );
+      toast.success(
+        editingVersion
+          ? `Version ${editingVersion.version_number} updated!`
+          : `Resume v${(version as VersionRow).version_number} saved!`,
+      );
+      setEditingVersion(null);
+      // Show the saved version right away (the server returns the full row), then refresh the list.
+      const saved = version as unknown as VersionRow;
+      if (saved?.id) setVersions((prev) => [saved, ...prev.filter((row) => row.id !== saved.id)]);
       if (pdfUrl) setLastPdfUrl(pdfUrl);
       await loadVersions();
     } catch (e) {
@@ -387,6 +428,32 @@ function ResumeBuilderPage() {
     }
   };
 
+  const handleRenameVersion = async (v: VersionRow, name: string) => {
+    try {
+      const res = await renameVersionFn({ data: { versionNumber: v.version_number, name } });
+      setVersions((prev) => prev.map((row) => (row.id === v.id ? { ...row, name: res.name } : row)));
+      toast.success("Name saved");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't rename this version");
+      throw e;
+    }
+  };
+
+  // Load a saved version's template + layout into the editor. "Generate & Save" then updates this
+  // version (and its PDF) in place rather than creating another one.
+  const handleEditVersion = (v: VersionRow) => {
+    const tpl = RESUME_TEMPLATE_LIST.some((t) => t.id === v.template_id) ? v.template_id : "classic-ats";
+    const layout = v.snapshot?.layout
+      ? normalizeLayout(v.snapshot.layout, getTemplateTheme(tpl))
+      : getDefaultLayout(tpl);
+    setSelectedTemplate(tpl);
+    setLayoutDraft(layout);
+    setSavedLayout(layout);
+    setEditingVersion(v);
+    setIsVersionModalOpen(false);
+    toast.info(`Editing ${v.name?.trim() || `Version ${v.version_number}`} — make changes, then save.`);
+  };
+
   const handleDeleteVersion = async (v: VersionRow) => {
     if (deletingVersionId) return; // guard against a double-delete while one is in flight
     setDeletingVersionId(v.id);
@@ -394,6 +461,7 @@ function ResumeBuilderPage() {
       await deleteVersionFn({ data: { versionNumber: v.version_number } });
       setVersions((prev) => prev.filter((row) => row.id !== v.id));
       if (previewVersion?.id === v.id) setPreviewVersion(null);
+      if (editingVersion?.id === v.id) setEditingVersion(null);
       toast.success(`Version ${v.version_number} deleted`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Couldn't delete this version");
@@ -532,7 +600,13 @@ function ResumeBuilderPage() {
                   ) : (
                     <Sparkles className="h-4 w-4" />
                   )}
-                  {generating ? "Generating…" : "Generate & Save Resume"}
+                  {generating
+                    ? editingVersion
+                      ? "Updating…"
+                      : "Generating…"
+                    : editingVersion
+                      ? `Update Version ${editingVersion.version_number}`
+                      : "Generate & Save Resume"}
                 </button>
 
                 {lastPdfUrl && (
@@ -566,6 +640,10 @@ function ResumeBuilderPage() {
                   onPreview={setPreviewVersion}
                   onDownload={handleDownloadVersion}
                   onDelete={handleDeleteVersion}
+                  onRename={handleRenameVersion}
+                  onEdit={handleEditVersion}
+                  editingVersionNumber={editingVersion?.version_number ?? null}
+                  onStopEditing={() => setEditingVersion(null)}
                   downloadingVersionId={downloadingVersionId}
                   deletingVersionId={deletingVersionId}
                 />
@@ -663,7 +741,13 @@ function ResumeBuilderPage() {
                 className="flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 disabled:opacity-60"
               >
                   {generating && <Loader2 className="h-4 w-4 animate-spin" />}
-                {generating ? "Generating…" : "Generate & Save Resume"}
+                {generating
+                    ? editingVersion
+                      ? "Updating…"
+                      : "Generating…"
+                    : editingVersion
+                      ? `Update Version ${editingVersion.version_number}`
+                      : "Generate & Save Resume"}
               </button>
 
               {lastPdfUrl && (
@@ -809,6 +893,10 @@ function ResumeBuilderPage() {
                       }}
                       onDownload={handleDownloadVersion}
                       onDelete={handleDeleteVersion}
+                  onRename={handleRenameVersion}
+                  onEdit={handleEditVersion}
+                  editingVersionNumber={editingVersion?.version_number ?? null}
+                  onStopEditing={() => setEditingVersion(null)}
                       downloadingVersionId={downloadingVersionId}
                       deletingVersionId={deletingVersionId}
                     />
