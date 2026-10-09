@@ -1,10 +1,11 @@
 -- ============================================================
 -- Golden-master equivalence harness for public.recommend_jobs_for_candidate (V1 feed)
 --
--- Run (LOCAL db only, fixtures loaded):
+-- Run (LOCAL db only, fixtures loaded; the determinism/pagination check below is ON by default):
 --   docker exec -i supabase_db_swdntxurukbkyksuyzhg psql -U postgres -v ON_ERROR_STOP=1 -q < supabase/tests/v1_equivalence.sql
---   ... with the pagination/determinism property of the NEW function also checked:
---   docker exec -i supabase_db_swdntxurukbkyksuyzhg psql -U postgres -v ON_ERROR_STOP=1 -v check_determinism=on -q < supabase/tests/v1_equivalence.sql
+--   ... to run WITHOUT the determinism/pagination check (e.g. against the pre-rewrite function, which
+--   fails it by design):
+--   docker exec -i supabase_db_swdntxurukbkyksuyzhg psql -U postgres -v ON_ERROR_STOP=1 -v check_determinism=off -q < supabase/tests/v1_equivalence.sql
 --
 -- What it does: creates pg_temp.v1_legacy = an exact copy of the V1 body as of migration
 -- 20261006093130_recommend_jobs_for_candidate_sort.sql (only the function name differs) and compares
@@ -30,7 +31,7 @@
 --   equal the legacy row of the same id. (Across a page boundary a tie group may be split
 --   differently, so only the key sequence - not the id set - is compared per page.)
 --
--- DETERMINISM / PAGINATION (new function only; -v check_determinism=on, default OFF):
+-- DETERMINISM / PAGINATION (new function only; -v check_determinism=on, default ON; pass =off to skip):
 --   for 5 candidates x 5 sorts x {default, relevant_only}: pages of 7 concatenated == the limit-1000
 --   list, id by id, with no duplicates or skips. Today's function violates this on tie groups
 --   (LIMIT n changes the sort algorithm / tie order); it is expected to pass after the rewrite.
@@ -49,7 +50,7 @@
 
 \if :{?check_determinism}
 \else
-\set check_determinism off
+\set check_determinism on
 \endif
 
 -- Fingerprint the database before (restored by ROLLBACK; verified at the end).
