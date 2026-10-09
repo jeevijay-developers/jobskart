@@ -64,6 +64,18 @@ SELECT md5(concat_ws('|',
 
 BEGIN;
 
+-- Faceted embeddings (20261009130307_faceted_embeddings.sql) split 0.10 of semantic_weight into two new
+-- components and add two score_breakdown keys. This harness guards Plan 11's V1 rewrite against the frozen
+-- legacy body, which has neither. So, inside this transaction only: fold the facet weights back into
+-- semantic_weight and zero them (the faceted terms then contribute exactly 0 and every legacy number is
+-- reproduced), and below strip ONLY the two new keys (score_breakdown.semantic_skill / semantic_role and
+-- the same two names inside score_breakdown.weights) from the live rows - after asserting they ARE present.
+-- Everything else (all 25 columns, ids, order, counts) is still compared exactly. Rolled back.
+UPDATE public.recommendation_settings
+SET semantic_weight = semantic_weight + semantic_skill_weight + semantic_role_weight,
+    semantic_skill_weight = 0, semantic_role_weight = 0
+WHERE id = 1;
+
 -- Make the _vehicle filter non-vacuous (no fixture job requires a two-wheeler). Rolled back.
 UPDATE public.jobs SET required_assets = ARRAY['Two-wheeler']
 WHERE status = 'active' AND category IN ('Delivery', 'Driver');
@@ -434,6 +446,17 @@ BEGIN
     EXECUTE format($q$SELECT coalesce(jsonb_agg((to_jsonb(x) - 'ordinality') || jsonb_build_object('ord', x.ordinality) ORDER BY x.ordinality), '[]'::jsonb)
         FROM public.recommend_jobs_for_candidate(_limit => %s, _offset => %s, _sort => %L %s) WITH ORDINALITY AS x$q$,
         _limit, _offset, _sort, _call_args) INTO b;
+
+    -- Faceted-embedding keys must be present on every live row (so the strip below cannot hide a regression
+    -- that drops them); then remove exactly those four paths so the rest compares against legacy unchanged.
+    IF EXISTS (SELECT 1 FROM jsonb_array_elements(b) e
+               WHERE NOT (e->'score_breakdown' ? 'semantic_skill' AND e->'score_breakdown' ? 'semantic_role'
+                          AND e->'score_breakdown'->'weights' ? 'semantic_skill' AND e->'score_breakdown'->'weights' ? 'semantic_role')) THEN
+        RAISE EXCEPTION '%: live score_breakdown is missing semantic_skill/semantic_role keys', tag; END IF;
+    SELECT coalesce(jsonb_agg(e #- '{score_breakdown,semantic_skill}' #- '{score_breakdown,semantic_role}'
+                                #- '{score_breakdown,weights,semantic_skill}' #- '{score_breakdown,weights,semantic_role}'
+                              ORDER BY (e->>'ord')::int), '[]'::jsonb) INTO b
+    FROM jsonb_array_elements(b) e;
 
     n_a := jsonb_array_length(a);
     n_b := jsonb_array_length(b);
