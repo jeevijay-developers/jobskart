@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { Loader2, LogOut, Bell, MessageCircle } from "lucide-react";
+import { Loader2, LogOut, Trash2, Bell, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { CandidateShell } from "@/components/candidate/CandidateShell";
 import { SignOutDialog } from "@/components/candidate/SignOutDialog";
+import { DeleteAccountDialog } from "@/components/candidate/DeleteAccountDialog";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/candidate/settings")({
@@ -15,6 +16,8 @@ function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [signOutOpen, setSignOutOpen] = useState(false);
+  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
+  const [email, setEmail] = useState<string | null>(null);
   const [prefs, setPrefs] = useState({
     email_alerts: true,
     whatsapp_alerts: false,
@@ -33,14 +36,18 @@ function SettingsPage() {
         setLoading(false);
         return;
       }
-      const { data } = await supabase
-        .from("candidate_profiles")
-        .select("notification_prefs")
-        .eq("user_id", uid)
-        .maybeSingle();
+      const [{ data }, { data: profileRow }] = await Promise.all([
+        supabase
+          .from("candidate_profiles")
+          .select("notification_prefs")
+          .eq("user_id", uid)
+          .maybeSingle(),
+        supabase.from("profiles").select("email").eq("id", uid).maybeSingle(),
+      ]);
       const p = (data as { notification_prefs?: typeof prefs } | null)?.notification_prefs;
       if (p) setPrefs({ ...prefs, ...p });
       whatsappAlertsSavedRef.current = p?.whatsapp_alerts ?? false;
+      setEmail((profileRow as { email?: string | null } | null)?.email ?? null);
       setLoading(false);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -157,16 +164,29 @@ function SettingsPage() {
             <p className="mt-1 text-xs text-muted-foreground">
               Sign out on this device. Your data is safely stored on your JobsKart profile.
             </p>
-            <button
-              onClick={() => setSignOutOpen(true)}
-              className="mt-4 inline-flex h-10 items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/5 px-4 text-sm font-semibold text-destructive hover:bg-destructive/10"
-            >
-              <LogOut className="h-4 w-4" /> Sign out
-            </button>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button
+                onClick={() => setSignOutOpen(true)}
+                className="inline-flex h-10 items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/5 px-4 text-sm font-semibold text-destructive hover:bg-destructive/10"
+              >
+                <LogOut className="h-4 w-4" /> Sign out
+              </button>
+              <button
+                onClick={() => setDeleteAccountOpen(true)}
+                className="inline-flex h-10 items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/5 px-4 text-sm font-semibold text-destructive hover:bg-destructive/10"
+              >
+                <Trash2 className="h-4 w-4" /> Delete account
+              </button>
+            </div>
           </section>
         </div>
       )}
       <SignOutDialog open={signOutOpen} onOpenChange={setSignOutOpen} />
+      <DeleteAccountDialog
+        open={deleteAccountOpen}
+        onOpenChange={setDeleteAccountOpen}
+        email={email}
+      />
     </CandidateShell>
   );
 }

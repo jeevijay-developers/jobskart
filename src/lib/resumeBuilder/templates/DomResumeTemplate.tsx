@@ -6,7 +6,8 @@
 // for Generate & Save / Download, where it's rendered once on demand.
 import { buildResumeDomStyles } from "./buildDomStyles";
 import { DomResumeSections } from "./DomResumeSections";
-import { CLASSIC_THEME, MODERN_THEME } from "./theme";
+import { getTemplateTheme } from "./theme";
+import { WATERMARK_TEXT } from "./watermark";
 import type { ResumeSchema } from "../schema";
 
 // A4 width at 96dpi, matching the "pt as px" scale used by buildDomStyles —
@@ -23,12 +24,8 @@ import type { ResumeSchema } from "../schema";
 // preview-only sizing choice.
 const PAGE_MAX_WIDTH = 794;
 
-function getDomTheme(templateId: string) {
-  return templateId === "modern" ? MODERN_THEME : CLASSIC_THEME;
-}
-
 export function DomResumeTemplate({ resume }: { resume: ResumeSchema }) {
-  const theme = getDomTheme(resume.templateId);
+  const theme = getTemplateTheme(resume.templateId);
   const s = buildResumeDomStyles(theme, resume.layout);
   const contactLine = [resume.contact?.mobile, resume.contact?.email, resume.contact?.city]
     .filter(Boolean)
@@ -55,6 +52,10 @@ export function DomResumeTemplate({ resume }: { resume: ResumeSchema }) {
         </>
       )}
       <DomResumeSections sections={resume.sections} s={s} />
+      <p style={{ margin: "14px 0 0", textAlign: "right", fontSize: 8.5, color: "#9CA3AF", fontFamily: "Helvetica, Arial, sans-serif" }}>
+        <span style={{ fontWeight: 700, color: "#1A55BD" }}>JobsKart</span>
+        {WATERMARK_TEXT.slice("JobsKart".length)}
+      </p>
     </div>
   );
 }
