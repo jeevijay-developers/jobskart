@@ -1,0 +1,67 @@
+name: Nightly embeddings refresh
+
+# Keeps candidate/job embeddings (main + skills + role facets) current for the
+# recommendation engine. Calls the maintenance endpoint in mode=refresh,
+# looping batches until nothing stale/missing remains, or a safety cap of
+# iterations is hit (one iteration = one batch of up to 25 rows per table).
+#
+# Requires a repo secret EMBEDDINGS_BACKFILL_SECRET matching the value of the
+# same-named env var set on the production deployment. Never commit the
+# actual secret value — only reference it via ${{ secrets.* }}.
+#
+# Production base URL is hardcoded below (not secret - this is the site's
+# own public domain). Update PROD_URL if the domain ever changes.
+
+on:
+  schedule:
+    # 20:00 UTC = 01:30 IST — low-traffic window for an India-focused product.
+    - cron: "0 20 * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: embeddings-nightly-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    env:
+      PROD_URL: https://jobskart.vercel.app
+      BACKFILL_SECRET: ${{ secrets.EMBEDDINGS_BACKFILL_SECRET }}
+    steps:
+      - name: Guard against missing secret
+        run: |
+          if [ -z "$BACKFILL_SECRET" ]; then
+            echo "::error::EMBEDDINGS_BACKFILL_SECRET repo secret is not set. Add it under Settings > Secrets and variables > Actions, matching the production env var of the same name."
+            exit 1
+          fi
+
+      - name: Loop refresh batches until caught up
+        run: |
+          set -u
+          MAX_ITERATIONS=40
+          for i in $(seq 1 "$MAX_ITERATIONS"); do
+            RES=$(curl -sS -w '\n%{http_code}' -X POST \
+              "$PROD_URL/api/public/embeddings-backfill?mode=refresh&limit=25" \
+              -H "x-backfill-secret: $BACKFILL_SECRET")
+            BODY=$(echo "$RES" | sed '$d')
+            CODE=$(echo "$RES" | tail -n1)
+            echo "batch $i (HTTP $CODE): $BODY"
+
+            if [ "$CODE" != "200" ]; then
+              echo "::error::Backfill request failed with HTTP $CODE"
+              exit 1
+            fi
+
+            CAND_REM=$(echo "$BODY" | grep -o '"candidates":{[^}]*"remaining":[0-9]*' | grep -o '[0-9]*$')
+            JOB_REM=$(echo "$BODY" | grep -o '"jobs":{[^}]*"remaining":[0-9]*' | grep -o '[0-9]*$')
+
+            if [ "${CAND_REM:-1}" = "0" ] && [ "${JOB_REM:-1}" = "0" ]; then
+              echo "All candidates and jobs are current. Done after $i batch(es)."
+              exit 0
+            fi
+
+            sleep 2
+          done
+
+          echo "::warning::Hit MAX_ITERATIONS ($MAX_ITERATIONS) without reaching remaining=0 on both tables. Will continue tomorrow night; investigate if this persists across multiple runs (may mean the catalog grew faster than nightly refresh capacity, or a batch is stuck failing)."
