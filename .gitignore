@@ -49,3 +49,8 @@ docs
 # Test output & reports
 test-results/
 
+
+# local tooling junk
+__pycache__/
+*.pyc
+supabase/.branches/
