@@ -20,7 +20,7 @@ bun run lint       # eslint .
 bun run format     # prettier --write .
 ```
 
-There is no test script/runner configured in this repo (no `test` entry in `package.json`, no vitest/jest config). Don't assume one exists.
+Unit tests are `node:test`-style files (`src/**/*.test.ts`) executed by bun: `bun run test:unit` (= `bun test src`). Plain `node --test` does not work (extensionless imports). The `"test": "jest"` script has no config — don't use it. Modules imported by tests must not touch Vite-only code (`import.meta.env`, `@/integrations/*`). SQL tests live in `supabase/tests/*.sql` (`ASSERT` blocks; run them against the LOCAL Supabase DB only, never the linked project), e.g. `docker exec -i supabase_db_<project-ref> psql -U postgres -v ON_ERROR_STOP=1 -q < supabase/tests/<file>.sql` (a non-zero exit means a failed ASSERT; start the local stack with `supabase start`, which needs Docker). Local fixtures: `supabase/tests/fixtures/seed_local.sql`. Known pre-existing failing unit test: `skill-engine.test.ts` ("curated role (tier 1)").
 
 Supabase CLI is linked (`supabase/config.toml`, `supabase/.temp/`) — use `supabase migration new <name>` to scaffold a new migration file rather than hand-naming one, but see the schema rule below before writing DDL.
 
@@ -65,6 +65,7 @@ These are load-bearing, not stylistic — enforce them on every change that touc
 6. **Every privileged action writes to `employer_activity`** (job created, candidate unlocked, boost applied, candidate contacted, DB search run) — inside the same transaction as the action, via trigger where possible.
 7. **No third-party failure blocks a core flow.** Resume parse fails → manual form. Verification API down → queue for admin review. AI down → deterministic JD template still works.
 8. **Before building anything, check it doesn't already exist.** Reusable helpers: `has_company_membership()`, `has_company_role()`, `has_platform_role()`, `user_companies()`, `apply_credit_delta()`, `unlock_candidate()`, `log_employer_activity()`, `accept_invite()`, `remove_member()`, `slugify()`, `tg_set_updated_at()`.
+9. **The candidate job feed goes through `recommend_jobs_routed()`** (via `fetchCandidateJobFeed`), not `recommend_jobs_for_candidate()` directly from new code. The router assigns the V1/V2 arm from `recommendation_settings` (`v2_enabled` kill switch, `v2_allowlist`, `v2_rollout_pct`), falls back to V1 on any V2 error, and is the **only** writer of `job_impressions` (clients cannot insert). `recommend_jobs_for_candidate()` stays the V1 baseline and fallback; its internals were rewritten for speed (golden-master equivalence test: `supabase/tests/v1_equivalence.sql`), so any further change to it must keep that harness green. The visible match % is V1's `score`; V2 orders by a separate `rank_score`. See `docs/recommendation-v2-runbook.md` (local-only docs).
 
 ## Roles & access control
 
@@ -81,7 +82,7 @@ Every privileged RPC checks role in Postgres (`has_company_role(auth.uid(), _com
 - **Candidate DB unlocks**: hybrid model — job-scoped allowance (`job_unlock_allowance`, 25 per job per the client deck) checked first, company-wide credit wallet (`employer_credit_wallets`) as fallback. Repeat unlocks of the same candidate by the same company are free (prevents double-charging across recruiters on the same account).
 - **Response retention**: 60-day purge of candidate responses, with advance notice to the employer (not yet implemented — P0 item).
 - There are two independent, admin-editable ranking formulas — don't conflate them:
-  - **Candidate's "Recommended for you" feed**: `recommend_jobs_for_candidate()` RPC, weights in `recommendation_settings` (skill, location, salary, experience, freshness, boost, trending, cold_start, semantic — each a 0–1 component, summed and weighted). Includes a diversity cap (`max_same_company_in_top`) and a staged cold-start ladder (`recommendation_stage`: `personalized` / `popular_in_category` / `citywide_fresh`) for candidates with no resolved skills/cities. `semantic_weight` blends in pgvector cosine similarity between `jobs.description_embedding` and `candidate_profiles.profile_embedding` (generated via `src/lib/embeddings.functions.ts` → `src/lib/ai/provider.ts::embed()`), neutral when either embedding is missing.
+  - **Candidate's "Recommended for you" feed**: `recommend_jobs_for_candidate()` RPC, weights in `recommendation_settings` (skill, location, salary, experience, freshness, boost, trending, cold_start, semantic — each a 0–1 component, summed and weighted). Includes a diversity cap (`max_same_company_in_top`) and a staged cold-start ladder (`recommendation_stage`: `personalized` / `popular_in_category` / `citywide_fresh`) for candidates with no resolved skills/cities. `semantic_weight` blends in pgvector cosine similarity between `jobs.description_embedding` and `candidate_profiles.profile_embedding` (generated via `src/lib/embeddings.functions.ts` → `src/lib/ai/provider.ts::embed()`), neutral when either embedding is missing. Embeddings carry a model id + input hash and are refreshed or backfilled via `POST /api/public/embeddings-backfill` (secret `EMBEDDINGS_BACKFILL_SECRET`). A V2 re-ranker (recent views/saves/applies, item-item similarity, repeat-exposure demotion) can re-order V1's top window for candidates in the experiment arm; it never filters and never changes the displayed score.
   - **Recruiter-side candidate ranking** (candidate DB search, applicant sort): `compute_candidate_match()` RPC, hardcoded weights — skills overlap 60, location 20, experience fit 15, salary overlap 5 (0–100 scale), plus activity/intent/proximity bonuses.
   - The `match_scoring_config` table referenced by older docs was dead code (never read by either function) and has been dropped.
 
@@ -106,7 +107,7 @@ These came out of the client's requirement decks but are implemented differently
 | Razorpay | Credit packs, plans | Webhook retries; `razorpay_orders` table is source of truth |
 | WhatsApp (Meta Cloud API) | Job/application/interview alerts (candidate), outreach + expiry reminders (employer) | Degrades to in-app + email only until `WHATSAPP_ACCESS_TOKEN`/`WHATSAPP_PHONE_NUMBER_ID` secrets are set (see `.env.example`); `whatsapp_send_ledger` + `whatsapp_settings` cap sends per recipient/post/week |
 | GST / MCA / Aadhaar APIs | Employer verification | Falls back to manual admin review |
-| AI provider (via `src/lib/ai/provider.ts`) | Resume parsing, shortlist, JD assist | Must degrade to manual entry, never block onboarding |
+| AI provider (via `src/lib/ai/provider.ts`) | Resume parsing, shortlist, JD assist, embeddings | Must degrade to manual entry, never block onboarding; embedding failures are swallowed and retried by the backfill route |
 
 ## `prompt structure/` — how to use it
 

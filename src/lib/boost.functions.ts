@@ -24,6 +24,8 @@ const BOOST_ERROR_MESSAGES: Record<string, string> = {
   boost_disabled: "Boosting is temporarily unavailable — please try again later.",
   boost_same_day: "New jobs already get top visibility today — boost unlocks tomorrow.",
   boost_daily_cap: "Your company has reached today's boost limit.",
+  boost_active: "This job already has a boost running. You can boost again once it ends.",
+  invalid_boost_days: "Choose a boost duration between 1 and 30 days.",
   no_credits: "Not enough credits to boost this job. Buy more credits to continue.",
 };
 
@@ -45,13 +47,14 @@ export type BoostResult = {
 // ---------------- applyBoost ----------------
 export const applyBoost = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((input: unknown) => z.object({ jobId: z.string().uuid() }).parse(input))
+  .validator((input: unknown) => z.object({ jobId: z.string().uuid(), days: z.number().int().min(1).max(30).default(1) }).parse(input))
   .handler(async ({ data, context }) => {
     // Calls apply_boost via the user-JWT client (not the admin client): the RPC
     // reads auth.uid() internally for its own permission + row-lock logic, so
     // it must run with the caller's session, not a service-role connection.
     const { data: result, error } = await context.supabase.rpc("apply_boost", {
       _job_id: data.jobId,
+      _days: data.days,
     });
     if (error) throw new Error(error.message);
     return result as unknown as BoostResult;

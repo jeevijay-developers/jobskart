@@ -514,7 +514,11 @@ export function applicationReceivedEmail(info: ApplicationReceivedInfo): {
     "",
     "Hi " + greetingName + ",",
     "",
-    "Your application for " + info.jobTitle + " at " + (info.companyName || "the employer") + " has been submitted.",
+    "Your application for " +
+      info.jobTitle +
+      " at " +
+      (info.companyName || "the employer") +
+      " has been submitted.",
     "",
     "View my applications: " + url,
     "—",
@@ -535,7 +539,12 @@ export type VerificationEmailInfo = {
   reason?: string | null;
 };
 
-const verificationLayoutBody = (icon: string, heading: string, lead: string, companyName: string | null) =>
+const verificationLayoutBody = (
+  icon: string,
+  heading: string,
+  lead: string,
+  companyName: string | null,
+) =>
   '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;">' +
   "<tr>" +
   '<td style="width:48px;vertical-align:top;padding-right:14px;">' +
@@ -566,23 +575,33 @@ export function verificationSubmittedEmail(info: VerificationEmailInfo): {
   const appUrl = getPublicAppUrl();
   const url = appUrl + "/employer/verification";
   const lead =
-    "We received your " + escapeHtml(info.methodLabel) + " verification request. Our team reviews submissions within 24 hours, and you'll get another email as soon as it's decided.";
+    "We received your " +
+    escapeHtml(info.methodLabel) +
+    " verification request. Our team reviews submissions within 24 hours, and you'll get another email as soon as it's decided.";
   const body =
     verificationLayoutBody("⏳", "Verification submitted", lead, info.companyName) +
     '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:8px;">' +
     '<tr><td style="background-color:#1A55BD;border-radius:8px;">' +
-    '<a href="' + url + '" style="display:inline-block;padding:13px 28px;font-size:14px;font-weight:700;color:#FFFFFF;text-decoration:none;">View verification status &rarr;</a>' +
+    '<a href="' +
+    url +
+    '" style="display:inline-block;padding:13px 28px;font-size:14px;font-weight:700;color:#FFFFFF;text-decoration:none;">View verification status &rarr;</a>' +
     "</td></tr></table>";
   const html = layout("We received your verification request.", body, {
     eyebrow: "Verification",
     footerHtml:
       "You're receiving this because a verification was submitted for your company on JobsKart.<br>\n" +
-      '            <a href="' + url + '" style="color:#1A55BD;text-decoration:none;">Open KYC &amp; Verification</a>',
+      '            <a href="' +
+      url +
+      '" style="color:#1A55BD;text-decoration:none;">Open KYC &amp; Verification</a>',
   });
   const text = [
     "JobsKart — Verification submitted",
     "",
-    "We received your " + info.methodLabel + " verification request for " + (info.companyName || "your company") + ".",
+    "We received your " +
+      info.methodLabel +
+      " verification request for " +
+      (info.companyName || "your company") +
+      ".",
     "We review submissions within 24 hours and will email you the outcome.",
     "",
     "View status: " + url,
@@ -599,31 +618,52 @@ export function verificationDecisionEmail(
   const heading = approved ? "Your company is verified" : "Verification not approved";
   const reasonText = !approved && info.reason ? " Reason: " + info.reason : "";
   const lead = approved
-    ? "Your " + escapeHtml(info.methodLabel) + " verification was approved. Your company now shows a Verified badge on job listings."
-    : "Your " + escapeHtml(info.methodLabel) + " verification was not approved." + (info.reason ? " Reason: " + escapeHtml(info.reason) : "") + " You can submit again from KYC &amp; Verification.";
+    ? "Your " +
+      escapeHtml(info.methodLabel) +
+      " verification was approved. Your company now shows a Verified badge on job listings."
+    : "Your " +
+      escapeHtml(info.methodLabel) +
+      " verification was not approved." +
+      (info.reason ? " Reason: " + escapeHtml(info.reason) : "") +
+      " You can submit again from KYC &amp; Verification.";
   const body =
     verificationLayoutBody(approved ? "✅" : "⚠️", heading, lead, info.companyName) +
     '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:8px;">' +
     '<tr><td style="background-color:#1A55BD;border-radius:8px;">' +
-    '<a href="' + url + '" style="display:inline-block;padding:13px 28px;font-size:14px;font-weight:700;color:#FFFFFF;text-decoration:none;">Open KYC &amp; Verification &rarr;</a>' +
+    '<a href="' +
+    url +
+    '" style="display:inline-block;padding:13px 28px;font-size:14px;font-weight:700;color:#FFFFFF;text-decoration:none;">Open KYC &amp; Verification &rarr;</a>' +
     "</td></tr></table>";
   const html = layout(heading, body, {
     eyebrow: "Verification",
     footerHtml:
       "You're receiving this because a verification was reviewed for your company on JobsKart.<br>\n" +
-      '            <a href="' + url + '" style="color:#1A55BD;text-decoration:none;">Open KYC &amp; Verification</a>',
+      '            <a href="' +
+      url +
+      '" style="color:#1A55BD;text-decoration:none;">Open KYC &amp; Verification</a>',
   });
   const text = [
     "JobsKart — " + heading,
     "",
-    (approved
-      ? "Your " + info.methodLabel + " verification for " + (info.companyName || "your company") + " was approved."
-      : "Your " + info.methodLabel + " verification for " + (info.companyName || "your company") + " was not approved." + reasonText),
+    approved
+      ? "Your " +
+        info.methodLabel +
+        " verification for " +
+        (info.companyName || "your company") +
+        " was approved."
+      : "Your " +
+        info.methodLabel +
+        " verification for " +
+        (info.companyName || "your company") +
+        " was not approved." +
+        reasonText,
     "",
     "Open: " + url,
   ].join("\n");
   return {
-    subject: approved ? "Your company is verified on JobsKart" : "Verification not approved: " + info.methodLabel,
+    subject: approved
+      ? "Your company is verified on JobsKart"
+      : "Verification not approved: " + info.methodLabel,
     html,
     text,
   };
@@ -712,14 +752,18 @@ export function interviewScheduledEmail(info: InterviewScheduledInfo): {
     '" style="display:inline-block;padding:13px 28px;font-size:14px;font-weight:700;color:#FFFFFF;text-decoration:none;letter-spacing:0.01em;">View my applications &rarr;</a>' +
     "</td></tr></table>";
 
-  const html = layout("Your interview for " + info.jobTitle + " is scheduled for " + when + ".", body, {
-    eyebrow: "Interview",
-    footerHtml:
-      "You're receiving this because an employer scheduled an interview with you on JobsKart.<br>\n" +
-      '            <a href="' +
-      appUrl +
-      '/candidate/applications" style="color:#1A55BD;text-decoration:none;">View your applications</a>',
-  });
+  const html = layout(
+    "Your interview for " + info.jobTitle + " is scheduled for " + when + ".",
+    body,
+    {
+      eyebrow: "Interview",
+      footerHtml:
+        "You're receiving this because an employer scheduled an interview with you on JobsKart.<br>\n" +
+        '            <a href="' +
+        appUrl +
+        '/candidate/applications" style="color:#1A55BD;text-decoration:none;">View your applications</a>',
+    },
+  );
 
   const text = [
     "JobsKart \u2014 Interview scheduled",
@@ -764,7 +808,8 @@ export function interviewReminderEmail(info: InterviewReminderInfo): {
   const greetingName = info.candidateName ? escapeHtml(info.candidateName.split(" ")[0]) : "there";
   const when = formatIst(info.scheduledAtIso);
   const subject = "Starts in 30 min: " + info.jobTitle + " interview";
-  const ctaLabel = info.mode === "video" ? "Join interview &rarr;" : "View interview details &rarr;";
+  const ctaLabel =
+    info.mode === "video" ? "Join interview &rarr;" : "View interview details &rarr;";
 
   const body =
     '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;">' +
@@ -897,12 +942,16 @@ export function employerInviteEmail(info: EmployerInviteInfo): {
     "." +
     "</td></tr></table>";
 
-  const html = layout(inviterName + " invited you to join " + info.companyName + " on JobsKart.", body, {
-    eyebrow: "Team Invite",
-    footerHtml:
-      "You're receiving this because someone invited this email address to a company on JobsKart.<br>\n" +
-      "If you weren't expecting this, you can safely ignore it.",
-  });
+  const html = layout(
+    inviterName + " invited you to join " + info.companyName + " on JobsKart.",
+    body,
+    {
+      eyebrow: "Team Invite",
+      footerHtml:
+        "You're receiving this because someone invited this email address to a company on JobsKart.<br>\n" +
+        "If you weren't expecting this, you can safely ignore it.",
+    },
+  );
 
   const text = [
     "JobsKart \u2014 You're invited!",
@@ -911,6 +960,138 @@ export function employerInviteEmail(info: EmployerInviteInfo): {
     "",
     "Accept your invitation: " + info.acceptUrl,
     "This invite expires on " + expiresBy + ".",
+    "\u2014",
+    "JobsKart \u00b7 " + getPublicAppUrl(),
+  ].join("\n");
+
+  return { subject, html, text };
+}
+
+// ---------------------------------------------------------------------------
+// Template -- Account deletion confirmation link
+// ---------------------------------------------------------------------------
+export function accountDeletionEmail(info: { confirmUrl: string }): {
+  subject: string;
+  html: string;
+  text: string;
+} {
+  const subject = "Confirm account deletion \u2014 JobsKart";
+
+  const body =
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;">' +
+    "<tr>" +
+    '<td style="width:48px;vertical-align:top;padding-right:14px;">' +
+    '<div style="width:48px;height:48px;background-color:#FEF2F2;border-radius:12px;text-align:center;line-height:48px;font-size:22px;">&#9888;&#65039;</div>' +
+    "</td>" +
+    '<td style="vertical-align:middle;">' +
+    '<h1 style="margin:0 0 4px;font-size:22px;font-weight:700;color:#111827;line-height:1.2;">Confirm account deletion</h1>' +
+    '<p style="margin:0;font-size:14px;color:#6B7280;">This action is permanent and cannot be undone.</p>' +
+    "</td></tr></table>" +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#FEF2F2;border:1px solid #FECACA;border-radius:12px;margin-bottom:28px;">' +
+    '<tr><td style="padding:20px 24px;font-size:13px;color:#991B1B;line-height:1.6;">' +
+    "Clicking the button below will permanently delete your JobsKart profile, applications, saved jobs, resume and documents. This cannot be reversed." +
+    "</td></tr></table>" +
+    '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:16px;">' +
+    '<tr><td style="background-color:#DC2626;border-radius:8px;">' +
+    '<a href="' +
+    info.confirmUrl +
+    '" style="display:inline-block;padding:13px 28px;font-size:14px;font-weight:700;color:#FFFFFF;text-decoration:none;letter-spacing:0.01em;">Confirm deletion &rarr;</a>' +
+    "</td></tr></table>" +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#F9FAFB;border-radius:10px;">' +
+    '<tr><td style="padding:16px 20px;font-size:13px;color:#6B7280;line-height:1.6;">' +
+    "This link expires in 1 hour. If you didn't request this, you can safely ignore this email \u2014 your account will not be deleted." +
+    "</td></tr></table>";
+
+  const html = layout("Confirm permanent deletion of your JobsKart account.", body, {
+    eyebrow: "Account",
+    footerHtml:
+      "You're receiving this because an account deletion was requested from your JobsKart Settings page.<br>\n" +
+      "If you didn't request this, no action is needed.",
+  });
+
+  const text = [
+    "JobsKart \u2014 Confirm account deletion",
+    "",
+    "This action is permanent and cannot be undone.",
+    "",
+    "Confirm deletion: " + info.confirmUrl,
+    "This link expires in 1 hour.",
+    "",
+    "If you didn't request this, you can ignore this email.",
+    "\u2014",
+    "JobsKart \u00b7 " + getPublicAppUrl(),
+  ].join("\n");
+
+  return { subject, html, text };
+}
+
+// ---------------------------------------------------------------------------
+// Template -- Candidate invited to apply (employer-triggered, from the
+// Applicants / candidate database "Invite to Apply" button)
+// ---------------------------------------------------------------------------
+export function candidateInviteToApplyEmail(info: {
+  candidateName: string | null;
+  jobTitle: string;
+  companyName: string;
+  jobUrl: string;
+}): {
+  subject: string;
+  html: string;
+  text: string;
+} {
+  const companyName = escapeHtml(info.companyName);
+  const jobTitle = escapeHtml(info.jobTitle);
+  const greetingName = info.candidateName ? escapeHtml(info.candidateName.split(" ")[0]) : "there";
+  const subject = companyName + " invited you to apply: " + info.jobTitle;
+
+  const body =
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;">' +
+    "<tr>" +
+    '<td style="width:48px;vertical-align:top;padding-right:14px;">' +
+    '<div style="width:48px;height:48px;background-color:#EEF3FF;border-radius:12px;text-align:center;line-height:48px;font-size:22px;">&#128077;</div>' +
+    "</td>" +
+    '<td style="vertical-align:middle;">' +
+    '<h1 style="margin:0 0 4px;font-size:22px;font-weight:700;color:#111827;line-height:1.2;">You\'re invited to apply!</h1>' +
+    '<p style="margin:0;font-size:14px;color:#6B7280;">Hi ' +
+    greetingName +
+    ",</p>" +
+    "</td></tr></table>" +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#F9FAFB;border:1px solid #E5E7EB;border-radius:12px;margin-bottom:28px;">' +
+    '<tr><td style="padding:20px 24px;">' +
+    '<p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#9CA3AF;">' +
+    jobTitle +
+    "</p>" +
+    '<p style="margin:0;font-size:14px;color:#111827;line-height:1.6;"><strong>' +
+    companyName +
+    "</strong> thinks you're a great fit for this role and would like you to apply.</p>" +
+    "</td></tr></table>" +
+    '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:8px;">' +
+    '<tr><td style="background-color:#1A55BD;border-radius:8px;">' +
+    '<a href="' +
+    info.jobUrl +
+    '" style="display:inline-block;padding:13px 28px;font-size:14px;font-weight:700;color:#FFFFFF;text-decoration:none;letter-spacing:0.01em;">View job &amp; apply &rarr;</a>' +
+    "</td></tr></table>";
+
+  const html = layout(companyName + " invited you to apply for " + info.jobTitle + ".", body, {
+    eyebrow: "Invite",
+    footerHtml:
+      "You're receiving this because an employer invited you to apply to a job on JobsKart.<br>\n" +
+      '            <a href="' +
+      getPublicAppUrl() +
+      '/candidate/settings" style="color:#1A55BD;text-decoration:none;">Manage email preferences</a>',
+  });
+
+  const text = [
+    "JobsKart \u2014 You're invited to apply!",
+    "",
+    "Hi " + greetingName + ",",
+    "",
+    info.companyName +
+      " thinks you're a great fit for " +
+      info.jobTitle +
+      " and would like you to apply.",
+    "",
+    "View job & apply: " + info.jobUrl,
     "\u2014",
     "JobsKart \u00b7 " + getPublicAppUrl(),
   ].join("\n");

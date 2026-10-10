@@ -3,6 +3,21 @@ import { supabase } from "@/integrations/supabase/client";
 export type ResumeFile = { path: string; name: string };
 export type CandidateResume = ResumeFile | null;
 
+/** Storage folder holding the immutable resume copy submitted with one application. */
+export const applicationResumeDir = (candidateId: string, applicationId: string) =>
+  `${candidateId}/applications/${applicationId}`;
+
+/** The resume copy submitted with an application, or null for applications that predate copies. */
+export async function getApplicationResume(
+  candidateId: string,
+  applicationId: string,
+): Promise<ResumeFile | null> {
+  const dir = applicationResumeDir(candidateId, applicationId);
+  const { data } = await supabase.storage.from("candidate-docs").list(dir, { limit: 1 });
+  const file = data?.[0];
+  return file ? { path: `${dir}/${file.name}`, name: file.name } : null;
+}
+
 /** The candidate's resume on file — sourced from their profile, falling back to their latest uploaded resume document. */
 export async function getCandidateResume(userId: string): Promise<CandidateResume> {
   const [{ data: cp }, { data: docs }] = await Promise.all([

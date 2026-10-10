@@ -4,6 +4,8 @@ import { OptionalSection } from "@/components/forms/OptionalSection";
 
 type Props = {
   readOnly?: boolean;
+  /** Apply flow: the caller renders its own resume chooser instead of this block. */
+  hideResume?: boolean;
 
   resumeLabel: string;
   resumeSubLabel?: string;
@@ -36,6 +38,7 @@ type Props = {
  */
 export function ApplicationFormFields({
   readOnly = false,
+  hideResume = false,
   resumeLabel,
   resumeSubLabel,
   resumeError,
@@ -118,73 +121,81 @@ export function ApplicationFormFields({
     <>
       {/* Resume — emphasized in the editable apply flow: it's the one field
           that most determines whether the application even gets opened. */}
-      <div className={!readOnly ? "rounded-xl border border-primary/20 bg-primary-light/50 p-3" : undefined}>
-        <label className="text-sm font-semibold text-foreground">
-          Resume {!readOnly && <span className="text-destructive">*</span>}
-        </label>
-        {!readOnly && !resumeLabel && (
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            PDF, DOC, DOCX, PNG or JPG · max 5 MB
-          </p>
-        )}
+      {!hideResume && (
+        <div
+          className={
+            !readOnly ? "rounded-xl border border-primary/20 bg-primary-light/50 p-3" : undefined
+          }
+        >
+          <label className="text-sm font-semibold text-foreground">
+            Resume {!readOnly && <span className="text-destructive">*</span>}
+          </label>
+          {!readOnly && !resumeLabel && (
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              PDF, DOC, DOCX, PNG or JPG · max 5 MB
+            </p>
+          )}
 
-        {resumeLabel ? (
-          <div className="mt-2 flex items-center gap-3 rounded-lg border border-border bg-surface/60 p-3">
-            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
-              <FileText className="h-4 w-4" />
+          {resumeLabel ? (
+            <div className="mt-2 flex items-center gap-3 rounded-lg border border-border bg-surface/60 p-3">
+              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+                <FileText className="h-4 w-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-foreground">{resumeLabel}</p>
+                {resumeSubLabel && (
+                  <p className="text-xs text-muted-foreground">{resumeSubLabel}</p>
+                )}
+              </div>
+              {readOnly && onViewResume && (
+                <button
+                  type="button"
+                  onClick={onViewResume}
+                  disabled={viewingResume}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline disabled:opacity-60"
+                >
+                  {viewingResume && <Loader2 className="h-3 w-3 animate-spin" />}
+                  View resume
+                </button>
+              )}
+              {!readOnly && showRemoveResume && (
+                <button
+                  type="button"
+                  onClick={onRemoveResume}
+                  className="text-xs font-semibold text-muted-foreground hover:text-destructive"
+                >
+                  Remove
+                </button>
+              )}
+              {!readOnly && onPickResume && !showRemoveResume && (
+                <button
+                  type="button"
+                  onClick={onPickResume}
+                  className="shrink-0 text-xs font-semibold text-primary hover:underline"
+                >
+                  Change
+                </button>
+              )}
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-foreground">{resumeLabel}</p>
-              {resumeSubLabel && <p className="text-xs text-muted-foreground">{resumeSubLabel}</p>}
-            </div>
-            {readOnly && onViewResume && (
-              <button
-                type="button"
-                onClick={onViewResume}
-                disabled={viewingResume}
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline disabled:opacity-60"
-              >
-                {viewingResume && <Loader2 className="h-3 w-3 animate-spin" />}
-                View resume
-              </button>
-            )}
-            {!readOnly && showRemoveResume && (
-              <button
-                type="button"
-                onClick={onRemoveResume}
-                className="text-xs font-semibold text-muted-foreground hover:text-destructive"
-              >
-                Remove
-              </button>
-            )}
-            {!readOnly && onPickResume && !showRemoveResume && (
-              <button
-                type="button"
-                onClick={onPickResume}
-                className="shrink-0 text-xs font-semibold text-primary hover:underline"
-              >
-                Change
-              </button>
-            )}
-          </div>
-        ) : readOnly ? (
-          <p className="mt-2 text-sm text-muted-foreground">No resume on file.</p>
-        ) : null}
+          ) : readOnly ? (
+            <p className="mt-2 text-sm text-muted-foreground">No resume on file.</p>
+          ) : null}
 
-        {!readOnly && onPickResume && !resumeLabel && (
-          <button
-            type="button"
-            onClick={onPickResume}
-            className="mt-2 inline-flex h-10 items-center gap-2 rounded-lg border border-dashed border-primary/40 bg-primary/5 px-4 text-sm font-semibold text-primary hover:bg-primary/10"
-          >
-            <Upload className="h-4 w-4" />
-            Upload resume
-          </button>
-        )}
-        {resumeError && (
-          <p className="mt-1.5 text-xs font-medium text-destructive">{resumeError}</p>
-        )}
-      </div>
+          {!readOnly && onPickResume && !resumeLabel && (
+            <button
+              type="button"
+              onClick={onPickResume}
+              className="mt-2 inline-flex h-10 items-center gap-2 rounded-lg border border-dashed border-primary/40 bg-primary/5 px-4 text-sm font-semibold text-primary hover:bg-primary/10"
+            >
+              <Upload className="h-4 w-4" />
+              Upload resume
+            </button>
+          )}
+          {resumeError && (
+            <p className="mt-1.5 text-xs font-medium text-destructive">{resumeError}</p>
+          )}
+        </div>
+      )}
 
       {/* Expected salary — required, so it stays visible (never hidden in a collapsed section) */}
       <div>
@@ -212,9 +223,7 @@ export function ApplicationFormFields({
             {(jobSalaryRange?.max ?? 0).toLocaleString("en-IN")} /month
           </p>
         ) : null}
-        {salaryError && (
-          <p className="mt-1 text-xs font-medium text-destructive">{salaryError}</p>
-        )}
+        {salaryError && <p className="mt-1 text-xs font-medium text-destructive">{salaryError}</p>}
       </div>
 
       {readOnly ? (

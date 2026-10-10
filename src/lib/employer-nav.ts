@@ -4,6 +4,7 @@ import {
   Briefcase,
   Inbox,
   LayoutDashboard,
+  MessageSquare,
   PhoneCall,
   Users,
   Database,
@@ -31,6 +32,7 @@ export const EMPLOYER_NAV_LINKS: Array<{
   { to: "/employer/jobs", label: "Jobs", icon: Briefcase },
   { to: "/employer/responses", label: "Responses", icon: Inbox },
   { to: "/employer/crm", label: "CRM", icon: PhoneCall },
+  { to: "/employer/inbox", label: "Inbox", icon: MessageSquare },
   { to: "/employer/interviews", label: "Interviews", icon: CalendarCheck },
   { to: "/employer/database", label: "Database", icon: Database },
   { to: "/employer/jobs/bulk", label: "Bulk post", icon: FileSpreadsheet },
@@ -52,6 +54,18 @@ export function isEmployerNavVisible(
   return role === "super_admin" || role === "hr_admin";
 }
 
-// The first 4 (Dashboard/Jobs/Responses/Interviews) already sit in
-// EmployerShell's mobile bottom tab bar — this is the rest.
-export const EMPLOYER_OVERFLOW_LINKS = EMPLOYER_NAV_LINKS.slice(4);
+// Dashboard/Jobs/Responses/Interviews sit in EmployerShell's mobile bottom tab
+// bar — named by `to` (not sliced by index) so inserting a new item like Inbox
+// above Interviews can't silently swap one of these four out of the bar.
+const MOBILE_PRIMARY_ROUTES = [
+  "/employer/dashboard",
+  "/employer/jobs",
+  "/employer/responses",
+  "/employer/interviews",
+];
+export const EMPLOYER_PRIMARY_LINKS = MOBILE_PRIMARY_ROUTES.map(
+  (to) => EMPLOYER_NAV_LINKS.find((item) => item.to === to)!,
+);
+export const EMPLOYER_OVERFLOW_LINKS = EMPLOYER_NAV_LINKS.filter(
+  (item) => !MOBILE_PRIMARY_ROUTES.includes(item.to),
+);

@@ -218,34 +218,13 @@ function CandidateDashboard() {
         from,
         to,
         feedMode,
+        "dashboard",
       );
       if (error) throw new Error(error);
       return { rows, total };
     },
     enabled: !!candidateId,
   });
-
-  // Best-effort impression logging so the recommendation engine's future
-  // tuning has a record of what was actually shown, not just applied-to.
-  // Never blocks rendering — failures are swallowed silently.
-  useEffect(() => {
-    if (!candidateId || recommendedLoading || !recommendedPage.length) return;
-    supabase
-      .from("job_impressions")
-      .insert(
-        recommendedPage.map((j, i) => ({
-          candidate_user_id: candidateId,
-          job_id: j.id,
-          source: feedMode,
-          position: (recPage - 1) * REC_JOBS_PAGE_SIZE + i,
-        })) as never,
-      )
-      .then(
-        () => {},
-        () => {},
-      );
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- log once per page load, not on every candidateId/recPage re-render
-  }, [recommendedPage, recommendedLoading]);
 
   const recommendedHeading = (
     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">

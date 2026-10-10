@@ -6,6 +6,7 @@ import type { ResumeSchema } from "../schema";
 import { buildResumeStyles } from "./buildStyles";
 import { ResumeSections } from "./sections";
 import { CLASSIC_THEME } from "./theme";
+import { ResumeWatermark } from "./watermark";
 
 export function ClassicAtsResume({ resume }: { resume: ResumeSchema }) {
   const styles = buildResumeStyles(CLASSIC_THEME, resume.layout);
@@ -18,6 +19,7 @@ export function ClassicAtsResume({ resume }: { resume: ResumeSchema }) {
         <Text style={styles.name}>{resume.candidateName || "Resume"}</Text>
         {contactLine ? <Text style={styles.contact}>{contactLine}</Text> : null}
         <ResumeSections sections={resume.sections} s={styles} />
+        <ResumeWatermark />
       </Page>
     </Document>
   );

@@ -17,8 +17,11 @@ import {
   Languages,
   LayoutGrid,
   Loader2,
+  Mail,
   MapPin,
+  MessageCircle,
   Moon,
+  Phone,
   Share2,
   Sparkles,
   Sun,
@@ -34,6 +37,8 @@ import { downloadJdPdf } from "@/lib/jd-pdf";
 import { JobCard, type JobCardData } from "@/components/site/JobCard";
 import { ApplyDialog } from "@/components/candidate/ApplyDialog";
 import { ReportJobDialog } from "@/components/candidate/ReportJobDialog";
+import { WhatsAppMessageDialog } from "@/components/candidate/WhatsAppMessageDialog";
+import { enquiryMessage, whatsappDigits } from "@/lib/companyContact";
 import { supabase } from "@/integrations/supabase/client";
 import { formatExperience, formatSalary, jobTypeLabel, timeAgo, workModeLabel } from "@/lib/format";
 import { rankSimilarJobs, type RankableJob } from "@/lib/similarJobs";
@@ -172,6 +177,7 @@ export function JobDetailPage({
   const [tab, setTab] = useState<"overview" | "company">("overview");
   const [applyOpen, setApplyOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  const [whatsappOpen, setWhatsappOpen] = useState(false);
   const [applicantCount, setApplicantCount] = useState<number>(0);
   const [similar, setSimilar] = useState<JobCardData[]>([]);
   const { share: shareJob } = useShareJob();
@@ -227,6 +233,13 @@ export function JobDetailPage({
 
       const excludeIds = getSeenJobIds();
       if (uid) {
+        // Server dedupes per IST day and ignores non-candidates (employers). Fire-and-forget.
+        supabase
+          .rpc("log_job_view" as never, { _job_id: jobData.id } as never)
+          .then(
+            () => {},
+            () => {},
+          );
         const [{ data: app }, { data: sav }, { data: appliedJobs }] = await Promise.all([
           supabase
             .from("applications")
@@ -824,6 +837,35 @@ export function JobDetailPage({
                           job.companies?.description ||
                           `${displayCompanyName || "This employer"} is hiring on JobsKart. Apply now to hear back directly from the recruiter.`}
                     </p>
+                    {!employerView && (job.hiring_contact_phone || job.hiring_contact_email) ? (
+                      <div className="flex flex-wrap gap-2 border-t border-border pt-4">
+                        {job.hiring_contact_phone ? (
+                          <a
+                            href={`tel:${job.hiring_contact_phone}`}
+                            className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-semibold text-foreground hover:bg-surface"
+                          >
+                            <Phone className="h-4 w-4" /> Call
+                          </a>
+                        ) : null}
+                        {job.hiring_contact_email ? (
+                          <a
+                            href={`mailto:${job.hiring_contact_email}`}
+                            className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-semibold text-foreground hover:bg-surface"
+                          >
+                            <Mail className="h-4 w-4" /> Email
+                          </a>
+                        ) : null}
+                        {job.hiring_contact_phone && whatsappDigits(job.hiring_contact_phone) ? (
+                          <button
+                            type="button"
+                            onClick={() => setWhatsappOpen(true)}
+                            className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-semibold text-foreground hover:bg-surface"
+                          >
+                            <MessageCircle className="h-4 w-4" /> WhatsApp
+                          </button>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </div>
                 )}
                 </BlockCardCtx.Provider>
@@ -997,6 +1039,16 @@ export function JobDetailPage({
           </div>
         </div>
       )}
+
+      {job?.hiring_contact_phone ? (
+        <WhatsAppMessageDialog
+          open={whatsappOpen}
+          onClose={() => setWhatsappOpen(false)}
+          phone={job.hiring_contact_phone}
+          title={`Message ${job.companies?.name || "the company"}`}
+          initialMessage={enquiryMessage({ companyName: job.companies?.name, jobTitle: job.title })}
+        />
+      ) : null}
 
       {userId && job && (
         <ApplyDialog

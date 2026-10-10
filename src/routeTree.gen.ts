@@ -43,6 +43,7 @@ import { Route as AdminWhatsappRouteImport } from './routes/admin/whatsapp'
 import { Route as ApiResumeBuilderRouteImport } from './routes/api/resume-builder'
 import { Route as CSlugRouteImport } from './routes/c.$slug'
 import { Route as CandidateLoginRouteImport } from './routes/candidate.login'
+import { Route as DeleteAccountTokenRouteImport } from './routes/delete-account.$token'
 import { Route as EmployerLoginRouteImport } from './routes/employer.login'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as JobsJobIdRouteImport } from './routes/jobs.$jobId'
@@ -68,6 +69,7 @@ import { Route as AuthenticatedEmployerCreditsRouteImport } from './routes/_auth
 import { Route as AuthenticatedEmployerCrmRouteImport } from './routes/_authenticated/employer/crm'
 import { Route as AuthenticatedEmployerDashboardRouteImport } from './routes/_authenticated/employer/dashboard'
 import { Route as AuthenticatedEmployerDatabaseRouteImport } from './routes/_authenticated/employer/database'
+import { Route as AuthenticatedEmployerInboxRouteImport } from './routes/_authenticated/employer/inbox'
 import { Route as AuthenticatedEmployerInterviewsRouteImport } from './routes/_authenticated/employer/interviews'
 import { Route as AuthenticatedEmployerJobsRouteImport } from './routes/_authenticated/employer/jobs'
 import { Route as AuthenticatedEmployerReportsRouteImport } from './routes/_authenticated/employer/reports'
@@ -77,6 +79,7 @@ import { Route as AuthenticatedEmployerTeamRouteImport } from './routes/_authent
 import { Route as AuthenticatedEmployerVerificationRouteImport } from './routes/_authenticated/employer/verification'
 import { Route as AuthenticatedOnboardingCandidateRouteImport } from './routes/_authenticated/onboarding/candidate'
 import { Route as AuthenticatedOnboardingEmployerRouteImport } from './routes/_authenticated/onboarding/employer'
+import { Route as ApiPublicEmbeddingsBackfillRouteImport } from './routes/api/public/embeddings-backfill'
 import { Route as LearnCertificationSlugRouteImport } from './routes/learn_.certification.$slug'
 import { Route as LearnCourseSlugRouteImport } from './routes/learn_.course.$slug'
 import { Route as LearnPostSlugRouteImport } from './routes/learn_.post.$slug'
@@ -272,6 +275,11 @@ const CandidateLoginRoute = CandidateLoginRouteImport.update({
   path: '/candidate/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DeleteAccountTokenRoute = DeleteAccountTokenRouteImport.update({
+  id: '/delete-account/$token',
+  path: '/delete-account/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EmployerLoginRoute = EmployerLoginRouteImport.update({
   id: '/employer/login',
   path: '/employer/login',
@@ -414,6 +422,12 @@ const AuthenticatedEmployerDatabaseRoute =
     path: '/employer/database',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedEmployerInboxRoute =
+  AuthenticatedEmployerInboxRouteImport.update({
+    id: '/employer/inbox',
+    path: '/employer/inbox',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedEmployerInterviewsRoute =
   AuthenticatedEmployerInterviewsRouteImport.update({
     id: '/employer/interviews',
@@ -467,6 +481,12 @@ const AuthenticatedOnboardingEmployerRoute =
     id: '/onboarding/employer',
     path: '/onboarding/employer',
     getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const ApiPublicEmbeddingsBackfillRoute =
+  ApiPublicEmbeddingsBackfillRouteImport.update({
+    id: '/api/public/embeddings-backfill',
+    path: '/api/public/embeddings-backfill',
+    getParentRoute: () => rootRouteImport,
   } as any)
 const LearnCertificationSlugRoute = LearnCertificationSlugRouteImport.update({
   id: '/learn_/certification/$slug',
@@ -637,6 +657,7 @@ export interface FileRoutesByFullPath {
   '/api/resume-builder': typeof ApiResumeBuilderRoute
   '/c/$slug': typeof CSlugRoute
   '/candidate/login': typeof CandidateLoginRoute
+  '/delete-account/$token': typeof DeleteAccountTokenRoute
   '/employer/login': typeof EmployerLoginRoute
   '/invite/$token': typeof InviteTokenRoute
   '/jobs/$jobId': typeof JobsJobIdRoute
@@ -663,6 +684,7 @@ export interface FileRoutesByFullPath {
   '/employer/crm': typeof AuthenticatedEmployerCrmRouteWithChildren
   '/employer/dashboard': typeof AuthenticatedEmployerDashboardRoute
   '/employer/database': typeof AuthenticatedEmployerDatabaseRoute
+  '/employer/inbox': typeof AuthenticatedEmployerInboxRoute
   '/employer/interviews': typeof AuthenticatedEmployerInterviewsRoute
   '/employer/jobs': typeof AuthenticatedEmployerJobsRouteWithChildren
   '/employer/reports': typeof AuthenticatedEmployerReportsRoute
@@ -672,6 +694,7 @@ export interface FileRoutesByFullPath {
   '/employer/verification': typeof AuthenticatedEmployerVerificationRoute
   '/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
   '/onboarding/employer': typeof AuthenticatedOnboardingEmployerRoute
+  '/api/public/embeddings-backfill': typeof ApiPublicEmbeddingsBackfillRoute
   '/learn/certification/$slug': typeof LearnCertificationSlugRoute
   '/learn/course/$slug': typeof LearnCourseSlugRoute
   '/learn/post/$slug': typeof LearnPostSlugRoute
@@ -728,6 +751,7 @@ export interface FileRoutesByTo {
   '/api/resume-builder': typeof ApiResumeBuilderRoute
   '/c/$slug': typeof CSlugRoute
   '/candidate/login': typeof CandidateLoginRoute
+  '/delete-account/$token': typeof DeleteAccountTokenRoute
   '/employer/login': typeof EmployerLoginRoute
   '/invite/$token': typeof InviteTokenRoute
   '/jobs/$jobId': typeof JobsJobIdRoute
@@ -754,6 +778,7 @@ export interface FileRoutesByTo {
   '/employer/crm': typeof AuthenticatedEmployerCrmRouteWithChildren
   '/employer/dashboard': typeof AuthenticatedEmployerDashboardRoute
   '/employer/database': typeof AuthenticatedEmployerDatabaseRoute
+  '/employer/inbox': typeof AuthenticatedEmployerInboxRoute
   '/employer/interviews': typeof AuthenticatedEmployerInterviewsRoute
   '/employer/jobs': typeof AuthenticatedEmployerJobsRouteWithChildren
   '/employer/reports': typeof AuthenticatedEmployerReportsRoute
@@ -763,6 +788,7 @@ export interface FileRoutesByTo {
   '/employer/verification': typeof AuthenticatedEmployerVerificationRoute
   '/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
   '/onboarding/employer': typeof AuthenticatedOnboardingEmployerRoute
+  '/api/public/embeddings-backfill': typeof ApiPublicEmbeddingsBackfillRoute
   '/learn/certification/$slug': typeof LearnCertificationSlugRoute
   '/learn/course/$slug': typeof LearnCourseSlugRoute
   '/learn/post/$slug': typeof LearnPostSlugRoute
@@ -822,6 +848,7 @@ export interface FileRoutesById {
   '/api/resume-builder': typeof ApiResumeBuilderRoute
   '/c/$slug': typeof CSlugRoute
   '/candidate/login': typeof CandidateLoginRoute
+  '/delete-account/$token': typeof DeleteAccountTokenRoute
   '/employer/login': typeof EmployerLoginRoute
   '/invite/$token': typeof InviteTokenRoute
   '/jobs/$jobId': typeof JobsJobIdRoute
@@ -848,6 +875,7 @@ export interface FileRoutesById {
   '/_authenticated/employer/crm': typeof AuthenticatedEmployerCrmRouteWithChildren
   '/_authenticated/employer/dashboard': typeof AuthenticatedEmployerDashboardRoute
   '/_authenticated/employer/database': typeof AuthenticatedEmployerDatabaseRoute
+  '/_authenticated/employer/inbox': typeof AuthenticatedEmployerInboxRoute
   '/_authenticated/employer/interviews': typeof AuthenticatedEmployerInterviewsRoute
   '/_authenticated/employer/jobs': typeof AuthenticatedEmployerJobsRouteWithChildren
   '/_authenticated/employer/reports': typeof AuthenticatedEmployerReportsRoute
@@ -857,6 +885,7 @@ export interface FileRoutesById {
   '/_authenticated/employer/verification': typeof AuthenticatedEmployerVerificationRoute
   '/_authenticated/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
   '/_authenticated/onboarding/employer': typeof AuthenticatedOnboardingEmployerRoute
+  '/api/public/embeddings-backfill': typeof ApiPublicEmbeddingsBackfillRoute
   '/learn_/certification/$slug': typeof LearnCertificationSlugRoute
   '/learn_/course/$slug': typeof LearnCourseSlugRoute
   '/learn_/post/$slug': typeof LearnPostSlugRoute
@@ -916,6 +945,7 @@ export interface FileRouteTypes {
     | '/api/resume-builder'
     | '/c/$slug'
     | '/candidate/login'
+    | '/delete-account/$token'
     | '/employer/login'
     | '/invite/$token'
     | '/jobs/$jobId'
@@ -942,6 +972,7 @@ export interface FileRouteTypes {
     | '/employer/crm'
     | '/employer/dashboard'
     | '/employer/database'
+    | '/employer/inbox'
     | '/employer/interviews'
     | '/employer/jobs'
     | '/employer/reports'
@@ -951,6 +982,7 @@ export interface FileRouteTypes {
     | '/employer/verification'
     | '/onboarding/candidate'
     | '/onboarding/employer'
+    | '/api/public/embeddings-backfill'
     | '/learn/certification/$slug'
     | '/learn/course/$slug'
     | '/learn/post/$slug'
@@ -1007,6 +1039,7 @@ export interface FileRouteTypes {
     | '/api/resume-builder'
     | '/c/$slug'
     | '/candidate/login'
+    | '/delete-account/$token'
     | '/employer/login'
     | '/invite/$token'
     | '/jobs/$jobId'
@@ -1033,6 +1066,7 @@ export interface FileRouteTypes {
     | '/employer/crm'
     | '/employer/dashboard'
     | '/employer/database'
+    | '/employer/inbox'
     | '/employer/interviews'
     | '/employer/jobs'
     | '/employer/reports'
@@ -1042,6 +1076,7 @@ export interface FileRouteTypes {
     | '/employer/verification'
     | '/onboarding/candidate'
     | '/onboarding/employer'
+    | '/api/public/embeddings-backfill'
     | '/learn/certification/$slug'
     | '/learn/course/$slug'
     | '/learn/post/$slug'
@@ -1100,6 +1135,7 @@ export interface FileRouteTypes {
     | '/api/resume-builder'
     | '/c/$slug'
     | '/candidate/login'
+    | '/delete-account/$token'
     | '/employer/login'
     | '/invite/$token'
     | '/jobs/$jobId'
@@ -1126,6 +1162,7 @@ export interface FileRouteTypes {
     | '/_authenticated/employer/crm'
     | '/_authenticated/employer/dashboard'
     | '/_authenticated/employer/database'
+    | '/_authenticated/employer/inbox'
     | '/_authenticated/employer/interviews'
     | '/_authenticated/employer/jobs'
     | '/_authenticated/employer/reports'
@@ -1135,6 +1172,7 @@ export interface FileRouteTypes {
     | '/_authenticated/employer/verification'
     | '/_authenticated/onboarding/candidate'
     | '/_authenticated/onboarding/employer'
+    | '/api/public/embeddings-backfill'
     | '/learn_/certification/$slug'
     | '/learn_/course/$slug'
     | '/learn_/post/$slug'
@@ -1176,6 +1214,7 @@ export interface RootRouteChildren {
   ApiResumeBuilderRoute: typeof ApiResumeBuilderRoute
   CSlugRoute: typeof CSlugRoute
   CandidateLoginRoute: typeof CandidateLoginRoute
+  DeleteAccountTokenRoute: typeof DeleteAccountTokenRoute
   EmployerLoginRoute: typeof EmployerLoginRoute
   InviteTokenRoute: typeof InviteTokenRoute
   LegalWhatsappExtensionRoute: typeof LegalWhatsappExtensionRoute
@@ -1183,6 +1222,7 @@ export interface RootRouteChildren {
   SignupEmployerRoute: typeof SignupEmployerRoute
   USlugRoute: typeof USlugRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
+  ApiPublicEmbeddingsBackfillRoute: typeof ApiPublicEmbeddingsBackfillRoute
   LearnCertificationSlugRoute: typeof LearnCertificationSlugRoute
   LearnCourseSlugRoute: typeof LearnCourseSlugRoute
   LearnPostSlugRoute: typeof LearnPostSlugRoute
@@ -1432,6 +1472,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CandidateLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/delete-account/$token': {
+      id: '/delete-account/$token'
+      path: '/delete-account/$token'
+      fullPath: '/delete-account/$token'
+      preLoaderRoute: typeof DeleteAccountTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/employer/login': {
       id: '/employer/login'
       path: '/employer/login'
@@ -1607,6 +1654,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedEmployerDatabaseRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/employer/inbox': {
+      id: '/_authenticated/employer/inbox'
+      path: '/employer/inbox'
+      fullPath: '/employer/inbox'
+      preLoaderRoute: typeof AuthenticatedEmployerInboxRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/employer/interviews': {
       id: '/_authenticated/employer/interviews'
       path: '/employer/interviews'
@@ -1669,6 +1723,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/onboarding/employer'
       preLoaderRoute: typeof AuthenticatedOnboardingEmployerRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/api/public/embeddings-backfill': {
+      id: '/api/public/embeddings-backfill'
+      path: '/api/public/embeddings-backfill'
+      fullPath: '/api/public/embeddings-backfill'
+      preLoaderRoute: typeof ApiPublicEmbeddingsBackfillRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/learn_/certification/$slug': {
       id: '/learn_/certification/$slug'
@@ -1945,6 +2006,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedEmployerCrmRoute: typeof AuthenticatedEmployerCrmRouteWithChildren
   AuthenticatedEmployerDashboardRoute: typeof AuthenticatedEmployerDashboardRoute
   AuthenticatedEmployerDatabaseRoute: typeof AuthenticatedEmployerDatabaseRoute
+  AuthenticatedEmployerInboxRoute: typeof AuthenticatedEmployerInboxRoute
   AuthenticatedEmployerInterviewsRoute: typeof AuthenticatedEmployerInterviewsRoute
   AuthenticatedEmployerJobsRoute: typeof AuthenticatedEmployerJobsRouteWithChildren
   AuthenticatedEmployerReportsRoute: typeof AuthenticatedEmployerReportsRoute
@@ -1966,6 +2028,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedEmployerCrmRoute: AuthenticatedEmployerCrmRouteWithChildren,
   AuthenticatedEmployerDashboardRoute: AuthenticatedEmployerDashboardRoute,
   AuthenticatedEmployerDatabaseRoute: AuthenticatedEmployerDatabaseRoute,
+  AuthenticatedEmployerInboxRoute: AuthenticatedEmployerInboxRoute,
   AuthenticatedEmployerInterviewsRoute: AuthenticatedEmployerInterviewsRoute,
   AuthenticatedEmployerJobsRoute: AuthenticatedEmployerJobsRouteWithChildren,
   AuthenticatedEmployerReportsRoute: AuthenticatedEmployerReportsRoute,
@@ -2056,6 +2119,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiResumeBuilderRoute: ApiResumeBuilderRoute,
   CSlugRoute: CSlugRoute,
   CandidateLoginRoute: CandidateLoginRoute,
+  DeleteAccountTokenRoute: DeleteAccountTokenRoute,
   EmployerLoginRoute: EmployerLoginRoute,
   InviteTokenRoute: InviteTokenRoute,
   LegalWhatsappExtensionRoute: LegalWhatsappExtensionRoute,
@@ -2063,6 +2127,7 @@ const rootRouteChildren: RootRouteChildren = {
   SignupEmployerRoute: SignupEmployerRoute,
   USlugRoute: USlugRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
+  ApiPublicEmbeddingsBackfillRoute: ApiPublicEmbeddingsBackfillRoute,
   LearnCertificationSlugRoute: LearnCertificationSlugRoute,
   LearnCourseSlugRoute: LearnCourseSlugRoute,
   LearnPostSlugRoute: LearnPostSlugRoute,

@@ -8,6 +8,7 @@ import type { ResumeSchema } from "../schema";
 import { buildResumeStyles } from "./buildStyles";
 import { ResumeSections } from "./sections";
 import { MODERN_THEME } from "./theme";
+import { ResumeWatermark } from "./watermark";
 
 export function ModernResume({ resume }: { resume: ResumeSchema }) {
   const styles = buildResumeStyles(MODERN_THEME, resume.layout);
@@ -22,6 +23,7 @@ export function ModernResume({ resume }: { resume: ResumeSchema }) {
           {contactLine ? <Text style={styles.contact}>{contactLine}</Text> : null}
         </View>
         <ResumeSections sections={resume.sections} s={styles} />
+        <ResumeWatermark />
       </Page>
     </Document>
   );

@@ -14,6 +14,7 @@ import {
   Circle,
   Eye,
   X,
+  Wand2,
 } from "lucide-react";
 import { CandidateShell } from "@/components/candidate/CandidateShell";
 import { JobMatchPanel } from "@/components/candidate/JobMatchPanel";
@@ -45,6 +46,7 @@ import { EditModeDrawer } from "@/components/candidate/EditModeDrawer";
 import { EditModeBottomSheet } from "@/components/candidate/EditModeBottomSheet";
 import { LivePreview } from "@/components/candidate/LivePreview";
 import { Segmented } from "@/components/candidate/Segmented";
+import { GuidedResumeWizard } from "@/components/candidate/GuidedResumeWizard";
 import { useStandardFontsReady } from "@/lib/resumeBuilder/ensureStandardFonts";
 
 export const Route = createFileRoute("/_authenticated/candidate/resume-builder")({
@@ -186,6 +188,9 @@ function ResumeBuilderPage() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editTab, setEditTab] = useState<"layout" | "extras">("layout");
   const [isVersionModalOpen, setIsVersionModalOpen] = useState(false);
+  // Guided builder (optional alternative to the manual Edit Resume workflow).
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [wizardPeek, setWizardPeek] = useState(false);
   const [pendingAnchor, setPendingAnchor] = useState<string | null>(null);
 
   const openChecklistItem = (anchor?: string) => {
@@ -269,8 +274,8 @@ function ResumeBuilderPage() {
   // changes" still persists the draft to resume_drafts (and is what
   // Generate & Save reads), it's just no longer the gate for what the preview shows.
   const merged = useMemo(
-    () => (snapshot ? applyResumeExtras(snapshot, extras) : null),
-    [snapshot, extras],
+    () => (snapshot ? applyResumeExtras({ ...snapshot, templateId: selectedTemplate }, extras) : null),
+    [snapshot, extras, selectedTemplate],
   );
   // Section titles in current display order, including not-yet-saved edits, for the order list.
   const workingSections = useMemo(
@@ -509,6 +514,19 @@ function ResumeBuilderPage() {
           <div className="hidden lg:grid gap-6 lg:grid-cols-[340px_1fr]">
             {/* Sidebar */}
             <div className="flex flex-col gap-5">
+              <button
+                type="button"
+                onClick={() => setWizardOpen(true)}
+                className="flex items-center gap-2 rounded-xl border-2 border-primary/40 bg-primary/5 p-4 text-left transition-all hover:bg-primary/10"
+              >
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                  <Wand2 className="h-4 w-4 text-primary" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-foreground">Guided Resume Builder</p>
+                  <p className="text-xs text-muted-foreground">Step by step, with tips for your role</p>
+                </div>
+              </button>
               <TemplatePicker selectedTemplate={selectedTemplate} onSelect={selectTemplate} />
               <EditModeTrigger isEditOpen={isEditOpen} onToggle={() => setIsEditOpen(true)} />
 
@@ -707,11 +725,13 @@ function ResumeBuilderPage() {
             {/* Full-screen-ish preview */}
             <div className="flex h-[70vh] flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
               <header className="flex items-center justify-between px-4 py-2 bg-background border-b border-border">
-                <Segmented
-                  value={selectedTemplate}
-                  options={RESUME_TEMPLATE_LIST.map((t) => ({ value: t.id, label: t.label }))}
-                  onChange={selectTemplate}
-                />
+                <div className="min-w-0 overflow-x-auto [&_button]:whitespace-nowrap">
+                  <Segmented
+                    value={selectedTemplate}
+                    options={RESUME_TEMPLATE_LIST.map((t) => ({ value: t.id, label: t.label }))}
+                    onChange={selectTemplate}
+                  />
+                </div>
                 <EditModeTrigger
                   isEditOpen={isEditOpen}
                   onToggle={() => {
@@ -734,6 +754,14 @@ function ResumeBuilderPage() {
 
             {/* Actions */}
             <div className="flex flex-col gap-3">
+              <button
+                type="button"
+                onClick={() => setWizardOpen(true)}
+                className="flex h-11 items-center justify-center gap-2 rounded-xl border-2 border-primary/40 bg-primary/5 px-5 text-sm font-semibold text-foreground transition-all hover:bg-primary/10"
+              >
+                <Wand2 className="h-4 w-4 text-primary" />
+                Guided Resume Builder
+              </button>
               <button
                 type="button"
                 onClick={handleGenerate}
@@ -905,6 +933,44 @@ function ResumeBuilderPage() {
               </div>
             )}
           </div>
+        </>
+      )}
+
+      {wizardOpen && snapshot && (
+        <>
+          <GuidedResumeWizard
+            snapshot={snapshot}
+            resume={merged ?? snapshot}
+            extras={extras}
+            setExtras={setExtras}
+            selectedTemplate={selectedTemplate}
+            onSelectTemplate={selectTemplate}
+            checklist={checklist}
+            isDirty={isDirty || layoutDirty}
+            isSaving={savingExtras || savingLayout}
+            onSave={handleSave}
+            onGenerate={handleGenerate}
+            generating={generating}
+            editingLabel={
+              editingVersion ? editingVersion.name?.trim() || `Version ${editingVersion.version_number}` : null
+            }
+            lastPdfUrl={lastPdfUrl}
+            onClose={() => {
+              setWizardOpen(false);
+              setWizardPeek(false);
+            }}
+            peek={wizardPeek}
+            onPeek={() => setWizardPeek(true)}
+          />
+          {wizardPeek && (
+            <button
+              type="button"
+              onClick={() => setWizardPeek(false)}
+              className="fixed bottom-4 right-4 z-50 inline-flex h-10 items-center gap-2 rounded-full bg-primary px-4 text-xs font-semibold text-primary-foreground shadow-lg lg:hidden"
+            >
+              <Wand2 className="h-4 w-4" /> Back to guide
+            </button>
+          )}
         </>
       )}
 
