@@ -23,10 +23,19 @@ const URL = process.env.LOCAL_SUPABASE_URL ?? "";
 const SERVICE_ROLE_KEY = process.env.LOCAL_SERVICE_ROLE_KEY ?? "";
 const MODEL = "e2e-backfill-test-model/1536";
 
-const CAND_COLS =
-  "user_id, profile_embedding, profile_embedding_hash, profile_embedding_model, profile_embedded_at";
-const JOB_COLS =
-  "id, description_embedding, description_embedding_hash, description_embedding_model, description_embedded_at";
+// Every facet (whole-document, skills, role) of both tables: snapshotted, restored and fingerprinted.
+const FACET_SUFFIXES = ["embedding", "embedding_hash", "embedding_model", "embedded_at"] as const;
+const facetCols = (prefixes: string[]): string[] =>
+  prefixes.flatMap((p) =>
+    FACET_SUFFIXES.map((s) => (s === "embedded_at" ? `${p}_embedded_at` : `${p}_${s}`)),
+  );
+const CAND_FACET_COLS = facetCols(["profile", "skills", "role"]);
+const JOB_FACET_COLS = facetCols(["description", "skills", "role"]);
+const CAND_COLS = ["user_id", ...CAND_FACET_COLS].join(", ");
+const JOB_COLS = ["id", ...JOB_FACET_COLS].join(", ");
+type Row = Record<string, unknown>;
+const pick = (row: Record<string, unknown>, cols: string[]) =>
+  Object.fromEntries(cols.map((c) => [c, row[c]]));
 
 /** Deterministic stub vector so the test never calls a real AI provider. */
 const stubEmbed = async (text: string): Promise<number[]> => {
@@ -52,15 +61,17 @@ describe("embeddings backfill e2e (local stack)", { skip: !ENABLED }, () => {
     });
     const db = admin as unknown as BackfillSupabase;
 
-    const { data: candBefore, error: candErr } = await admin
+    const { data: candBeforeRaw, error: candErr } = await admin
       .from("candidate_profiles")
       .select(CAND_COLS);
     assert.ifError(candErr);
-    const { data: jobsBefore, error: jobsErr } = await admin.from("jobs").select(JOB_COLS);
+    const { data: jobsBeforeRaw, error: jobsErr } = await admin.from("jobs").select(JOB_COLS);
     assert.ifError(jobsErr);
+    const candBefore = candBeforeRaw as unknown as Row[];
+    const jobsBefore = jobsBeforeRaw as unknown as Row[];
 
-    const fpCandBefore = fingerprint(candBefore!);
-    const fpJobsBefore = fingerprint(jobsBefore!);
+    const fpCandBefore = fingerprint(candBefore);
+    const fpJobsBefore = fingerprint(jobsBefore);
 
     // Baseline: how many rows actually need embedding right now, queried directly (not guessed).
     const { count: missingCandBefore } = await admin
@@ -73,6 +84,33 @@ describe("embeddings backfill e2e (local stack)", { skip: !ENABLED }, () => {
       .select("id", { count: "exact", head: true })
       .eq("status", "active")
       .is("description_embedding", null);
+
+    const countNull = async (
+      table: string,
+      pkCol: string,
+      col: string,
+      filter: [string, unknown],
+    ) => {
+      const { count, error } = await admin
+        .from(table)
+        .select(pkCol, { count: "exact", head: true })
+        .eq(filter[0], filter[1])
+        .is(col, null);
+      assert.ifError(error);
+      return count ?? 0;
+    };
+    const facetMissingBefore = {
+      candSkills: await countNull("candidate_profiles", "user_id", "skills_embedding", [
+        "onboarding_completed",
+        true,
+      ]),
+      candRole: await countNull("candidate_profiles", "user_id", "role_embedding", [
+        "onboarding_completed",
+        true,
+      ]),
+      jobSkills: await countNull("jobs", "id", "skills_embedding", ["status", "active"]),
+      jobRole: await countNull("jobs", "id", "role_embedding", ["status", "active"]),
+    };
 
     try {
       const first = await backfillEmbeddings({
@@ -103,6 +141,45 @@ describe("embeddings backfill e2e (local stack)", { skip: !ENABLED }, () => {
         assert.equal(first.jobs.processed, 0);
       }
 
+      // Facets: the skills/role vectors must be written alongside the main one. Compare the
+      // number of rows that still lack each facet before vs. after the first pass.
+      const facetMissingAfter = {
+        candSkills: await countNull("candidate_profiles", "user_id", "skills_embedding", [
+          "onboarding_completed",
+          true,
+        ]),
+        candRole: await countNull("candidate_profiles", "user_id", "role_embedding", [
+          "onboarding_completed",
+          true,
+        ]),
+        jobSkills: await countNull("jobs", "id", "skills_embedding", ["status", "active"]),
+        jobRole: await countNull("jobs", "id", "role_embedding", ["status", "active"]),
+      };
+      console.log(
+        "[e2e] facet missing before/after:",
+        JSON.stringify({ facetMissingBefore, facetMissingAfter }),
+      );
+      if (first.candidates.processed > 0) {
+        assert.ok(
+          facetMissingAfter.candRole < facetMissingBefore.candRole,
+          "candidate role facet must be backfilled",
+        );
+        assert.ok(
+          facetMissingAfter.candSkills <= facetMissingBefore.candSkills,
+          "candidate skills facet must not regress",
+        );
+      }
+      if (first.jobs.processed > 0) {
+        assert.ok(
+          facetMissingAfter.jobRole < facetMissingBefore.jobRole,
+          "job role facet must be backfilled",
+        );
+        assert.ok(
+          facetMissingAfter.jobSkills <= facetMissingBefore.jobSkills,
+          "job skills facet must not regress",
+        );
+      }
+
       const second = await backfillEmbeddings({
         mode: "missing",
         limit: 2,
@@ -127,40 +204,32 @@ describe("embeddings backfill e2e (local stack)", { skip: !ENABLED }, () => {
     } finally {
       // Restore every row's embedding columns to exactly what was snapshotted, regardless of
       // how many this run touched.
-      for (const row of candBefore!) {
+      for (const row of candBefore) {
         const { error } = await admin
           .from("candidate_profiles")
-          .update({
-            profile_embedding: row.profile_embedding,
-            profile_embedding_hash: row.profile_embedding_hash,
-            profile_embedding_model: row.profile_embedding_model,
-            profile_embedded_at: row.profile_embedded_at,
-          })
+          .update(pick(row, CAND_FACET_COLS))
           .eq("user_id", row.user_id as string);
         assert.ifError(error);
       }
-      for (const row of jobsBefore!) {
+      for (const row of jobsBefore) {
         const { error } = await admin
           .from("jobs")
-          .update({
-            description_embedding: row.description_embedding,
-            description_embedding_hash: row.description_embedding_hash,
-            description_embedding_model: row.description_embedding_model,
-            description_embedded_at: row.description_embedded_at,
-          })
+          .update(pick(row, JOB_FACET_COLS))
           .eq("id", row.id as string);
         assert.ifError(error);
       }
 
-      const { data: candAfter, error: candAfterErr } = await admin
+      const { data: candAfterRaw, error: candAfterErr } = await admin
         .from("candidate_profiles")
         .select(CAND_COLS);
       assert.ifError(candAfterErr);
-      const { data: jobsAfter, error: jobsAfterErr } = await admin.from("jobs").select(JOB_COLS);
+      const { data: jobsAfterRaw, error: jobsAfterErr } = await admin.from("jobs").select(JOB_COLS);
       assert.ifError(jobsAfterErr);
+      const candAfter = candAfterRaw as unknown as Row[];
+      const jobsAfter = jobsAfterRaw as unknown as Row[];
 
-      const fpCandAfter = fingerprint(candAfter!);
-      const fpJobsAfter = fingerprint(jobsAfter!);
+      const fpCandAfter = fingerprint(candAfter);
+      const fpJobsAfter = fingerprint(jobsAfter);
       console.log(
         "[e2e] fingerprint candidate_profiles before=%s after=%s",
         fpCandBefore,

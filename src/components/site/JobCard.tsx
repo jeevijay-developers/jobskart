@@ -66,6 +66,8 @@ const SCORE_BREAKDOWN_LABELS: Record<string, string> = {
   trending: "Trending",
   cold_start: "Popular with others",
   semantic: "Profile similarity",
+  semantic_skill: "Skill similarity",
+  semantic_role: "Role similarity",
 };
 
 export function JobCard({
