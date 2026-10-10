@@ -1126,7 +1126,7 @@ function CareerDialog({ open, onClose, uid, c, city, onSaved }: { open: boolean;
         <div className="sm:col-span-2"><Field label="Current/last role"><input className="form-input" value={lastRole} onChange={(e) => setLastRole(e.target.value)} /></Field></div>
         <div className="sm:col-span-2">
           <Field label="Interested job roles" hint="Your job recommendations are matched to these roles. Remove any you don't want to see jobs for.">
-            <ChipInput values={interestedRoles} onChange={setInterestedRoles} suggestions={suggestRelatedRoles(interestedRoles, lastRole)} placeholder="e.g. Software Developer" />
+            <ChipInput values={interestedRoles} onChange={setInterestedRoles} suggestions={suggestRelatedRoles(interestedRoles, lastRole, [c.headline || ""])} placeholder="Type the job role you want" />
           </Field>
         </div>
         <div className="sm:col-span-2">

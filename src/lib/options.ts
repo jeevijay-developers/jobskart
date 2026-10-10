@@ -46,6 +46,12 @@ export const ROLE_SUGGESTIONS: { keyword: string; roles: string[] }[] = [
   { keyword: "electric", roles: ["Electrician", "Electrical Technician", "Wireman"] },
   { keyword: "plumb", roles: ["Plumber", "Plumbing Technician"] },
   { keyword: "mechanic", roles: ["Mechanic", "Automobile Technician", "Service Technician"] },
+  { keyword: "software", roles: ["Software Developer", "Software Engineer", "Full Stack Developer", "Web Developer", "QA Engineer"] },
+  { keyword: "programmer", roles: ["Software Developer", "Backend Developer", "Frontend Developer", "Web Developer"] },
+  { keyword: "python", roles: ["Python Developer", "Backend Developer", "Software Developer", "Data Analyst"] },
+  { keyword: "java", roles: ["Java Developer", "Full Stack Developer", "Backend Developer", "Software Developer"] },
+  { keyword: "tester", roles: ["QA Tester", "QA Engineer", "Software Tester"] },
+  { keyword: "analyst", roles: ["Data Analyst", "Business Analyst", "MIS Executive"] },
   { keyword: "developer", roles: ["Frontend Developer", "Backend Developer", "Full Stack Developer", "Web Developer", "Software Developer"] },
   { keyword: "engineer", roles: ["Software Engineer", "Support Engineer", "QA Engineer", "DevOps Engineer"] },
   { keyword: "designer", roles: ["Graphic Designer", "UI/UX Designer", "Web Designer"] },
@@ -78,8 +84,14 @@ export function suggestionSeeds(selectedRoles: string[], currentRole = ""): stri
  * itself is offered first so it can be tapped in one step. Falls back to the
  * original static starter list when there is nothing to base suggestions on.
  */
-export function suggestRelatedRoles(selectedRoles: string[], currentRole = ""): string[] {
+export function suggestRelatedRoles(selectedRoles: string[], currentRole = "", extraSeeds: string[] = []): string[] {
+  // extraSeeds: other things the candidate already told us (headline, past job titles), so a software
+  // candidate who has not typed a role yet is not shown the blue-collar starter list.
   const seeds = suggestionSeeds(selectedRoles, currentRole);
+  for (const e of extraSeeds) {
+    const t = (e || "").trim();
+    if (t && !seeds.some((s) => s.toLowerCase() === t.toLowerCase())) seeds.push(t);
+  }
   if (!seeds.length) return DEFAULT_ROLE_SUGGESTIONS;
 
   const selected = selectedRoles.map((r) => r.trim().toLowerCase()).filter(Boolean);
@@ -101,7 +113,9 @@ export function suggestRelatedRoles(selectedRoles: string[], currentRole = ""): 
       }
     }
   }
-  return out.length ? out : DEFAULT_ROLE_SUGGESTIONS.filter((r) => !seen.has(r.toLowerCase()));
+  // Something WAS entered but matched no keyword: offer nothing rather than unrelated blue-collar defaults
+  // (that fallback is how a "Python Programming Trainee" ended up picking Beautician). Free text still works.
+  return out;
 }
 
 /**

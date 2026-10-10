@@ -330,8 +330,12 @@ function OnboardingPage() {
   }, [interestedRoles, experiences, lastRole, highestQualification, suggest]);
 
   const roleSuggestions = useMemo(
-    () => suggestRelatedRoles(interestedRoles, lastRole),
-    [interestedRoles, lastRole],
+    () =>
+      suggestRelatedRoles(interestedRoles, lastRole, [
+        headline,
+        ...experiences.map((e) => e.job_title),
+      ]),
+    [interestedRoles, lastRole, headline, experiences],
   );
   const suggestionBasis = useMemo(
     () => suggestionSeeds(interestedRoles.slice(0, 2), lastRole).slice(0, 3),
@@ -1116,7 +1120,7 @@ function OnboardingPage() {
                           <JobTitleAutocomplete
                             value={lastRole}
                             onChange={setLastRole}
-                            placeholder="e.g. Sales Executive"
+                            placeholder="Your current or last job title"
                           />
                         </Field>
                       </div>
@@ -1130,7 +1134,7 @@ function OnboardingPage() {
                         <ChipInput
                           values={interestedRoles}
                           onChange={setInterestedRoles}
-                          placeholder="e.g. Sales Executive"
+                          placeholder="Type the job role you want"
                           suggestions={roleSuggestions}
                         />
                       </Field>
