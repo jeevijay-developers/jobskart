@@ -685,11 +685,15 @@ export function verificationDecisionEmail(
 }
 
 // ---------------------------------------------------------------------------
-// Template 4 -- Interview scheduled (Email 1: no join link/password, sent
-// immediately after scheduling). The join link is deliberately withheld here
-// regardless of provider (Zoom or external) \u2014 it's sent 30 minutes before via
-// interviewReminderEmail so it can't sit in an inbox unused for days. See
-// Bottleneck 2.6 / the anti-fraud gating notes in INTERVIEW_FEATURE_IMPLEMENTATION_PLAN.md.
+// Template 4 -- Interview scheduled / rescheduled (Email 1), sent immediately
+// after scheduling or rescheduling. Previously withheld the join link until
+// the T-30 reminder (anti-fraud gating notes in
+// INTERVIEW_FEATURE_IMPLEMENTATION_PLAN.md / Bottleneck 2.6) \u2014 per client
+// Point 25, the link now goes out in this same immediate email instead. The
+// join window itself is unchanged: the link only becomes joinable 15 minutes
+// before scheduledAtIso (getJoinWindow in src/lib/interview-window.ts); an
+// early click still shows the existing "too early" state, so the copy below
+// says "becomes active" rather than claiming it works right away.
 // ---------------------------------------------------------------------------
 export type InterviewScheduledInfo = {
   candidateName: string | null;
@@ -698,6 +702,10 @@ export type InterviewScheduledInfo = {
   scheduledAtIso: string;
   durationMin: number;
   mode: "video" | "phone" | "onsite";
+  /** The candidate's direct interview-join link \u2014 same HMAC token / /interview-join?t=... URL interviewReminderEmail builds, for every mode (video/phone/onsite all resolve to something useful there \u2014 see src/routes/interview-join.tsx). */
+  joinUrl?: string | null;
+  /** true for a reschedule notice (same email, "rescheduled" instead of "scheduled" copy) \u2014 set by rescheduleInterview()'s caller. */
+  isReschedule?: boolean;
 };
 
 const MODE_LABEL: Record<InterviewScheduledInfo["mode"], string> = {
@@ -717,7 +725,9 @@ export function interviewScheduledEmail(info: InterviewScheduledInfo): {
   const greetingName = info.candidateName ? escapeHtml(info.candidateName.split(" ")[0]) : "there";
   const when = formatIst(info.scheduledAtIso);
   const url = appUrl + "/candidate/applications";
-  const subject = "Interview scheduled: " + info.jobTitle;
+  const subject = (info.isReschedule ? "Interview rescheduled: " : "Interview scheduled: ") + info.jobTitle;
+  const heading = info.isReschedule ? "Interview rescheduled!" : "Interview scheduled!";
+  const ctaLabel = info.mode === "video" ? "Join interview &rarr;" : "View interview details &rarr;";
 
   const rows =
     '<tr><td style="font-size:13px;color:#6B7280;padding-bottom:8px;width:120px;">Date &amp; time</td>' +
@@ -740,7 +750,9 @@ export function interviewScheduledEmail(info: InterviewScheduledInfo): {
     '<div style="width:48px;height:48px;background-color:#EEF3FF;border-radius:12px;text-align:center;line-height:48px;font-size:22px;">&#128197;</div>' +
     "</td>" +
     '<td style="vertical-align:middle;">' +
-    '<h1 style="margin:0 0 4px;font-size:22px;font-weight:700;color:#111827;line-height:1.2;">Interview scheduled!</h1>' +
+    '<h1 style="margin:0 0 4px;font-size:22px;font-weight:700;color:#111827;line-height:1.2;">' +
+    heading +
+    "</h1>" +
     '<p style="margin:0;font-size:14px;color:#6B7280;">Hi ' +
     greetingName +
     ",</p>" +
@@ -756,10 +768,20 @@ export function interviewScheduledEmail(info: InterviewScheduledInfo): {
     rows +
     "</table>" +
     "</td></tr></table>" +
-    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#EEF3FF;border-radius:10px;margin-bottom:24px;">' +
-    '<tr><td style="padding:16px 20px;font-size:13px;color:#1A55BD;line-height:1.6;">' +
-    "<strong>&#128274; For your security,</strong> your direct interview join link will be sent to this email 30 minutes before the interview begins." +
-    "</td></tr></table>" +
+    (info.joinUrl
+      ? '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:8px;">' +
+        '<tr><td style="background-color:#1A55BD;border-radius:8px;">' +
+        '<a href="' +
+        info.joinUrl +
+        '" style="display:inline-block;padding:13px 28px;font-size:14px;font-weight:700;color:#FFFFFF;text-decoration:none;letter-spacing:0.01em;">' +
+        ctaLabel +
+        "</a>" +
+        "</td></tr></table>" +
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#EEF3FF;border-radius:10px;margin-bottom:20px;">' +
+        '<tr><td style="padding:16px 20px;font-size:13px;color:#1A55BD;line-height:1.6;">' +
+        "<strong>&#128274; For your security,</strong> this link becomes active 15 minutes before the interview starts." +
+        "</td></tr></table>"
+      : "") +
     '<table role="presentation" cellpadding="0" cellspacing="0" border="0">' +
     '<tr><td style="background-color:#1A55BD;border-radius:8px;">' +
     '<a href="' +
@@ -768,12 +790,18 @@ export function interviewScheduledEmail(info: InterviewScheduledInfo): {
     "</td></tr></table>";
 
   const html = layout(
-    "Your interview for " + info.jobTitle + " is scheduled for " + when + ".",
+    "Your interview for " +
+      info.jobTitle +
+      (info.isReschedule ? " has been rescheduled to " : " is scheduled for ") +
+      when +
+      ".",
     body,
     {
       eyebrow: "Interview",
       footerHtml:
-        "You're receiving this because an employer scheduled an interview with you on JobsKart.<br>\n" +
+        "You're receiving this because an employer " +
+        (info.isReschedule ? "rescheduled" : "scheduled") +
+        " an interview with you on JobsKart.<br>\n" +
         '            <a href="' +
         appUrl +
         '/candidate/applications" style="color:#1A55BD;text-decoration:none;">View your applications</a>',
@@ -781,7 +809,7 @@ export function interviewScheduledEmail(info: InterviewScheduledInfo): {
   );
 
   const text = [
-    "JobsKart \u2014 Interview scheduled",
+    "JobsKart \u2014 Interview " + (info.isReschedule ? "rescheduled" : "scheduled"),
     "",
     "Hi " + greetingName + ",",
     "",
@@ -790,8 +818,13 @@ export function interviewScheduledEmail(info: InterviewScheduledInfo): {
     "Duration: " + info.durationMin + " min",
     "Format: " + MODE_LABEL[info.mode],
     "",
-    "For your security, your direct interview join link will be sent to this email 30 minutes before the interview begins.",
-    "",
+    ...(info.joinUrl
+      ? [
+          "Join link: " + info.joinUrl,
+          "For your security, this link becomes active 15 minutes before the interview starts.",
+          "",
+        ]
+      : []),
     "View your applications: " + url,
     "\u2014",
     "JobsKart \u00b7 " + appUrl,
