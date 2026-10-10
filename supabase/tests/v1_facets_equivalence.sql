@@ -5,11 +5,11 @@
 --   docker exec -i supabase_db_swdntxurukbkyksuyzhg psql -U postgres -v ON_ERROR_STOP=1 -q < supabase/tests/v1_facets_equivalence.sql
 --
 -- The faceted migration deliberately changes V1 output (two new score_breakdown keys + a reduced
--- semantic_weight), so full equivalence with the Plan-11 body does not hold. What must hold instead:
+-- semantic_weight), so full equivalence with the live body does not hold. What must hold instead:
 --   (a) ADDITIVITY  with semantic_skill_weight = semantic_role_weight = 0 and semantic_weight restored to its
 --       pre-rebalance value (inside the transaction), the live function returns exactly what the frozen
---       Plan-11 body (pg_temp.v1_plan11, copied verbatim from 20261009103544_v1_scoring_performance.sql
---       with only the name changed) returns - all 25 columns, row order, total_count - once the four new
+--       live body (pg_temp.v1_live_ref, copied from 20261010180000_fold_job_matches_search_into_live_function.sql
+--       with only the name changed and a final `id` ORDER BY tiebreak added) returns - all 25 columns, row order, total_count - once the four new
 --       jsonb paths (score_breakdown.semantic_skill/semantic_role and the same names in .weights) are removed
 --       after asserting they are present. Checked for 6 candidates (incl. c001 with known facet test vectors
 --       and c004 with no embeddings at all) x 5 sorts x 5 argument sets.
@@ -36,9 +36,11 @@ SELECT md5(concat_ws('|',
 BEGIN;
 
 -- ------------------------------------------------------------
--- FROZEN COPY of the Plan-11 body (only the function name differs). Do not edit.
+-- FROZEN COPY of the teammate's live body (20261010180000_fold_job_matches_search_into_live_function.sql,
+-- lines 64-423) as pg_temp.v1_live_ref. Only two differences: the function name, and a final `fs.id` ORDER BY
+-- tiebreak (the live body has none; with it the reference is deterministic, like the new function). Do not edit.
 -- ------------------------------------------------------------
-CREATE OR REPLACE FUNCTION pg_temp.v1_plan11(
+CREATE OR REPLACE FUNCTION pg_temp.v1_live_ref(
     _limit int DEFAULT 20, _offset int DEFAULT 0, _q text DEFAULT NULL,
     _city text DEFAULT NULL, _category text DEFAULT NULL, _job_type text DEFAULT NULL,
     _work_mode text DEFAULT NULL, _min_salary int DEFAULT NULL, _max_salary int DEFAULT NULL,
@@ -55,7 +57,7 @@ CREATE OR REPLACE FUNCTION pg_temp.v1_plan11(
     avg_incentive_monthly integer, company_name text, company_is_verified boolean,
     boosted boolean, score numeric, score_breakdown jsonb, recommendation_stage text, total_count bigint
 )
-LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public SET plan_cache_mode = force_custom_plan
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
 AS $$
 #variable_conflict use_column
 DECLARE
@@ -72,8 +74,9 @@ DECLARE
     _exp_salary numeric;
     _month_start timestamptz;
     _is_cold_start boolean;
-    _cand_canon_terms text[];
-    _fast_path boolean;
+    -- Requirement 8: the department _q itself classifies to, if any (NULL
+    -- when _q is NULL/blank or doesn't map to a known department).
+    _q_category text;
 BEGIN
     IF _uid IS NULL THEN
         RAISE EXCEPTION 'not_authenticated';
@@ -83,6 +86,10 @@ BEGIN
     -- relevance ranking instead of silently matching no ORDER BY branch below.
     IF _sort NOT IN ('recommended', 'newest', 'oldest', 'salary_high', 'salary_low') THEN
         _sort := 'recommended';
+    END IF;
+
+    IF _q IS NOT NULL AND trim(_q) <> '' THEN
+        _q_category := public.role_category(trim(_q));
     END IF;
 
     SELECT * INTO _prefs FROM public.candidate_preferences cp WHERE cp.user_id = _uid;
@@ -117,13 +124,6 @@ BEGIN
         WHERE (cs.name ILIKE s OR s ILIKE ANY(cs.aliases)) AND cs.is_active;
     END IF;
 
-    -- A2: resolve the candidate's canonical skill names/aliases to a flat lowercase term array ONCE,
-    -- instead of re-querying canonical_skills per job-skill-string inside the scoring CTE (A3).
-    SELECT COALESCE(array_agg(DISTINCT t), '{}'::text[]) INTO _cand_canon_terms
-    FROM public.canonical_skills cs,
-         LATERAL unnest(ARRAY[lower(cs.name)] || COALESCE((SELECT array_agg(lower(a)) FROM unnest(cs.aliases) a), '{}'::text[])) t
-    WHERE cs.is_active AND cs.id = ANY(COALESCE(_cand_skill_ids, '{}'::uuid[]));
-
     -- Candidate cities: preference city ids, profile city, and preferred_cities
     IF _prefs IS NOT NULL AND COALESCE(cardinality(_prefs.city_ids), 0) > 0 THEN
         SELECT array_agg(LOWER(c.name)) INTO _cand_cities
@@ -149,26 +149,52 @@ BEGIN
 
     _month_start := date_trunc('month', now() AT TIME ZONE 'Asia/Kolkata') AT TIME ZONE 'Asia/Kolkata';
 
-    -- A7: ordering and total_count for an explicit (non-'recommended') sort with _relevant_only not true
-    -- do not depend on any score, so only the requested page needs to be scored at all.
-    _fast_path := (_sort <> 'recommended' AND _relevant_only IS NOT TRUE);
-
     RETURN QUERY
     WITH s AS (
         SELECT * FROM public.recommendation_settings rs WHERE rs.id = 1
     ),
-    eligible_ids AS MATERIALIZED (
-        -- Every hard filter from the original eligible_jobs WHERE clause, written ONCE, slim columns only.
-        SELECT j.id, j.created_at, j.min_salary, j.max_salary
+    eligible_jobs AS (
+        SELECT
+            j.id, j.company_id, j.title, j.city, j.state, j.locality,
+            j.min_salary, j.max_salary, j.salary_period,
+            j.job_type::text AS job_type, j.work_mode::text AS work_mode,
+            j.min_experience_years, j.max_experience_years, j.education, j.skills,
+            j.created_at, j.pay_type, j.avg_incentive_monthly,
+            c.name AS company_name, c.is_verified AS company_is_verified,
+            j.tier, j.category, j.description_embedding,
+            lb.ends_at AS boost_ends_at, lb.starts_at AS boost_starts_at,
+            (j.tier = 'trending' AND j.created_at >= _month_start) AS is_trending
         FROM public.jobs j
         JOIN public.companies c ON c.id = j.company_id
+        LEFT JOIN LATERAL (
+            SELECT jb.ends_at, jb.starts_at FROM public.job_boosts jb
+            WHERE jb.job_id = j.id AND jb.ends_at > now()
+            ORDER BY jb.ends_at DESC LIMIT 1
+        ) lb ON true
         WHERE j.status = 'active'
           AND (j.expires_at IS NULL OR j.expires_at > now())
-          AND NOT EXISTS (
-              SELECT 1 FROM public.applications a
-              WHERE a.job_id = j.id AND a.candidate_id = _uid
+          -- Recommendations keep jobs the candidate already applied to (client
+          -- requirement); Browse jobs (_relevant_only = false) still hides them.
+          AND (
+              _relevant_only IS TRUE
+              OR NOT EXISTS (
+                  SELECT 1 FROM public.applications a
+                  WHERE a.job_id = j.id AND a.candidate_id = _uid
+              )
           )
-          AND (_q IS NULL OR j.title ILIKE '%' || _q || '%')
+          -- Requirement 8: title match OR (the search word maps to a known
+          -- department AND the job's own category is that department).
+          -- Browse search: title match, OR job_matches_search()'s two extra
+          -- strategies (multi-word token coverage over title/category/
+          -- skills; a curated Sales/Marketing/Software related-terms regex
+          -- on the title — folded in from job_matches_search(),
+          -- 20261007120000, so Browse benefits without needing a separate,
+          -- currently-uncalled helper), OR department match (_q_category).
+          AND (
+              _q IS NULL
+              OR public.job_matches_search(_q, j.title, j.category, j.skills)
+              OR (_q_category IS NOT NULL AND j.category = _q_category)
+          )
           AND (_city IS NULL OR j.city ILIKE '%' || _city || '%')
           AND (_category IS NULL OR j.category = _category)
           AND (_job_type IS NULL OR j.job_type::text = _job_type)
@@ -184,77 +210,48 @@ BEGIN
           AND (_company IS NULL OR c.name ILIKE '%' || _company || '%')
           AND (_vehicle IS NOT TRUE OR j.required_assets @> ARRAY['Two-wheeler'])
           AND (_verified_only IS NOT TRUE OR c.is_verified = true)
-          AND (_prefs IS NULL OR _prefs.min_salary_monthly IS NULL OR j.max_salary IS NULL OR j.max_salary >= _prefs.min_salary_monthly)
-          AND (_prefs IS NULL OR _prefs.max_salary_monthly IS NULL OR j.min_salary IS NULL OR j.min_salary <= _prefs.max_salary_monthly)
-          AND (_prefs IS NULL OR _prefs.min_experience_years IS NULL OR j.max_experience_years IS NULL OR j.max_experience_years >= _prefs.min_experience_years)
-          AND (_prefs IS NULL OR _prefs.max_experience_years IS NULL OR j.min_experience_years IS NULL OR j.min_experience_years <= _prefs.max_experience_years)
-          AND (_prefs IS NULL OR COALESCE(cardinality(_prefs.job_types), 0) = 0 OR j.job_type::text = ANY(_prefs.job_types))
-          AND (_prefs IS NULL OR COALESCE(cardinality(_prefs.work_modes), 0) = 0 OR j.work_mode::text = ANY(_prefs.work_modes))
+          -- Saved onboarding preferences (salary/experience/job type/work
+          -- mode) only narrow Recommendations (_relevant_only = true), never
+          -- Browse. Browse has its own explicit, visible filter controls
+          -- (_job_type, _work_mode, _min_salary, etc. above); a candidate's
+          -- saved preference silently narrowing Browse search results (e.g.
+          -- a saved job_types=['full_time'] hiding internship/contract Sales
+          -- jobs from a "sales" search) is the reported bug this fixes.
+          AND (_relevant_only IS NOT TRUE OR _prefs IS NULL OR _prefs.min_salary_monthly IS NULL OR j.max_salary IS NULL OR j.max_salary >= _prefs.min_salary_monthly)
+          AND (_relevant_only IS NOT TRUE OR _prefs IS NULL OR _prefs.max_salary_monthly IS NULL OR j.min_salary IS NULL OR j.min_salary <= _prefs.max_salary_monthly)
+          AND (_relevant_only IS NOT TRUE OR _prefs IS NULL OR _prefs.min_experience_years IS NULL OR j.max_experience_years IS NULL OR j.max_experience_years >= _prefs.min_experience_years)
+          AND (_relevant_only IS NOT TRUE OR _prefs IS NULL OR _prefs.max_experience_years IS NULL OR j.min_experience_years IS NULL OR j.min_experience_years <= _prefs.max_experience_years)
+          AND (_relevant_only IS NOT TRUE OR _prefs IS NULL OR COALESCE(cardinality(_prefs.job_types), 0) = 0 OR j.job_type::text = ANY(_prefs.job_types))
+          AND (_relevant_only IS NOT TRUE OR _prefs IS NULL OR COALESCE(cardinality(_prefs.work_modes), 0) = 0 OR j.work_mode::text = ANY(_prefs.work_modes))
     ),
-    chosen AS MATERIALIZED (
-        -- All ids when NOT fast path (full scoring needed); only the requested page of ids, pre-ordered by
-        -- the same per-sort keys (A8 tiebreak included), when fast path.
-        SELECT id FROM eligible_ids
-        ORDER BY
-            CASE WHEN _fast_path AND _sort = 'newest' THEN created_at END DESC,
-            CASE WHEN _fast_path AND _sort = 'oldest' THEN created_at END ASC,
-            CASE WHEN _fast_path AND _sort = 'salary_high' THEN max_salary END DESC NULLS LAST,
-            CASE WHEN _fast_path AND _sort = 'salary_low' THEN min_salary END ASC NULLS LAST,
-            created_at DESC, id
-        LIMIT CASE WHEN _fast_path THEN _limit END
-        OFFSET CASE WHEN _fast_path THEN _offset ELSE 0 END
-    ),
-    eligible_jobs AS (
-        SELECT
-            j.id, j.company_id, j.title, j.city, j.state, j.locality,
-            j.min_salary, j.max_salary, j.salary_period,
-            j.job_type::text AS job_type, j.work_mode::text AS work_mode,
-            j.min_experience_years, j.max_experience_years, j.education, j.skills,
-            j.created_at, j.pay_type, j.avg_incentive_monthly,
-            c.name AS company_name, c.is_verified AS company_is_verified,
-            j.category, j.description_embedding,
-            lb.ends_at AS boost_ends_at, lb.starts_at AS boost_starts_at,
-            (j.tier = 'trending' AND j.created_at >= _month_start) AS is_trending
-        FROM public.jobs j
-        JOIN chosen ch ON ch.id = j.id
-        JOIN public.companies c ON c.id = j.company_id
-        LEFT JOIN LATERAL (
-            SELECT jb.ends_at, jb.starts_at FROM public.job_boosts jb
-            WHERE jb.job_id = j.id AND jb.ends_at > now()
-            ORDER BY jb.ends_at DESC LIMIT 1
-        ) lb ON true
-    ),
-    -- A6: only needed to feed cold_start_score/category_has_signal, both forced to 0/false otherwise.
     category_popularity AS (
         SELECT j.category, count(*) AS app_count
         FROM public.applications a
         JOIN public.jobs j ON j.id = a.job_id
-        WHERE _is_cold_start AND a.created_at >= now() - interval '30 days'
+        WHERE a.created_at >= now() - interval '30 days'
         GROUP BY j.category
     ),
     category_popularity_bounds AS (
         SELECT COALESCE(MAX(app_count), 0) AS max_app_count FROM category_popularity
     ),
-    -- A4: every per-row score computed exactly once, slim explicit column list (no description_embedding,
-    -- tier or category carried past this point).
-    scored AS MATERIALIZED (
-        SELECT
-            ej.id, ej.company_id, ej.title, ej.city, ej.state, ej.locality,
-            ej.min_salary, ej.max_salary, ej.salary_period,
-            ej.job_type, ej.work_mode, ej.min_experience_years, ej.max_experience_years,
-            ej.education, ej.skills, ej.created_at, ej.pay_type, ej.avg_incentive_monthly,
-            ej.company_name, ej.company_is_verified, ej.boost_ends_at,
+    scored AS (
+        SELECT ej.*,
             s.skill_weight, s.role_weight, s.location_weight, s.salary_weight, s.experience_weight,
             s.freshness_weight, s.boost_weight, s.trending_weight, s.cold_start_weight, s.semantic_weight,
-            -- A3: skill coverage of the JOB's required skills (0..1) from precomputed term arrays, no
-            -- per-job-skill EXISTS subquery against canonical_skills. The canonical branch uses lower(js)
-            -- WITHOUT trim, exactly like the original `ILIKE js` did; the free-text branch keeps
-            -- lower(trim(js)), unchanged. Duplicates in ej.skills are counted separately, as before.
+            -- Skill coverage of the JOB's required skills (0..1); neutral when the job lists none
             CASE WHEN COALESCE(cardinality(ej.skills), 0) = 0 THEN 0.3
                  WHEN COALESCE(cardinality(_cand_skill_ids), 0) = 0 AND COALESCE(cardinality(_cand_skill_text), 0) = 0 THEN 0.1
-            ELSE (SELECT (count(*) FILTER (WHERE lower(trim(js)) = ANY(COALESCE(_cand_skill_text, '{}'::text[]))
-                                              OR lower(js) = ANY(_cand_canon_terms)))::numeric / cardinality(ej.skills)::numeric
-                  FROM unnest(ej.skills) AS js) END::numeric AS skill_score,
+            ELSE (
+                SELECT (count(*) FILTER (WHERE
+                            lower(trim(js)) = ANY(COALESCE(_cand_skill_text, '{}'::text[]))
+                            OR EXISTS (
+                                SELECT 1 FROM public.canonical_skills cs
+                                WHERE cs.is_active AND cs.id = ANY(COALESCE(_cand_skill_ids, '{}'::uuid[]))
+                                  AND (cs.name ILIKE js OR js ILIKE ANY(cs.aliases))
+                            )
+                       ))::numeric / cardinality(ej.skills)::numeric
+                FROM unnest(ej.skills) AS js
+            ) END::numeric AS skill_score,
             -- Role fit: department first (exact 1.0, neighbouring 0.75), then title words
             CASE WHEN ej.category IS NOT NULL AND ej.category = ANY(COALESCE(_cand_categories, '{}'::text[])) THEN 1.0
                  WHEN ej.category IS NOT NULL AND ej.category = ANY(COALESCE(_cand_adjacent, '{}'::text[])) THEN 0.75
@@ -264,6 +261,21 @@ BEGIN
                  WHEN EXISTS (SELECT 1 FROM unnest(COALESCE(_cand_skill_text, '{}'::text[])) sk
                               WHERE length(sk) >= 3 AND lower(ej.title) LIKE '%' || sk || '%') THEN 0.7
                  ELSE 0.0 END::numeric AS role_score,
+            -- Requirement 7: hard department gate (additional to the existing
+            -- relevance OR-gate below, not a replacement for it). True when
+            -- there is no department signal to judge by (unchanged cold-start
+            -- behaviour), the job has no category, the job's department is the
+            -- candidate's own or a neighbour, or the job title clearly matches
+            -- one of the candidate's role words (the same exception role_score
+            -- already grants a 1.0 for).
+            (
+                COALESCE(cardinality(_cand_categories), 0) = 0
+                OR ej.category IS NULL
+                OR ej.category = ANY(COALESCE(_cand_categories, '{}'::text[]))
+                OR ej.category = ANY(COALESCE(_cand_adjacent, '{}'::text[]))
+                OR EXISTS (SELECT 1 FROM unnest(_role_words) rw
+                           WHERE rw = ANY(regexp_split_to_array(lower(ej.title), '[^a-z0-9+#.]+')))
+            ) AS department_ok,
             CASE WHEN COALESCE(cardinality(_cand_cities), 0) > 0 THEN
                 CASE
                     WHEN LOWER(ej.city) = ANY(_cand_cities) THEN 1.0
@@ -304,102 +316,91 @@ BEGIN
         CROSS JOIN category_popularity_bounds cpb
         LEFT JOIN category_popularity cp ON cp.category = ej.category
     ),
-    -- A5: final_score and company_rank computed over ALL rows of "scored" (i.e. before the relevance
-    -- gate), exactly as before.
-    ranked AS (
-        SELECT sc.*,
+    final_scored AS (
+        SELECT s.*,
             LEAST(1, GREATEST(0,
-                sc.skill_score * sc.skill_weight + sc.role_score * sc.role_weight +
-                sc.location_score * sc.location_weight + sc.salary_score * sc.salary_weight +
-                sc.experience_score * sc.experience_weight + sc.freshness_score * sc.freshness_weight +
-                sc.boost_score * sc.boost_weight + sc.trending_score * sc.trending_weight +
-                sc.cold_start_score * sc.cold_start_weight + sc.semantic_score * sc.semantic_weight
+                s.skill_score * s.skill_weight + s.role_score * s.role_weight +
+                s.location_score * s.location_weight + s.salary_score * s.salary_weight +
+                s.experience_score * s.experience_weight + s.freshness_score * s.freshness_weight +
+                s.boost_score * s.boost_weight + s.trending_score * s.trending_weight +
+                s.cold_start_score * s.cold_start_weight + s.semantic_score * s.semantic_weight
             )) AS final_score,
-            ROW_NUMBER() OVER (PARTITION BY sc.company_id ORDER BY
-                sc.skill_score * sc.skill_weight + sc.role_score * sc.role_weight +
-                sc.location_score * sc.location_weight + sc.salary_score * sc.salary_weight +
-                sc.experience_score * sc.experience_weight + sc.freshness_score * sc.freshness_weight +
-                sc.boost_score * sc.boost_weight + sc.trending_score * sc.trending_weight +
-                sc.cold_start_score * sc.cold_start_weight + sc.semantic_score * sc.semantic_weight DESC
+            jsonb_build_object(
+                'skill', round(s.skill_score * 100) / 100.0,
+                'role', round(s.role_score * 100) / 100.0,
+                'location', round(s.location_score * 100) / 100.0,
+                'salary', round(s.salary_score * 100) / 100.0,
+                'experience', round(s.experience_score * 100) / 100.0,
+                'freshness', round(s.freshness_score * 100) / 100.0,
+                'boost', round(s.boost_score * 100) / 100.0,
+                'trending', round(s.trending_score * 100) / 100.0,
+                'cold_start', round(s.cold_start_score * 100) / 100.0,
+                'semantic', round(s.semantic_score * 100) / 100.0,
+                'weights', jsonb_build_object(
+                    'skill', s.skill_weight, 'role', s.role_weight, 'location', s.location_weight,
+                    'salary', s.salary_weight, 'experience', s.experience_weight,
+                    'freshness', s.freshness_weight, 'boost', s.boost_weight,
+                    'trending', s.trending_weight, 'cold_start', s.cold_start_weight,
+                    'semantic', s.semantic_weight
+                )
+            ) AS score_breakdown,
+            CASE
+                WHEN NOT _is_cold_start THEN 'personalized'
+                WHEN s.category_has_signal THEN 'popular_in_category'
+                ELSE 'citywide_fresh'
+            END AS recommendation_stage,
+            ROW_NUMBER() OVER (PARTITION BY s.company_id ORDER BY
+                s.skill_score * s.skill_weight + s.role_score * s.role_weight +
+                s.location_score * s.location_weight + s.salary_score * s.salary_weight +
+                s.experience_score * s.experience_weight + s.freshness_score * s.freshness_weight +
+                s.boost_score * s.boost_weight + s.trending_score * s.trending_weight +
+                s.cold_start_score * s.cold_start_weight + s.semantic_score * s.semantic_weight DESC
             ) AS company_rank
-        FROM scored sc
-    ),
-    page AS (
-        SELECT r.*,
-            CASE WHEN _fast_path THEN (SELECT count(*) FROM eligible_ids) ELSE count(*) OVER() END AS total_count
-        FROM ranked r
-        CROSS JOIN s
-        -- Relevance gate: a department match (role 1.0 or neighbouring 0.75) counts,
-        -- as does a real skill, title or semantic fit. Cold start is the only bypass.
-        -- Applies regardless of sort — "Newest"/"Salary high" etc. still only show
-        -- jobs relevant to the candidate, they just reorder within that set.
-        WHERE (
-            _relevant_only IS NOT TRUE OR _is_cold_start OR
-            r.skill_score >= s.relevant_skill_threshold OR
-            r.role_score >= s.relevant_role_threshold OR
-            r.semantic_score >= s.relevant_semantic_threshold
-        )
-        ORDER BY
-            -- Exactly one of these CASE expressions is non-null for every row (the one matching _sort);
-            -- the rest evaluate to NULL for every row and so contribute no ordering, falling through to
-            -- the next column. A8: created_at DESC, id is the final deterministic tiebreak.
-            CASE WHEN _sort = 'recommended' THEN (r.company_rank > s.max_same_company_in_top) END ASC,
-            CASE WHEN _sort = 'recommended' THEN r.final_score END DESC,
-            CASE WHEN _sort = 'newest' THEN r.created_at END DESC,
-            CASE WHEN _sort = 'oldest' THEN r.created_at END ASC,
-            CASE WHEN _sort = 'salary_high' THEN r.max_salary END DESC NULLS LAST,
-            CASE WHEN _sort = 'salary_low' THEN r.min_salary END ASC NULLS LAST,
-            r.created_at DESC, r.id
-        -- A7: the fast path already selected the requested page inside "chosen"; OFFSET is 0 here so it
-        -- is not skipped a second time. Otherwise behaves exactly as before.
-        LIMIT _limit OFFSET CASE WHEN _fast_path THEN 0 ELSE _offset END
+        FROM scored s
     )
     SELECT
-        p.id, p.company_id, p.title, p.city, p.state, p.locality,
-        p.min_salary, p.max_salary, p.salary_period, p.job_type, p.work_mode,
-        p.min_experience_years, p.max_experience_years, p.education, p.skills,
-        p.created_at, p.pay_type, p.avg_incentive_monthly, p.company_name, p.company_is_verified,
-        (p.boost_ends_at IS NOT NULL) AS boosted,
-        round(p.final_score::numeric, 4) AS score,
-        jsonb_build_object(
-            'skill', round(p.skill_score * 100) / 100.0,
-            'role', round(p.role_score * 100) / 100.0,
-            'location', round(p.location_score * 100) / 100.0,
-            'salary', round(p.salary_score * 100) / 100.0,
-            'experience', round(p.experience_score * 100) / 100.0,
-            'freshness', round(p.freshness_score * 100) / 100.0,
-            'boost', round(p.boost_score * 100) / 100.0,
-            'trending', round(p.trending_score * 100) / 100.0,
-            'cold_start', round(p.cold_start_score * 100) / 100.0,
-            'semantic', round(p.semantic_score * 100) / 100.0,
-            'weights', jsonb_build_object(
-                'skill', p.skill_weight, 'role', p.role_weight, 'location', p.location_weight,
-                'salary', p.salary_weight, 'experience', p.experience_weight,
-                'freshness', p.freshness_weight, 'boost', p.boost_weight,
-                'trending', p.trending_weight, 'cold_start', p.cold_start_weight,
-                'semantic', p.semantic_weight
-            )
-        ) AS score_breakdown,
-        CASE
-            WHEN NOT _is_cold_start THEN 'personalized'
-            WHEN p.category_has_signal THEN 'popular_in_category'
-            ELSE 'citywide_fresh'
-        END AS recommendation_stage,
-        p.total_count
-    FROM page p
-    -- Same ORDER BY repeated: CTE row order is not guaranteed without it, and this is the order actually
-    -- returned to the caller.
+        fs.id, fs.company_id, fs.title, fs.city, fs.state, fs.locality,
+        fs.min_salary, fs.max_salary, fs.salary_period, fs.job_type, fs.work_mode,
+        fs.min_experience_years, fs.max_experience_years, fs.education, fs.skills,
+        fs.created_at, fs.pay_type, fs.avg_incentive_monthly, fs.company_name, fs.company_is_verified,
+        (fs.boost_ends_at IS NOT NULL) AS boosted,
+        round(fs.final_score::numeric, 4) AS score,
+        fs.score_breakdown,
+        fs.recommendation_stage,
+        count(*) OVER() AS total_count
+    FROM final_scored fs
+    CROSS JOIN s
+    -- Relevance gate: a department match (role 1.0 or neighbouring 0.75) counts,
+    -- as does a real skill, title or semantic fit. Cold start is the only bypass.
+    -- Applies regardless of sort — "Newest"/"Salary high" etc. still only show
+    -- jobs relevant to the candidate, they just reorder within that set.
+    -- Requirement 7: department_ok is a separate, additional AND-condition —
+    -- a job outside the candidate's department(s)/neighbours can no longer
+    -- pass this gate purely via skill_score or semantic_score. It only
+    -- applies in recommended mode (_relevant_only IS TRUE); department_ok is
+    -- always true otherwise (and always true for cold-start candidates).
+    WHERE (
+        _relevant_only IS NOT TRUE OR _is_cold_start OR
+        fs.skill_score >= s.relevant_skill_threshold OR
+        fs.role_score >= s.relevant_role_threshold OR
+        fs.semantic_score >= s.relevant_semantic_threshold
+    )
+    AND (_relevant_only IS NOT TRUE OR fs.department_ok)
     ORDER BY
-        CASE WHEN _sort = 'recommended' THEN (p.company_rank > (SELECT max_same_company_in_top FROM s)) END ASC,
-        CASE WHEN _sort = 'recommended' THEN p.final_score END DESC,
-        CASE WHEN _sort = 'newest' THEN p.created_at END DESC,
-        CASE WHEN _sort = 'oldest' THEN p.created_at END ASC,
-        CASE WHEN _sort = 'salary_high' THEN p.max_salary END DESC NULLS LAST,
-        CASE WHEN _sort = 'salary_low' THEN p.min_salary END ASC NULLS LAST,
-        p.created_at DESC, p.id;
+        -- Exactly one of these CASE expressions is non-null for every row (the
+        -- one matching _sort); the rest evaluate to NULL for every row and so
+        -- contribute no ordering, falling through to the next column.
+        CASE WHEN _sort = 'recommended' THEN (fs.company_rank > s.max_same_company_in_top) END ASC,
+        CASE WHEN _sort = 'recommended' THEN fs.final_score END DESC,
+        CASE WHEN _sort = 'newest' THEN fs.created_at END DESC,
+        CASE WHEN _sort = 'oldest' THEN fs.created_at END ASC,
+        CASE WHEN _sort = 'salary_high' THEN fs.max_salary END DESC NULLS LAST,
+        CASE WHEN _sort = 'salary_low' THEN fs.min_salary END ASC NULLS LAST,
+        fs.created_at DESC,
+        fs.id   -- harness-only: the teammate's live body has no unique tiebreak; this makes the frozen reference deterministic (see header)
+    LIMIT _limit OFFSET _offset;
 END;
 $$;
-
 
 -- ------------------------------------------------------------
 -- END FROZEN COPY
@@ -425,7 +426,7 @@ $f$ SELECT ('[' || string_agg((CASE WHEN g = ANY(dims) THEN 1 ELSE 0 END)::text,
 CREATE FUNCTION pg_temp.frozen_rows(_sort text, _args text) RETURNS jsonb LANGUAGE plpgsql AS $f$
 DECLARE a jsonb;
 BEGIN
-    EXECUTE format($q$SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.o), '[]') FROM pg_temp.v1_plan11(_limit => 1000, _sort => %L %s)
+    EXECUTE format($q$SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.o), '[]') FROM pg_temp.v1_live_ref(_limit => 1000, _sort => %L %s)
         WITH ORDINALITY AS x(id, company_id, title, city, state, locality, min_salary, max_salary, salary_period, job_type, work_mode, min_experience_years, max_experience_years, education, skills, created_at, pay_type, avg_incentive_monthly, company_name, company_is_verified, boosted, score, score_breakdown, recommendation_stage, total_count, o)$q$,
         _sort, _args) INTO a;
     RETURN a;
@@ -610,7 +611,7 @@ BEGIN
 END $$;
 
 -- ============================================================
--- (a) additivity: facet weights -> 0, semantic_weight restored; exact equality with the frozen Plan-11 body
+-- (a) additivity: facet weights -> 0, semantic_weight restored; exact equality with the frozen live (20261010180000) body
 -- (this also compares relevance-gated lists and all five sorts row for row, which covers the gate (e))
 -- ============================================================
 UPDATE public.recommendation_settings
@@ -643,7 +644,7 @@ BEGIN
             gated := gated + 1; END IF;
     END LOOP;
     IF gated = 0 THEN RAISE EXCEPTION '(e) vacuous: the relevance gate removed nothing for any tested candidate'; END IF;
-    RAISE NOTICE '(a) OK: % comparisons (% non-empty) identical to the frozen Plan-11 body when facet weights are 0; (e) gate filters for % of 6 candidates', cmp, nonempty, gated;
+    RAISE NOTICE '(a) OK: % comparisons (% non-empty) identical to the frozen live (20261010180000) body when facet weights are 0; (e) gate filters for % of 6 candidates', cmp, nonempty, gated;
 END $$;
 
 ROLLBACK;

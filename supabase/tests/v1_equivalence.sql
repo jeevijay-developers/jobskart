@@ -7,8 +7,8 @@
 --   fails it by design):
 --   docker exec -i supabase_db_swdntxurukbkyksuyzhg psql -U postgres -v ON_ERROR_STOP=1 -v check_determinism=off -q < supabase/tests/v1_equivalence.sql
 --
--- What it does: creates pg_temp.v1_legacy = an exact copy of the V1 body as of migration
--- 20261006093130_recommend_jobs_for_candidate_sort.sql (only the function name differs) and compares
+-- What it does: creates pg_temp.v1_legacy = an exact copy of the body that is LIVE on the remote, migration
+-- 20261010180000_fold_job_matches_search_into_live_function.sql (lines 64-423; only the function name differs) and compares
 -- the live public.recommend_jobs_for_candidate against it over a matrix of
 --   14 fixture candidates x 5 sorts x ~38 argument sets (filters), plus paged (limit 7) comparisons.
 -- Everything runs inside BEGIN ... ROLLBACK; the database is fingerprinted before and after and the
@@ -118,6 +118,9 @@ DECLARE
     _exp_salary numeric;
     _month_start timestamptz;
     _is_cold_start boolean;
+    -- Requirement 8: the department _q itself classifies to, if any (NULL
+    -- when _q is NULL/blank or doesn't map to a known department).
+    _q_category text;
 BEGIN
     IF _uid IS NULL THEN
         RAISE EXCEPTION 'not_authenticated';
@@ -127,6 +130,10 @@ BEGIN
     -- relevance ranking instead of silently matching no ORDER BY branch below.
     IF _sort NOT IN ('recommended', 'newest', 'oldest', 'salary_high', 'salary_low') THEN
         _sort := 'recommended';
+    END IF;
+
+    IF _q IS NOT NULL AND trim(_q) <> '' THEN
+        _q_category := public.role_category(trim(_q));
     END IF;
 
     SELECT * INTO _prefs FROM public.candidate_preferences cp WHERE cp.user_id = _uid;
@@ -210,11 +217,28 @@ BEGIN
         ) lb ON true
         WHERE j.status = 'active'
           AND (j.expires_at IS NULL OR j.expires_at > now())
-          AND NOT EXISTS (
-              SELECT 1 FROM public.applications a
-              WHERE a.job_id = j.id AND a.candidate_id = _uid
+          -- Recommendations keep jobs the candidate already applied to (client
+          -- requirement); Browse jobs (_relevant_only = false) still hides them.
+          AND (
+              _relevant_only IS TRUE
+              OR NOT EXISTS (
+                  SELECT 1 FROM public.applications a
+                  WHERE a.job_id = j.id AND a.candidate_id = _uid
+              )
           )
-          AND (_q IS NULL OR j.title ILIKE '%' || _q || '%')
+          -- Requirement 8: title match OR (the search word maps to a known
+          -- department AND the job's own category is that department).
+          -- Browse search: title match, OR job_matches_search()'s two extra
+          -- strategies (multi-word token coverage over title/category/
+          -- skills; a curated Sales/Marketing/Software related-terms regex
+          -- on the title — folded in from job_matches_search(),
+          -- 20261007120000, so Browse benefits without needing a separate,
+          -- currently-uncalled helper), OR department match (_q_category).
+          AND (
+              _q IS NULL
+              OR public.job_matches_search(_q, j.title, j.category, j.skills)
+              OR (_q_category IS NOT NULL AND j.category = _q_category)
+          )
           AND (_city IS NULL OR j.city ILIKE '%' || _city || '%')
           AND (_category IS NULL OR j.category = _category)
           AND (_job_type IS NULL OR j.job_type::text = _job_type)
@@ -230,12 +254,19 @@ BEGIN
           AND (_company IS NULL OR c.name ILIKE '%' || _company || '%')
           AND (_vehicle IS NOT TRUE OR j.required_assets @> ARRAY['Two-wheeler'])
           AND (_verified_only IS NOT TRUE OR c.is_verified = true)
-          AND (_prefs IS NULL OR _prefs.min_salary_monthly IS NULL OR j.max_salary IS NULL OR j.max_salary >= _prefs.min_salary_monthly)
-          AND (_prefs IS NULL OR _prefs.max_salary_monthly IS NULL OR j.min_salary IS NULL OR j.min_salary <= _prefs.max_salary_monthly)
-          AND (_prefs IS NULL OR _prefs.min_experience_years IS NULL OR j.max_experience_years IS NULL OR j.max_experience_years >= _prefs.min_experience_years)
-          AND (_prefs IS NULL OR _prefs.max_experience_years IS NULL OR j.min_experience_years IS NULL OR j.min_experience_years <= _prefs.max_experience_years)
-          AND (_prefs IS NULL OR COALESCE(cardinality(_prefs.job_types), 0) = 0 OR j.job_type::text = ANY(_prefs.job_types))
-          AND (_prefs IS NULL OR COALESCE(cardinality(_prefs.work_modes), 0) = 0 OR j.work_mode::text = ANY(_prefs.work_modes))
+          -- Saved onboarding preferences (salary/experience/job type/work
+          -- mode) only narrow Recommendations (_relevant_only = true), never
+          -- Browse. Browse has its own explicit, visible filter controls
+          -- (_job_type, _work_mode, _min_salary, etc. above); a candidate's
+          -- saved preference silently narrowing Browse search results (e.g.
+          -- a saved job_types=['full_time'] hiding internship/contract Sales
+          -- jobs from a "sales" search) is the reported bug this fixes.
+          AND (_relevant_only IS NOT TRUE OR _prefs IS NULL OR _prefs.min_salary_monthly IS NULL OR j.max_salary IS NULL OR j.max_salary >= _prefs.min_salary_monthly)
+          AND (_relevant_only IS NOT TRUE OR _prefs IS NULL OR _prefs.max_salary_monthly IS NULL OR j.min_salary IS NULL OR j.min_salary <= _prefs.max_salary_monthly)
+          AND (_relevant_only IS NOT TRUE OR _prefs IS NULL OR _prefs.min_experience_years IS NULL OR j.max_experience_years IS NULL OR j.max_experience_years >= _prefs.min_experience_years)
+          AND (_relevant_only IS NOT TRUE OR _prefs IS NULL OR _prefs.max_experience_years IS NULL OR j.min_experience_years IS NULL OR j.min_experience_years <= _prefs.max_experience_years)
+          AND (_relevant_only IS NOT TRUE OR _prefs IS NULL OR COALESCE(cardinality(_prefs.job_types), 0) = 0 OR j.job_type::text = ANY(_prefs.job_types))
+          AND (_relevant_only IS NOT TRUE OR _prefs IS NULL OR COALESCE(cardinality(_prefs.work_modes), 0) = 0 OR j.work_mode::text = ANY(_prefs.work_modes))
     ),
     category_popularity AS (
         SELECT j.category, count(*) AS app_count
@@ -274,6 +305,21 @@ BEGIN
                  WHEN EXISTS (SELECT 1 FROM unnest(COALESCE(_cand_skill_text, '{}'::text[])) sk
                               WHERE length(sk) >= 3 AND lower(ej.title) LIKE '%' || sk || '%') THEN 0.7
                  ELSE 0.0 END::numeric AS role_score,
+            -- Requirement 7: hard department gate (additional to the existing
+            -- relevance OR-gate below, not a replacement for it). True when
+            -- there is no department signal to judge by (unchanged cold-start
+            -- behaviour), the job has no category, the job's department is the
+            -- candidate's own or a neighbour, or the job title clearly matches
+            -- one of the candidate's role words (the same exception role_score
+            -- already grants a 1.0 for).
+            (
+                COALESCE(cardinality(_cand_categories), 0) = 0
+                OR ej.category IS NULL
+                OR ej.category = ANY(COALESCE(_cand_categories, '{}'::text[]))
+                OR ej.category = ANY(COALESCE(_cand_adjacent, '{}'::text[]))
+                OR EXISTS (SELECT 1 FROM unnest(_role_words) rw
+                           WHERE rw = ANY(regexp_split_to_array(lower(ej.title), '[^a-z0-9+#.]+')))
+            ) AS department_ok,
             CASE WHEN COALESCE(cardinality(_cand_cities), 0) > 0 THEN
                 CASE
                     WHEN LOWER(ej.city) = ANY(_cand_cities) THEN 1.0
@@ -372,12 +418,18 @@ BEGIN
     -- as does a real skill, title or semantic fit. Cold start is the only bypass.
     -- Applies regardless of sort — "Newest"/"Salary high" etc. still only show
     -- jobs relevant to the candidate, they just reorder within that set.
+    -- Requirement 7: department_ok is a separate, additional AND-condition —
+    -- a job outside the candidate's department(s)/neighbours can no longer
+    -- pass this gate purely via skill_score or semantic_score. It only
+    -- applies in recommended mode (_relevant_only IS TRUE); department_ok is
+    -- always true otherwise (and always true for cold-start candidates).
     WHERE (
         _relevant_only IS NOT TRUE OR _is_cold_start OR
         fs.skill_score >= s.relevant_skill_threshold OR
         fs.role_score >= s.relevant_role_threshold OR
         fs.semantic_score >= s.relevant_semantic_threshold
     )
+    AND (_relevant_only IS NOT TRUE OR fs.department_ok)
     ORDER BY
         -- Exactly one of these CASE expressions is non-null for every row (the
         -- one matching _sort); the rest evaluate to NULL for every row and so
@@ -635,6 +687,89 @@ BEGIN
     RAISE NOTICE 'result sizes (full-list comparisons): empty=%, 1-5=%, 6-20=%, >20=%', st.b_empty, st.b_small, st.b_mid, st.b_large;
     RAISE NOTICE 'paged-window comparisons: %; comparisons where id order differed inside tie groups (tolerated): %', st.paged, st.order_differs;
     RAISE NOTICE 'v1_equivalence: % comparisons OK (% non-empty, % result rows compared)', st.compared, st.nonempty, st.rows_total;
+END $$;
+
+-- ------------------------------------------------------------
+-- Behaviours of the teammate's later migrations (20261008100000, 20261010090000, 20261010150000,
+-- 20261010180000) asserted directly on the LIVE function, independent of the legacy comparison above:
+--   1. applied job: kept in recommended mode, hidden in browse mode
+--   2. department gate: a cross-department job that passes the relevance gate on skill overlap alone is
+--      excluded in recommended mode but still browsable; a clear title-word match is the one exception
+--   3. saved preferences narrow recommended mode only; browse ignores them
+--   4. search: department match and multi-word token coverage
+-- (Data changes below are inside the harness transaction and are rolled back.)
+-- ------------------------------------------------------------
+DO $$
+DECLARE
+    c001 uuid := '00000000-0000-4000-8000-00000000c001';
+    c007 uuid := '00000000-0000-4000-8000-00000000c007';
+    c013 uuid := '00000000-0000-4000-8000-00000000c013';
+    applied uuid; target uuid; rec_ids uuid[]; br_ids uuid[]; sk numeric; n_br int; n_rec int; expected uuid[]; got uuid[];
+BEGIN
+    -- 1. applied job -----------------------------------------------------------------------------
+    SELECT a.job_id INTO applied FROM public.applications a JOIN public.jobs j ON j.id = a.job_id
+    WHERE a.candidate_id = c001 AND j.category = 'Driver' AND j.status = 'active' AND (j.expires_at IS NULL OR j.expires_at > now());
+    IF applied IS NULL THEN RAISE EXCEPTION 'behaviour 1: fixture precondition (c001 applied to an active Driver job) not met'; END IF;
+    PERFORM pg_temp.act_as(c001);
+    SELECT array_agg(id) INTO rec_ids FROM public.recommend_jobs_for_candidate(_limit => 1000, _relevant_only => true);
+    SELECT array_agg(id) INTO br_ids FROM public.recommend_jobs_for_candidate(_limit => 1000);
+    IF NOT (applied = ANY(rec_ids)) THEN RAISE EXCEPTION 'behaviour 1: applied job % missing from recommended mode', applied; END IF;
+    IF applied = ANY(br_ids) THEN RAISE EXCEPTION 'behaviour 1: applied job % still visible in browse mode', applied; END IF;
+    -- also on the explicit-sort fast path (browse + a non-recommended sort)
+    IF EXISTS (SELECT 1 FROM public.recommend_jobs_for_candidate(_limit => 1000, _sort => 'newest') r WHERE r.id = applied) THEN
+        RAISE EXCEPTION 'behaviour 1: applied job % visible on the newest-sort fast path', applied; END IF;
+
+    -- 2. department gate -------------------------------------------------------------------------
+    -- c007 is a Sales candidate (Sales neighbours: Retail, Field Agent, Telecaller). Turn one active Cook job
+    -- into a job that matches c007's skills fully and satisfies all of c007's saved preferences, so the ONLY
+    -- thing that can keep it out of recommended mode is the department gate.
+    SELECT j.id INTO target FROM public.jobs j
+    WHERE j.category = 'Cook' AND j.status = 'active' AND (j.expires_at IS NULL OR j.expires_at > now())
+      AND NOT EXISTS (SELECT 1 FROM public.applications a WHERE a.job_id = j.id AND a.candidate_id = c007)
+    ORDER BY j.id LIMIT 1;
+    IF target IS NULL THEN RAISE EXCEPTION 'behaviour 2: fixture precondition (an active Cook job) not met'; END IF;
+    UPDATE public.jobs SET title = 'Kitchen Helper', skills = (SELECT cp.skills FROM public.candidate_profiles cp WHERE cp.user_id = c007),
+           job_type = 'full_time', work_mode = 'onsite', min_salary = 20000, max_salary = 30000,
+           min_experience_years = 0, max_experience_years = 2
+    WHERE id = target;
+    PERFORM pg_temp.act_as(c007);
+    SELECT (r.score_breakdown->>'skill')::numeric INTO sk FROM public.recommend_jobs_for_candidate(_limit => 1000) r WHERE r.id = target;
+    IF sk IS NULL THEN RAISE EXCEPTION 'behaviour 2: cross-department job not browsable'; END IF;
+    IF sk < (SELECT relevant_skill_threshold FROM public.recommendation_settings WHERE id = 1) THEN
+        RAISE EXCEPTION 'behaviour 2: vacuous - skill score % would not pass the relevance gate anyway', sk; END IF;
+    IF EXISTS (SELECT 1 FROM public.recommend_jobs_for_candidate(_limit => 1000, _relevant_only => true) r WHERE r.id = target) THEN
+        RAISE EXCEPTION 'behaviour 2: cross-department job % present in recommended mode', target; END IF;
+    -- title-word exception: 'sales' is one of c007's role words
+    UPDATE public.jobs SET title = 'Sales Kitchen Helper' WHERE id = target;
+    IF NOT EXISTS (SELECT 1 FROM public.recommend_jobs_for_candidate(_limit => 1000, _relevant_only => true) r WHERE r.id = target) THEN
+        RAISE EXCEPTION 'behaviour 2: title-match exception missing - job % absent from recommended mode', target; END IF;
+    -- the gate never applies to browse
+    IF NOT EXISTS (SELECT 1 FROM public.recommend_jobs_for_candidate(_limit => 1000, _sort => 'newest') r WHERE r.id = target) THEN
+        RAISE EXCEPTION 'behaviour 2: department gate leaked into browse mode'; END IF;
+
+    -- 3. saved preferences (c007: job_types = {full_time}) ---------------------------------------
+    PERFORM pg_temp.act_as(c007);
+    SELECT count(*) INTO n_br FROM public.recommend_jobs_for_candidate(_limit => 1000, _job_type => 'part_time');
+    SELECT count(*) INTO n_rec FROM public.recommend_jobs_for_candidate(_limit => 1000, _job_type => 'part_time', _relevant_only => true);
+    IF n_br = 0 THEN RAISE EXCEPTION 'behaviour 3: vacuous or broken - browse returns no part_time jobs for c007 (saved preferences narrowing browse?)'; END IF;
+    IF n_rec <> 0 THEN RAISE EXCEPTION 'behaviour 3: saved job_types preference not applied in recommended mode (% part_time rows)', n_rec; END IF;
+    -- the same preference must not shrink the browse total below the unfiltered active, unapplied job count
+    IF (SELECT total_count FROM public.recommend_jobs_for_candidate(_limit => 1) LIMIT 1)
+       <> (SELECT count(*) FROM public.jobs j WHERE j.status = 'active' AND (j.expires_at IS NULL OR j.expires_at > now())
+           AND NOT EXISTS (SELECT 1 FROM public.applications a WHERE a.job_id = j.id AND a.candidate_id = c007)) THEN
+        RAISE EXCEPTION 'behaviour 3: browse total_count is narrowed by saved preferences'; END IF;
+
+    -- 4. search ------------------------------------------------------------------------------------
+    PERFORM pg_temp.act_as(c013);   -- no applications, no profile signal
+    SELECT array_agg(j.id ORDER BY j.id) INTO expected FROM public.jobs j
+    WHERE j.category = 'Sales' AND j.status = 'active' AND (j.expires_at IS NULL OR j.expires_at > now());
+    SELECT array_agg(r.id ORDER BY r.id) INTO got FROM public.recommend_jobs_for_candidate(_limit => 1000, _q => 'sales') r
+    WHERE r.id = ANY(expected);
+    IF expected IS NULL OR got IS DISTINCT FROM expected THEN
+        RAISE EXCEPTION 'behaviour 4: search "sales" misses Sales-department jobs (expected %, got %)', expected, got; END IF;
+    IF NOT EXISTS (SELECT 1 FROM public.recommend_jobs_for_candidate(_limit => 1000, _q => 'executive business') r WHERE r.title = 'Business Development Executive') THEN
+        RAISE EXCEPTION 'behaviour 4: multi-word token-coverage search "executive business" did not match "Business Development Executive"'; END IF;
+    RAISE NOTICE 'behaviours (applied jobs, department gate + title exception, prefs only in recommended mode, search): OK';
 END $$;
 
 -- ------------------------------------------------------------
