@@ -26,7 +26,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { getActiveCompanyId, fetchMyCompanies } from "@/lib/employer";
 import { getJoinWindowState } from "@/lib/interview-window";
-import { getHostStartUrl, cancelInterview, flushDueInterviewReminders } from "@/lib/interview.functions";
+import { getHostStartUrl, cancelInterview } from "@/lib/interview.functions";
 
 export const Route = createFileRoute("/_authenticated/employer/interviews")({
   head: () => ({ meta: [{ title: "Interviews · JobsKart" }] }),
@@ -155,7 +155,6 @@ function groupByJob(interviews: InterviewRow[]): JobGroup[] {
 function Page() {
   const runGetHostStartUrl = useServerFn(getHostStartUrl);
   const runCancel = useServerFn(cancelInterview);
-  const runFlushReminders = useServerFn(flushDueInterviewReminders);
 
   const [rescheduling, setRescheduling] = useState<InterviewRow | null>(null);
   const [cancelling, setCancelling] = useState<InterviewRow | null>(null);
@@ -165,12 +164,6 @@ function Page() {
   const { data: cid } = useQuery({
     queryKey: ["employer-interviews-cid"],
     queryFn: resolveCompanyId,
-  });
-  useQuery({
-    queryKey: ["interview-reminder-flush", cid],
-    queryFn: () => runFlushReminders({}),
-    enabled: !!cid,
-    staleTime: 60_000,
   });
   const {
     data: interviews = [],
