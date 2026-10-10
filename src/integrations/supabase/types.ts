@@ -4640,7 +4640,7 @@ export type Database = {
         Args: { _id: string; _notes: string; _status: string }
         Returns: undefined
       }
-      apply_boost: { Args: { _job_id: string }; Returns: Json }
+      apply_boost: { Args: { _days?: number; _job_id: string }; Returns: Json }
       apply_credit_delta: {
         Args: {
           _actor?: string

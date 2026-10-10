@@ -5,9 +5,7 @@ import { chatJSON } from "@/lib/ai/provider";
 
 export const searchJobTitles = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((data: { q: string }) =>
-    z.object({ q: z.string().trim().min(3).max(60) }).parse(data),
-  )
+  .validator((data: { q: string }) => z.object({ q: z.string().trim().min(3).max(60) }).parse(data))
   .handler(async ({ data, context }) => {
     const { data: rows, error } = await context.supabase
       .from("job_titles_master")
@@ -86,7 +84,7 @@ export const suggestSkills = createServerFn({ method: "POST" })
         const ai = await chatJSON(
           {
             system:
-              "You suggest job skills for Indian job seekers. Reply with ONLY JSON: {\"skills\": string[]}. 10 short, concrete, widely-understood skill names. No sentences.",
+              'You suggest job skills for Indian job seekers. Reply with ONLY JSON: {"skills": string[]}. 10 short, concrete, widely-understood skill names. No sentences.',
             user: `Roles: ${roles.join(", ")}${data.qualification ? `\nQualification: ${data.qualification}` : ""}`,
             json: true,
           },
@@ -100,7 +98,10 @@ export const suggestSkills = createServerFn({ method: "POST" })
           await supabaseAdmin.from("skills_master").upsert(
             fresh.map((name) => ({
               name,
-              slug: name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
+              slug: name
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, "-")
+                .replace(/^-|-$/g, ""),
               is_active: true,
               pending_review: true,
             })),
@@ -116,10 +117,48 @@ export const suggestSkills = createServerFn({ method: "POST" })
     return out.slice(0, 15);
   });
 
+// Public — not gated by requireSupabaseAuth. The emailed one-time token is
+// itself the proof of ownership (same trust model as a password-reset link);
+// claim_account_deletion() atomically validates/consumes it in Postgres.
+export const confirmAccountDeletion = createServerFn({ method: "POST" })
+  .validator((data: { token: string }) => z.object({ token: z.string().trim().min(1) }).parse(data))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: userId, error: claimError } = await supabaseAdmin.rpc(
+      "claim_account_deletion" as never,
+      { _token: data.token } as never,
+    );
+    if (claimError) throw new Error(claimError.message);
+
+    // Storage isn't covered by the DB's ON DELETE CASCADE from auth.users —
+    // best-effort cleanup so a storage hiccup never blocks the actual
+    // deletion (CLAUDE.md: no third-party failure blocks a core flow).
+    for (const bucket of ["avatars", "candidate-docs"] as const) {
+      try {
+        const { data: files } = await supabaseAdmin.storage.from(bucket).list(userId as string);
+        if (files?.length) {
+          await supabaseAdmin.storage
+            .from(bucket)
+            .remove(files.map((f) => `${userId as string}/${f.name}`));
+        }
+      } catch (e) {
+        console.error(`[account-deletion] storage cleanup failed for ${bucket}:`, e);
+      }
+    }
+
+    const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId as string);
+    if (deleteError) throw new Error(deleteError.message);
+
+    return { ok: true };
+  });
+
 export const upsertNudgeShown = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((data: { kind: string }) =>
-    z.object({ kind: z.enum(["profile_completion", "verification_awareness", "digilocker"]) }).parse(data),
+    z
+      .object({ kind: z.enum(["profile_completion", "verification_awareness", "digilocker"]) })
+      .parse(data),
   )
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase

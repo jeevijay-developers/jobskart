@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { getCandidateResume, type CandidateResume } from "@/lib/candidateResume";
+import { getApplicationResume, getCandidateResume, type CandidateResume } from "@/lib/candidateResume";
 import { ApplicationFormFields } from "@/components/candidate/ApplicationFormFields";
 import { DocumentPreviewModal, type DocPreview } from "@/components/candidate/DocumentPreviewModal";
 
@@ -35,11 +35,13 @@ export function ViewApplicationDialog({ open, onClose, userId, application, jobT
     if (!open) return;
     setLoading(true);
     (async () => {
-      const r = await getCandidateResume(userId);
+      // The copy submitted with this application wins; older applications fall back to the profile resume.
+      const r =
+        (await getApplicationResume(userId, application.id)) ?? (await getCandidateResume(userId));
       setResume(r);
       setLoading(false);
     })();
-  }, [open, userId]);
+  }, [open, userId, application.id]);
 
   if (!open) return null;
 

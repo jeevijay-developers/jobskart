@@ -1,100 +1,17 @@
--- Job search by intent (Browse jobs).
+-- ============================================================
+-- Recommendations: keep already-applied jobs.
 --
--- recommend_jobs_for_candidate() matched the search box with  j.title ILIKE '%query%'  only, so a
--- search for "Sales" missed "Business Development Executive" / "Relationship Manager", and
--- "Software Developer" missed "Backend Engineer" etc.
---
--- job_matches_search() keeps the old behaviour (title contains the query) and adds, in order:
---   1. every word of the query appears in the title / category / a skill;
---   2. the query's department (role_category(), the same mapping the recommendations use) equals the
---      job's category, or - except for IT, where "engineer" is too broad - the title's department;
---   3. a short related-terms list for the Sales / Marketing / Software families, matched on the TITLE
---      only (never the description, so a keyword buried in a job's text doesn't count).
--- Filters, sorting, pagination, applied-job exclusion and scoring are untouched.
---
--- This file redefines the whole function (same signature), so it also re-applies the earlier fix
--- that saved candidate preferences narrow only the "Recommended" feed (_relevant_only), not Browse.
---
--- Recovered verbatim from the live database on 2026-10-08: this migration had been applied directly
--- to the linked Supabase project (likely via a Lovable chat session) without ever landing in this
--- repo's supabase/migrations/ directory, which violates this project's "schema changes only as
--- migration files" rule. `supabase migration list` showed it as remote-only; its SQL was recovered
--- from supabase_migrations.schema_migrations.statements and is reproduced here unmodified so local
--- history matches reality. It is being tracked here, NOT re-applied (see repair note below).
---
--- IMPORTANT: this CREATE OR REPLACE FUNCTION recommend_jobs_for_candidate(...) below targets the
--- OLD 19-argument signature (no _sort parameter) and is now a confirmed-stale duplicate overload —
--- the live database also still has the correct current 20-argument version (with _sort) from
--- 20261006093130_recommend_jobs_for_candidate_sort.sql. Both exist simultaneously right now, which
--- makes any named-argument call missing `_sort` fail with "function ... is not unique". Do not drop
--- or edit this file to "fix" that — file it as its own follow-up migration that explicitly DROPs the
--- 19-arg overload, so the history stays honest about what happened and when.
+-- recommend_jobs_for_candidate() excluded every job the candidate had applied
+-- to, for both the "recommended" and the Browse (top) modes. Client
+-- requirement: applied jobs must stay in recommendations. The exclusion now
+-- applies only when _relevant_only is false (Browse jobs); in recommended mode
+-- (_relevant_only = true) applied jobs remain eligible and are ranked by the
+-- same scoring as any other job. The UI already marks applied jobs
+-- (JobCard useAppliedJobIds). Everything else is copied verbatim from
+-- 20261006093130_recommend_jobs_for_candidate_sort.sql (same signature, so
+-- CREATE OR REPLACE swaps the body in place — no overload is created).
+-- ============================================================
 
-CREATE OR REPLACE FUNCTION public.job_matches_search(
-    _q text, _title text, _category text, _skills text[]
-) RETURNS boolean
-LANGUAGE plpgsql
-IMMUTABLE
-SET search_path = public
-AS $$
-DECLARE
-    q text := lower(btrim(COALESCE(_q, '')));
-    t text := lower(COALESCE(_title, ''));
-    cat text := lower(COALESCE(_category, ''));
-    dept text;
-    tok text;
-    tokens text[];
-    pattern text;
-    ok boolean;
-BEGIN
-    IF q = '' THEN RETURN true; END IF;
-
-    -- 0) previous behaviour: the title contains what was typed
-    IF t LIKE '%' || q || '%' THEN RETURN true; END IF;
-
-    -- 1) every meaningful word of the query is found in the title, category or a skill
-    SELECT array_agg(w) INTO tokens
-    FROM unnest(regexp_split_to_array(q, '[^a-z0-9+#.]+')) w
-    WHERE length(w) >= 2 AND w <> ALL (ARRAY['and', 'the', 'for', 'job', 'jobs', 'in', 'of']);
-    IF tokens IS NOT NULL THEN
-        ok := true;
-        FOREACH tok IN ARRAY tokens LOOP
-            IF NOT (
-                t LIKE '%' || tok || '%'
-                OR cat LIKE '%' || tok || '%'
-                OR EXISTS (SELECT 1 FROM unnest(COALESCE(_skills, '{}'::text[])) s WHERE lower(s) LIKE '%' || tok || '%')
-            ) THEN
-                ok := false;
-                EXIT;
-            END IF;
-        END LOOP;
-        IF ok THEN RETURN true; END IF;
-    END IF;
-
-    -- 2) same department as the query
-    dept := public.role_category(q);
-    IF dept IS NOT NULL AND (
-        _category = dept OR (dept <> 'IT' AND public.role_category(_title) = dept)
-    ) THEN
-        RETURN true;
-    END IF;
-
-    -- 3) related titles for broad role families (title only)
-    pattern := CASE
-        WHEN q ~ '(sales|business development|\mbde\M|\mbdm\M|relationship manager|account executive)'
-            THEN '(sales|business development|\mbde\M|\mbdm\M|relationship manager|account executive|lead generation|telesales|inside sales)'
-        WHEN q ~ '(marketing|\mseo\M|social media|brand)'
-            THEN '(marketing|\mseo\M|social media|brand|campaign)'
-        WHEN q ~ '(software|developer|programmer|full.?stack|front.?end|back.?end|web develop)'
-            THEN '(software|developer|programmer|full.?stack|front.?end|back.?end|web develop|devops|\msde\M|\mqa\M)'
-        ELSE NULL
-    END;
-    IF pattern IS NOT NULL AND t ~ pattern THEN RETURN true; END IF;
-
-    RETURN false;
-END;
-$$;
-GRANT EXECUTE ON FUNCTION public.job_matches_search(text, text, text, text[]) TO authenticated, service_role;
 CREATE OR REPLACE FUNCTION public.recommend_jobs_for_candidate(
     _limit int DEFAULT 20, _offset int DEFAULT 0, _q text DEFAULT NULL,
     _city text DEFAULT NULL, _category text DEFAULT NULL, _job_type text DEFAULT NULL,
@@ -102,7 +19,8 @@ CREATE OR REPLACE FUNCTION public.recommend_jobs_for_candidate(
     _min_exp int DEFAULT NULL, _max_exp int DEFAULT NULL, _posted_after timestamptz DEFAULT NULL,
     _education text DEFAULT NULL, _shift text DEFAULT NULL, _english_level text DEFAULT NULL,
     _company text DEFAULT NULL, _vehicle boolean DEFAULT false, _verified_only boolean DEFAULT false,
-    _relevant_only boolean DEFAULT false
+    _relevant_only boolean DEFAULT false,
+    _sort text DEFAULT 'recommended'
 ) RETURNS TABLE (
     id uuid, company_id uuid, title text, city text, state text, locality text,
     min_salary integer, max_salary integer, salary_period text,
@@ -131,6 +49,12 @@ DECLARE
 BEGIN
     IF _uid IS NULL THEN
         RAISE EXCEPTION 'not_authenticated';
+    END IF;
+
+    -- Defense-in-depth: an unrecognised sort value falls back to the default
+    -- relevance ranking instead of silently matching no ORDER BY branch below.
+    IF _sort NOT IN ('recommended', 'newest', 'oldest', 'salary_high', 'salary_low') THEN
+        _sort := 'recommended';
     END IF;
 
     SELECT * INTO _prefs FROM public.candidate_preferences cp WHERE cp.user_id = _uid;
@@ -214,11 +138,16 @@ BEGIN
         ) lb ON true
         WHERE j.status = 'active'
           AND (j.expires_at IS NULL OR j.expires_at > now())
-          AND NOT EXISTS (
-              SELECT 1 FROM public.applications a
-              WHERE a.job_id = j.id AND a.candidate_id = _uid
+          -- Recommendations keep jobs the candidate already applied to (client
+          -- requirement); Browse jobs (_relevant_only = false) still hides them.
+          AND (
+              _relevant_only IS TRUE
+              OR NOT EXISTS (
+                  SELECT 1 FROM public.applications a
+                  WHERE a.job_id = j.id AND a.candidate_id = _uid
+              )
           )
-          AND (_q IS NULL OR public.job_matches_search(_q, j.title, j.category, j.skills))
+          AND (_q IS NULL OR j.title ILIKE '%' || _q || '%')
           AND (_city IS NULL OR j.city ILIKE '%' || _city || '%')
           AND (_category IS NULL OR j.category = _category)
           AND (_job_type IS NULL OR j.job_type::text = _job_type)
@@ -234,12 +163,12 @@ BEGIN
           AND (_company IS NULL OR c.name ILIKE '%' || _company || '%')
           AND (_vehicle IS NOT TRUE OR j.required_assets @> ARRAY['Two-wheeler'])
           AND (_verified_only IS NOT TRUE OR c.is_verified = true)
-          AND (_relevant_only IS NOT TRUE OR _prefs IS NULL OR _prefs.min_salary_monthly IS NULL OR j.max_salary IS NULL OR j.max_salary >= _prefs.min_salary_monthly)
-          AND (_relevant_only IS NOT TRUE OR _prefs IS NULL OR _prefs.max_salary_monthly IS NULL OR j.min_salary IS NULL OR j.min_salary <= _prefs.max_salary_monthly)
-          AND (_relevant_only IS NOT TRUE OR _prefs IS NULL OR _prefs.min_experience_years IS NULL OR j.max_experience_years IS NULL OR j.max_experience_years >= _prefs.min_experience_years)
-          AND (_relevant_only IS NOT TRUE OR _prefs IS NULL OR _prefs.max_experience_years IS NULL OR j.min_experience_years IS NULL OR j.min_experience_years <= _prefs.max_experience_years)
-          AND (_relevant_only IS NOT TRUE OR _prefs IS NULL OR COALESCE(cardinality(_prefs.job_types), 0) = 0 OR j.job_type::text = ANY(_prefs.job_types))
-          AND (_relevant_only IS NOT TRUE OR _prefs IS NULL OR COALESCE(cardinality(_prefs.work_modes), 0) = 0 OR j.work_mode::text = ANY(_prefs.work_modes))
+          AND (_prefs IS NULL OR _prefs.min_salary_monthly IS NULL OR j.max_salary IS NULL OR j.max_salary >= _prefs.min_salary_monthly)
+          AND (_prefs IS NULL OR _prefs.max_salary_monthly IS NULL OR j.min_salary IS NULL OR j.min_salary <= _prefs.max_salary_monthly)
+          AND (_prefs IS NULL OR _prefs.min_experience_years IS NULL OR j.max_experience_years IS NULL OR j.max_experience_years >= _prefs.min_experience_years)
+          AND (_prefs IS NULL OR _prefs.max_experience_years IS NULL OR j.min_experience_years IS NULL OR j.min_experience_years <= _prefs.max_experience_years)
+          AND (_prefs IS NULL OR COALESCE(cardinality(_prefs.job_types), 0) = 0 OR j.job_type::text = ANY(_prefs.job_types))
+          AND (_prefs IS NULL OR COALESCE(cardinality(_prefs.work_modes), 0) = 0 OR j.work_mode::text = ANY(_prefs.work_modes))
     ),
     category_popularity AS (
         SELECT j.category, count(*) AS app_count
@@ -374,6 +303,8 @@ BEGIN
     CROSS JOIN s
     -- Relevance gate: a department match (role 1.0 or neighbouring 0.75) counts,
     -- as does a real skill, title or semantic fit. Cold start is the only bypass.
+    -- Applies regardless of sort — "Newest"/"Salary high" etc. still only show
+    -- jobs relevant to the candidate, they just reorder within that set.
     WHERE (
         _relevant_only IS NOT TRUE OR _is_cold_start OR
         fs.skill_score >= s.relevant_skill_threshold OR
@@ -381,15 +312,23 @@ BEGIN
         fs.semantic_score >= s.relevant_semantic_threshold
     )
     ORDER BY
-        (fs.company_rank > s.max_same_company_in_top) ASC,
-        fs.final_score DESC,
+        -- Exactly one of these CASE expressions is non-null for every row (the
+        -- one matching _sort); the rest evaluate to NULL for every row and so
+        -- contribute no ordering, falling through to the next column.
+        CASE WHEN _sort = 'recommended' THEN (fs.company_rank > s.max_same_company_in_top) END ASC,
+        CASE WHEN _sort = 'recommended' THEN fs.final_score END DESC,
+        CASE WHEN _sort = 'newest' THEN fs.created_at END DESC,
+        CASE WHEN _sort = 'oldest' THEN fs.created_at END ASC,
+        CASE WHEN _sort = 'salary_high' THEN fs.max_salary END DESC NULLS LAST,
+        CASE WHEN _sort = 'salary_low' THEN fs.min_salary END ASC NULLS LAST,
         fs.created_at DESC
     LIMIT _limit OFFSET _offset;
 END;
 $$;
+
 REVOKE ALL ON FUNCTION public.recommend_jobs_for_candidate(
-    int, int, text, text, text, text, text, int, int, int, int, timestamptz, text, text, text, text, boolean, boolean, boolean
+    int, int, text, text, text, text, text, int, int, int, int, timestamptz, text, text, text, text, boolean, boolean, boolean, text
 ) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.recommend_jobs_for_candidate(
-    int, int, text, text, text, text, text, int, int, int, int, timestamptz, text, text, text, text, boolean, boolean, boolean
+    int, int, text, text, text, text, text, int, int, int, int, timestamptz, text, text, text, text, boolean, boolean, boolean, text
 ) TO authenticated;

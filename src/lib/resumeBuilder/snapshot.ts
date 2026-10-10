@@ -1,5 +1,6 @@
 // src/lib/resumeBuilder/snapshot.ts
 import { ResumeSchema, ResumeExtras, ResumeSection, ResumeSectionContent, ExperienceItem, EducationItem, CertificationItem, LinkItem } from './schema';
+import { applyRoleTemplate } from './templates/roleTemplates';
 import type { CandidateProfile, CandidateExperience, CandidateEducation, CandidateCertification, CandidateLanguage, CandidateLink } from './types';
 
 /**
@@ -228,6 +229,9 @@ export function applyResumeExtras(base: ResumeSchema, extras: ResumeExtras): Res
     });
   }
 
+  // Role templates (Professional / Practical / Technical) arrange + label sections; other templates
+  // are untouched. A candidate's own saved section order still wins below.
+  sections = applyRoleTemplate(sections, base.templateId);
   sections = applySectionOrder(sections, extras.sectionOrder);
 
   const targetJobRole = extras.targetJobRole?.trim() || base.targetJobRole;

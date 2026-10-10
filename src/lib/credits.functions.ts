@@ -324,6 +324,68 @@ export const unlockCandidateContact = createServerFn({ method: "POST" })
     };
   });
 
+// ---------------- inviteCandidateToApply ----------------
+// Orchestrates the paid "Invite to Apply" flow: charge (via the
+// invite_candidate_to_apply RPC, which is idempotent per job+candidate —
+// free on resend), then dispatch email+WhatsApp via the
+// send-candidate-invite-to-apply edge function, then refund if a freshly
+// charged invite couldn't be delivered through either channel.
+export const inviteCandidateToApply = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z
+      .object({
+        jobId: z.string().uuid(),
+        candidateUserId: z.string().uuid(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: rpcData, error: inviteErr } = await context.supabase.rpc(
+      "invite_candidate_to_apply" as never,
+      { _job_id: data.jobId, _candidate_user_id: data.candidateUserId } as never,
+    );
+    if (inviteErr) throw new Error(inviteErr.message);
+    const result = rpcData as unknown as {
+      invite_id: string;
+      is_new: boolean;
+      credits_spent: number;
+    };
+
+    const { data: dispatchData, error: dispatchErr } = await context.supabase.functions.invoke(
+      "send-candidate-invite-to-apply",
+      {
+        body: {
+          jobId: data.jobId,
+          candidateUserId: data.candidateUserId,
+          inviteId: result.invite_id,
+        },
+      },
+    );
+    const emailSent = !!dispatchData?.emailSent;
+    const whatsappSent = !!dispatchData?.whatsappSent;
+
+    let refunded = false;
+    if (result.is_new && !dispatchErr && !emailSent && !whatsappSent) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { error: refundErr } = await supabaseAdmin.rpc(
+        "refund_candidate_invite" as never,
+        {
+          _invite_id: result.invite_id,
+        } as never,
+      );
+      refunded = !refundErr;
+    }
+
+    return {
+      isNew: result.is_new,
+      creditsSpent: refunded ? 0 : result.credits_spent,
+      emailSent,
+      whatsappSent,
+      refunded,
+    };
+  });
+
 // ---------------- logEmployerWhatsappOutreach ----------------
 // D10: called when an employer clicks the WhatsApp button on an unlocked
 // candidate. Returns the candidate's number so the client can open wa.me —

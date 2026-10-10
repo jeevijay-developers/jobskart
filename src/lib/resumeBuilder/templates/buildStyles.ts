@@ -4,6 +4,7 @@
 // render and the live preview reacts to layout edits instantly.
 import type { ResumeLayoutSettings } from "../schema";
 import type { TemplateStyles } from "./styleTypes";
+import { WATERMARK_RESERVE } from "./watermark";
 import { FONT_SETS, TEXT_COLORS, isDarkColor, normalizeLayout, resolveMargins, type BaseTheme } from "./theme";
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -44,7 +45,7 @@ export function buildResumeStyles(theme: BaseTheme, layoutInput?: ResumeLayoutSe
     fonts,
     page: {
       paddingTop: margins.top,
-      paddingBottom: margins.bottom,
+      paddingBottom: Math.max(margins.bottom, WATERMARK_RESERVE), // keeps content clear of the watermark
       paddingLeft: margins.left,
       paddingRight: margins.right,
       fontFamily: fonts.regular,

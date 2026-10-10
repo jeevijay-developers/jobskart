@@ -11,12 +11,10 @@ ALTER TABLE public.candidate_profiles
     ADD COLUMN IF NOT EXISTS profile_embedding_hash text,
     ADD COLUMN IF NOT EXISTS profile_embedding_model text,
     ADD COLUMN IF NOT EXISTS profile_embedded_at timestamptz;
-
 ALTER TABLE public.jobs
     ADD COLUMN IF NOT EXISTS description_embedding_hash text,
     ADD COLUMN IF NOT EXISTS description_embedding_model text,
     ADD COLUMN IF NOT EXISTS description_embedded_at timestamptz;
-
 -- ── 2. Auto-invalidation: content change => hash cleared ────
 -- The embed writers only touch embedding columns, so they never fire these.
 CREATE OR REPLACE FUNCTION public.tg_invalidate_profile_embedding()
@@ -31,12 +29,10 @@ BEGIN
     RETURN NEW;
 END;
 $$;
-
 DROP TRIGGER IF EXISTS invalidate_profile_embedding ON public.candidate_profiles;
 CREATE TRIGGER invalidate_profile_embedding
     BEFORE UPDATE ON public.candidate_profiles
     FOR EACH ROW EXECUTE FUNCTION public.tg_invalidate_profile_embedding();
-
 CREATE OR REPLACE FUNCTION public.tg_invalidate_profile_embedding_from_profiles()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
 AS $$
@@ -49,12 +45,10 @@ BEGIN
     RETURN NEW;
 END;
 $$;
-
 DROP TRIGGER IF EXISTS invalidate_profile_embedding_from_profiles ON public.profiles;
 CREATE TRIGGER invalidate_profile_embedding_from_profiles
     AFTER UPDATE OF full_name, city ON public.profiles
     FOR EACH ROW EXECUTE FUNCTION public.tg_invalidate_profile_embedding_from_profiles();
-
 CREATE OR REPLACE FUNCTION public.tg_invalidate_job_embedding()
 RETURNS trigger LANGUAGE plpgsql SET search_path = public
 AS $$
@@ -67,12 +61,10 @@ BEGIN
     RETURN NEW;
 END;
 $$;
-
 DROP TRIGGER IF EXISTS invalidate_job_embedding ON public.jobs;
 CREATE TRIGGER invalidate_job_embedding
     BEFORE UPDATE ON public.jobs
     FOR EACH ROW EXECUTE FUNCTION public.tg_invalidate_job_embedding();
-
 -- ── 3. Hash/model-aware writers (old signatures replaced) ───
 DROP FUNCTION IF EXISTS public.update_candidate_profile_embedding(vector);
 CREATE OR REPLACE FUNCTION public.update_candidate_profile_embedding(
@@ -93,10 +85,8 @@ BEGIN
     WHERE user_id = auth.uid();
 END;
 $$;
-
 REVOKE ALL ON FUNCTION public.update_candidate_profile_embedding(vector, text, text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.update_candidate_profile_embedding(vector, text, text) TO authenticated;
-
 DROP FUNCTION IF EXISTS public.update_job_description_embedding(uuid, vector);
 CREATE OR REPLACE FUNCTION public.update_job_description_embedding(
     _job_id uuid, _embedding vector(1536), _input_hash text DEFAULT NULL, _model text DEFAULT NULL
@@ -123,10 +113,8 @@ BEGIN
     WHERE id = _job_id;
 END;
 $$;
-
 REVOKE ALL ON FUNCTION public.update_job_description_embedding(uuid, vector, text, text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.update_job_description_embedding(uuid, vector, text, text) TO authenticated;
-
 -- ── 4. "Is the stored embedding already current?" ───────────
 CREATE OR REPLACE FUNCTION public.candidate_embedding_is_current(_hash text)
 RETURNS boolean
@@ -140,10 +128,8 @@ AS $$
           AND cp.profile_embedding_hash = _hash
     )
 $$;
-
 REVOKE ALL ON FUNCTION public.candidate_embedding_is_current(text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.candidate_embedding_is_current(text) TO authenticated;
-
 CREATE OR REPLACE FUNCTION public.job_embedding_is_current(_job_id uuid, _hash text)
 RETURNS boolean
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
@@ -157,10 +143,8 @@ AS $$
           AND j.description_embedding_hash = _hash
     )
 $$;
-
 REVOKE ALL ON FUNCTION public.job_embedding_is_current(uuid, text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.job_embedding_is_current(uuid, text) TO authenticated;
-
 -- ── 5. Coverage report (platform admins only) ───────────────
 -- "stale" = embedded but hash cleared (content changed / legacy row) or, when
 -- _current_model is given, embedded with a different model.
@@ -204,6 +188,5 @@ BEGIN
     WHERE cp.onboarding_completed = true;
 END;
 $$;
-
 REVOKE ALL ON FUNCTION public.recommendation_embedding_coverage(text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.recommendation_embedding_coverage(text) TO authenticated;

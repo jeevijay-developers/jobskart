@@ -23,14 +23,12 @@ ALTER TABLE public.job_impressions
     ADD COLUMN IF NOT EXISTS reason_codes text[],
     ADD COLUMN IF NOT EXISTS features jsonb,
     ADD COLUMN IF NOT EXISTS feature_version int NOT NULL DEFAULT 1;
-
 CREATE INDEX IF NOT EXISTS idx_job_impressions_shown_at
     ON public.job_impressions (shown_at);
 CREATE INDEX IF NOT EXISTS idx_job_impressions_request
     ON public.job_impressions (request_id) WHERE request_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_job_impressions_candidate_job
     ON public.job_impressions (candidate_user_id, job_id, shown_at DESC);
-
 -- ── 2. Row type shared by V1 passthrough and (Plan 2) V2 ────
 DO $$
 BEGIN
@@ -50,7 +48,6 @@ BEGIN
         );
     END IF;
 END $$;
-
 -- Guard: the first 25 attributes of job_feed_row must be V1's RETURNS TABLE
 -- columns, 1:1 in name, type and order, and the type must have exactly 30
 -- attributes. recommendation_fetch_v1 below maps them positionally, so any
@@ -96,7 +93,6 @@ BEGIN
         RAISE EXCEPTION 'expected V1 to return 25 columns, found %', _k;
     END IF;
 END $$;
-
 -- ── 3. Internal: call V1 and project into job_feed_row ──────
 CREATE OR REPLACE FUNCTION public.recommendation_fetch_v1(
     _variant text, _request_id uuid, _reason_codes text[],
@@ -123,12 +119,10 @@ AS $$
         _vehicle, _verified_only, _relevant_only, _sort
     ) AS f
 $$;
-
 REVOKE ALL ON FUNCTION public.recommendation_fetch_v1(
     text, uuid, text[], int, int, text, text, text, text, text, int, int, int, int,
     timestamptz, text, text, text, text, boolean, boolean, boolean, text
 ) FROM PUBLIC, anon, authenticated;
-
 -- ── 4. Routed feed RPC (V1 passthrough + server-side logging) ─
 CREATE OR REPLACE FUNCTION public.recommend_jobs_routed(
     _limit int DEFAULT 20, _offset int DEFAULT 0, _q text DEFAULT NULL,
@@ -205,7 +199,6 @@ BEGIN
     RETURN QUERY SELECT * FROM unnest(_rows);
 END;
 $$;
-
 REVOKE ALL ON FUNCTION public.recommend_jobs_routed(
     int, int, text, text, text, text, text, int, int, int, int, timestamptz,
     text, text, text, text, boolean, boolean, boolean, text, text
@@ -214,7 +207,6 @@ GRANT EXECUTE ON FUNCTION public.recommend_jobs_routed(
     int, int, text, text, text, text, text, int, int, int, int, timestamptz,
     text, text, text, text, boolean, boolean, boolean, text, text
 ) TO authenticated;
-
 -- ── 5. Durable 'viewed' event (server-side, deduped per IST day) ─
 CREATE OR REPLACE FUNCTION public.log_job_view(_job_id uuid)
 RETURNS void
@@ -239,10 +231,8 @@ BEGIN
     );
 END;
 $$;
-
 REVOKE ALL ON FUNCTION public.log_job_view(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.log_job_view(uuid) TO authenticated;
-
 -- ── 6. Retention: impressions older than 120 days are pruned nightly ─
 -- cron.schedule() upserts by job name, so re-running does not duplicate.
 DO $$

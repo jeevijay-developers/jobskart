@@ -16,7 +16,6 @@
 -- Re-runnable: DROP POLICY IF EXISTS; REVOKE is idempotent.
 
 DROP POLICY IF EXISTS "Candidates insert own impressions" ON public.job_impressions;
-
 -- Supabase's default privileges also hand anon/authenticated UPDATE, DELETE,
 -- TRUNCATE (TRUNCATE bypasses RLS entirely), REFERENCES and TRIGGER on new tables.
 -- Strip everything except authenticated SELECT so the table is truly read-only
