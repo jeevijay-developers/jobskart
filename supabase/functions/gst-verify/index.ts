@@ -57,6 +57,38 @@ Deno.serve(async (req) => {
 
   if (!isValidGstin(gstin)) return json({ verified: false, error: "GSTIN format is invalid." }, 400);
 
+  // De-dupe: don't call the external registry again for a GSTIN this company
+  // already checked. An already-verified row means the company is verified
+  // (make sure companies.is_verified reflects that, in case it was somehow
+  // missed) — and a very recent pending row means the last check is still
+  // "in flight" from the employer's perspective, so avoid a duplicate queue
+  // entry and a duplicate API call for a double-click/resubmit.
+  const { data: existing } = await admin
+    .from("company_verifications")
+    .select("status, created_at, notes")
+    .eq("company_id", companyId)
+    .eq("method", "gst")
+    .eq("reference", gstin)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existing?.status === "verified") {
+    await admin
+      .from("companies")
+      .update({ verification_status: "verified", is_verified: true, gst_number: gstin })
+      .eq("id", companyId);
+    return json({ verified: true, alreadyVerified: true });
+  }
+
+  const PENDING_DEDUPE_WINDOW_MS = 10 * 60 * 1000;
+  if (
+    existing?.status === "pending" &&
+    Date.now() - new Date(existing.created_at).getTime() < PENDING_DEDUPE_WINDOW_MS
+  ) {
+    return json({ verified: false, pending: true, reason: "Already under review." });
+  }
+
   const result = await lookupGstin(gstin);
 
   if (result.ok && result.status?.toLowerCase() === "active") {

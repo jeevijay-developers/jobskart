@@ -60,6 +60,16 @@ function PublicJobDetailRoute() {
   return <JobDetailPage jobId={jobId} />;
 }
 
+// Same markup/styling as the header's badge — shared so the header and the
+// "About company" card can never visually drift from each other.
+function VerifiedBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-success-light px-2 py-0.5 text-xs font-semibold text-success">
+      <CheckCircle2 className="h-3 w-3" /> Verified
+    </span>
+  );
+}
+
 type JobDetail = {
   id: string;
   company_id: string;
@@ -364,6 +374,11 @@ export function JobDetailPage({
   // A consultancy posting on a client's behalf overrides the displayed name;
   // everyone else just shows their own company name as usual.
   const displayCompanyName = job.hiring_for_company?.trim() || job.companies?.name;
+  // The Verified badge reflects the POSTING company's own KYC, not the named
+  // client's — showing it next to a client name a consultancy typed in would
+  // misrepresent that client as verified, so the badge is suppressed whenever
+  // hiring_for_company overrides the displayed name.
+  const showVerifiedBadge = !job.hiring_for_company?.trim() && !!job.companies?.is_verified;
   const initials = (displayCompanyName || "JK")
     .split(" ")
     .map((p) => p[0])
@@ -442,11 +457,7 @@ export function JobDetailPage({
                       <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-foreground/80">
                         <Building2 className="h-4 w-4 text-primary" />
                         <span className="font-medium">{displayCompanyName || "Confidential employer"}</span>
-                        {job.companies?.is_verified ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-success-light px-2 py-0.5 text-xs font-semibold text-success">
-                            <CheckCircle2 className="h-3 w-3" /> Verified
-                          </span>
-                        ) : null}
+                        {showVerifiedBadge ? <VerifiedBadge /> : null}
                       </p>
                       <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                         <span className="inline-flex items-center gap-1"><Clock className="h-3 w-3" /> Posted {timeAgo(job.created_at)}</span>
@@ -819,7 +830,10 @@ export function JobDetailPage({
                         )}
                       </div>
                       <div>
-                        <h2 className="text-lg font-semibold text-foreground">{displayCompanyName || "Confidential employer"}</h2>
+                        <h2 className="flex flex-wrap items-center gap-x-2 gap-y-1 text-lg font-semibold text-foreground">
+                          {displayCompanyName || "Confidential employer"}
+                          {showVerifiedBadge ? <VerifiedBadge /> : null}
+                        </h2>
                         {job.companies?.industry || job.companies?.primary_city ? (
                           <p className="text-sm text-muted-foreground">
                             {[job.companies?.industry, job.companies?.primary_city].filter(Boolean).join(" · ")}

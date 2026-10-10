@@ -1,7 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { BadgeCheck, Building2, FileText, Loader2, Mail, ShieldCheck, Upload } from "lucide-react";
+import {
+  BadgeCheck,
+  Building2,
+  CheckCircle2,
+  Clock,
+  FileText,
+  Loader2,
+  Mail,
+  ShieldCheck,
+  Upload,
+} from "lucide-react";
 import { EmployerShell } from "@/components/employer/EmployerShell";
 import { ConditionalField } from "@/components/forms/ConditionalField";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,6 +27,7 @@ export const Route = createFileRoute("/_authenticated/employer/verification")({
 type Row = { id: string; method: string; status: string; reference: string | null; notes: string | null; created_at: string };
 type Method = "gst" | "email" | "manual";
 type Draft = { reference: string; notes: string; file: File | null };
+type CompanyStatus = { is_verified: boolean; verification_status: string } | null;
 
 const emptyDraft = (): Draft => ({ reference: "", notes: "", file: null });
 
@@ -24,6 +35,7 @@ function VerificationPage() {
   const { canManageVerification } = useEmployerRole();
   const [cid, setCid] = useState<string | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
+  const [companyStatus, setCompanyStatus] = useState<CompanyStatus>(null);
   const [method, setMethod] = useState<Method>("gst");
   // One draft per tab, so text typed in one tab never shows up in another.
   const [drafts, setDrafts] = useState<Record<Method, Draft>>({
@@ -43,6 +55,15 @@ function VerificationPage() {
   const gstFieldError =
     drafts.gst.reference.length === 15 ? validateGstin(drafts.gst.reference) : null;
 
+  const refetchCompanyStatus = useCallback(async (companyId: string) => {
+    const { data } = await supabase
+      .from("companies")
+      .select("is_verified, verification_status")
+      .eq("id", companyId)
+      .maybeSingle();
+    setCompanyStatus((data as CompanyStatus) ?? null);
+  }, []);
+
   useEffect(() => {
     (async () => {
       // The stored active-company id can be stale (another account, a removed membership).
@@ -58,8 +79,9 @@ function VerificationPage() {
       setCid(id);
       const { data } = await supabase.from("company_verifications").select("*").eq("company_id", id).order("created_at", { ascending: false });
       setRows((data as Row[]) || []);
+      refetchCompanyStatus(id);
     })();
-  }, []);
+  }, [refetchCompanyStatus]);
 
   const submit = async () => {
     if (!cid) return toast.error("No active company.");
@@ -82,6 +104,7 @@ function VerificationPage() {
         setDrafts((d) => ({ ...d, gst: emptyDraft() }));
         const { data: fresh } = await supabase.from("company_verifications").select("*").eq("company_id", cid).order("created_at", { ascending: false });
         setRows((fresh as Row[]) || []);
+        refetchCompanyStatus(cid);
         if (out.verified) toast.success(`Verified instantly${out.legalName ? ` — ${out.legalName}` : ""}.`);
         else toast.success("We couldn't confirm this GSTIN instantly, so our team will review it within 24 hours.");
         return;
@@ -104,6 +127,7 @@ function VerificationPage() {
       setRows((r) => [data as Row, ...r]);
       setDrafts((d) => ({ ...d, [method]: emptyDraft() }));
       if (fileInput.current) fileInput.current.value = "";
+      refetchCompanyStatus(cid);
       toast.success("Submitted — our team will review within 24 hours.");
     } catch (e) { toast.error(e instanceof Error ? e.message : "Could not submit"); }
     finally { setSaving(false); }
@@ -111,13 +135,29 @@ function VerificationPage() {
 
   const badgeTone = (s: string) => s === "verified" ? "bg-success text-success-foreground" : s === "rejected" ? "bg-destructive text-destructive-foreground" : "bg-warning-light text-warning";
 
+  const hasPendingSubmission = rows.some((r) => r.status === "pending");
+  const overallStatus: { label: string; tone: string; Icon: typeof CheckCircle2 } =
+    companyStatus?.is_verified
+      ? { label: "Verified", tone: "border-success/30 bg-success-light text-success", Icon: CheckCircle2 }
+      : hasPendingSubmission
+        ? { label: "Pending review", tone: "border-warning/30 bg-warning-light text-warning", Icon: Clock }
+        : { label: "Not verified", tone: "border-border bg-surface text-muted-foreground", Icon: ShieldCheck };
+
   return (
     <EmployerShell title="KYC & Verification" subtitle="Verified employers get 4× more applications and higher search rank.">
+      {companyStatus && (
+        <div
+          className={`mb-4 flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold ${overallStatus.tone}`}
+        >
+          <overallStatus.Icon className="h-4 w-4 shrink-0" />
+          Company status: {overallStatus.label}
+        </div>
+      )}
       <div className="grid min-w-0 gap-6 lg:grid-cols-[1.2fr_1fr]">
         <section className="min-w-0 rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-6">
           {!canManageVerification && (
             <p className="mb-4 rounded-lg bg-surface px-3 py-2 text-xs text-muted-foreground">
-              Company KYC and verification can only be submitted by Super Admins or HR Admins.
+              Only company admins can submit verification.
             </p>
           )}
           <fieldset disabled={!canManageVerification} className="contents disabled:opacity-60">

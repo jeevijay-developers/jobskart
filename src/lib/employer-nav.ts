@@ -45,6 +45,25 @@ export const EMPLOYER_NAV_LINKS: Array<{
   { to: "/employer/settings", label: "Settings", icon: Settings },
 ];
 
+// A nav item is active on an exact match, or on a path-segment prefix match
+// (so "Jobs" stays active on its own sub-pages like job detail/edit) —
+// EXCEPT when a sibling nav item is a longer/more specific prefix match for
+// the current pathname, e.g. "/employer/jobs/bulk" (Bulk post) living under
+// "/employer/jobs" (Jobs): both match by prefix, so only the longest match
+// (Bulk post) should light up. Generalizes to any future sibling that nests
+// under another nav item's path the same way.
+export function isEmployerNavItemActive(pathname: string, to: string): boolean {
+  if (pathname === to) return true;
+  if (!pathname.startsWith(to + "/")) return false;
+  const moreSpecificSiblingMatches = EMPLOYER_NAV_LINKS.some(
+    (other) =>
+      other.to !== to &&
+      other.to.startsWith(to + "/") &&
+      (pathname === other.to || pathname.startsWith(other.to + "/")),
+  );
+  return !moreSpecificSiblingMatches;
+}
+
 export function isEmployerNavVisible(
   minRole: EmployerNavMinRole | undefined,
   role: "super_admin" | "hr_admin" | "recruiter" | null,

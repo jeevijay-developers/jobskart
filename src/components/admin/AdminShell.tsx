@@ -38,7 +38,7 @@ const nav = [
   { to: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/admin/users", label: "Users", icon: Users },
   { to: "/admin/companies", label: "Companies", icon: Building2 },
-  { to: "/admin/verifications", label: "KYC Queue", icon: ShieldCheck },
+  { to: "/admin/verifications", label: "Company Verification", icon: ShieldCheck },
   { to: "/admin/jobs", label: "Jobs", icon: Briefcase },
   { to: "/admin/masters", label: "Master Data", icon: Database },
   { to: "/admin/plans", label: "Plan Settings", icon: Settings2 },

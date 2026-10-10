@@ -23,6 +23,7 @@ import {
   EMPLOYER_NAV_LINKS as nav,
   EMPLOYER_OVERFLOW_LINKS,
   EMPLOYER_PRIMARY_LINKS,
+  isEmployerNavItemActive,
   isEmployerNavVisible,
 } from "@/lib/employer-nav";
 import { useEmployerRole } from "@/hooks/use-employer-role";
@@ -171,7 +172,7 @@ export function EmployerShell({
                 {!collapsed && "Post a job"}
               </Link>
               {visibleNav.map((item) => {
-                const active = pathname === item.to || pathname.startsWith(item.to + "/");
+                const active = isEmployerNavItemActive(pathname, item.to);
                 const Icon = item.icon;
                 const badge = item.to === "/employer/inbox" && unreadInbox > 0 ? unreadInbox : 0;
                 return (
@@ -266,7 +267,7 @@ export function EmployerShell({
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       >
         {primary.map((item) => {
-          const active = pathname === item.to || pathname.startsWith(item.to + "/");
+          const active = isEmployerNavItemActive(pathname, item.to);
           const Icon = item.icon;
           return (
             <Link
