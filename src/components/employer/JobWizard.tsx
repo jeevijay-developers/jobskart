@@ -74,7 +74,12 @@ import {
   getMissingJobImprovements,
   type JobQualityInput,
 } from "@/lib/jobQuality";
-import { inferJobDraft, type CompanyHistoryJob, type InferResult } from "@/lib/job-draft-infer";
+import {
+  inferJobDraft,
+  mapTitleToCategory,
+  type CompanyHistoryJob,
+  type InferResult,
+} from "@/lib/job-draft-infer";
 import { JobQualityMeter } from "@/components/employer/JobQualityMeter";
 import { SalarySuggestionCard } from "@/components/employer/SalarySuggestionCard";
 import { AssumedFieldsStrip, type AssumedChipKey } from "@/components/employer/AssumedFieldsStrip";
@@ -991,6 +996,16 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
   // the "Requirements & perks" OptionalSection.
   const reqPerksFilled = [form.required_assets.length, form.perks.length].filter(Boolean).length;
 
+  // The category decides which candidates the job is recommended to, and a wrong one is easy to leave behind
+  // (changing the chip, or editing the title after the category was set). Nudge, never block: the employer
+  // decides. "Other" means the title rules found nothing, so there is nothing to suggest.
+  const categorySuggestion = (() => {
+    const t = form.title.trim();
+    if (t.length < 3 || !form.category) return null;
+    const suggested = mapTitleToCategory(t, form.industry);
+    return suggested !== "Other" && suggested !== form.category ? suggested : null;
+  })();
+
   const onAssumedChange = (key: AssumedChipKey, value: string | boolean) => {
     if (key === "joining_fee_required") {
       markDirty("joining_fee_required", Boolean(value));
@@ -1095,6 +1110,25 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                   matchedHistoryTitle={matchedHistoryTitle}
                   onChange={onAssumedChange}
                 />
+              )}
+
+              {step < 3 && categorySuggestion && (
+                <div
+                  role="status"
+                  className="mb-4 flex flex-wrap items-center gap-2 rounded-lg bg-warning-light px-3 py-2 text-xs font-medium text-warning"
+                >
+                  <span>
+                    “{form.title.trim()}” usually belongs to {categorySuggestion}, but this job is set
+                    to {form.category}. The category decides which candidates see your job.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onAssumedChange("category", categorySuggestion)}
+                    className="rounded-md border border-warning bg-card px-2 py-1 text-xs font-semibold text-foreground hover:bg-surface"
+                  >
+                    Use {categorySuggestion}
+                  </button>
+                </div>
               )}
 
               {step === 0 && (
