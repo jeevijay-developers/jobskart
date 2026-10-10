@@ -1,5 +1,6 @@
 // Bulk job posting Excel template + parser.
 import * as XLSX from "xlsx";
+import { JOB_CATEGORIES } from "@/lib/options";
 
 export type BulkJobRow = {
   title: string;
@@ -14,6 +15,8 @@ export type BulkJobRow = {
   skills: string;
   description: string;
   openings: number;
+  // Optional. Blank = the database infers it from the title (see jobs_infer_missing_category).
+  category: string;
 };
 
 const HEADERS = [
@@ -21,11 +24,12 @@ const HEADERS = [
   "min_salary", "max_salary",
   "min_experience_years", "max_experience_years",
   "education", "skills (comma separated)", "description", "openings",
+  "category",
 ];
 
 const SAMPLE: (string | number)[][] = [
-  ["Field Sales Executive", "Delhi", "full_time", "onsite", 20000, 35000, 0, 2, "12th Pass", "Sales, Communication, Field Work", "Meet clients daily and close deals.", 3],
-  ["Telecaller", "Mumbai", "full_time", "onsite", 18000, 28000, 0, 1, "12th Pass", "Cold Calling, Hindi, English", "Outbound calls to leads.", 5],
+  ["Field Sales Executive", "Delhi", "full_time", "onsite", 20000, 35000, 0, 2, "12th Pass", "Sales, Communication, Field Work", "Meet clients daily and close deals.", 3, "Sales"],
+  ["Telecaller", "Mumbai", "full_time", "onsite", 18000, 28000, 0, 1, "12th Pass", "Cold Calling, Hindi, English", "Outbound calls to leads.", 5, "Telecaller"],
 ];
 
 export function downloadBulkJobTemplate() {
@@ -37,6 +41,7 @@ export function downloadBulkJobTemplate() {
     ["work_mode", "onsite, remote, hybrid, field"],
     ["salary", "Monthly ₹, numeric"],
     ["skills", "Comma-separated, e.g. Sales, Excel"],
+    ["category", `Optional. ${JOB_CATEGORIES.join(", ")}. Leave blank and we pick one from the job title; set it for roles we cannot classify.`],
   ]);
   notes["!cols"] = [{ wch: 20 }, { wch: 60 }];
   const wb = XLSX.utils.book_new();
@@ -68,6 +73,7 @@ export function parseBulkJobsFile(file: File): Promise<BulkJobRow[]> {
             skills: String(r["skills (comma separated)"] || r["skills"] || "").trim(),
             description: String(r["description"] || "").trim(),
             openings: Number(r["openings"]) || 1,
+            category: String(r["category"] || "").trim(),
           }));
         resolve(out);
       } catch (err) { reject(err); }

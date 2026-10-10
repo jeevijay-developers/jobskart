@@ -1,19 +1,54 @@
 import { createAdminClient } from "../_shared/supabaseAdmin.ts";
 import { sendEmail } from "../_shared/resend.ts";
 import { jobMatchEmail, type MatchedJob } from "../_shared/templates.ts";
-import { matchesAlert } from "../_shared/matching.ts";
 import { getCandidateEmailPrefs } from "../_shared/notificationPrefs.ts";
 import { sendWhatsappForEvent } from "../_shared/notify.ts";
+import { signUnsubscribeToken } from "../_shared/unsubscribeToken.ts";
+import { getPublicAppUrl } from "../_shared/resend.ts";
 
 type Frequency = "daily" | "weekly";
+const MAX_ATTEMPTS = 3;
 
-// Invoked by the two pg_cron schedules set up in the
-// 20260914075503_alert_job_notifications.sql migration, each POSTing
-// { "frequency": "daily" | "weekly" } via net.http_post, authorized with the
-// service-role key stored in Supabase Vault.
+type AlertRow = { frequency: string; email_enabled: boolean; whatsapp_enabled: boolean };
+type JobRow = {
+  id: string;
+  title: string;
+  city: string | null;
+  min_salary: number | null;
+  max_salary: number | null;
+  salary_period: string | null;
+  companies: { name: string } | null;
+};
+type DeliveryRow = {
+  id: string;
+  alert_id: string;
+  user_id: string;
+  score: number;
+  attempts: number;
+  candidate_job_alerts: AlertRow;
+  jobs: JobRow;
+};
+
+// v2: invoked by the same two pg_cron schedules as before (alert-digest-daily,
+// alert-digest-weekly). Reworked to read the alert_deliveries queue (written
+// by plan_alert_deliveries() off the DB-side activation trigger) instead of
+// re-scanning every job by created_at — that query missed jobs activated
+// from a draft after creation, and scanning in memory didn't scale.
+//
+// The other behavioral change: one merged email + one merged WhatsApp ping
+// per CANDIDATE per run, not one per alert. A candidate with 3 overlapping
+// alerts used to get 3 separate digest emails for the same jobs; rows are
+// now grouped by user_id, deduped by job and capped at alert_digest_max_jobs,
+// ranked by match score.
+//
+// The daily run also drains instant-frequency rows that overflowed their
+// job's tier reach budget (plan_alert_deliveries downgrades overflow to
+// mode='digest' regardless of the alert's own frequency) — those candidates
+// still hear about the job, just via email instead of an instant push. The
+// weekly run only processes alerts whose own frequency is 'weekly', so that
+// overflow isn't counted into both a daily and a weekly email.
 Deno.serve(async (req) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
-
   let frequency: Frequency | undefined;
   try {
     ({ frequency } = await req.json());
@@ -25,131 +60,180 @@ Deno.serve(async (req) => {
   }
 
   const admin = createAdminClient();
+  const { data: settings } = await admin
+    .from("whatsapp_settings")
+    .select("alert_v2_enabled, alert_digest_max_jobs")
+    .limit(1)
+    .maybeSingle();
+  if (!settings?.alert_v2_enabled) {
+    return new Response(JSON.stringify({ ok: true, v2Enabled: false }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+  const maxJobs = settings.alert_digest_max_jobs ?? 10;
 
-  // Previously filtered to email_enabled alerts only, which silently dropped
-  // alerts configured for WhatsApp-only (email_enabled=false, whatsapp_enabled=true)
-  // now that the alerts form (Phase 1) exposes both as independent toggles.
-  const { data: alerts, error: alertsErr } = await admin
-    .from("candidate_job_alerts")
+  await admin
+    .from("alert_deliveries")
+    .update({ status: "failed" })
+    .eq("mode", "digest")
+    .eq("status", "pending")
+    .gte("attempts", MAX_ATTEMPTS);
+
+  const { data: rows, error: rowsErr } = await admin
+    .from("alert_deliveries")
     .select(
-      "id, user_id, query, frequency, last_sent_at, created_at, email_enabled, whatsapp_enabled",
+      "id, alert_id, user_id, score, attempts, candidate_job_alerts!inner(frequency, email_enabled, whatsapp_enabled), jobs!inner(id, title, city, min_salary, max_salary, salary_period, companies(name))",
     )
-    .eq("frequency", frequency)
-    .eq("is_active", true)
-    .or("email_enabled.eq.true,whatsapp_enabled.eq.true");
+    .eq("mode", "digest")
+    .eq("status", "pending")
+    .lt("attempts", MAX_ATTEMPTS)
+    .order("score", { ascending: false });
 
-  if (alertsErr) {
-    console.error("[alert-digest] failed to load alerts", alertsErr);
+  if (rowsErr) {
+    console.error("[alert-digest] failed to load pending deliveries", rowsErr);
     return new Response("ok", { status: 200 });
   }
 
-  const now = new Date().toISOString();
-  let sent = 0;
+  // Daily: everything except alerts whose own frequency is 'weekly' (so
+  // 'daily' alerts and 'instant' overflow go out same-day). Weekly: only
+  // alerts whose own frequency is 'weekly' — otherwise instant overflow
+  // would double up into both a daily and a weekly email.
+  const eligible = ((rows ?? []) as unknown as DeliveryRow[]).filter((r) =>
+    frequency === "daily"
+      ? r.candidate_job_alerts.frequency !== "weekly"
+      : r.candidate_job_alerts.frequency === "weekly",
+  );
 
-  for (const alert of alerts ?? []) {
-    const windowStart = alert.last_sent_at ?? alert.created_at;
+  const byUser = new Map<string, DeliveryRow[]>();
+  for (const row of eligible) {
+    const list = byUser.get(row.user_id) ?? [];
+    list.push(row);
+    byUser.set(row.user_id, list);
+  }
 
-    const { data: jobs, error: jobsErr } = await admin
-      .from("jobs")
-      .select(
-        "id, title, city, min_salary, max_salary, salary_period, company_id, created_at, companies (name)",
-      )
-      .eq("status", "active")
-      .gt("created_at", windowStart)
-      .order("created_at", { ascending: true });
+  let emailsSent = 0;
+  let waSent = 0;
+  let candidatesSkipped = 0;
 
-    if (jobsErr) {
-      console.error("[alert-digest] failed to load jobs for alert", alert.id, jobsErr);
-      continue;
-    }
+  for (const [userId, userRows] of byUser) {
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("email, full_name")
+      .eq("id", userId)
+      .maybeSingle();
 
-    const query = (alert.query ?? {}) as { keyword?: string | null; city?: string | null };
-    const matched = (jobs ?? []).filter((j) =>
-      matchesAlert({ title: j.title, city: j.city }, query),
-    );
+    const wantsEmail = userRows.some((r) => r.candidate_job_alerts.email_enabled);
+    const wantsWa = userRows.some((r) => r.candidate_job_alerts.whatsapp_enabled);
 
-    if (matched.length > 0) {
-      // Defensive dedup, even though the created_at window should already prevent overlap.
-      const { data: already } = await admin
-        .from("alert_job_notifications")
-        .select("job_id")
-        .eq("alert_id", alert.id)
-        .in(
-          "job_id",
-          matched.map((j) => j.id),
-        );
-      const alreadyIds = new Set((already ?? []).map((r) => r.job_id));
-      const toSend = matched.filter((j) => !alreadyIds.has(j.id));
+    // Dedup by job (multiple alerts can match the same job) before capping.
+    const byJob = new Map<string, DeliveryRow>();
+    for (const r of userRows) if (!byJob.has(r.jobs.id)) byJob.set(r.jobs.id, r);
+    const uniqueRows = [...byJob.values()].sort((a, b) => b.score - a.score);
+    const top = uniqueRows.slice(0, maxJobs);
+    const matchedJobs: MatchedJob[] = top.map((r) => ({
+      id: r.jobs.id,
+      title: r.jobs.title,
+      city: r.jobs.city,
+      min_salary: r.jobs.min_salary,
+      max_salary: r.jobs.max_salary,
+      salary_period: r.jobs.salary_period,
+      company_name: r.jobs.companies?.name ?? null,
+    }));
 
-      if (toSend.length > 0) {
-        // Dedup rows are inserted up front, once per run, regardless of which
-        // channel(s) below actually succeed — matches the existing
-        // "move the window forward regardless of send success" philosophy,
-        // and avoids re-counting the same jobs for a WhatsApp-only alert just
-        // because the (now independent) email leg didn't fire.
-        await admin
-          .from("alert_job_notifications")
-          .insert(toSend.map((j) => ({ alert_id: alert.id, job_id: j.id })))
-          .then(({ error: dedupErr }) => {
-            if (dedupErr && (dedupErr as { code?: string }).code !== "23505") {
-              console.error("[alert-digest] dedup insert failed for alert", alert.id, dedupErr);
-            }
+    let anyEmailSent = false;
+    let emailError: string | undefined;
+    if (wantsEmail && profile?.email && matchedJobs.length > 0) {
+      const prefs = await getCandidateEmailPrefs(admin, userId);
+      const prefAllows = frequency === "weekly" ? prefs.weekly_digest : prefs.email_alerts;
+      if (prefAllows) {
+        const { data: allowed } = await admin.rpc("claim_alert_slot", {
+          _user: userId,
+          _channel: "email",
+        });
+        if (allowed) {
+          const unsubToken = await signUnsubscribeToken(userId);
+          const unsubscribeUrl = unsubToken
+            ? `${getPublicAppUrl()}/api/public/alerts-unsubscribe?u=${userId}&t=${unsubToken}`
+            : undefined;
+          const { subject, html, text } = jobMatchEmail(
+            { keyword: null, city: null, frequency },
+            matchedJobs,
+            { unsubscribeUrl },
+          );
+          const result = await sendEmail({
+            to: profile.email,
+            subject,
+            html,
+            text,
+            headers: unsubscribeUrl
+              ? {
+                  "List-Unsubscribe": `<${unsubscribeUrl}>`,
+                  "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+                }
+              : undefined,
           });
-
-        const { data: profile } = await admin
-          .from("profiles")
-          .select("email, full_name")
-          .eq("id", alert.user_id)
-          .maybeSingle();
-
-        if (alert.whatsapp_enabled) {
-          void sendWhatsappForEvent(admin, {
-            userId: alert.user_id,
-            templateKey: "job_alert_digest",
-            variables: [profile?.full_name ?? "there", toSend.length],
-            source: "alert_digest",
-            reference: { alert_id: alert.id },
-          }).catch(() => undefined);
-        }
-
-        if (alert.email_enabled && profile?.email) {
-          const prefs = await getCandidateEmailPrefs(admin, alert.user_id);
-          const prefAllows = frequency === "weekly" ? prefs.weekly_digest : prefs.email_alerts;
-          if (prefAllows) {
-            const matchedJobs: MatchedJob[] = toSend.map((j) => ({
-              id: j.id,
-              title: j.title,
-              city: j.city,
-              min_salary: j.min_salary,
-              max_salary: j.max_salary,
-              salary_period: j.salary_period,
-              company_name: (j.companies as { name: string } | null)?.name ?? null,
-            }));
-            const { subject, html } = jobMatchEmail(
-              { keyword: query.keyword, city: query.city, frequency: alert.frequency },
-              matchedJobs,
-            );
-            const result = await sendEmail({ to: profile.email, subject, html });
-            if (result.ok) {
-              sent++;
-            } else {
-              console.error("[alert-digest] send failed for alert", alert.id, result.error);
-            }
+          if (result.ok) {
+            anyEmailSent = true;
+            emailsSent++;
+          } else {
+            emailError = result.error;
+            console.error("[alert-digest] send failed for user", userId, result.error);
           }
         }
       }
     }
 
-    // Move the window forward regardless of whether anything matched or sent,
-    // so a quiet period doesn't keep growing the look-back window forever.
-    await admin.from("candidate_job_alerts").update({ last_sent_at: now }).eq("id", alert.id);
+    let anyWaSent = false;
+    if (wantsWa) {
+      const { data: allowed } = await admin.rpc("claim_alert_slot", {
+        _user: userId,
+        _channel: "whatsapp",
+      });
+      if (allowed) {
+        const today = new Date().toISOString().slice(0, 10);
+        const result = await sendWhatsappForEvent(admin, {
+          userId,
+          templateKey: "job_alert_digest",
+          variables: [profile?.full_name ?? "there", uniqueRows.length],
+          source: "alert_digest",
+          reference: { frequency },
+          dedupeKey: `alertdigest:${userId}:${frequency}:${today}`,
+        });
+        if (result.sent) {
+          anyWaSent = true;
+          waSent++;
+        }
+      }
+    }
+
+    const resolvedIds = userRows.map((r) => r.id);
+    if (anyEmailSent || anyWaSent) {
+      await admin
+        .from("alert_deliveries")
+        .update({ status: "sent", sent_at: new Date().toISOString() })
+        .in("id", resolvedIds);
+      await admin
+        .from("candidate_job_alerts")
+        .update({ last_sent_at: new Date().toISOString() })
+        .in("id", [...new Set(userRows.map((r) => r.alert_id))]);
+    } else if (emailError) {
+      for (const r of userRows) {
+        await admin
+          .from("alert_deliveries")
+          .update({ attempts: r.attempts + 1, error: emailError })
+          .eq("id", r.id);
+      }
+    } else {
+      // Neither channel wanted/allowed (opted out, capped, or no email on
+      // file) — nothing to send; mark skipped so it doesn't linger forever.
+      await admin.from("alert_deliveries").update({ status: "skipped" }).in("id", resolvedIds);
+      candidatesSkipped++;
+    }
   }
 
   return new Response(
-    JSON.stringify({ ok: true, alertsProcessed: (alerts ?? []).length, emailsSent: sent }),
-    {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    },
+    JSON.stringify({ ok: true, candidates: byUser.size, emailsSent, waSent, candidatesSkipped }),
+    { status: 200, headers: { "Content-Type": "application/json" } },
   );
 });

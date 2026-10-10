@@ -300,55 +300,16 @@ export function JobsList({ embeddedInCandidateApp = false }: { embeddedInCandida
         : { data: rows, count, error: null };
     }
 
-    if (sort === "recommended") {
-      const { rows, total: count, error } = await fetchPublicJobFeed(feedFilters, from, to);
-      return error
-        ? { data: null, count: null, error: { message: error } }
-        : { data: rows, count, error: null };
-    }
-
-    let q = supabase
-      .from("jobs")
-      .select(
-        "id, company_id, title, city, state, locality, min_salary, max_salary, salary_period, job_type, work_mode, min_experience_years, max_experience_years, education, skills, created_at, companies!inner (name, is_verified)",
-        { count: "exact" },
-      )
-      .eq("status", "active")
-      // Defense-in-depth: hide jobs past their expiry even if the hourly
-      // expiry sweep hasn't flipped status to 'expired' yet.
-      .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`);
-
-    if (sort === "newest") q = q.order("created_at", { ascending: false });
-    else if (sort === "oldest") q = q.order("created_at", { ascending: true });
-    else if (sort === "salary_high")
-      q = q.order("max_salary", { ascending: false, nullsFirst: false });
-    else if (sort === "salary_low")
-      q = q.order("min_salary", { ascending: true, nullsFirst: false });
-
-    if (filters.q) q = q.ilike("title", `%${filters.q}%`);
-    if (filters.city) q = q.ilike("city", `%${filters.city}%`);
-    if (filters.category) q = q.eq("category", filters.category);
-    if (filters.jobType) q = q.eq("job_type", filters.jobType as never);
-    if (filters.workMode) q = q.eq("work_mode", filters.workMode as never);
-    if (filters.minSalary) q = q.gte("min_salary", Number(filters.minSalary));
-    if (filters.maxSalary) q = q.lte("max_salary", Number(filters.maxSalary));
-    // Job's accepted experience range must overlap the candidate's selected range.
-    if (filters.maxExp) q = q.lte("min_experience_years", Number(filters.maxExp));
-    if (filters.minExp)
-      q = q.or(`max_experience_years.gte.${Number(filters.minExp)},max_experience_years.is.null`);
-    if (filters.datePosted) {
-      const cutoff = datePostedCutoffIso(filters.datePosted);
-      if (cutoff) q = q.gte("created_at", cutoff);
-    }
-    if (filters.education) q = q.eq("education", filters.education);
-    if (filters.shift) q = q.eq("shift", filters.shift as never);
-    if (filters.englishLevel) q = q.eq("english_level", filters.englishLevel);
-    if (filters.company) q = q.ilike("companies.name", `%${filters.company}%`);
-    if (filters.vehicle) q = q.contains("required_assets", ["Two-wheeler"]);
-    if (filters.verifiedOnly) q = q.eq("companies.is_verified", true);
-
-    const { data, count, error } = await q.range(from, to);
-    return { data: (data as unknown as JobCardData[]) ?? null, count, error };
+    // Every sort (not just "Recommended") goes through feed_jobs() — it now takes a _sort argument
+    // (20261012130000_feed_jobs_smart_search_and_sort), so there is one place that does title/category/
+    // skills matching for guests + employers, the same one recommend_jobs_for_candidate uses for signed-
+    // in candidates. This used to be a second, separate client-built query with a plain .ilike("title", …)
+    // for every explicit sort — that duplicate path was how a search for "sales" missed "Field Sales
+    // Officer" on every sort except "Recommended".
+    const { rows, total: count, error } = await fetchPublicJobFeed(feedFilters, from, to, sort);
+    return error
+      ? { data: null, count: null, error: { message: error } }
+      : { data: rows, count, error: null };
   };
 
   // Page-based loading: usePaginatedQuery owns page state, limit/offset math

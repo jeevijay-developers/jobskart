@@ -79,6 +79,7 @@ import { Route as AuthenticatedEmployerTeamRouteImport } from './routes/_authent
 import { Route as AuthenticatedEmployerVerificationRouteImport } from './routes/_authenticated/employer/verification'
 import { Route as AuthenticatedOnboardingCandidateRouteImport } from './routes/_authenticated/onboarding/candidate'
 import { Route as AuthenticatedOnboardingEmployerRouteImport } from './routes/_authenticated/onboarding/employer'
+import { Route as ApiPublicAlertsUnsubscribeRouteImport } from './routes/api/public/alerts-unsubscribe'
 import { Route as ApiPublicEmbeddingsBackfillRouteImport } from './routes/api/public/embeddings-backfill'
 import { Route as LearnCertificationSlugRouteImport } from './routes/learn_.certification.$slug'
 import { Route as LearnCourseSlugRouteImport } from './routes/learn_.course.$slug'
@@ -482,6 +483,12 @@ const AuthenticatedOnboardingEmployerRoute =
     path: '/onboarding/employer',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiPublicAlertsUnsubscribeRoute =
+  ApiPublicAlertsUnsubscribeRouteImport.update({
+    id: '/api/public/alerts-unsubscribe',
+    path: '/api/public/alerts-unsubscribe',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicEmbeddingsBackfillRoute =
   ApiPublicEmbeddingsBackfillRouteImport.update({
     id: '/api/public/embeddings-backfill',
@@ -694,6 +701,7 @@ export interface FileRoutesByFullPath {
   '/employer/verification': typeof AuthenticatedEmployerVerificationRoute
   '/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
   '/onboarding/employer': typeof AuthenticatedOnboardingEmployerRoute
+  '/api/public/alerts-unsubscribe': typeof ApiPublicAlertsUnsubscribeRoute
   '/api/public/embeddings-backfill': typeof ApiPublicEmbeddingsBackfillRoute
   '/learn/certification/$slug': typeof LearnCertificationSlugRoute
   '/learn/course/$slug': typeof LearnCourseSlugRoute
@@ -788,6 +796,7 @@ export interface FileRoutesByTo {
   '/employer/verification': typeof AuthenticatedEmployerVerificationRoute
   '/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
   '/onboarding/employer': typeof AuthenticatedOnboardingEmployerRoute
+  '/api/public/alerts-unsubscribe': typeof ApiPublicAlertsUnsubscribeRoute
   '/api/public/embeddings-backfill': typeof ApiPublicEmbeddingsBackfillRoute
   '/learn/certification/$slug': typeof LearnCertificationSlugRoute
   '/learn/course/$slug': typeof LearnCourseSlugRoute
@@ -885,6 +894,7 @@ export interface FileRoutesById {
   '/_authenticated/employer/verification': typeof AuthenticatedEmployerVerificationRoute
   '/_authenticated/onboarding/candidate': typeof AuthenticatedOnboardingCandidateRoute
   '/_authenticated/onboarding/employer': typeof AuthenticatedOnboardingEmployerRoute
+  '/api/public/alerts-unsubscribe': typeof ApiPublicAlertsUnsubscribeRoute
   '/api/public/embeddings-backfill': typeof ApiPublicEmbeddingsBackfillRoute
   '/learn_/certification/$slug': typeof LearnCertificationSlugRoute
   '/learn_/course/$slug': typeof LearnCourseSlugRoute
@@ -982,6 +992,7 @@ export interface FileRouteTypes {
     | '/employer/verification'
     | '/onboarding/candidate'
     | '/onboarding/employer'
+    | '/api/public/alerts-unsubscribe'
     | '/api/public/embeddings-backfill'
     | '/learn/certification/$slug'
     | '/learn/course/$slug'
@@ -1076,6 +1087,7 @@ export interface FileRouteTypes {
     | '/employer/verification'
     | '/onboarding/candidate'
     | '/onboarding/employer'
+    | '/api/public/alerts-unsubscribe'
     | '/api/public/embeddings-backfill'
     | '/learn/certification/$slug'
     | '/learn/course/$slug'
@@ -1172,6 +1184,7 @@ export interface FileRouteTypes {
     | '/_authenticated/employer/verification'
     | '/_authenticated/onboarding/candidate'
     | '/_authenticated/onboarding/employer'
+    | '/api/public/alerts-unsubscribe'
     | '/api/public/embeddings-backfill'
     | '/learn_/certification/$slug'
     | '/learn_/course/$slug'
@@ -1222,6 +1235,7 @@ export interface RootRouteChildren {
   SignupEmployerRoute: typeof SignupEmployerRoute
   USlugRoute: typeof USlugRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
+  ApiPublicAlertsUnsubscribeRoute: typeof ApiPublicAlertsUnsubscribeRoute
   ApiPublicEmbeddingsBackfillRoute: typeof ApiPublicEmbeddingsBackfillRoute
   LearnCertificationSlugRoute: typeof LearnCertificationSlugRoute
   LearnCourseSlugRoute: typeof LearnCourseSlugRoute
@@ -1724,6 +1738,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedOnboardingEmployerRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/alerts-unsubscribe': {
+      id: '/api/public/alerts-unsubscribe'
+      path: '/api/public/alerts-unsubscribe'
+      fullPath: '/api/public/alerts-unsubscribe'
+      preLoaderRoute: typeof ApiPublicAlertsUnsubscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/embeddings-backfill': {
       id: '/api/public/embeddings-backfill'
       path: '/api/public/embeddings-backfill'
@@ -2127,6 +2148,7 @@ const rootRouteChildren: RootRouteChildren = {
   SignupEmployerRoute: SignupEmployerRoute,
   USlugRoute: USlugRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
+  ApiPublicAlertsUnsubscribeRoute: ApiPublicAlertsUnsubscribeRoute,
   ApiPublicEmbeddingsBackfillRoute: ApiPublicEmbeddingsBackfillRoute,
   LearnCertificationSlugRoute: LearnCertificationSlugRoute,
   LearnCourseSlugRoute: LearnCourseSlugRoute,
@@ -2139,13 +2161,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

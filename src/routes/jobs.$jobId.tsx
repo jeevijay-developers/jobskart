@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-r
 import { createContext, useContext, useEffect, useState } from "react";
 import {
   ArrowLeft,
+  Bell,
   Bookmark,
   BookmarkCheck,
   Briefcase,
@@ -189,6 +190,12 @@ export function JobDetailPage({
   const [reportOpen, setReportOpen] = useState(false);
   const [whatsappOpen, setWhatsappOpen] = useState(false);
   const [applicantCount, setApplicantCount] = useState<number>(0);
+  // Employer-only: how many candidates job alerts have reached so far.
+  // get_job_alert_reach() is a SECURITY DEFINER RPC that checks company
+  // membership itself — never trust a client-sent company_id (rbac.md).
+  const [alertReach, setAlertReach] = useState<{ instant: number; digestQueued: number } | null>(
+    null,
+  );
   const [similar, setSimilar] = useState<JobCardData[]>([]);
   const { share: shareJob } = useShareJob();
 
@@ -238,6 +245,18 @@ export function JobDetailPage({
       if (cancelled) return;
       setApplicantCount(count || 0);
 
+      if (employerView) {
+        supabase
+          .rpc("get_job_alert_reach", { _job_id: jobId })
+          .then(({ data: reach }) => {
+            if (cancelled || !reach?.[0]) return;
+            setAlertReach({
+              instant: reach[0].instant_sent,
+              digestQueued: reach[0].digest_queued,
+            });
+          });
+      }
+
       const uid = sess.session?.user.id ?? null;
       setUserId(uid);
 
@@ -274,7 +293,7 @@ export function JobDetailPage({
     return () => {
       cancelled = true;
     };
-  }, [jobId]);
+  }, [jobId, employerView]);
 
   const canGoBack = router.history?.canGoBack?.() ?? false;
   const handleBack = () => {
@@ -463,6 +482,18 @@ export function JobDetailPage({
                         <span className="inline-flex items-center gap-1"><Clock className="h-3 w-3" /> Posted {timeAgo(job.created_at)}</span>
                         <span>·</span>
                         <span className="inline-flex items-center gap-1"><Users className="h-3 w-3" /> {applicantCount} applicant{applicantCount === 1 ? "" : "s"}</span>
+                        {employerView && alertReach ? (
+                          <>
+                            <span>·</span>
+                            <span
+                              className="inline-flex items-center gap-1"
+                              title="Candidates notified by job alerts so far (instant pushes sent + more queued for the next email digest)"
+                            >
+                              <Bell className="h-3 w-3" /> Reached {alertReach.instant + alertReach.digestQueued}{" "}
+                              via alerts
+                            </span>
+                          </>
+                        ) : null}
                         {daysLeft != null && daysLeft >= 0 ? (
                           <>
                             <span>·</span>

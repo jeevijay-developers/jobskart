@@ -25,6 +25,18 @@ const salesHistory: CompanyHistoryJob = {
 };
 
 describe("mapTitleToCategory", () => {
+  // The wizard warns when the chosen category disagrees with this mapping, so these titles (all of which were
+  // found live under a wrong, hand-set category) must keep resolving to the right department.
+  test("titles that were mis-filed in the wild resolve to the right category", () => {
+    assert.equal(mapTitleToCategory("Field Sales Officer"), "Field Agent");
+    assert.equal(mapTitleToCategory("ios developer"), "IT");
+    assert.equal(mapTitleToCategory("data engineer"), "IT");
+    assert.equal(mapTitleToCategory("Business Development Officer"), "Sales");
+    assert.equal(mapTitleToCategory("intern for softtware developer"), "IT");
+  });
+  test("a title with no rule match returns Other, which the wizard treats as 'nothing to suggest'", () => {
+    assert.equal(mapTitleToCategory("Astronaut"), "Other");
+  });
   test("delivery title maps to Delivery", () => {
     assert.equal(mapTitleToCategory("Delivery Executive"), "Delivery");
   });

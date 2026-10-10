@@ -2,7 +2,7 @@ import { ThemedSelect } from "@/components/ui/themed-form-controls";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Bell, Trash2, Plus, Mail, MessageCircle } from "lucide-react";
+import { Bell, Trash2, Plus, Mail, MessageCircle, Pause, Play } from "lucide-react";
 import { CandidateShell } from "@/components/candidate/CandidateShell";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,7 @@ type Alert = {
   created_at: string;
   whatsapp_enabled: boolean;
   email_enabled: boolean;
+  is_active: boolean;
 };
 
 function Page() {
@@ -53,7 +54,9 @@ function Page() {
     const [{ data }, { data: profile }] = await Promise.all([
       supabase
         .from("candidate_job_alerts")
-        .select("id, name, query, frequency, created_at, whatsapp_enabled, email_enabled")
+        .select(
+          "id, name, query, frequency, created_at, whatsapp_enabled, email_enabled, is_active",
+        )
         .eq("user_id", u.user.id)
         .order("created_at", { ascending: false }),
       supabase
@@ -116,16 +119,19 @@ function Page() {
     await supabase.from("candidate_job_alerts").delete().eq("id", id);
     load();
   };
-  const toggleChannel = async (alert: Alert, channel: "whatsapp_enabled" | "email_enabled") => {
-    const next = !alert[channel];
-    setItems((prev) => prev.map((a) => (a.id === alert.id ? { ...a, [channel]: next } : a)));
+  const toggleField = async (
+    alert: Alert,
+    field: "whatsapp_enabled" | "email_enabled" | "is_active",
+  ) => {
+    const next = !alert[field];
+    setItems((prev) => prev.map((a) => (a.id === alert.id ? { ...a, [field]: next } : a)));
     const { error } = await supabase
       .from("candidate_job_alerts")
-      .update({ [channel]: next } as never)
+      .update({ [field]: next } as never)
       .eq("id", alert.id);
     if (error) {
       toast.error(error.message);
-      setItems((prev) => prev.map((a) => (a.id === alert.id ? { ...a, [channel]: !next } : a)));
+      setItems((prev) => prev.map((a) => (a.id === alert.id ? { ...a, [field]: !next } : a)));
     }
   };
 
@@ -193,13 +199,20 @@ function Page() {
               className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-4"
             >
               <div className="min-w-0">
-                <p className="font-medium">{a.name}</p>
-                <p className="text-xs text-muted-foreground uppercase">{a.frequency}</p>
+                <p
+                  className={`font-medium ${a.is_active ? "" : "text-muted-foreground line-through"}`}
+                >
+                  {a.name}
+                </p>
+                <p className="text-xs text-muted-foreground uppercase">
+                  {a.frequency}
+                  {!a.is_active && " · paused"}
+                </p>
               </div>
               <div className="flex shrink-0 items-center gap-3">
                 <button
                   type="button"
-                  onClick={() => toggleChannel(a, "email_enabled")}
+                  onClick={() => toggleField(a, "email_enabled")}
                   className={`flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${a.email_enabled ? "bg-primary-light text-primary" : "bg-surface text-muted-foreground"}`}
                   title={
                     a.email_enabled
@@ -211,7 +224,7 @@ function Page() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => toggleChannel(a, "whatsapp_enabled")}
+                  onClick={() => toggleField(a, "whatsapp_enabled")}
                   className={`flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${a.whatsapp_enabled ? "bg-primary-light text-primary" : "bg-surface text-muted-foreground"}`}
                   title={
                     a.whatsapp_enabled
@@ -221,6 +234,14 @@ function Page() {
                 >
                   <MessageCircle className="h-3.5 w-3.5" /> WhatsApp
                 </button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => toggleField(a, "is_active")}
+                  title={a.is_active ? "Pause this alert" : "Resume this alert"}
+                >
+                  {a.is_active ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                </Button>
                 <Button variant="ghost" size="sm" onClick={() => setPendingDelete(a)}>
                   <Trash2 className="h-4 w-4" />
                 </Button>

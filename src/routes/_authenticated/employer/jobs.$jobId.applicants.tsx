@@ -185,16 +185,18 @@ function MatchScoreRing({ score, onClick }: { score: number; onClick?: () => voi
 
 // ─── Match Explanation Modal ───────────────────────────────────────────────────
 const BREAKDOWN_MAX: Record<string, number> = {
-  skills: 60,
-  location: 20,
+  skills: 55,
+  location: 17,
   experience: 15,
   salary: 5,
+  semantic: 8,
 };
 const BREAKDOWN_LABEL: Record<string, string> = {
   skills: "Skills overlap",
   location: "Location compatibility",
   experience: "Experience match",
   salary: "Salary overlap",
+  semantic: "Skill similarity (AI)",
   activity: "Recently active bonus",
   intent: "Hiring-intent bonus",
   proximity: "Proximity bonus",
@@ -208,7 +210,9 @@ function MatchExplanationModal({
   onClose: () => void;
 }) {
   const breakdown = candidate.match_breakdown ?? {};
-  const baseRows = ["skills", "location", "experience", "salary"].filter((k) => k in breakdown);
+  const baseRows = ["skills", "location", "experience", "salary", "semantic"].filter(
+    (k) => k in breakdown,
+  );
   const bonusRows = ["activity", "intent", "proximity"].filter((k) => (breakdown[k] ?? 0) > 0);
 
   return (

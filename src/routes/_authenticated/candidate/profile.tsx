@@ -10,7 +10,7 @@ import { SectionCard, EmptyHint, Chip, ChipInput, Field } from "@/components/can
 import { supabase } from "@/integrations/supabase/client";
 import { computeProfileStrength, getIncompleteProfileFields, strengthLabel } from "@/lib/profileStrength";
 import { AVATAR_ACCEPT, emailSchema, isSyntheticEmail, validateAvatarFile } from "@/lib/validators";
-import { INDIAN_CITIES, SUGGESTED_SKILLS, SUGGESTED_LANGUAGES, JOB_TYPE_OPTIONS, WORK_MODES, ID_TYPES, EDUCATION_LEVELS } from "@/lib/options";
+import { INDIAN_CITIES, SUGGESTED_SKILLS, SUGGESTED_LANGUAGES, JOB_TYPE_OPTIONS, WORK_MODES, ID_TYPES, EDUCATION_LEVELS, suggestRelatedRoles } from "@/lib/options";
 import { INDIAN_STATES_AND_UTS, CITIES_BY_STATE, type IndianState } from "@/lib/indianStatesCities";
 import { CityTownAutocomplete } from "@/components/candidate/CityTownAutocomplete";
 import { StateDropdown } from "@/components/candidate/StateDropdown";
@@ -31,6 +31,7 @@ type Profile = { full_name: string; mobile: string; city: string; state: string 
 type Candidate = {
   headline: string | null; bio: string | null; date_of_birth: string | null; gender: string | null;
   experience_status: string; years_experience: number; last_role: string | null;
+  interested_roles: string[] | null;
   skills: string[]; preferred_job_types: string[]; preferred_work_mode: string | null;
   preferred_cities: string[]; expected_salary: number | null; expected_salary_choice_kind: string | null; notice_period_days: number | null;
   resume_url: string | null; resume_name: string | null;
@@ -424,6 +425,7 @@ function ProfilePage() {
             <Info label="Status" value={c.experience_status} />
             <Info label="Experience" value={c.years_experience ? `${c.years_experience} years` : null} incomplete={incompleteKeys.has("years_experience")} />
             <Info label="Last role" value={c.last_role} incomplete={incompleteKeys.has("last_role")} />
+            <Info label="Interested job roles" value={c.interested_roles?.length ? c.interested_roles.join(", ") : null} wide />
             <Info label="Job types" value={c.preferred_job_types?.length ? c.preferred_job_types.map((t) => JOB_TYPE_OPTIONS.find((x) => x.id === t)?.label || t).join(", ") : null} incomplete={incompleteKeys.has("preferred_job_types")} />
             <Info label="Work mode" value={WORK_MODES.find((w) => w.id === c.preferred_work_mode)?.label || null} />
             <Info label="Expected salary" value={c.expected_salary ? `₹${c.expected_salary.toLocaleString()}/mo` : null} incomplete={incompleteKeys.has("expected_salary")} />
@@ -640,6 +642,7 @@ function ProfilePage() {
               <Info label="Status" value={c.experience_status} />
               <Info label="Experience" value={c.years_experience ? `${c.years_experience} years` : null} incomplete={incompleteKeys.has("years_experience")} />
               <Info label="Last role" value={c.last_role} incomplete={incompleteKeys.has("last_role")} />
+              <Info label="Interested job roles" value={c.interested_roles?.length ? c.interested_roles.join(", ") : null} wide />
               <Info label="Job types" value={c.preferred_job_types?.length ? c.preferred_job_types.map((t) => JOB_TYPE_OPTIONS.find((x) => x.id === t)?.label || t).join(", ") : null} incomplete={incompleteKeys.has("preferred_job_types")} />
               <Info label="Work mode" value={WORK_MODES.find((w) => w.id === c.preferred_work_mode)?.label || null} />
               <Info label="Expected salary" value={c.expected_salary ? `₹${c.expected_salary.toLocaleString()}/mo` : null} incomplete={incompleteKeys.has("expected_salary")} />
@@ -1075,6 +1078,8 @@ const STATUS_OPTIONS = [
 function CareerDialog({ open, onClose, uid, c, city, onSaved }: { open: boolean; onClose: () => void; uid: string; c: Candidate; city: string; onSaved: () => void }) {
   const [status, setStatus] = useState(c.experience_status); const [years, setYears] = useState(c.years_experience);
   const [lastRole, setLastRole] = useState(c.last_role || ""); const [jobTypes, setJobTypes] = useState<string[]>(c.preferred_job_types || []);
+  const [interestedRoles, setInterestedRoles] = useState<string[]>(c.interested_roles || []);
+  const runEmbedCandidateProfile = useServerFn(embedCandidateProfile);
   const [workMode, setWorkMode] = useState(c.preferred_work_mode || "onsite");
   const [cities, setCities] = useState<string[]>(c.preferred_cities || []);
   const [salary, setSalary] = useState<number | "">(c.expected_salary ?? "");
@@ -1082,7 +1087,7 @@ function CareerDialog({ open, onClose, uid, c, city, onSaved }: { open: boolean;
   const [notice, setNotice] = useState<number | "">(c.notice_period_days ?? "");
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{ status?: string; years?: string; jobTypes?: string; workMode?: string; salary?: string }>({});
-  useEffect(() => { if (open) { setStatus(c.experience_status); setYears(c.years_experience); setLastRole(c.last_role || ""); setJobTypes(c.preferred_job_types || []); setWorkMode(c.preferred_work_mode || "onsite"); setCities(c.preferred_cities || []); setSalary(c.expected_salary ?? ""); setSalaryChoiceKind((c.expected_salary_choice_kind as SalaryChoiceKind) || null); setNotice(c.notice_period_days ?? ""); setFieldErrors({}); } }, [open, c]);
+  useEffect(() => { if (open) { setStatus(c.experience_status); setYears(c.years_experience); setLastRole(c.last_role || ""); setInterestedRoles(c.interested_roles || []); setJobTypes(c.preferred_job_types || []); setWorkMode(c.preferred_work_mode || "onsite"); setCities(c.preferred_cities || []); setSalary(c.expected_salary ?? ""); setSalaryChoiceKind((c.expected_salary_choice_kind as SalaryChoiceKind) || null); setNotice(c.notice_period_days ?? ""); setFieldErrors({}); } }, [open, c]);
   const save = async () => {
     const next: typeof fieldErrors = {};
     if (!status) next.status = "Please select your status.";
@@ -1096,11 +1101,14 @@ function CareerDialog({ open, onClose, uid, c, city, onSaved }: { open: boolean;
     setSaving(true);
     await supabase.from("candidate_profiles").update({
       experience_status: status as "fresher" | "experienced" | "student", years_experience: years || 0, last_role: lastRole || null,
+      interested_roles: interestedRoles,
       preferred_job_types: jobTypes, preferred_work_mode: workMode,
       preferred_cities: cities, expected_salary: typeof salary === "number" ? salary : null,
       expected_salary_choice_kind: salaryChoiceKind,
       notice_period_days: typeof notice === "number" ? notice : null,
     }).eq("user_id", uid);
+    // Interested roles feed the recommendation engine's role similarity vector, so refresh it (best effort).
+    runEmbedCandidateProfile().catch(() => {});
     setSaving(false); toast.success("Saved"); onSaved(); onClose();
   };
   return (
@@ -1116,6 +1124,11 @@ function CareerDialog({ open, onClose, uid, c, city, onSaved }: { open: boolean;
         </Field>
         <Field label="Years of experience" required error={fieldErrors.years}><input type="number" min={0} className="form-input" value={years} onChange={(e) => setYears(Number(e.target.value))} /></Field>
         <div className="sm:col-span-2"><Field label="Current/last role"><input className="form-input" value={lastRole} onChange={(e) => setLastRole(e.target.value)} /></Field></div>
+        <div className="sm:col-span-2">
+          <Field label="Interested job roles" hint="Your job recommendations are matched to these roles. Remove any you don't want to see jobs for.">
+            <ChipInput values={interestedRoles} onChange={setInterestedRoles} suggestions={suggestRelatedRoles(interestedRoles, lastRole, [c.headline || ""])} placeholder="Type the job role you want" />
+          </Field>
+        </div>
         <div className="sm:col-span-2">
           <Field label="Looking for" required error={fieldErrors.jobTypes}>
             <div className="flex flex-wrap gap-2">

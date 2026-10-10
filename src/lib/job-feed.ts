@@ -129,13 +129,23 @@ function baseRpcArgs(filters: JobFeedFilters, from: number, to: number) {
   };
 }
 
-/** Public feed (feed_jobs): guest + employer "Recommended" sort only, unchanged. */
+/**
+ * Public feed (feed_jobs): guests + employers, every sort. feed_jobs() now takes an optional _sort
+ * (20261012130000_feed_jobs_smart_search_and_sort), so this is also what src/routes/jobs.tsx calls for
+ * explicit sorts instead of building a second, separate client query — one matching implementation
+ * (job_matches_search()/role_category(), the same one recommend_jobs_for_candidate uses) for every sort,
+ * not just "Recommended".
+ */
 export async function fetchPublicJobFeed(
   filters: JobFeedFilters,
   from: number,
   to: number,
+  sort: JobFeedSort = "recommended",
 ): Promise<JobFeedResult> {
-  const { data, error } = await supabase.rpc("feed_jobs", baseRpcArgs(filters, from, to));
+  const { data, error } = await supabase.rpc("feed_jobs", {
+    ...baseRpcArgs(filters, from, to),
+    _sort: sort,
+  });
   if (error) return { rows: [], total: 0, error: error.message };
   const rows = (data ?? []) as RecommendRow[];
   return { rows: mapRecommendRows(rows), total: recommendTotal(rows), error: null };

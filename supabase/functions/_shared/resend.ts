@@ -18,6 +18,8 @@ export async function sendEmail(opts: {
   subject: string;
   html: string;
   text?: string;
+  /** Extra headers, e.g. List-Unsubscribe / List-Unsubscribe-Post (RFC 8058). */
+  headers?: Record<string, string>;
 }): Promise<{ ok: boolean; error?: string }> {
   const apiKey = Deno.env.get("RESEND_API_KEY");
   if (!apiKey) {
@@ -35,7 +37,14 @@ export async function sendEmail(opts: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ from, to: [opts.to], subject: opts.subject, html: opts.html, ...(opts.text ? { text: opts.text } : {}) }),
+      body: JSON.stringify({
+        from,
+        to: [opts.to],
+        subject: opts.subject,
+        html: opts.html,
+        ...(opts.text ? { text: opts.text } : {}),
+        ...(opts.headers ? { headers: opts.headers } : {}),
+      }),
     });
     if (!res.ok) {
       const body = await res.text();
