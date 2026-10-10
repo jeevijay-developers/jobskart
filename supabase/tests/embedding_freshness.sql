@@ -27,7 +27,7 @@ END $t$;
 
 -- ───────────── f0. coverage BEFORE any hash/model is set (fixtures are legacy rows) ─────────────
 DO $t$
-DECLARE r record; _j_emb bigint; _c_emb bigint;
+DECLARE r record; _j_emb bigint; _c_emb bigint; _n int := 0;
 BEGIN
   ASSERT NOT EXISTS (SELECT 1 FROM jobs WHERE description_embedding_hash IS NOT NULL OR description_embedding_model IS NOT NULL), 'f0 precondition: no job hashes';
   ASSERT NOT EXISTS (SELECT 1 FROM candidate_profiles WHERE profile_embedding_hash IS NOT NULL OR profile_embedding_model IS NOT NULL), 'f0 precondition: no candidate hashes';
@@ -42,10 +42,15 @@ BEGIN
       ASSERT r.n_embedded = _j_emb AND r.n_stale = _j_emb AND r.pct_current = 0, format('f0 jobs: %s', r);
     ELSIF r.entity = 'candidates' THEN
       ASSERT r.n_embedded = _c_emb AND r.n_stale = _c_emb AND r.pct_current = 0, format('f0 candidates: %s', r);
+    ELSIF r.entity IN ('jobs_skills','jobs_role','candidates_skills','candidates_role') THEN
+      -- facet rows (Plan 10): present and internally consistent; their fill level depends on backfill state
+      ASSERT r.n_embedded + r.n_missing = r.n_total, format('f0 facet totals: %s', r);
     ELSE
       RAISE EXCEPTION 'f0 unexpected entity %', r.entity;
     END IF;
+    _n := _n + 1;
   END LOOP;
+  ASSERT _n = 6, format('f0 expected 6 coverage rows, got %s', _n);
   RESET ROLE;
 END $t$;
 
@@ -336,7 +341,7 @@ BEGIN
   END;
   PERFORM pg_temp.act_as('00000000-0000-4000-8000-00000000a001');
   SET LOCAL ROLE authenticated;
-  ASSERT (SELECT count(*) FROM public.recommendation_embedding_coverage()) = 2, 'e: admin sees two rows';
+  ASSERT (SELECT count(*) FROM public.recommendation_embedding_coverage()) = 6, 'e: admin sees six rows';
   RESET ROLE;
 END $t$;
 
@@ -382,7 +387,7 @@ BEGIN
   SET LOCAL ROLE authenticated;
 
   -- model-agnostic: stale = embedded with NULL hash
-  FOR r IN SELECT * FROM public.recommendation_embedding_coverage() LOOP
+  FOR r IN SELECT * FROM public.recommendation_embedding_coverage() c WHERE c.entity IN ('jobs','candidates') LOOP
     IF r.entity = 'jobs' THEN
       ASSERT r.n_total=_jt AND r.n_embedded=_je AND r.n_missing=_jt-_je AND r.n_stale=_je-_jhashed
          AND r.pct_current = round(100.0*_jhashed/_jt,1), format('f jobs (no model): %s', r);
@@ -393,7 +398,7 @@ BEGIN
   END LOOP;
 
   -- with a target model: other-model rows are stale too and not current
-  FOR r IN SELECT * FROM public.recommendation_embedding_coverage('model-x') LOOP
+  FOR r IN SELECT * FROM public.recommendation_embedding_coverage('model-x') c WHERE c.entity IN ('jobs','candidates') LOOP
     IF r.entity = 'jobs' THEN
       ASSERT r.n_total=_jt AND r.n_embedded=_je AND r.n_missing=_jt-_je AND r.n_stale=_je-_jmx
          AND r.pct_current = round(100.0*_jmx/_jt,1), format('f jobs (model-x): %s', r);
@@ -404,7 +409,7 @@ BEGIN
   END LOOP;
 
   -- a model nobody used: nothing current, every embedded row stale
-  FOR r IN SELECT * FROM public.recommendation_embedding_coverage('nope') LOOP
+  FOR r IN SELECT * FROM public.recommendation_embedding_coverage('nope') c WHERE c.entity IN ('jobs','candidates') LOOP
     ASSERT r.pct_current = 0 AND r.n_stale = r.n_embedded, format('f (nope): %s', r);
   END LOOP;
   RESET ROLE;
