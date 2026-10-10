@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.5"
-  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -60,6 +55,63 @@ export type Database = {
         }
         Relationships: []
       }
+      alert_deliveries: {
+        Row: {
+          alert_id: string
+          attempts: number
+          created_at: string
+          error: string | null
+          id: string
+          job_id: string
+          mode: string
+          score: number
+          sent_at: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          alert_id: string
+          attempts?: number
+          created_at?: string
+          error?: string | null
+          id?: string
+          job_id: string
+          mode: string
+          score?: number
+          sent_at?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          alert_id?: string
+          attempts?: number
+          created_at?: string
+          error?: string | null
+          id?: string
+          job_id?: string
+          mode?: string
+          score?: number
+          sent_at?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alert_deliveries_alert_id_fkey"
+            columns: ["alert_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_alerts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alert_deliveries_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       alert_job_notifications: {
         Row: {
           alert_id: string
@@ -95,6 +147,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      alert_send_ledger: {
+        Row: {
+          channel: string
+          count: number
+          day: string
+          user_id: string
+        }
+        Insert: {
+          channel: string
+          count?: number
+          day: string
+          user_id: string
+        }
+        Update: {
+          channel?: string
+          count?: number
+          day?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       application_ai_scores: {
         Row: {
@@ -140,6 +213,44 @@ export type Database = {
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      application_follow_up_messages: {
+        Row: {
+          application_id: string
+          created_at: string
+          id: string
+          message: string
+          read_at: string | null
+          sender_id: string
+          sender_role: string
+        }
+        Insert: {
+          application_id: string
+          created_at?: string
+          id?: string
+          message: string
+          read_at?: string | null
+          sender_id: string
+          sender_role: string
+        }
+        Update: {
+          application_id?: string
+          created_at?: string
+          id?: string
+          message?: string
+          read_at?: string | null
+          sender_id?: string
+          sender_role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "application_follow_up_messages_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
             referencedColumns: ["id"]
           },
         ]
@@ -665,6 +776,33 @@ export type Database = {
         }
         Relationships: []
       }
+      candidate_deletion_requests: {
+        Row: {
+          confirmed_at: string | null
+          expires_at: string
+          id: string
+          requested_at: string
+          token: string
+          user_id: string
+        }
+        Insert: {
+          confirmed_at?: string | null
+          expires_at?: string
+          id?: string
+          requested_at?: string
+          token?: string
+          user_id: string
+        }
+        Update: {
+          confirmed_at?: string | null
+          expires_at?: string
+          id?: string
+          requested_at?: string
+          token?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       candidate_documents: {
         Row: {
           created_at: string
@@ -839,6 +977,54 @@ export type Database = {
           status?: string
         }
         Relationships: []
+      }
+      candidate_invites: {
+        Row: {
+          candidate_user_id: string
+          company_id: string
+          created_at: string
+          credits_spent: number
+          id: string
+          invited_by: string | null
+          job_id: string
+          refunded: boolean
+        }
+        Insert: {
+          candidate_user_id: string
+          company_id: string
+          created_at?: string
+          credits_spent?: number
+          id?: string
+          invited_by?: string | null
+          job_id: string
+          refunded?: boolean
+        }
+        Update: {
+          candidate_user_id?: string
+          company_id?: string
+          created_at?: string
+          credits_spent?: number
+          id?: string
+          invited_by?: string | null
+          job_id?: string
+          refunded?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_invites_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_invites_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       candidate_job_alerts: {
         Row: {
@@ -1127,16 +1313,28 @@ export type Database = {
           preferred_cities: string[]
           preferred_job_types: string[]
           preferred_work_mode: string | null
+          profile_embedded_at: string | null
           profile_embedding: string | null
+          profile_embedding_hash: string | null
+          profile_embedding_model: string | null
           profile_slug: string | null
           profile_strength: number
           profile_views: number
           resume_name: string | null
           resume_url: string | null
+          role_embedded_at: string | null
+          role_embedding: string | null
+          role_embedding_hash: string | null
+          role_embedding_model: string | null
           skills: string[]
+          skills_embedded_at: string | null
+          skills_embedding: string | null
+          skills_embedding_hash: string | null
+          skills_embedding_model: string | null
           updated_at: string
           user_id: string
           whatsapp_number: string | null
+          whatsapp_number_status: string
           whatsapp_opt_in: boolean
           years_experience: number
         }
@@ -1165,16 +1363,28 @@ export type Database = {
           preferred_cities?: string[]
           preferred_job_types?: string[]
           preferred_work_mode?: string | null
+          profile_embedded_at?: string | null
           profile_embedding?: string | null
+          profile_embedding_hash?: string | null
+          profile_embedding_model?: string | null
           profile_slug?: string | null
           profile_strength?: number
           profile_views?: number
           resume_name?: string | null
           resume_url?: string | null
+          role_embedded_at?: string | null
+          role_embedding?: string | null
+          role_embedding_hash?: string | null
+          role_embedding_model?: string | null
           skills?: string[]
+          skills_embedded_at?: string | null
+          skills_embedding?: string | null
+          skills_embedding_hash?: string | null
+          skills_embedding_model?: string | null
           updated_at?: string
           user_id: string
           whatsapp_number?: string | null
+          whatsapp_number_status?: string
           whatsapp_opt_in?: boolean
           years_experience?: number
         }
@@ -1203,16 +1413,28 @@ export type Database = {
           preferred_cities?: string[]
           preferred_job_types?: string[]
           preferred_work_mode?: string | null
+          profile_embedded_at?: string | null
           profile_embedding?: string | null
+          profile_embedding_hash?: string | null
+          profile_embedding_model?: string | null
           profile_slug?: string | null
           profile_strength?: number
           profile_views?: number
           resume_name?: string | null
           resume_url?: string | null
+          role_embedded_at?: string | null
+          role_embedding?: string | null
+          role_embedding_hash?: string | null
+          role_embedding_model?: string | null
           skills?: string[]
+          skills_embedded_at?: string | null
+          skills_embedding?: string | null
+          skills_embedding_hash?: string | null
+          skills_embedding_model?: string | null
           updated_at?: string
           user_id?: string
           whatsapp_number?: string | null
+          whatsapp_number_status?: string
           whatsapp_opt_in?: boolean
           years_experience?: number
         }
@@ -1395,8 +1617,73 @@ export type Database = {
           },
         ]
       }
+      certificates: {
+        Row: {
+          attempt_id: string | null
+          candidate_id: string
+          candidate_name: string
+          certificate_file_url: string | null
+          certificate_id: string
+          certification_id: string
+          course_name: string
+          created_at: string
+          id: string
+          issued_at: string
+          score: number
+          status: string
+          valid_until: string | null
+        }
+        Insert: {
+          attempt_id?: string | null
+          candidate_id: string
+          candidate_name: string
+          certificate_file_url?: string | null
+          certificate_id: string
+          certification_id: string
+          course_name: string
+          created_at?: string
+          id?: string
+          issued_at?: string
+          score: number
+          status?: string
+          valid_until?: string | null
+        }
+        Update: {
+          attempt_id?: string | null
+          candidate_id?: string
+          candidate_name?: string
+          certificate_file_url?: string | null
+          certificate_id?: string
+          certification_id?: string
+          course_name?: string
+          created_at?: string
+          id?: string
+          issued_at?: string
+          score?: number
+          status?: string
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "certificates_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "cert_attempts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificates_certification_id_fkey"
+            columns: ["certification_id"]
+            isOneToOne: false
+            referencedRelation: "certifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       certifications: {
         Row: {
+          certificate_config: Json
+          certificate_enabled: boolean
           id: string
           max_attempts: number
           partner_name: string | null
@@ -1407,6 +1694,8 @@ export type Database = {
           validity_months: number | null
         }
         Insert: {
+          certificate_config?: Json
+          certificate_enabled?: boolean
           id: string
           max_attempts?: number
           partner_name?: string | null
@@ -1417,6 +1706,8 @@ export type Database = {
           validity_months?: number | null
         }
         Update: {
+          certificate_config?: Json
+          certificate_enabled?: boolean
           id?: string
           max_attempts?: number
           partner_name?: string | null
@@ -1476,6 +1767,7 @@ export type Database = {
         Row: {
           about: string | null
           allow_brand_display: boolean
+          business_email: string | null
           company_type: Database["public"]["Enums"]["company_type"] | null
           cover_url: string | null
           created_at: string
@@ -1506,6 +1798,7 @@ export type Database = {
         Insert: {
           about?: string | null
           allow_brand_display?: boolean
+          business_email?: string | null
           company_type?: Database["public"]["Enums"]["company_type"] | null
           cover_url?: string | null
           created_at?: string
@@ -1536,6 +1829,7 @@ export type Database = {
         Update: {
           about?: string | null
           allow_brand_display?: boolean
+          business_email?: string | null
           company_type?: Database["public"]["Enums"]["company_type"] | null
           cover_url?: string | null
           created_at?: string
@@ -1813,27 +2107,36 @@ export type Database = {
       }
       contact_messages: {
         Row: {
-          body: string
+          audience: string | null
           created_at: string
-          email: string
+          email: string | null
           id: string
+          message: string
           name: string
+          phone: string
+          status: string
           subject: string | null
         }
         Insert: {
-          body: string
+          audience?: string | null
           created_at?: string
-          email: string
+          email?: string | null
           id?: string
+          message: string
           name: string
+          phone: string
+          status?: string
           subject?: string | null
         }
         Update: {
-          body?: string
+          audience?: string | null
           created_at?: string
-          email?: string
+          email?: string | null
           id?: string
+          message?: string
           name?: string
+          phone?: string
+          status?: string
           subject?: string | null
         }
         Relationships: []
@@ -2379,6 +2682,8 @@ export type Database = {
           role: Database["public"]["Enums"]["employer_role"]
           status: string
           user_id: string
+          whatsapp_number: string | null
+          whatsapp_opt_in: boolean
         }
         Insert: {
           company_id: string
@@ -2389,6 +2694,8 @@ export type Database = {
           role?: Database["public"]["Enums"]["employer_role"]
           status?: string
           user_id: string
+          whatsapp_number?: string | null
+          whatsapp_opt_in?: boolean
         }
         Update: {
           company_id?: string
@@ -2399,6 +2706,8 @@ export type Database = {
           role?: Database["public"]["Enums"]["employer_role"]
           status?: string
           user_id?: string
+          whatsapp_number?: string | null
+          whatsapp_opt_in?: boolean
         }
         Relationships: [
           {
@@ -2504,6 +2813,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      home_testimonials: {
+        Row: {
+          created_at: string
+          id: string
+          initials: string
+          is_active: boolean
+          name: string
+          quote: string
+          rating: number
+          role_text: string
+          sort: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          initials: string
+          is_active?: boolean
+          name: string
+          quote: string
+          rating?: number
+          role_text: string
+          sort?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          initials?: string
+          is_active?: boolean
+          name?: string
+          quote?: string
+          rating?: number
+          role_text?: string
+          sort?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       industries: {
         Row: {
@@ -3188,6 +3536,58 @@ export type Database = {
           },
         ]
       }
+      job_alert_events: {
+        Row: {
+          activated_at: string
+          job_id: string
+          planned_at: string | null
+        }
+        Insert: {
+          activated_at?: string
+          job_id: string
+          planned_at?: string | null
+        }
+        Update: {
+          activated_at?: string
+          job_id?: string
+          planned_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_alert_events_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: true
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_alert_reach_topups: {
+        Row: {
+          extra_reach: number
+          job_id: string
+          updated_at: string
+        }
+        Insert: {
+          extra_reach?: number
+          job_id: string
+          updated_at?: string
+        }
+        Update: {
+          extra_reach?: number
+          job_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_alert_reach_topups_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: true
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_boosts: {
         Row: {
           boost_day: string
@@ -3327,27 +3727,57 @@ export type Database = {
       job_impressions: {
         Row: {
           candidate_user_id: string
+          feature_version: number
+          features: Json | null
           id: string
           job_id: string
           position: number | null
+          rank_score: number | null
+          reason_codes: string[] | null
+          recommendation_stage: string | null
+          relevant_only: boolean | null
+          request_id: string | null
+          score: number | null
           shown_at: string
+          sort: string | null
           source: string
+          variant: string
         }
         Insert: {
           candidate_user_id: string
+          feature_version?: number
+          features?: Json | null
           id?: string
           job_id: string
           position?: number | null
+          rank_score?: number | null
+          reason_codes?: string[] | null
+          recommendation_stage?: string | null
+          relevant_only?: boolean | null
+          request_id?: string | null
+          score?: number | null
           shown_at?: string
+          sort?: string | null
           source: string
+          variant?: string
         }
         Update: {
           candidate_user_id?: string
+          feature_version?: number
+          features?: Json | null
           id?: string
           job_id?: string
           position?: number | null
+          rank_score?: number | null
+          reason_codes?: string[] | null
+          recommendation_stage?: string | null
+          relevant_only?: boolean | null
+          request_id?: string | null
+          score?: number | null
           shown_at?: string
+          sort?: string | null
           source?: string
+          variant?: string
         }
         Relationships: [
           {
@@ -3596,14 +4026,19 @@ export type Database = {
           boosted_until: string | null
           category: string | null
           certifications: string[] | null
+          certifications_not_required: boolean
           city: string | null
           closed_at: string | null
           company_id: string
           contact_pref: string | null
+          contact_prefs: string[]
           created_at: string
           degree: string | null
           description: string
+          description_embedded_at: string | null
           description_embedding: string | null
+          description_embedding_hash: string | null
+          description_embedding_model: string | null
           description_html: string | null
           education: string | null
           english_level: string | null
@@ -3611,6 +4046,10 @@ export type Database = {
           expires_at: string | null
           fixed_pay: boolean | null
           gender_pref: string | null
+          hiring_contact_email: string | null
+          hiring_contact_mode: string | null
+          hiring_contact_name: string | null
+          hiring_contact_phone: string | null
           hiring_for_company: string | null
           id: string
           incentives_text: string | null
@@ -3623,6 +4062,7 @@ export type Database = {
           is_featured: boolean
           job_type: Database["public"]["Enums"]["job_type"]
           joining_fee_required: boolean | null
+          language_requirements: Json
           last_renewed_at: string | null
           locality: string | null
           max_experience_years: number | null
@@ -3637,19 +4077,29 @@ export type Database = {
           posted_by: string | null
           preferred_industries: string[] | null
           preferred_languages: string[] | null
+          preferred_skills: string[]
           quality_score: number | null
           renewed_count: number
           reopened_at: string | null
           repost_count: number
           reposted_from: string | null
           required_assets: string[] | null
+          required_documents: string[]
           responses_locked_after: string | null
           responses_purge_at: string | null
+          role_embedded_at: string | null
+          role_embedding: string | null
+          role_embedding_hash: string | null
+          role_embedding_model: string | null
           role_type: string | null
           salary_period: string | null
           screening_questions: Json
           shift: Database["public"]["Enums"]["job_shift"] | null
           skills: string[] | null
+          skills_embedded_at: string | null
+          skills_embedding: string | null
+          skills_embedding_hash: string | null
+          skills_embedding_model: string | null
           slug: string | null
           specialisation: string | null
           state: string | null
@@ -3663,6 +4113,7 @@ export type Database = {
           walkin_details: string | null
           work_mode: Database["public"]["Enums"]["work_mode"]
           working_days: number | null
+          working_weekdays: string[]
         }
         Insert: {
           age_max?: number | null
@@ -3674,14 +4125,19 @@ export type Database = {
           boosted_until?: string | null
           category?: string | null
           certifications?: string[] | null
+          certifications_not_required?: boolean
           city?: string | null
           closed_at?: string | null
           company_id: string
           contact_pref?: string | null
+          contact_prefs?: string[]
           created_at?: string
           degree?: string | null
           description?: string
+          description_embedded_at?: string | null
           description_embedding?: string | null
+          description_embedding_hash?: string | null
+          description_embedding_model?: string | null
           description_html?: string | null
           education?: string | null
           english_level?: string | null
@@ -3689,6 +4145,10 @@ export type Database = {
           expires_at?: string | null
           fixed_pay?: boolean | null
           gender_pref?: string | null
+          hiring_contact_email?: string | null
+          hiring_contact_mode?: string | null
+          hiring_contact_name?: string | null
+          hiring_contact_phone?: string | null
           hiring_for_company?: string | null
           id?: string
           incentives_text?: string | null
@@ -3701,6 +4161,7 @@ export type Database = {
           is_featured?: boolean
           job_type?: Database["public"]["Enums"]["job_type"]
           joining_fee_required?: boolean | null
+          language_requirements?: Json
           last_renewed_at?: string | null
           locality?: string | null
           max_experience_years?: number | null
@@ -3715,19 +4176,29 @@ export type Database = {
           posted_by?: string | null
           preferred_industries?: string[] | null
           preferred_languages?: string[] | null
+          preferred_skills?: string[]
           quality_score?: number | null
           renewed_count?: number
           reopened_at?: string | null
           repost_count?: number
           reposted_from?: string | null
           required_assets?: string[] | null
+          required_documents?: string[]
           responses_locked_after?: string | null
           responses_purge_at?: string | null
+          role_embedded_at?: string | null
+          role_embedding?: string | null
+          role_embedding_hash?: string | null
+          role_embedding_model?: string | null
           role_type?: string | null
           salary_period?: string | null
           screening_questions?: Json
           shift?: Database["public"]["Enums"]["job_shift"] | null
           skills?: string[] | null
+          skills_embedded_at?: string | null
+          skills_embedding?: string | null
+          skills_embedding_hash?: string | null
+          skills_embedding_model?: string | null
           slug?: string | null
           specialisation?: string | null
           state?: string | null
@@ -3741,6 +4212,7 @@ export type Database = {
           walkin_details?: string | null
           work_mode?: Database["public"]["Enums"]["work_mode"]
           working_days?: number | null
+          working_weekdays?: string[]
         }
         Update: {
           age_max?: number | null
@@ -3752,14 +4224,19 @@ export type Database = {
           boosted_until?: string | null
           category?: string | null
           certifications?: string[] | null
+          certifications_not_required?: boolean
           city?: string | null
           closed_at?: string | null
           company_id?: string
           contact_pref?: string | null
+          contact_prefs?: string[]
           created_at?: string
           degree?: string | null
           description?: string
+          description_embedded_at?: string | null
           description_embedding?: string | null
+          description_embedding_hash?: string | null
+          description_embedding_model?: string | null
           description_html?: string | null
           education?: string | null
           english_level?: string | null
@@ -3767,6 +4244,10 @@ export type Database = {
           expires_at?: string | null
           fixed_pay?: boolean | null
           gender_pref?: string | null
+          hiring_contact_email?: string | null
+          hiring_contact_mode?: string | null
+          hiring_contact_name?: string | null
+          hiring_contact_phone?: string | null
           hiring_for_company?: string | null
           id?: string
           incentives_text?: string | null
@@ -3779,6 +4260,7 @@ export type Database = {
           is_featured?: boolean
           job_type?: Database["public"]["Enums"]["job_type"]
           joining_fee_required?: boolean | null
+          language_requirements?: Json
           last_renewed_at?: string | null
           locality?: string | null
           max_experience_years?: number | null
@@ -3793,19 +4275,29 @@ export type Database = {
           posted_by?: string | null
           preferred_industries?: string[] | null
           preferred_languages?: string[] | null
+          preferred_skills?: string[]
           quality_score?: number | null
           renewed_count?: number
           reopened_at?: string | null
           repost_count?: number
           reposted_from?: string | null
           required_assets?: string[] | null
+          required_documents?: string[]
           responses_locked_after?: string | null
           responses_purge_at?: string | null
+          role_embedded_at?: string | null
+          role_embedding?: string | null
+          role_embedding_hash?: string | null
+          role_embedding_model?: string | null
           role_type?: string | null
           salary_period?: string | null
           screening_questions?: Json
           shift?: Database["public"]["Enums"]["job_shift"] | null
           skills?: string[] | null
+          skills_embedded_at?: string | null
+          skills_embedding?: string | null
+          skills_embedding_hash?: string | null
+          skills_embedding_model?: string | null
           slug?: string | null
           specialisation?: string | null
           state?: string | null
@@ -3819,6 +4311,7 @@ export type Database = {
           walkin_details?: string | null
           work_mode?: Database["public"]["Enums"]["work_mode"]
           working_days?: number | null
+          working_weekdays?: string[]
         }
         Relationships: [
           {
@@ -3908,6 +4401,7 @@ export type Database = {
       }
       notifications: {
         Row: {
+          application_id: string | null
           body: string | null
           created_at: string
           id: string
@@ -3919,6 +4413,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          application_id?: string | null
           body?: string | null
           created_at?: string
           id?: string
@@ -3930,6 +4425,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          application_id?: string | null
           body?: string | null
           created_at?: string
           id?: string
@@ -3940,7 +4436,15 @@ export type Database = {
           type?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "notifications_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       otp_verifications: {
         Row: {
@@ -3983,8 +4487,12 @@ export type Database = {
       }
       plan_settings: {
         Row: {
+          alert_reach: Json
+          alert_reach_topup_block: number
+          alert_reach_topup_price: number
           auto_renew_enabled: boolean
           auto_renew_max_times: number
+          credits_per_invite: number
           credits_per_unlock: number
           crm_automation_enabled: boolean
           crm_automation_rules_max: number
@@ -3997,7 +4505,6 @@ export type Database = {
           free_response_cap: number
           free_validity_days: number
           free_whatsapp_cap_per_post: number
-          free_whatsapp_per_post: number | null
           free_whatsapp_rajasthan_only: boolean
           id: number
           spam_jobs_per_hour: number
@@ -4006,8 +4513,12 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          alert_reach?: Json
+          alert_reach_topup_block?: number
+          alert_reach_topup_price?: number
           auto_renew_enabled?: boolean
           auto_renew_max_times?: number
+          credits_per_invite?: number
           credits_per_unlock?: number
           crm_automation_enabled?: boolean
           crm_automation_rules_max?: number
@@ -4020,7 +4531,6 @@ export type Database = {
           free_response_cap?: number
           free_validity_days?: number
           free_whatsapp_cap_per_post?: number
-          free_whatsapp_per_post?: number | null
           free_whatsapp_rajasthan_only?: boolean
           id?: number
           spam_jobs_per_hour?: number
@@ -4029,8 +4539,12 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          alert_reach?: Json
+          alert_reach_topup_block?: number
+          alert_reach_topup_price?: number
           auto_renew_enabled?: boolean
           auto_renew_max_times?: number
+          credits_per_invite?: number
           credits_per_unlock?: number
           crm_automation_enabled?: boolean
           crm_automation_rules_max?: number
@@ -4043,7 +4557,6 @@ export type Database = {
           free_response_cap?: number
           free_validity_days?: number
           free_whatsapp_cap_per_post?: number
-          free_whatsapp_per_post?: number | null
           free_whatsapp_rajasthan_only?: boolean
           id?: number
           spam_jobs_per_hour?: number
@@ -4305,11 +4818,22 @@ export type Database = {
           relevant_skill_threshold: number
           role_weight: number
           salary_weight: number
+          semantic_role_weight: number
+          semantic_skill_weight: number
           semantic_weight: number
           skill_weight: number
           trending_bonus_max: number
           trending_weight: number
           updated_at: string
+          v2_allowlist: string[]
+          v2_enabled: boolean
+          v2_fatigue_min_days: number
+          v2_fatigue_multiplier: number
+          v2_intent_weight: number
+          v2_rollout_pct: number
+          v2_salt: string
+          v2_similarity_weight: number
+          v2_window: number
         }
         Insert: {
           boost_bonus_max?: number
@@ -4327,11 +4851,22 @@ export type Database = {
           relevant_skill_threshold?: number
           role_weight?: number
           salary_weight?: number
+          semantic_role_weight?: number
+          semantic_skill_weight?: number
           semantic_weight?: number
           skill_weight?: number
           trending_bonus_max?: number
           trending_weight?: number
           updated_at?: string
+          v2_allowlist?: string[]
+          v2_enabled?: boolean
+          v2_fatigue_min_days?: number
+          v2_fatigue_multiplier?: number
+          v2_intent_weight?: number
+          v2_rollout_pct?: number
+          v2_salt?: string
+          v2_similarity_weight?: number
+          v2_window?: number
         }
         Update: {
           boost_bonus_max?: number
@@ -4349,11 +4884,22 @@ export type Database = {
           relevant_skill_threshold?: number
           role_weight?: number
           salary_weight?: number
+          semantic_role_weight?: number
+          semantic_skill_weight?: number
           semantic_weight?: number
           skill_weight?: number
           trending_bonus_max?: number
           trending_weight?: number
           updated_at?: string
+          v2_allowlist?: string[]
+          v2_enabled?: boolean
+          v2_fatigue_min_days?: number
+          v2_fatigue_multiplier?: number
+          v2_intent_weight?: number
+          v2_rollout_pct?: number
+          v2_salt?: string
+          v2_similarity_weight?: number
+          v2_window?: number
         }
         Relationships: []
       }
@@ -4381,10 +4927,67 @@ export type Database = {
         }
         Relationships: []
       }
+      resume_generation_counts: {
+        Row: {
+          total: number
+          user_id: string
+        }
+        Insert: {
+          total?: number
+          user_id: string
+        }
+        Update: {
+          total?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      resume_match_history: {
+        Row: {
+          created_at: string
+          id: string
+          job_id: string | null
+          label: string
+          matched_count: number
+          score: number
+          total_count: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          job_id?: string | null
+          label?: string
+          matched_count?: number
+          score: number
+          total_count?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          job_id?: string | null
+          label?: string
+          matched_count?: number
+          score?: number
+          total_count?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resume_match_history_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       resume_versions: {
         Row: {
           created_at: string
           id: string
+          name: string | null
           snapshot: Json
           template_id: string
           user_id: string
@@ -4393,6 +4996,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          name?: string | null
           snapshot: Json
           template_id: string
           user_id: string
@@ -4401,6 +5005,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          name?: string | null
           snapshot?: Json
           template_id?: string
           user_id?: string
@@ -4500,6 +5105,24 @@ export type Database = {
           },
         ]
       }
+      site_content: {
+        Row: {
+          key: string
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value?: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: Json
+        }
+        Relationships: []
+      }
       skills_master: {
         Row: {
           created_at: string
@@ -4565,6 +5188,116 @@ export type Database = {
           },
         ]
       }
+      whatsapp_consents: {
+        Row: {
+          at: string
+          id: string
+          opted_in: boolean
+          policy_version: string
+          source: string
+          user_id: string
+        }
+        Insert: {
+          at?: string
+          id?: string
+          opted_in: boolean
+          policy_version?: string
+          source: string
+          user_id: string
+        }
+        Update: {
+          at?: string
+          id?: string
+          opted_in?: boolean
+          policy_version?: string
+          source?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      whatsapp_messages: {
+        Row: {
+          attempts: number
+          category:
+            | Database["public"]["Enums"]["whatsapp_template_category"]
+            | null
+          dedupe_key: string | null
+          delivered_at: string | null
+          direction: string
+          failed_at: string | null
+          id: string
+          provider: string
+          provider_message_id: string | null
+          queued_at: string
+          read_at: string | null
+          recipient_number: string
+          recipient_user: string | null
+          reference: Json | null
+          sent_at: string | null
+          source: string
+          status: Database["public"]["Enums"]["whatsapp_message_status"]
+          status_detail: string | null
+          template_key: string | null
+          variables: Json | null
+        }
+        Insert: {
+          attempts?: number
+          category?:
+            | Database["public"]["Enums"]["whatsapp_template_category"]
+            | null
+          dedupe_key?: string | null
+          delivered_at?: string | null
+          direction?: string
+          failed_at?: string | null
+          id?: string
+          provider?: string
+          provider_message_id?: string | null
+          queued_at?: string
+          read_at?: string | null
+          recipient_number: string
+          recipient_user?: string | null
+          reference?: Json | null
+          sent_at?: string | null
+          source: string
+          status?: Database["public"]["Enums"]["whatsapp_message_status"]
+          status_detail?: string | null
+          template_key?: string | null
+          variables?: Json | null
+        }
+        Update: {
+          attempts?: number
+          category?:
+            | Database["public"]["Enums"]["whatsapp_template_category"]
+            | null
+          dedupe_key?: string | null
+          delivered_at?: string | null
+          direction?: string
+          failed_at?: string | null
+          id?: string
+          provider?: string
+          provider_message_id?: string | null
+          queued_at?: string
+          read_at?: string | null
+          recipient_number?: string
+          recipient_user?: string | null
+          reference?: Json | null
+          sent_at?: string | null
+          source?: string
+          status?: Database["public"]["Enums"]["whatsapp_message_status"]
+          status_detail?: string | null
+          template_key?: string | null
+          variables?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_messages_template_key_fkey"
+            columns: ["template_key"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_templates"
+            referencedColumns: ["key"]
+          },
+        ]
+      }
       whatsapp_send_ledger: {
         Row: {
           count: number
@@ -4580,6 +5313,87 @@ export type Database = {
           count?: number
           day?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      whatsapp_settings: {
+        Row: {
+          alert_digest_max_jobs: number
+          alert_email_per_day: number
+          alert_v2_enabled: boolean
+          alert_wa_per_day: number
+          dispatch_batch_size: number
+          enabled: boolean
+          id: number
+          marketing_min_gap_hours: number
+          marketing_per_7d: number
+          quiet_end_hour: number
+          quiet_start_hour: number
+          updated_at: string
+        }
+        Insert: {
+          alert_digest_max_jobs?: number
+          alert_email_per_day?: number
+          alert_v2_enabled?: boolean
+          alert_wa_per_day?: number
+          dispatch_batch_size?: number
+          enabled?: boolean
+          id?: number
+          marketing_min_gap_hours?: number
+          marketing_per_7d?: number
+          quiet_end_hour?: number
+          quiet_start_hour?: number
+          updated_at?: string
+        }
+        Update: {
+          alert_digest_max_jobs?: number
+          alert_email_per_day?: number
+          alert_v2_enabled?: boolean
+          alert_wa_per_day?: number
+          dispatch_batch_size?: number
+          enabled?: boolean
+          id?: number
+          marketing_min_gap_hours?: number
+          marketing_per_7d?: number
+          quiet_end_hour?: number
+          quiet_start_hour?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      whatsapp_templates: {
+        Row: {
+          category: Database["public"]["Enums"]["whatsapp_template_category"]
+          created_at: string
+          id: string
+          key: string
+          language: string
+          provider_template_id: string
+          status: string
+          updated_at: string
+          variables: Json
+        }
+        Insert: {
+          category: Database["public"]["Enums"]["whatsapp_template_category"]
+          created_at?: string
+          id?: string
+          key: string
+          language?: string
+          provider_template_id: string
+          status?: string
+          updated_at?: string
+          variables?: Json
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["whatsapp_template_category"]
+          created_at?: string
+          id?: string
+          key?: string
+          language?: string
+          provider_template_id?: string
+          status?: string
+          updated_at?: string
+          variables?: Json
         }
         Relationships: []
       }
@@ -4606,6 +5420,40 @@ export type Database = {
           years_experience: number | null
         }
         Relationships: []
+      }
+      recommendation_labelled_impressions: {
+        Row: {
+          candidate_user_id: string | null
+          day: string | null
+          feature_version: number | null
+          features: Json | null
+          gain: number | null
+          id: string | null
+          job_id: string | null
+          label_applied: boolean | null
+          label_saved: boolean | null
+          label_viewed: boolean | null
+          pos: number | null
+          rank_score: number | null
+          reason_codes: string[] | null
+          recommendation_stage: string | null
+          relevant_only: boolean | null
+          request_id: string | null
+          score: number | null
+          shown_at: string | null
+          sort: string | null
+          source: string | null
+          variant: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_impressions_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Functions: {
@@ -4652,6 +5500,10 @@ export type Database = {
         }
         Returns: number
       }
+      assert_whatsapp_post_cap: {
+        Args: { _candidate_user_id: string; _job_id: string }
+        Returns: undefined
+      }
       attach_zoom_meeting_secrets: {
         Args: {
           _interview_id: string
@@ -4673,6 +5525,10 @@ export type Database = {
           grants_remaining: number
           wallet_balance: number
         }[]
+      }
+      boost_alert_reach: {
+        Args: { _blocks: number; _job_id: string }
+        Returns: Json
       }
       buyer_gst_state_code: {
         Args: { _gstin: string; _pincode: string }
@@ -4715,6 +5571,23 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      candidate_embedding_is_current: {
+        Args: { _hash: string }
+        Returns: boolean
+      }
+      candidate_role_embedding_is_current: {
+        Args: { _hash: string }
+        Returns: boolean
+      }
+      candidate_skills_embedding_is_current: {
+        Args: { _hash: string }
+        Returns: boolean
+      }
+      claim_account_deletion: { Args: { _token: string }; Returns: string }
+      claim_alert_slot: {
+        Args: { _channel: string; _user: string }
+        Returns: boolean
       }
       claim_due_crm_tasks: { Args: never; Returns: Json }
       claim_due_expiry_reminders: { Args: never; Returns: Json }
@@ -4880,6 +5753,9 @@ export type Database = {
         Args: { _candidate_user_id: string; _job_id: string }
         Returns: undefined
       }
+      enable_whatsapp_alerts: { Args: never; Returns: undefined }
+      enqueue_recommended_jobs_nudges: { Args: never; Returns: number }
+      enqueue_reengagement_nudges: { Args: never; Returns: number }
       expire_benefit_grants: { Args: never; Returns: number }
       feed_jobs: {
         Args: {
@@ -5007,6 +5883,13 @@ export type Database = {
         }
         Returns: Json
       }
+      get_account_deletion_request_by_token: {
+        Args: { _token: string }
+        Returns: {
+          confirmed_at: string
+          expires_at: string
+        }[]
+      }
       get_certification_exam: {
         Args: { _certification_id: string }
         Returns: Json
@@ -5074,6 +5957,14 @@ export type Database = {
           expires_at: string
           id: string
           role: Database["public"]["Enums"]["employer_role"]
+        }[]
+      }
+      get_job_alert_reach: {
+        Args: { _job_id: string }
+        Returns: {
+          digest_queued: number
+          instant_sent: number
+          total_matched: number
         }[]
       }
       get_lesson_content: { Args: { _lesson_id: string }; Returns: Json }
@@ -5238,7 +6129,11 @@ export type Database = {
       increment_profile_views: { Args: { _slug: string }; Returns: undefined }
       invite_candidate_to_apply: {
         Args: { _candidate_user_id: string; _job_id: string; _message?: string }
-        Returns: undefined
+        Returns: Json
+      }
+      is_company_on_free_plan: {
+        Args: { _company_id: string }
+        Returns: boolean
       }
       issue_credit_pack_invoice: {
         Args: { _order_id: string; _razorpay_payment_id: string }
@@ -5247,6 +6142,27 @@ export type Database = {
       issue_plan_invoice: {
         Args: { _order_id: string; _razorpay_payment_id: string }
         Returns: string
+      }
+      job_embedding_is_current: {
+        Args: { _hash: string; _job_id: string }
+        Returns: boolean
+      }
+      job_matches_search: {
+        Args: {
+          _category: string
+          _q: string
+          _skills: string[]
+          _title: string
+        }
+        Returns: boolean
+      }
+      job_role_embedding_is_current: {
+        Args: { _hash: string; _job_id: string }
+        Returns: boolean
+      }
+      job_skills_embedding_is_current: {
+        Args: { _hash: string; _job_id: string }
+        Returns: boolean
       }
       log_contact_viewed: {
         Args: {
@@ -5269,6 +6185,16 @@ export type Database = {
         }
         Returns: undefined
       }
+      log_employer_whatsapp_outreach: {
+        Args: {
+          _actor: string
+          _candidate_user_id: string
+          _company_id: string
+          _job_id: string
+        }
+        Returns: string
+      }
+      log_job_view: { Args: { _job_id: string }; Returns: undefined }
       log_salary_event: {
         Args: { _company_id: string; _kind: string; _meta?: Json }
         Returns: undefined
@@ -5295,6 +6221,7 @@ export type Database = {
         Returns: string[]
       }
       normalize_phone_e164: { Args: { _phone: string }; Returns: string }
+      plan_alert_deliveries: { Args: { _job_id: string }; Returns: number }
       process_job_expiry_batch: { Args: never; Returns: Json }
       purge_expired_responses: { Args: never; Returns: Json }
       reactivate_member: {
@@ -5305,117 +6232,259 @@ export type Database = {
         }
         Returns: undefined
       }
-      recommend_jobs_for_candidate:
-        | {
-            Args: {
-              _category?: string
-              _city?: string
-              _company?: string
-              _education?: string
-              _english_level?: string
-              _job_type?: string
-              _limit?: number
-              _max_exp?: number
-              _max_salary?: number
-              _min_exp?: number
-              _min_salary?: number
-              _offset?: number
-              _posted_after?: string
-              _q?: string
-              _shift?: string
-              _vehicle?: boolean
-              _verified_only?: boolean
-              _work_mode?: string
-            }
-            Returns: {
-              avg_incentive_monthly: number
-              boosted: boolean
-              city: string
-              company_id: string
-              company_is_verified: boolean
-              company_name: string
-              created_at: string
-              education: string
-              id: string
-              job_type: string
-              locality: string
-              max_experience_years: number
-              max_salary: number
-              min_experience_years: number
-              min_salary: number
-              pay_type: string
-              recommendation_stage: string
-              salary_period: string
-              score: number
-              score_breakdown: Json
-              skills: string[]
-              state: string
-              title: string
-              total_count: number
-              work_mode: string
-            }[]
-          }
-        | {
-            Args: {
-              _category?: string
-              _city?: string
-              _company?: string
-              _education?: string
-              _english_level?: string
-              _job_type?: string
-              _limit?: number
-              _max_exp?: number
-              _max_salary?: number
-              _min_exp?: number
-              _min_salary?: number
-              _offset?: number
-              _posted_after?: string
-              _q?: string
-              _relevant_only?: boolean
-              _shift?: string
-              _vehicle?: boolean
-              _verified_only?: boolean
-              _work_mode?: string
-            }
-            Returns: {
-              avg_incentive_monthly: number
-              boosted: boolean
-              city: string
-              company_id: string
-              company_is_verified: boolean
-              company_name: string
-              created_at: string
-              education: string
-              id: string
-              job_type: string
-              locality: string
-              max_experience_years: number
-              max_salary: number
-              min_experience_years: number
-              min_salary: number
-              pay_type: string
-              recommendation_stage: string
-              salary_period: string
-              score: number
-              score_breakdown: Json
-              skills: string[]
-              state: string
-              title: string
-              total_count: number
-              work_mode: string
-            }[]
-          }
+      recommend_jobs_for_candidate: {
+        Args: {
+          _category?: string
+          _city?: string
+          _company?: string
+          _education?: string
+          _english_level?: string
+          _job_type?: string
+          _limit?: number
+          _max_exp?: number
+          _max_salary?: number
+          _min_exp?: number
+          _min_salary?: number
+          _offset?: number
+          _posted_after?: string
+          _q?: string
+          _relevant_only?: boolean
+          _shift?: string
+          _sort?: string
+          _vehicle?: boolean
+          _verified_only?: boolean
+          _work_mode?: string
+        }
+        Returns: {
+          avg_incentive_monthly: number
+          boosted: boolean
+          city: string
+          company_id: string
+          company_is_verified: boolean
+          company_name: string
+          created_at: string
+          education: string
+          id: string
+          job_type: string
+          locality: string
+          max_experience_years: number
+          max_salary: number
+          min_experience_years: number
+          min_salary: number
+          pay_type: string
+          recommendation_stage: string
+          salary_period: string
+          score: number
+          score_breakdown: Json
+          skills: string[]
+          state: string
+          title: string
+          total_count: number
+          work_mode: string
+        }[]
+      }
+      recommend_jobs_routed: {
+        Args: {
+          _category?: string
+          _city?: string
+          _company?: string
+          _education?: string
+          _english_level?: string
+          _job_type?: string
+          _limit?: number
+          _max_exp?: number
+          _max_salary?: number
+          _min_exp?: number
+          _min_salary?: number
+          _offset?: number
+          _posted_after?: string
+          _q?: string
+          _relevant_only?: boolean
+          _shift?: string
+          _sort?: string
+          _surface?: string
+          _vehicle?: boolean
+          _verified_only?: boolean
+          _work_mode?: string
+        }
+        Returns: Database["public"]["CompositeTypes"]["job_feed_row"][]
+        SetofOptions: {
+          from: "*"
+          to: "job_feed_row"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      recommendation_blend: {
+        Args: {
+          _base: number
+          _fatigue_mult: number
+          _fatigued: boolean
+          _intent: number
+          _similar: number
+          _w_intent: number
+          _w_similar: number
+        }
+        Returns: number
+      }
+      recommendation_bucket: {
+        Args: { _salt: string; _uid: string }
+        Returns: number
+      }
+      recommendation_data_health: {
+        Args: { _days?: number }
+        Returns: {
+          metric: string
+          value: number
+        }[]
+      }
+      recommendation_embedding_coverage: {
+        Args: { _current_model?: string }
+        Returns: {
+          entity: string
+          n_embedded: number
+          n_missing: number
+          n_stale: number
+          n_total: number
+          pct_current: number
+        }[]
+      }
+      recommendation_eval: {
+        Args: { _days?: number }
+        Returns: {
+          apply_rate: number
+          candidate_apply_rate: number
+          n_applied: number
+          n_candidates: number
+          n_candidates_applied: number
+          n_fallback_requests: number
+          n_impressions: number
+          n_lists: number
+          n_saved: number
+          n_viewed: number
+          ndcg10: number
+          save_rate: number
+          variant: string
+          view_rate: number
+          z_candidate_apply_vs_v1: number
+        }[]
+      }
+      recommendation_event_strength: {
+        Args: { _age_days: number; _weight: number }
+        Returns: number
+      }
+      recommendation_fetch_v1: {
+        Args: {
+          _category: string
+          _city: string
+          _company: string
+          _education: string
+          _english_level: string
+          _job_type: string
+          _limit: number
+          _max_exp: number
+          _max_salary: number
+          _min_exp: number
+          _min_salary: number
+          _offset: number
+          _posted_after: string
+          _q: string
+          _reason_codes: string[]
+          _relevant_only: boolean
+          _request_id: string
+          _shift: string
+          _sort: string
+          _variant: string
+          _vehicle: boolean
+          _verified_only: boolean
+          _work_mode: string
+        }
+        Returns: Database["public"]["CompositeTypes"]["job_feed_row"][]
+        SetofOptions: {
+          from: "*"
+          to: "job_feed_row"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      recommendation_ndcg: {
+        Args: { _gains: number[]; _k?: number }
+        Returns: number
+      }
+      recommendation_reason_codes: {
+        Args: {
+          _breakdown: Json
+          _fatigued: boolean
+          _intent: number
+          _similar: number
+        }
+        Returns: string[]
+      }
+      recommendation_rerank: {
+        Args: {
+          _rows: Database["public"]["CompositeTypes"]["job_feed_row"][]
+          _uid: string
+        }
+        Returns: Database["public"]["CompositeTypes"]["job_feed_row"][]
+      }
+      recommendation_training_examples: {
+        Args: { _days?: number; _limit?: number }
+        Returns: {
+          candidate_user_id: string
+          feature_version: number
+          features: Json
+          gain: number
+          job_id: string
+          label_applied: boolean
+          label_saved: boolean
+          label_viewed: boolean
+          pos: number
+          rank_score: number
+          reason_codes: string[]
+          recommendation_stage: string
+          relevant_only: boolean
+          request_id: string
+          score: number
+          shown_at: string
+          variant: string
+        }[]
+      }
+      recommendation_two_prop_z: {
+        Args: { _n1: number; _n2: number; _x1: number; _x2: number }
+        Returns: number
+      }
+      recommendation_v2_active: { Args: { _uid: string }; Returns: boolean }
+      record_whatsapp_consent: {
+        Args: { _opted_in: boolean; _source: string }
+        Returns: undefined
+      }
+      record_whatsapp_consent_for: {
+        Args: { _opted_in: boolean; _source: string; _user: string }
+        Returns: undefined
+      }
       refresh_computed_salary_bands: { Args: never; Returns: number }
+      refund_candidate_invite: { Args: { _invite_id: string }; Returns: Json }
       register_download: {
         Args: { _company_id: string; _count: number; _kind: string }
         Returns: number
       }
       register_whatsapp_send: { Args: { _count: number }; Returns: number }
+      register_whatsapp_send_for: {
+        Args: { _count: number; _user: string }
+        Returns: number
+      }
       remove_member: {
         Args: { _company_id: string; _user_id: string }
         Returns: undefined
       }
       renew_job: { Args: { _job_id: string }; Returns: Json }
+      request_account_deletion: {
+        Args: never
+        Returns: {
+          id: string
+          token: string
+        }[]
+      }
       reschedule_video_interview: {
         Args: {
           _actor?: string
@@ -5507,6 +6576,11 @@ export type Database = {
         Args: { _company_id: string; _fallback?: number; _key: string }
         Returns: number
       }
+      role_adjacent_categories: {
+        Args: { _category: string }
+        Returns: string[]
+      }
+      role_category: { Args: { _role: string }; Returns: string }
       run_benefit_reconciliation_check: { Args: never; Returns: number }
       search_candidates_for_company: {
         Args: {
@@ -5542,6 +6616,11 @@ export type Database = {
         Args: { _enabled: boolean; _job_id: string }
         Returns: undefined
       }
+      set_my_employer_whatsapp: {
+        Args: { _company_id: string; _number: string; _opt_in: boolean }
+        Returns: undefined
+      }
+      should_send_whatsapp: { Args: { _user_id: string }; Returns: boolean }
       slugify: { Args: { _text: string }; Returns: string }
       start_interview_prep_session: {
         Args: {
@@ -5592,11 +6671,42 @@ export type Database = {
         Returns: undefined
       }
       update_candidate_profile_embedding: {
-        Args: { _embedding: string }
+        Args: { _embedding: string; _input_hash?: string; _model?: string }
+        Returns: undefined
+      }
+      update_candidate_role_embedding: {
+        Args: { _embedding: string; _input_hash?: string; _model?: string }
+        Returns: undefined
+      }
+      update_candidate_skills_embedding: {
+        Args: { _embedding: string; _input_hash?: string; _model?: string }
         Returns: undefined
       }
       update_job_description_embedding: {
-        Args: { _embedding: string; _job_id: string }
+        Args: {
+          _embedding: string
+          _input_hash?: string
+          _job_id: string
+          _model?: string
+        }
+        Returns: undefined
+      }
+      update_job_role_embedding: {
+        Args: {
+          _embedding: string
+          _input_hash?: string
+          _job_id: string
+          _model?: string
+        }
+        Returns: undefined
+      }
+      update_job_skills_embedding: {
+        Args: {
+          _embedding: string
+          _input_hash?: string
+          _job_id: string
+          _model?: string
+        }
         Returns: undefined
       }
       update_member_role: {
@@ -5644,6 +6754,7 @@ export type Database = {
         | "boost"
         | "job_post"
         | "repost"
+        | "invite"
       crm_action: "create_task" | "notify" | "move_stage"
       crm_trigger:
         | "application_uncontacted_h"
@@ -5674,10 +6785,49 @@ export type Database = {
       kyc_method: "gst" | "email" | "manual"
       kyc_status: "pending" | "verified" | "rejected"
       user_type: "candidate" | "employer"
+      whatsapp_message_status:
+        | "queued"
+        | "sent"
+        | "delivered"
+        | "read"
+        | "failed"
+        | "invalid_number"
+      whatsapp_template_category: "utility" | "marketing" | "authentication"
       work_mode: "onsite" | "remote" | "hybrid" | "field"
     }
     CompositeTypes: {
-      [_ in never]: never
+      job_feed_row: {
+        id: string | null
+        company_id: string | null
+        title: string | null
+        city: string | null
+        state: string | null
+        locality: string | null
+        min_salary: number | null
+        max_salary: number | null
+        salary_period: string | null
+        job_type: string | null
+        work_mode: string | null
+        min_experience_years: number | null
+        max_experience_years: number | null
+        education: string | null
+        skills: string[] | null
+        created_at: string | null
+        pay_type: string | null
+        avg_incentive_monthly: number | null
+        company_name: string | null
+        company_is_verified: boolean | null
+        boosted: boolean | null
+        score: number | null
+        score_breakdown: Json | null
+        recommendation_stage: string | null
+        total_count: number | null
+        request_id: string | null
+        variant: string | null
+        rank_score: number | null
+        reason_codes: string[] | null
+        features: Json | null
+      }
     }
   }
 }
@@ -5842,6 +6992,7 @@ export const Constants = {
         "boost",
         "job_post",
         "repost",
+        "invite",
       ],
       crm_action: ["create_task", "notify", "move_stage"],
       crm_trigger: [
@@ -5876,7 +7027,17 @@ export const Constants = {
       kyc_method: ["gst", "email", "manual"],
       kyc_status: ["pending", "verified", "rejected"],
       user_type: ["candidate", "employer"],
+      whatsapp_message_status: [
+        "queued",
+        "sent",
+        "delivered",
+        "read",
+        "failed",
+        "invalid_number",
+      ],
+      whatsapp_template_category: ["utility", "marketing", "authentication"],
       work_mode: ["onsite", "remote", "hybrid", "field"],
     },
   },
 } as const
+

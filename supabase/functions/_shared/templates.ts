@@ -237,6 +237,7 @@ function jobCard(job: MatchedJob): string {
 export function jobMatchEmail(
   alert: AlertSummary,
   jobs: MatchedJob[],
+  opts?: { unsubscribeUrl?: string },
 ): { subject: string; html: string; text: string } {
   const appUrl = getPublicAppUrl();
   const watching = [alert.keyword, alert.city].filter(Boolean).join(" \u00b7 ") || "your alert";
@@ -288,6 +289,19 @@ export function jobMatchEmail(
       ? jobs.length + ' new jobs match your "' + watching + '" alert \u2014 apply now.'
       : '"' + jobs[0].title + '" matches your "' + watching + '" alert \u2014 apply now.',
     body,
+    opts?.unsubscribeUrl
+      ? {
+          footerHtml:
+            "You're receiving this because you created a job alert on JobsKart.<br>\n" +
+            '            <a href="' +
+            appUrl +
+            '/candidate/alerts" style="color:#1A55BD;text-decoration:none;">Manage your alerts</a>' +
+            " &middot; " +
+            '<a href="' +
+            opts.unsubscribeUrl +
+            '" style="color:#1A55BD;text-decoration:none;">Unsubscribe from alert emails</a>',
+        }
+      : undefined,
   );
 
   const text = [
@@ -304,6 +318,7 @@ export function jobMatchEmail(
     "",
     "Browse all jobs: " + appUrl + "/jobs",
     "Manage alerts: " + appUrl + "/candidate/alerts",
+    ...(opts?.unsubscribeUrl ? ["Unsubscribe: " + opts.unsubscribeUrl] : []),
     "\u2014",
     "JobsKart \u00b7 " + appUrl,
   ].join("\n");
