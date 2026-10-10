@@ -1,5 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Briefcase, Eye, Loader2, MapPin, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -10,13 +10,22 @@ import { InterviewInfo, type Interview } from "@/components/candidate/InterviewI
 import { ViewApplicationDialog } from "@/components/candidate/ViewApplicationDialog";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { FollowUpDialog } from "@/components/candidate/FollowUpDialog";
+import { NotificationContextBanner } from "@/components/candidate/NotificationContextBanner";
 
 const TOP_TABS = ["all", "shortlisted", "interview"] as const;
 type TopTab = (typeof TOP_TABS)[number];
 
 const applicationsSearchSchema = z.object({
   tab: z.enum(TOP_TABS).optional(),
+  // Point 16: a notification can deep-link here with the application to
+  // highlight/scroll to, plus the notification id for the context banner.
+  // No current notification type's `link` carries an application id (see
+  // notificationDestination.ts), but the mapping is generic — a future type
+  // can populate this without any change here.
+  application: z.string().uuid().optional(),
+  notification: z.string().uuid().optional(),
 });
+type ApplicationsSearch = z.infer<typeof applicationsSearchSchema>;
 
 export const Route = createFileRoute("/_authenticated/candidate/applications")({
   validateSearch: applicationsSearchSchema,
@@ -75,6 +84,7 @@ type Row = {
 };
 
 function ApplicationsPage() {
+  const navigate = useNavigate();
   // Lets dashboard's Shortlisted/Interviews stat cards deep-link straight
   // into that tab (?tab=shortlisted / ?tab=interview) instead of always
   // landing on "All" — manual tab clicks within this page still work purely
@@ -87,6 +97,12 @@ function ApplicationsPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [reviewing, setReviewing] = useState<Row | null>(null);
   const [followingUp, setFollowingUp] = useState<Row | null>(null);
+  // Point 16: ?application=<id> from a notification — highlighted card,
+  // cleared once the user has seen it scroll into view (not on a timer, so
+  // it never disappears before they notice it).
+  const [highlightId, setHighlightId] = useState<string | null>(search.application ?? null);
+  const highlightedRef = useRef<HTMLDivElement | null>(null);
+  const scrolledRef = useRef(false);
 
   const load = async () => {
     setLoading(true);
@@ -109,6 +125,21 @@ function ApplicationsPage() {
   useEffect(() => {
     load();
   }, []);
+
+  // Once the highlighted application has loaded, make sure it's visible:
+  // "All" always shows every status (see counts comment below), so jumping
+  // there guarantees the target row is on screen regardless of which tab the
+  // user was last on — then scroll it into view, once per page load.
+  useEffect(() => {
+    if (!highlightId || scrolledRef.current) return;
+    const target = rows.find((r) => r.id === highlightId);
+    if (!target) return;
+    if (tab !== "all") setTab("all");
+    scrolledRef.current = true;
+    requestAnimationFrame(() => {
+      highlightedRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }, [rows, highlightId, tab]);
 
   // Counts per underlying status, regardless of how tabs group them — "All" always
   // aggregates every status (including Applied and Withdrawn, which have no
@@ -136,6 +167,21 @@ function ApplicationsPage() {
       title="My applications"
       subtitle="Track every job you've applied to in one place."
     >
+      <NotificationContextBanner
+        notificationId={search.notification}
+        onDismiss={() => {
+          setHighlightId(null);
+          navigate({
+            from: Route.fullPath,
+            search: (prev: ApplicationsSearch) => ({
+              ...prev,
+              notification: undefined,
+              application: undefined,
+            }),
+            replace: true,
+          });
+        }}
+      />
       <div
         className={`flex flex-wrap gap-1 rounded-xl border border-border bg-card p-1 ${tab === "interview" ? "mb-2" : "mb-5"}`}
       >
@@ -222,7 +268,12 @@ function ApplicationsPage() {
           {filtered.map((a) => (
             <div
               key={a.id}
-              className="rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-card)]"
+              ref={a.id === highlightId ? highlightedRef : undefined}
+              className={`rounded-xl border p-5 shadow-[var(--shadow-card)] transition-colors ${
+                a.id === highlightId
+                  ? "border-primary/50 bg-primary-light/30"
+                  : "border-border bg-card"
+              }`}
             >
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
