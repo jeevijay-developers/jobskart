@@ -33,6 +33,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchMyCompanies, getActiveCompanyId, type EmployerMembership } from "@/lib/employer";
 import {
   getUnlockState,
+  inviteCandidateToApply,
   listUnlockedCandidateIds,
   unlockCandidateContact,
 } from "@/lib/credits.functions";
@@ -176,6 +177,7 @@ function DatabasePage() {
   const [selectedJobId, setSelectedJobId] = useState<string>("");
   const [sortBy, setSortBy] = useState<"relevance" | "match" | "experience">("relevance");
   const pickNext = useServerFn(pickNextSearchBroadening);
+  const invite = useServerFn(inviteCandidateToApply);
   const triedBroadenKeys = useRef(new Set<string>());
   const [unlockingId, setUnlockingId] = useState<string | null>(null);
   const [reviewApplicant, setReviewApplicant] = useState<ReviewApplicant | null>(null);
@@ -334,16 +336,20 @@ function DatabasePage() {
     if (!selectedJobId || !active) return;
     setInvitingId(candidateUserId);
     try {
-      const { error } = await supabase.rpc("invite_candidate_to_apply", {
-        _job_id: selectedJobId,
-        _candidate_user_id: candidateUserId,
-      });
-      if (error) throw error;
+      const r = await invite({ data: { jobId: selectedJobId, candidateUserId } });
       setInvitedSet((prev) => new Set(prev).add(candidateUserId));
-      toast.success("Invitation sent to candidate!");
+      if (r.refunded) {
+        toast.error("Couldn't reach this candidate — credits refunded.");
+      } else if (r.emailSent && r.whatsappSent) {
+        toast.success("Invited via email + WhatsApp.");
+      } else if (r.emailSent || r.whatsappSent) {
+        toast.success(`Invited via ${r.emailSent ? "email" : "WhatsApp"}.`);
+      } else {
+        toast.success("Invitation sent to candidate!");
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to send invitation";
-      toast.error(msg);
+      toast.error(msg.includes("no_credits") ? "Out of credits. Buy a pack to invite." : msg);
     } finally {
       setInvitingId(null);
     }

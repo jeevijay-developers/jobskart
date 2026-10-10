@@ -1024,3 +1024,77 @@ export function accountDeletionEmail(info: { confirmUrl: string }): {
 
   return { subject, html, text };
 }
+
+// ---------------------------------------------------------------------------
+// Template -- Candidate invited to apply (employer-triggered, from the
+// Applicants / candidate database "Invite to Apply" button)
+// ---------------------------------------------------------------------------
+export function candidateInviteToApplyEmail(info: {
+  candidateName: string | null;
+  jobTitle: string;
+  companyName: string;
+  jobUrl: string;
+}): {
+  subject: string;
+  html: string;
+  text: string;
+} {
+  const companyName = escapeHtml(info.companyName);
+  const jobTitle = escapeHtml(info.jobTitle);
+  const greetingName = info.candidateName ? escapeHtml(info.candidateName.split(" ")[0]) : "there";
+  const subject = companyName + " invited you to apply: " + info.jobTitle;
+
+  const body =
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;">' +
+    "<tr>" +
+    '<td style="width:48px;vertical-align:top;padding-right:14px;">' +
+    '<div style="width:48px;height:48px;background-color:#EEF3FF;border-radius:12px;text-align:center;line-height:48px;font-size:22px;">&#128077;</div>' +
+    "</td>" +
+    '<td style="vertical-align:middle;">' +
+    '<h1 style="margin:0 0 4px;font-size:22px;font-weight:700;color:#111827;line-height:1.2;">You\'re invited to apply!</h1>' +
+    '<p style="margin:0;font-size:14px;color:#6B7280;">Hi ' +
+    greetingName +
+    ",</p>" +
+    "</td></tr></table>" +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#F9FAFB;border:1px solid #E5E7EB;border-radius:12px;margin-bottom:28px;">' +
+    '<tr><td style="padding:20px 24px;">' +
+    '<p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#9CA3AF;">' +
+    jobTitle +
+    "</p>" +
+    '<p style="margin:0;font-size:14px;color:#111827;line-height:1.6;"><strong>' +
+    companyName +
+    "</strong> thinks you're a great fit for this role and would like you to apply.</p>" +
+    "</td></tr></table>" +
+    '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:8px;">' +
+    '<tr><td style="background-color:#1A55BD;border-radius:8px;">' +
+    '<a href="' +
+    info.jobUrl +
+    '" style="display:inline-block;padding:13px 28px;font-size:14px;font-weight:700;color:#FFFFFF;text-decoration:none;letter-spacing:0.01em;">View job &amp; apply &rarr;</a>' +
+    "</td></tr></table>";
+
+  const html = layout(companyName + " invited you to apply for " + info.jobTitle + ".", body, {
+    eyebrow: "Invite",
+    footerHtml:
+      "You're receiving this because an employer invited you to apply to a job on JobsKart.<br>\n" +
+      '            <a href="' +
+      getPublicAppUrl() +
+      '/candidate/settings" style="color:#1A55BD;text-decoration:none;">Manage email preferences</a>',
+  });
+
+  const text = [
+    "JobsKart \u2014 You're invited to apply!",
+    "",
+    "Hi " + greetingName + ",",
+    "",
+    info.companyName +
+      " thinks you're a great fit for " +
+      info.jobTitle +
+      " and would like you to apply.",
+    "",
+    "View job & apply: " + info.jobUrl,
+    "\u2014",
+    "JobsKart \u00b7 " + getPublicAppUrl(),
+  ].join("\n");
+
+  return { subject, html, text };
+}
