@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { mapTierError } from "@/lib/jobs.functions";
+import { JOB_CATEGORIES } from "@/lib/options";
 
 const RowSchema = z.object({
   title: z.string().min(2),
@@ -16,6 +17,7 @@ const RowSchema = z.object({
   skills: z.string().optional().default(""),
   description: z.string().optional().default(""),
   openings: z.number().int().positive().default(1),
+  category: z.string().optional().default(""),
 });
 
 const Input = z.object({
@@ -53,6 +55,9 @@ export const bulkCreateJobs = createServerFn({ method: "POST" })
       skills: r.skills ? r.skills.split(",").map((s) => s.trim()).filter(Boolean) : [],
       description: r.description || r.title,
       openings: r.openings,
+      // A recognised category from the sheet, else NULL: the jobs_infer_category trigger then fills it from
+      // the title (and leaves it NULL when the title cannot be classified, never a guessed "Other").
+      category: JOB_CATEGORIES.find((c) => c.toLowerCase() === r.category.trim().toLowerCase()) ?? null,
       // RLS only lets an INSERT create a draft; going live is activate_job_with_tier() below
       // (the same path single-job posting uses for entitlement checks + credit charging).
       status: "draft",
