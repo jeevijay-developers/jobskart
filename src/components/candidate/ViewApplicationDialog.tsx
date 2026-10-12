@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { getApplicationResume, getCandidateResume, type CandidateResume } from "@/lib/candidateResume";
 import { ApplicationFormFields } from "@/components/candidate/ApplicationFormFields";
+import { InterviewInfo, type Interview } from "@/components/candidate/InterviewInfo";
 import { DocumentPreviewModal, type DocPreview } from "@/components/candidate/DocumentPreviewModal";
 
 type Props = {
@@ -17,6 +18,8 @@ type Props = {
     expected_salary: number | null;
     available_from: string | null;
     cover_note: string | null;
+    // Full interview history, shown here instead of expanding the applications list.
+    interviews?: Interview[] | null;
   };
   jobTitle: string;
 };
@@ -123,6 +126,18 @@ export function ViewApplicationDialog({ open, onClose, userId, application, jobT
         </div>
 
         <div className="flex-1 space-y-5 overflow-y-auto p-5">
+          {application.interviews && application.interviews.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase text-muted-foreground">
+                {application.interviews.length > 1 ? "Interviews" : "Interview"}
+              </p>
+              {[...application.interviews]
+                .sort((x, y) => new Date(x.scheduled_at).getTime() - new Date(y.scheduled_at).getTime())
+                .map((iv) => (
+                  <InterviewInfo key={iv.id} interview={iv} />
+                ))}
+            </div>
+          )}
           {loading ? (
             <div className="grid place-items-center py-10">
               <Loader2 className="h-6 w-6 animate-spin text-primary" />

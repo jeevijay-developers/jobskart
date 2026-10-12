@@ -15,6 +15,8 @@ import {
   Eye,
   X,
   Wand2,
+  SquarePen,
+  ChevronDown,
 } from "lucide-react";
 import { CandidateShell } from "@/components/candidate/CandidateShell";
 import { JobMatchPanel } from "@/components/candidate/JobMatchPanel";
@@ -45,7 +47,6 @@ import { EditModeTrigger } from "@/components/candidate/EditModeTrigger";
 import { EditModeDrawer } from "@/components/candidate/EditModeDrawer";
 import { EditModeBottomSheet } from "@/components/candidate/EditModeBottomSheet";
 import { LivePreview } from "@/components/candidate/LivePreview";
-import { Segmented } from "@/components/candidate/Segmented";
 import { GuidedResumeWizard } from "@/components/candidate/GuidedResumeWizard";
 import { useStandardFontsReady } from "@/lib/resumeBuilder/ensureStandardFonts";
 
@@ -722,27 +723,40 @@ function ResumeBuilderPage() {
 
           {/* ── Mobile layout ── */}
           <div className="lg:hidden flex flex-col gap-4">
+            {/* Edit Resume + template dropdown, directly under the page heading */}
+            <div className="flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  // Mobile always opens on the Layout tab, per spec.
+                  setEditTab("layout");
+                  setIsEditOpen(true);
+                }}
+                aria-label="Edit resume"
+                className="inline-flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90"
+              >
+                <SquarePen className="h-4 w-4 shrink-0" />
+                <span className="truncate">Edit Resume</span>
+              </button>
+              <div className="relative min-w-0 flex-1">
+                <select
+                  value={selectedTemplate}
+                  onChange={(e) => selectTemplate(e.target.value)}
+                  aria-label="Resume template"
+                  className="h-11 w-full appearance-none truncate rounded-xl border border-border bg-card pl-4 pr-9 text-sm font-semibold text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                >
+                  {RESUME_TEMPLATE_LIST.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              </div>
+            </div>
+
             {/* Full-screen-ish preview */}
             <div className="flex h-[70vh] flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
-              <header className="flex items-center justify-between px-4 py-2 bg-background border-b border-border">
-                <div className="min-w-0 overflow-x-auto [&_button]:whitespace-nowrap">
-                  <Segmented
-                    value={selectedTemplate}
-                    options={RESUME_TEMPLATE_LIST.map((t) => ({ value: t.id, label: t.label }))}
-                    onChange={selectTemplate}
-                  />
-                </div>
-                <EditModeTrigger
-                  isEditOpen={isEditOpen}
-                  onToggle={() => {
-                    // Mobile always opens on the Layout tab, per spec — desktop's
-                    // own trigger (above) is untouched and keeps whatever tab was
-                    // last active.
-                    setEditTab("layout");
-                    setIsEditOpen(true);
-                  }}
-                />
-              </header>
               <LivePreview
                 resume={merged ?? snapshot}
                 templateId={selectedTemplate}
