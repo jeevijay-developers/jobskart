@@ -24,6 +24,7 @@ import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } fr
 import { Route as AuthenticatedCandidateRouteRouteImport } from './routes/_authenticated/candidate/route'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminBannersRouteImport } from './routes/admin/banners'
+import { Route as AdminCandidatesRouteImport } from './routes/admin/candidates'
 import { Route as AdminCompaniesRouteImport } from './routes/admin/companies'
 import { Route as AdminContentRouteImport } from './routes/admin/content'
 import { Route as AdminCreditsRouteImport } from './routes/admin/credits'
@@ -182,6 +183,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
 const AdminBannersRoute = AdminBannersRouteImport.update({
   id: '/banners',
   path: '/banners',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminCandidatesRoute = AdminCandidatesRouteImport.update({
+  id: '/candidates',
+  path: '/candidates',
   getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminCompaniesRoute = AdminCompaniesRouteImport.update({
@@ -665,6 +671,7 @@ export interface FileRoutesByFullPath {
   '/candidate': typeof AuthenticatedCandidateRouteRouteWithChildren
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/banners': typeof AdminBannersRoute
+  '/admin/candidates': typeof AdminCandidatesRoute
   '/admin/companies': typeof AdminCompaniesRoute
   '/admin/content': typeof AdminContentRoute
   '/admin/credits': typeof AdminCreditsRoute
@@ -763,6 +770,7 @@ export interface FileRoutesByTo {
   '/candidate': typeof AuthenticatedCandidateRouteRouteWithChildren
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/banners': typeof AdminBannersRoute
+  '/admin/candidates': typeof AdminCandidatesRoute
   '/admin/companies': typeof AdminCompaniesRoute
   '/admin/content': typeof AdminContentRoute
   '/admin/credits': typeof AdminCreditsRoute
@@ -864,6 +872,7 @@ export interface FileRoutesById {
   '/_authenticated/candidate': typeof AuthenticatedCandidateRouteRouteWithChildren
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/banners': typeof AdminBannersRoute
+  '/admin/candidates': typeof AdminCandidatesRoute
   '/admin/companies': typeof AdminCompaniesRoute
   '/admin/content': typeof AdminContentRoute
   '/admin/credits': typeof AdminCreditsRoute
@@ -965,6 +974,7 @@ export interface FileRouteTypes {
     | '/candidate'
     | '/.well-known/oauth-protected-resource'
     | '/admin/banners'
+    | '/admin/candidates'
     | '/admin/companies'
     | '/admin/content'
     | '/admin/credits'
@@ -1063,6 +1073,7 @@ export interface FileRouteTypes {
     | '/candidate'
     | '/.well-known/oauth-protected-resource'
     | '/admin/banners'
+    | '/admin/candidates'
     | '/admin/companies'
     | '/admin/content'
     | '/admin/credits'
@@ -1163,6 +1174,7 @@ export interface FileRouteTypes {
     | '/_authenticated/candidate'
     | '/.well-known/oauth-protected-resource'
     | '/admin/banners'
+    | '/admin/candidates'
     | '/admin/companies'
     | '/admin/content'
     | '/admin/credits'
@@ -1389,6 +1401,13 @@ declare module '@tanstack/react-router' {
       path: '/banners'
       fullPath: '/admin/banners'
       preLoaderRoute: typeof AdminBannersRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/candidates': {
+      id: '/admin/candidates'
+      path: '/candidates'
+      fullPath: '/admin/candidates'
+      preLoaderRoute: typeof AdminCandidatesRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/admin/companies': {
@@ -2134,6 +2153,7 @@ const AuthenticatedRouteRouteWithChildren =
 
 interface AdminRouteRouteChildren {
   AdminBannersRoute: typeof AdminBannersRoute
+  AdminCandidatesRoute: typeof AdminCandidatesRoute
   AdminCompaniesRoute: typeof AdminCompaniesRoute
   AdminContentRoute: typeof AdminContentRoute
   AdminCreditsRoute: typeof AdminCreditsRoute
@@ -2156,6 +2176,7 @@ interface AdminRouteRouteChildren {
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminBannersRoute: AdminBannersRoute,
+  AdminCandidatesRoute: AdminCandidatesRoute,
   AdminCompaniesRoute: AdminCompaniesRoute,
   AdminContentRoute: AdminContentRoute,
   AdminCreditsRoute: AdminCreditsRoute,

@@ -2,6 +2,7 @@ import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard,
   Users,
+  UserRound,
   Building2,
   Briefcase,
   Database,
@@ -38,6 +39,7 @@ import { supabase } from "@/integrations/supabase/client";
 const nav = [
   { to: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/admin/users", label: "Users", icon: Users },
+  { to: "/admin/candidates", label: "Candidates", icon: UserRound },
   { to: "/admin/companies", label: "Companies", icon: Building2 },
   { to: "/admin/verifications", label: "Company Verification", icon: ShieldCheck },
   { to: "/admin/jobs", label: "Jobs", icon: Briefcase },
