@@ -7,6 +7,7 @@ import { getApplicationResume, getCandidateResume, type ResumeFile } from "@/lib
 import { ApplicationFormFields } from "@/components/candidate/ApplicationFormFields";
 import { ApplicantStatusMenu } from "./ApplicantStatusMenu";
 import { CandidateContactActions } from "./CandidateContactActions";
+import { InterviewCardPanel } from "./InterviewCardPanel";
 
 type Experience = {
   id: string;
@@ -55,6 +56,8 @@ type Props = {
   /** D10: enables the Call/WhatsApp row. Omit (or pass jobId=null) where no job context exists. */
   companyId?: string;
   jobId?: string | null;
+  /** Set only when `applicant.id` is an application whose candidate attached an Interview Card. */
+  hasInterviewCard?: boolean;
 };
 
 function formatMonthYear(iso: string | null) {
@@ -68,6 +71,7 @@ export function ApplicantReviewPanel({
   onStatusChange,
   companyId,
   jobId,
+  hasInterviewCard,
 }: Props) {
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [education, setEducation] = useState<Education[]>([]);
@@ -183,6 +187,8 @@ export function ApplicantReviewPanel({
             </div>
           </div>
         )}
+
+        {hasInterviewCard && <InterviewCardPanel applicationId={a.id} />}
 
         {!loadingDetails && experiences.length > 0 && (
           <div className="mt-5">

@@ -1,4 +1,4 @@
-import { Briefcase, Clock, Eye, GraduationCap, MapPin } from "lucide-react";
+import { Briefcase, Clock, Eye, GraduationCap, MapPin, Mic } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { applicantStatusLabel, applicantStatusTone } from "@/lib/applicantStatus";
 import { ApplicantStatusMenu } from "./ApplicantStatusMenu";
@@ -26,9 +26,11 @@ type Props = {
   onView: () => void;
   matchScore?: number | null;
   tags?: string[];
+  /** Present when the candidate attached an Interview Card to this application. */
+  interviewCard?: { band: "needs_work" | "developing" | "strong" | null } | null;
 };
 
-export function ApplicantCard({ applicant: a, selected, onToggleSelect, onStatusChange, onView, matchScore, tags }: Props) {
+export function ApplicantCard({ applicant: a, selected, onToggleSelect, onStatusChange, onView, matchScore, tags, interviewCard }: Props) {
   const cp = a.candidate_profiles;
   const experienceLabel = cp
     ? cp.experience_status === "fresher"
@@ -65,6 +67,16 @@ export function ApplicantCard({ applicant: a, selected, onToggleSelect, onStatus
               }`}>
                 {matchScore}% Match
               </span>
+            )}
+            {interviewCard && (
+              <button
+                type="button"
+                onClick={onView}
+                title="This candidate attached a voice Interview Card — open the profile to listen"
+                className="inline-flex items-center gap-1 rounded-full bg-primary-light px-2 py-0.5 text-[10px] font-semibold text-primary hover:bg-primary-light/70"
+              >
+                <Mic className="h-3 w-3" /> Interview Card
+              </button>
             )}
             {(tags ?? []).slice(0, 3).map((t) => (
               <span key={t} className="rounded-full bg-primary-light px-2 py-0.5 text-[10px] font-medium text-primary">{t}</span>

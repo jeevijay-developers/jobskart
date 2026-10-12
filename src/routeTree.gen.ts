@@ -57,6 +57,7 @@ import { Route as AuthenticatedCandidateApplicationsRouteImport } from './routes
 import { Route as AuthenticatedCandidateBrowseRouteImport } from './routes/_authenticated/candidate/browse'
 import { Route as AuthenticatedCandidateDashboardRouteImport } from './routes/_authenticated/candidate/dashboard'
 import { Route as AuthenticatedCandidateDocumentsRouteImport } from './routes/_authenticated/candidate/documents'
+import { Route as AuthenticatedCandidateInterviewCardRouteImport } from './routes/_authenticated/candidate/interview-card'
 import { Route as AuthenticatedCandidateLearningRouteImport } from './routes/_authenticated/candidate/learning'
 import { Route as AuthenticatedCandidateNotificationsRouteImport } from './routes/_authenticated/candidate/notifications'
 import { Route as AuthenticatedCandidateProfileRouteImport } from './routes/_authenticated/candidate/profile'
@@ -349,6 +350,12 @@ const AuthenticatedCandidateDocumentsRoute =
   AuthenticatedCandidateDocumentsRouteImport.update({
     id: '/documents',
     path: '/documents',
+    getParentRoute: () => AuthenticatedCandidateRouteRoute,
+  } as any)
+const AuthenticatedCandidateInterviewCardRoute =
+  AuthenticatedCandidateInterviewCardRouteImport.update({
+    id: '/interview-card',
+    path: '/interview-card',
     getParentRoute: () => AuthenticatedCandidateRouteRoute,
   } as any)
 const AuthenticatedCandidateLearningRoute =
@@ -679,6 +686,7 @@ export interface FileRoutesByFullPath {
   '/candidate/browse': typeof AuthenticatedCandidateBrowseRoute
   '/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
   '/candidate/documents': typeof AuthenticatedCandidateDocumentsRoute
+  '/candidate/interview-card': typeof AuthenticatedCandidateInterviewCardRoute
   '/candidate/learning': typeof AuthenticatedCandidateLearningRoute
   '/candidate/notifications': typeof AuthenticatedCandidateNotificationsRoute
   '/candidate/profile': typeof AuthenticatedCandidateProfileRoute
@@ -774,6 +782,7 @@ export interface FileRoutesByTo {
   '/candidate/browse': typeof AuthenticatedCandidateBrowseRoute
   '/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
   '/candidate/documents': typeof AuthenticatedCandidateDocumentsRoute
+  '/candidate/interview-card': typeof AuthenticatedCandidateInterviewCardRoute
   '/candidate/learning': typeof AuthenticatedCandidateLearningRoute
   '/candidate/notifications': typeof AuthenticatedCandidateNotificationsRoute
   '/candidate/profile': typeof AuthenticatedCandidateProfileRoute
@@ -872,6 +881,7 @@ export interface FileRoutesById {
   '/_authenticated/candidate/browse': typeof AuthenticatedCandidateBrowseRoute
   '/_authenticated/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
   '/_authenticated/candidate/documents': typeof AuthenticatedCandidateDocumentsRoute
+  '/_authenticated/candidate/interview-card': typeof AuthenticatedCandidateInterviewCardRoute
   '/_authenticated/candidate/learning': typeof AuthenticatedCandidateLearningRoute
   '/_authenticated/candidate/notifications': typeof AuthenticatedCandidateNotificationsRoute
   '/_authenticated/candidate/profile': typeof AuthenticatedCandidateProfileRoute
@@ -970,6 +980,7 @@ export interface FileRouteTypes {
     | '/candidate/browse'
     | '/candidate/dashboard'
     | '/candidate/documents'
+    | '/candidate/interview-card'
     | '/candidate/learning'
     | '/candidate/notifications'
     | '/candidate/profile'
@@ -1065,6 +1076,7 @@ export interface FileRouteTypes {
     | '/candidate/browse'
     | '/candidate/dashboard'
     | '/candidate/documents'
+    | '/candidate/interview-card'
     | '/candidate/learning'
     | '/candidate/notifications'
     | '/candidate/profile'
@@ -1162,6 +1174,7 @@ export interface FileRouteTypes {
     | '/_authenticated/candidate/browse'
     | '/_authenticated/candidate/dashboard'
     | '/_authenticated/candidate/documents'
+    | '/_authenticated/candidate/interview-card'
     | '/_authenticated/candidate/learning'
     | '/_authenticated/candidate/notifications'
     | '/_authenticated/candidate/profile'
@@ -1584,6 +1597,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCandidateDocumentsRouteImport
       parentRoute: typeof AuthenticatedCandidateRouteRoute
     }
+    '/_authenticated/candidate/interview-card': {
+      id: '/_authenticated/candidate/interview-card'
+      path: '/interview-card'
+      fullPath: '/candidate/interview-card'
+      preLoaderRoute: typeof AuthenticatedCandidateInterviewCardRouteImport
+      parentRoute: typeof AuthenticatedCandidateRouteRoute
+    }
     '/_authenticated/candidate/learning': {
       id: '/_authenticated/candidate/learning'
       path: '/learning'
@@ -1922,6 +1942,7 @@ interface AuthenticatedCandidateRouteRouteChildren {
   AuthenticatedCandidateBrowseRoute: typeof AuthenticatedCandidateBrowseRoute
   AuthenticatedCandidateDashboardRoute: typeof AuthenticatedCandidateDashboardRoute
   AuthenticatedCandidateDocumentsRoute: typeof AuthenticatedCandidateDocumentsRoute
+  AuthenticatedCandidateInterviewCardRoute: typeof AuthenticatedCandidateInterviewCardRoute
   AuthenticatedCandidateLearningRoute: typeof AuthenticatedCandidateLearningRoute
   AuthenticatedCandidateNotificationsRoute: typeof AuthenticatedCandidateNotificationsRoute
   AuthenticatedCandidateProfileRoute: typeof AuthenticatedCandidateProfileRoute
@@ -1947,6 +1968,8 @@ const AuthenticatedCandidateRouteRouteChildren: AuthenticatedCandidateRouteRoute
     AuthenticatedCandidateBrowseRoute: AuthenticatedCandidateBrowseRoute,
     AuthenticatedCandidateDashboardRoute: AuthenticatedCandidateDashboardRoute,
     AuthenticatedCandidateDocumentsRoute: AuthenticatedCandidateDocumentsRoute,
+    AuthenticatedCandidateInterviewCardRoute:
+      AuthenticatedCandidateInterviewCardRoute,
     AuthenticatedCandidateLearningRoute: AuthenticatedCandidateLearningRoute,
     AuthenticatedCandidateNotificationsRoute:
       AuthenticatedCandidateNotificationsRoute,
@@ -2161,3 +2184,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
