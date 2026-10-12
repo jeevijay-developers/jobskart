@@ -199,10 +199,16 @@ export const submitPrepAnswer = createServerFn({ method: "POST" })
       .single();
     if (insErr) throw friendly(insErr.message);
 
-    await supabase
+    // The answer above is already saved; this is bookkeeping (progress/readiness grouping,
+    // and which question resuming lands on), so a failure here must never fail the request —
+    // but it was previously ignored outright, which would silently leave a question "pending"
+    // forever despite having an answer. Log it so it's at least visible in server logs.
+    const { error: stateErr } = await supabase
       .from("interview_prep_session_questions")
       .update({ state: "answered" })
       .eq("id", q.id);
+    if (stateErr)
+      console.error("[interview-prep] failed to mark question answered:", stateErr.message, q.id);
 
     return {
       status: "ok",

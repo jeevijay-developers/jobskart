@@ -7,17 +7,57 @@ import {
   computeSkillGap,
   fallbackFeedback,
   FeedbackSchema,
+  MIN_ANSWER_WORDS_BY_CATEGORY,
 } from "./interview-prep.ts";
 
 const long =
   "When I worked at a store a customer was upset about a delayed order. I called the warehouse, explained the delay and arranged a refund. As a result the customer stayed with us.";
 
 describe("checkAnswer", () => {
-  test("rejects very short answers", () => {
+  test("rejects very short answers (default minimum)", () => {
     assert.equal(checkAnswer("yes", "intro").ok, false);
   });
   test("accepts a developed answer", () => {
     assert.equal(checkAnswer(long, "behavioural").ok, true);
+  });
+  test("logistics and ask_employer accept a short but real answer", () => {
+    assert.equal(checkAnswer("Yes, I can join immediately.", "logistics").ok, true);
+    assert.equal(
+      checkAnswer("What training will I get in the first month?", "ask_employer").ok,
+      true,
+    );
+  });
+  test("logistics and ask_employer still reject near-empty answers", () => {
+    assert.equal(checkAnswer("yes", "logistics").ok, false);
+    assert.equal(checkAnswer("ok sure", "ask_employer").ok, false);
+  });
+  test("other categories keep the full 12-word minimum", () => {
+    const elevenWords = "I am hardworking reliable and punctual every single day at work";
+    assert.equal(checkAnswer(elevenWords, "motivation").ok, false);
+    assert.equal(checkAnswer(`${elevenWords} always`, "motivation").ok, true);
+  });
+  test("behavioural answers are judged on length only, not on using I/we/my", () => {
+    // No "I"/"we"/"my" at all — the old check blocked this outright.
+    const noFirstPerson =
+      "Handled the angry customer by listening first, then fixing the billing error, " +
+      "and the customer thanked the team afterwards for sorting it out so quickly.";
+    assert.equal(checkAnswer(noFirstPerson, "behavioural").ok, true);
+  });
+  test("behavioural answers in Hindi or Hinglish are no longer blocked", () => {
+    const hindi =
+      "एक बार एक ग्राहक बहुत नाराज़ था और मैंने उसे शांति से समझाया और उसकी समस्या हल की " +
+      "और उसने धन्यवाद कहा और खुश होकर चला गया।";
+    const hinglish =
+      "ek baar ek customer bahut naraz tha aur maine usse shaanti se samjhaya aur uski " +
+      "problem hal ki aur woh khush hokar chala gaya";
+    assert.equal(checkAnswer(hindi, "behavioural").ok, true);
+    assert.equal(checkAnswer(hinglish, "behavioural").ok, true);
+  });
+  test("MIN_ANSWER_WORDS_BY_CATEGORY only lowers logistics and ask_employer", () => {
+    assert.deepEqual(Object.keys(MIN_ANSWER_WORDS_BY_CATEGORY).sort(), [
+      "ask_employer",
+      "logistics",
+    ]);
   });
 });
 
