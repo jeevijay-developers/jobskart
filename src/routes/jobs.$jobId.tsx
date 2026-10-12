@@ -38,6 +38,7 @@ import { downloadJdPdf } from "@/lib/jd-pdf";
 import { JobCard, type JobCardData } from "@/components/site/JobCard";
 import { ApplyDialog } from "@/components/candidate/ApplyDialog";
 import { ReportJobDialog } from "@/components/candidate/ReportJobDialog";
+import { ReportCompanyDialog } from "@/components/candidate/ReportCompanyDialog";
 import { WhatsAppMessageDialog } from "@/components/candidate/WhatsAppMessageDialog";
 import { enquiryMessage, whatsappDigits } from "@/lib/companyContact";
 import { supabase } from "@/integrations/supabase/client";
@@ -114,7 +115,7 @@ type JobDetail = {
     is_verified: boolean | null;
     industry: string | null;
     primary_city: string | null;
-  description: string | null;
+    description: string | null;
     about?: string | null;
     logo_url: string | null;
   } | null;
@@ -182,12 +183,15 @@ export function JobDetailPage({
   const [applied, setApplied] = useState(false);
   // Set alongside `applied` so a direct link to an already-applied job shows
   // "View application" + when/what status, never a bare disabled button.
-  const [appliedInfo, setAppliedInfo] = useState<{ status: string; created_at: string } | null>(null);
+  const [appliedInfo, setAppliedInfo] = useState<{ status: string; created_at: string } | null>(
+    null,
+  );
   const [saved, setSaved] = useState(false);
   const [savingBookmark, setSavingBookmark] = useState(false);
   const [tab, setTab] = useState<"overview" | "company">("overview");
   const [applyOpen, setApplyOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  const [reportCompanyOpen, setReportCompanyOpen] = useState(false);
   const [whatsappOpen, setWhatsappOpen] = useState(false);
   const [applicantCount, setApplicantCount] = useState<number>(0);
   // Employer-only: how many candidates job alerts have reached so far.
@@ -227,7 +231,10 @@ export function JobDetailPage({
       markJobSeen(jobData.id);
 
       const [{ count }, { data: sess }, { data: pool }] = await Promise.all([
-        supabase.from("applications").select("id", { count: "exact", head: true }).eq("job_id", jobId),
+        supabase
+          .from("applications")
+          .select("id", { count: "exact", head: true })
+          .eq("job_id", jobId),
         supabase.auth.getSession(),
         // Bounded pool, ranked client-side by src/lib/similarJobs — same
         // fetch-a-pool-then-rank shape as the dashboard's recommended jobs.
@@ -246,15 +253,13 @@ export function JobDetailPage({
       setApplicantCount(count || 0);
 
       if (employerView) {
-        supabase
-          .rpc("get_job_alert_reach", { _job_id: jobId })
-          .then(({ data: reach }) => {
-            if (cancelled || !reach?.[0]) return;
-            setAlertReach({
-              instant: reach[0].instant_sent,
-              digestQueued: reach[0].digest_queued,
-            });
+        supabase.rpc("get_job_alert_reach", { _job_id: jobId }).then(({ data: reach }) => {
+          if (cancelled || !reach?.[0]) return;
+          setAlertReach({
+            instant: reach[0].instant_sent,
+            digestQueued: reach[0].digest_queued,
           });
+        });
       }
 
       const uid = sess.session?.user.id ?? null;
@@ -263,12 +268,10 @@ export function JobDetailPage({
       const excludeIds = getSeenJobIds();
       if (uid) {
         // Server dedupes per IST day and ignores non-candidates (employers). Fire-and-forget.
-        supabase
-          .rpc("log_job_view" as never, { _job_id: jobData.id } as never)
-          .then(
-            () => {},
-            () => {},
-          );
+        supabase.rpc("log_job_view" as never, { _job_id: jobData.id } as never).then(
+          () => {},
+          () => {},
+        );
         const [{ data: app }, { data: sav }, { data: appliedJobs }] = await Promise.all([
           supabase
             .from("applications")
@@ -276,7 +279,12 @@ export function JobDetailPage({
             .eq("job_id", jobId)
             .eq("candidate_id", uid)
             .maybeSingle(),
-          supabase.from("saved_jobs").select("id").eq("job_id", jobId).eq("user_id", uid).maybeSingle(),
+          supabase
+            .from("saved_jobs")
+            .select("id")
+            .eq("job_id", jobId)
+            .eq("user_id", uid)
+            .maybeSingle(),
           supabase.from("applications").select("job_id").eq("candidate_id", uid),
         ]);
         if (cancelled) return;
@@ -286,7 +294,12 @@ export function JobDetailPage({
         (appliedJobs || []).forEach((a) => excludeIds.add(a.job_id));
       }
 
-      const ranked = rankSimilarJobs((pool || []) as unknown as RankableJob[], jobData, excludeIds, 4);
+      const ranked = rankSimilarJobs(
+        (pool || []) as unknown as RankableJob[],
+        jobData,
+        excludeIds,
+        4,
+      );
       setSimilar(ranked as unknown as JobCardData[]);
       setLoading(false);
     })();
@@ -341,7 +354,10 @@ export function JobDetailPage({
         // Ignore duplicate-key (already saved in another tab)
         if (error && !/duplicate key|unique/i.test(error.message)) throw error;
         toast.success("Saved to your list", {
-          action: { label: "View saved", onClick: () => navigate({ to: "/candidate/saved" as never }) },
+          action: {
+            label: "View saved",
+            onClick: () => navigate({ to: "/candidate/saved" as never }),
+          },
         });
       } else {
         const { error } = await supabase
@@ -359,7 +375,6 @@ export function JobDetailPage({
       setSavingBookmark(false);
     }
   };
-
 
   const handleShare = async () => {
     if (!job) return;
@@ -379,8 +394,13 @@ export function JobDetailPage({
         {!embedded && <Navbar />}
         <div className="mx-auto max-w-2xl px-4 py-16 text-center">
           <h1 className="text-2xl font-bold text-foreground">Job unavailable</h1>
-          <p className="mt-2 text-sm text-muted-foreground">This job may have been closed or removed.</p>
-          <Link to={listPath as never} className="mt-6 inline-flex h-11 items-center rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground">
+          <p className="mt-2 text-sm text-muted-foreground">
+            This job may have been closed or removed.
+          </p>
+          <Link
+            to={listPath as never}
+            className="mt-6 inline-flex h-11 items-center rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground"
+          >
             Browse all jobs
           </Link>
         </div>
@@ -427,9 +447,7 @@ export function JobDetailPage({
               >
                 <ArrowLeft className="h-4 w-4" /> Back
               </button>
-              {!employerView && (
-                <span aria-hidden="true" className="mx-1 h-4 w-px bg-border" />
-              )}
+              {!employerView && <span aria-hidden="true" className="mx-1 h-4 w-px bg-border" />}
             </>
           )}
           {!employerView && (
@@ -437,7 +455,8 @@ export function JobDetailPage({
               to={listPath as never}
               className={`inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-muted-foreground transition-colors hover:bg-surface hover:text-primary ${canGoBack ? "" : "-ml-2"}`}
             >
-              {canGoBack ? <LayoutGrid className="h-4 w-4" /> : <ArrowLeft className="h-4 w-4" />} All jobs
+              {canGoBack ? <LayoutGrid className="h-4 w-4" /> : <ArrowLeft className="h-4 w-4" />}{" "}
+              All jobs
             </Link>
           )}
         </nav>
@@ -466,22 +485,35 @@ export function JobDetailPage({
                   <div className="flex min-w-0 gap-4">
                     <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl border border-border bg-card text-base font-bold text-primary sm:h-16 sm:w-16 sm:text-lg">
                       {job.companies?.logo_url ? (
-                        <img src={job.companies.logo_url} alt={displayCompanyName || ""} className="h-full w-full object-cover" />
+                        <img
+                          src={job.companies.logo_url}
+                          alt={displayCompanyName || ""}
+                          className="h-full w-full object-cover"
+                        />
                       ) : (
                         initials
                       )}
                     </div>
                     <div className="min-w-0">
-                      <h1 className="text-xl font-bold leading-tight text-foreground sm:text-2xl lg:text-3xl">{job.title}</h1>
+                      <h1 className="text-xl font-bold leading-tight text-foreground sm:text-2xl lg:text-3xl">
+                        {job.title}
+                      </h1>
                       <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-foreground/80">
                         <Building2 className="h-4 w-4 text-primary" />
-                        <span className="font-medium">{displayCompanyName || "Confidential employer"}</span>
+                        <span className="font-medium">
+                          {displayCompanyName || "Confidential employer"}
+                        </span>
                         {showVerifiedBadge ? <VerifiedBadge /> : null}
                       </p>
                       <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                        <span className="inline-flex items-center gap-1"><Clock className="h-3 w-3" /> Posted {timeAgo(job.created_at)}</span>
+                        <span className="inline-flex items-center gap-1">
+                          <Clock className="h-3 w-3" /> Posted {timeAgo(job.created_at)}
+                        </span>
                         <span>·</span>
-                        <span className="inline-flex items-center gap-1"><Users className="h-3 w-3" /> {applicantCount} applicant{applicantCount === 1 ? "" : "s"}</span>
+                        <span className="inline-flex items-center gap-1">
+                          <Users className="h-3 w-3" /> {applicantCount} applicant
+                          {applicantCount === 1 ? "" : "s"}
+                        </span>
                         {employerView && alertReach ? (
                           <>
                             <span>·</span>
@@ -489,8 +521,8 @@ export function JobDetailPage({
                               className="inline-flex items-center gap-1"
                               title="Candidates notified by job alerts so far (instant pushes sent + more queued for the next email digest)"
                             >
-                              <Bell className="h-3 w-3" /> Reached {alertReach.instant + alertReach.digestQueued}{" "}
-                              via alerts
+                              <Bell className="h-3 w-3" /> Reached{" "}
+                              {alertReach.instant + alertReach.digestQueued} via alerts
                             </span>
                           </>
                         ) : null}
@@ -576,7 +608,8 @@ export function JobDetailPage({
                 </div>
                 {appliedInfo && (
                   <p className="mt-3 hidden text-right text-xs text-muted-foreground sm:block">
-                    Applied {formatAppliedDate(appliedInfo.created_at)} · {appliedStatusLabel(appliedInfo.status)}
+                    Applied {formatAppliedDate(appliedInfo.created_at)} ·{" "}
+                    {appliedStatusLabel(appliedInfo.status)}
                   </p>
                 )}
 
@@ -587,10 +620,34 @@ export function JobDetailPage({
                       : "mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4"
                   }
                 >
-                  <Stat plain={embedded} icon={IndianRupee} label="Salary" value={formatSalary(job.min_salary, job.max_salary, job.salary_period || "monthly")} />
-                  <Stat plain={embedded} icon={MapPin} label="Location" value={location || "India"} />
-                  <Stat plain={embedded} icon={Briefcase} label="Experience" value={formatExperience(job.min_experience_years, job.max_experience_years)} />
-                  <Stat plain={embedded} icon={Users} label="Openings" value={`${job.openings ?? 1}`} />
+                  <Stat
+                    plain={embedded}
+                    icon={IndianRupee}
+                    label="Salary"
+                    value={formatSalary(
+                      job.min_salary,
+                      job.max_salary,
+                      job.salary_period || "monthly",
+                    )}
+                  />
+                  <Stat
+                    plain={embedded}
+                    icon={MapPin}
+                    label="Location"
+                    value={location || "India"}
+                  />
+                  <Stat
+                    plain={embedded}
+                    icon={Briefcase}
+                    label="Experience"
+                    value={formatExperience(job.min_experience_years, job.max_experience_years)}
+                  />
+                  <Stat
+                    plain={embedded}
+                    icon={Users}
+                    label="Openings"
+                    value={`${job.openings ?? 1}`}
+                  />
                 </div>
               </div>
 
@@ -610,316 +667,392 @@ export function JobDetailPage({
                     }`}
                   >
                     {t === "company" ? "About company" : "Job overview"}
-                    {tab === t && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-primary" />}
+                    {tab === t && (
+                      <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-primary" />
+                    )}
                   </button>
                 ))}
               </div>
 
               <div className={embedded ? "mt-4" : "p-5 sm:p-7"}>
                 <BlockCardCtx.Provider value={embedded}>
-                {tab === "overview" ? (
-                  <div className={embedded ? "space-y-4" : "space-y-6"}>
-                    <div className="flex flex-wrap gap-2">
-                      <Pill>{jobTypeLabel(job.job_type)}</Pill>
-                      <Pill>{workModeLabel(job.work_mode)}</Pill>
-                      {job.shift ? <Pill>{`${job.shift} shift`}</Pill> : null}
-                      {job.fixed_pay ? <Pill tone="success">Fixed pay</Pill> : null}
-                      {job.incentives_text ? <Pill tone="success">+ Incentives</Pill> : null}
-                    </div>
-
-                    <Block title="Job description">
-                      {job.description_html ? (
-                        <div
-                          className="max-w-none space-y-3 text-sm leading-6 text-foreground/80 [&_h4]:mt-4 [&_h4]:text-sm [&_h4]:font-semibold [&_h4]:text-foreground [&_h4:first-child]:mt-0 [&_p]:break-words [&_p]:leading-6 [&_ul]:mt-1 [&_ul]:list-disc [&_ul]:space-y-1 [&_ul]:pl-5 [&_ul]:marker:text-primary [&_li]:break-words [&_li]:leading-6"
-                          dangerouslySetInnerHTML={{ __html: job.description_html }}
-                        />
-                      ) : job.description ? (
-                        <FormattedJobDescription text={job.description} />
-                      ) : (
-                        <p className="text-sm leading-6 text-foreground/80">No description provided.</p>
-                      )}
-                      {job.pay_type === "fixed_incentive" && job.avg_incentive_monthly ? (
-                        <p className="mt-3 rounded-lg border border-success/20 bg-success-light/40 p-3 text-sm text-foreground/80">
-                          <span className="font-semibold text-success">Earning potential: </span>
-                          Up to ₹{((job.max_salary || job.min_salary || 0) + job.avg_incentive_monthly).toLocaleString("en-IN")}/month (fixed + avg incentive)
-                        </p>
-                      ) : job.incentives_text ? (
-                        <p className="mt-3 rounded-lg border border-success/20 bg-success-light/40 p-3 text-sm text-foreground/80">
-                          <span className="font-semibold text-success">Incentives: </span>
-                          {job.incentives_text}
-                        </p>
-                      ) : null}
-                      {job.interview_type ? (
-                        <div className="mt-4 rounded-lg border border-border bg-surface p-3 text-sm">
-                          <p className="font-semibold text-foreground">Interview</p>
-                          <p className="mt-1 text-foreground/80">
-                            {job.interview_type === "in_person" ? "Walk-in" : "Telephonic"}
-                            {job.interview_type === "in_person" && job.interview_address
-                              ? ` · ${[job.interview_address, job.interview_locality, job.interview_city].filter(Boolean).join(", ")}`
-                              : job.interview_type === "in_person" && job.interview_same_as_company
-                                ? " · at company address"
-                                : ""}
-                          </p>
-                        </div>
-                      ) : null}
-                      {job.joining_fee_required != null ? (
-                        job.joining_fee_required ? (
-                          <p className="mt-3 rounded-lg border border-warning/30 bg-warning-light/40 p-3 text-xs text-foreground/80">
-                            <span className="font-semibold text-warning">Note:</span> Joining fee or deposit applicable.
-                          </p>
-                        ) : (
-                          <p className="mt-3 rounded-lg border border-success/20 bg-success-light/40 p-3 text-xs text-foreground/80">
-                            <span className="font-semibold text-success">No joining fee</span> or deposit is required.
-                          </p>
-                        )
-                      ) : null}
-                      {job.hiring_contact_name || job.hiring_contact_phone || job.hiring_contact_email ? (
-                        <div className="mt-4 rounded-lg border border-border bg-surface p-3 text-sm">
-                          <p className="font-semibold text-foreground">Hiring contact</p>
-                          <p className="mt-1 space-y-0.5 text-foreground/80">
-                            {job.hiring_contact_name ? <span className="block">{job.hiring_contact_name}</span> : null}
-                            {job.hiring_contact_phone ? (
-                              <a href={`tel:${job.hiring_contact_phone}`} className="block text-primary hover:underline">
-                                {job.hiring_contact_phone}
-                              </a>
-                            ) : null}
-                            {job.hiring_contact_email ? (
-                              <a href={`mailto:${job.hiring_contact_email}`} className="block text-primary hover:underline">
-                                {job.hiring_contact_email}
-                              </a>
-                            ) : null}
-                          </p>
-                        </div>
-                      ) : null}
-                    </Block>
-
-                    <Block title="Job requirements">
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <ReqCard
-                          icon={Briefcase}
-                          label="Experience"
-                          value={formatExperience(job.min_experience_years, job.max_experience_years)}
-                          hint={(job.min_experience_years ?? 0) === 0 ? "Freshers welcome" : "Relevant experience"}
-                        />
-                        <ReqCard
-                          icon={GraduationCap}
-                          label="Education"
-                          value={job.education || "Any qualification"}
-                        />
-                        <ReqCard
-                          icon={Languages}
-                          label="English"
-                          value={job.english_level || "Not required"}
-                        />
-                        <ReqCard
-                          icon={Users}
-                          label="Openings"
-                          value={`${job.openings ?? 1} position${(job.openings ?? 1) > 1 ? "s" : ""}`}
-                        />
+                  {tab === "overview" ? (
+                    <div className={embedded ? "space-y-4" : "space-y-6"}>
+                      <div className="flex flex-wrap gap-2">
+                        <Pill>{jobTypeLabel(job.job_type)}</Pill>
+                        <Pill>{workModeLabel(job.work_mode)}</Pill>
+                        {job.shift ? <Pill>{`${job.shift} shift`}</Pill> : null}
+                        {job.fixed_pay ? <Pill tone="success">Fixed pay</Pill> : null}
+                        {job.incentives_text ? <Pill tone="success">+ Incentives</Pill> : null}
                       </div>
-                    </Block>
 
-                    <Block title="Skills required">
-                      {(job.skills?.length || 0) > 0 ? (
-                        <div className="flex flex-wrap gap-2">
-                          {job.skills!.map((s) => (
-                            <span
-                              key={s}
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary-light px-3 py-1.5 text-xs font-medium text-primary"
-                            >
-                              <Target className="h-3 w-3" /> {s}
-                            </span>
-                          ))}
+                      <Block title="Job description">
+                        {job.description_html ? (
+                          <div
+                            className="max-w-none space-y-3 text-sm leading-6 text-foreground/80 [&_h4]:mt-4 [&_h4]:text-sm [&_h4]:font-semibold [&_h4]:text-foreground [&_h4:first-child]:mt-0 [&_p]:break-words [&_p]:leading-6 [&_ul]:mt-1 [&_ul]:list-disc [&_ul]:space-y-1 [&_ul]:pl-5 [&_ul]:marker:text-primary [&_li]:break-words [&_li]:leading-6"
+                            dangerouslySetInnerHTML={{ __html: job.description_html }}
+                          />
+                        ) : job.description ? (
+                          <FormattedJobDescription text={job.description} />
+                        ) : (
+                          <p className="text-sm leading-6 text-foreground/80">
+                            No description provided.
+                          </p>
+                        )}
+                        {job.pay_type === "fixed_incentive" && job.avg_incentive_monthly ? (
+                          <p className="mt-3 rounded-lg border border-success/20 bg-success-light/40 p-3 text-sm text-foreground/80">
+                            <span className="font-semibold text-success">Earning potential: </span>
+                            Up to ₹
+                            {(
+                              (job.max_salary || job.min_salary || 0) + job.avg_incentive_monthly
+                            ).toLocaleString("en-IN")}
+                            /month (fixed + avg incentive)
+                          </p>
+                        ) : job.incentives_text ? (
+                          <p className="mt-3 rounded-lg border border-success/20 bg-success-light/40 p-3 text-sm text-foreground/80">
+                            <span className="font-semibold text-success">Incentives: </span>
+                            {job.incentives_text}
+                          </p>
+                        ) : null}
+                        {job.interview_type ? (
+                          <div className="mt-4 rounded-lg border border-border bg-surface p-3 text-sm">
+                            <p className="font-semibold text-foreground">Interview</p>
+                            <p className="mt-1 text-foreground/80">
+                              {job.interview_type === "in_person" ? "Walk-in" : "Telephonic"}
+                              {job.interview_type === "in_person" && job.interview_address
+                                ? ` · ${[job.interview_address, job.interview_locality, job.interview_city].filter(Boolean).join(", ")}`
+                                : job.interview_type === "in_person" &&
+                                    job.interview_same_as_company
+                                  ? " · at company address"
+                                  : ""}
+                            </p>
+                          </div>
+                        ) : null}
+                        {job.joining_fee_required != null ? (
+                          job.joining_fee_required ? (
+                            <p className="mt-3 rounded-lg border border-warning/30 bg-warning-light/40 p-3 text-xs text-foreground/80">
+                              <span className="font-semibold text-warning">Note:</span> Joining fee
+                              or deposit applicable.
+                            </p>
+                          ) : (
+                            <p className="mt-3 rounded-lg border border-success/20 bg-success-light/40 p-3 text-xs text-foreground/80">
+                              <span className="font-semibold text-success">No joining fee</span> or
+                              deposit is required.
+                            </p>
+                          )
+                        ) : null}
+                        {job.hiring_contact_name ||
+                        job.hiring_contact_phone ||
+                        job.hiring_contact_email ? (
+                          <div className="mt-4 rounded-lg border border-border bg-surface p-3 text-sm">
+                            <p className="font-semibold text-foreground">Hiring contact</p>
+                            <p className="mt-1 space-y-0.5 text-foreground/80">
+                              {job.hiring_contact_name ? (
+                                <span className="block">{job.hiring_contact_name}</span>
+                              ) : null}
+                              {job.hiring_contact_phone ? (
+                                <a
+                                  href={`tel:${job.hiring_contact_phone}`}
+                                  className="block text-primary hover:underline"
+                                >
+                                  {job.hiring_contact_phone}
+                                </a>
+                              ) : null}
+                              {job.hiring_contact_email ? (
+                                <a
+                                  href={`mailto:${job.hiring_contact_email}`}
+                                  className="block text-primary hover:underline"
+                                >
+                                  {job.hiring_contact_email}
+                                </a>
+                              ) : null}
+                            </p>
+                          </div>
+                        ) : null}
+                      </Block>
+
+                      <Block title="Job requirements">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <ReqCard
+                            icon={Briefcase}
+                            label="Experience"
+                            value={formatExperience(
+                              job.min_experience_years,
+                              job.max_experience_years,
+                            )}
+                            hint={
+                              (job.min_experience_years ?? 0) === 0
+                                ? "Freshers welcome"
+                                : "Relevant experience"
+                            }
+                          />
+                          <ReqCard
+                            icon={GraduationCap}
+                            label="Education"
+                            value={job.education || "Any qualification"}
+                          />
+                          <ReqCard
+                            icon={Languages}
+                            label="English"
+                            value={job.english_level || "Not required"}
+                          />
+                          <ReqCard
+                            icon={Users}
+                            label="Openings"
+                            value={`${job.openings ?? 1} position${(job.openings ?? 1) > 1 ? "s" : ""}`}
+                          />
                         </div>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">No specific skills listed — employer is open to candidates with relevant aptitude.</p>
-                      )}
-                      {(job.preferred_skills?.length || 0) > 0 && (
-                        <div className="mt-4">
-                          <p className="mb-2 text-xs font-semibold text-muted-foreground">Nice to have</p>
+                      </Block>
+
+                      <Block title="Skills required">
+                        {(job.skills?.length || 0) > 0 ? (
                           <div className="flex flex-wrap gap-2">
-                            {job.preferred_skills!.map((s) => (
+                            {job.skills!.map((s) => (
                               <span
                                 key={s}
-                                className="inline-flex items-center rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-foreground/80"
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary-light px-3 py-1.5 text-xs font-medium text-primary"
                               >
-                                {s}
+                                <Target className="h-3 w-3" /> {s}
                               </span>
                             ))}
                           </div>
-                        </div>
-                      )}
-                    </Block>
-
-                    {((job.required_documents?.length ?? 0) > 0 ||
-                      (job.language_requirements?.length ?? 0) > 0) && (
-                      <Block title="Application requirements">
-                        <div className="space-y-3">
-                          {(job.required_documents?.length ?? 0) > 0 && (
-                            <div>
-                              <p className="mb-1.5 text-xs font-medium text-muted-foreground">Keep ready</p>
-                              <div className="flex flex-wrap gap-2">
-                                {job.required_documents!.map((d) => (
-                                  <Pill key={d}>{d}</Pill>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                          {(job.language_requirements?.length ?? 0) > 0 && (
-                            <div>
-                              <p className="mb-1.5 text-xs font-medium text-muted-foreground">Languages</p>
-                              <div className="flex flex-wrap gap-2">
-                                {job.language_requirements!.map((l) => (
-                                  <Pill key={l.language}>
-                                    {l.language} — {LANGUAGE_LEVELS.find((x) => x.id === l.level)?.label ?? l.level}
-                                  </Pill>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </Block>
-                    )}
-
-                    <Block title="Shift & work schedule">
-                      <div className="grid gap-3 sm:grid-cols-3">
-                        <ShiftCard icon={shiftIcon(job.shift)} label="Shift" value={job.shift ? `${job.shift}` : "Flexible"} />
-                        <ShiftCard icon={Clock} label="Job type" value={jobTypeLabel(job.job_type)} />
-                        <ShiftCard icon={MapPin} label="Work mode" value={workModeLabel(job.work_mode)} />
-                        {job.gender_pref ? (
-                          <ShiftCard
-                            icon={Users}
-                            label="Gender"
-                            value={GENDERS.find((g) => g.id === job.gender_pref)?.label ?? job.gender_pref}
-                          />
-                        ) : null}
-                        {(job.working_weekdays?.length ?? 0) > 0 ? (
-                          <ShiftCard
-                            icon={Calendar}
-                            label="Working days"
-                            value={WEEKDAYS.filter((d) => job.working_weekdays!.includes(d.id))
-                              .map((d) => d.label.slice(0, 3))
-                              .join(", ")}
-                          />
-                        ) : null}
-                      </div>
-                    </Block>
-
-                    <Block title="Benefits & perks">
-                      {(job.perks?.length || 0) > 0 || job.fixed_pay || job.incentives_text ? (
-                        <div className="grid gap-2 sm:grid-cols-2">
-                          {job.fixed_pay ? (
-                            <Benefit icon={Wallet} text="Fixed monthly pay" />
-                          ) : null}
-                          {job.incentives_text ? (
-                            <Benefit icon={Sparkles} text={`Incentives: ${job.incentives_text}`} />
-                          ) : null}
-                          {(job.perks || []).map((p) => (
-                            <Benefit key={p} icon={Gift} text={p} />
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">No additional benefits listed.</p>
-                      )}
-                    </Block>
-
-
-                    {job.walkin && (
-                      <Block title="Walk-in details">
-                        <p className="flex items-start gap-2 rounded-lg border border-amber/30 bg-amber/5 p-3 text-sm text-foreground/80">
-                          <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-amber" />
-                          {job.walkin_details || "Walk-in interview available. Contact employer for details."}
-                        </p>
-                      </Block>
-                    )}
-
-                    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4 text-xs text-muted-foreground">
-                      <span>Job ID: {job.id.slice(0, 8).toUpperCase()}</span>
-                      <button
-                        type="button"
-                        onClick={() => setReportOpen(true)}
-                        className="inline-flex items-center gap-1.5 transition hover:text-destructive"
-                      >
-                        <Flag className="h-3.5 w-3.5" /> Report this job
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div
-                    className={
-                      embedded
-                        ? "space-y-4 rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)] sm:p-6"
-                        : "space-y-4"
-                    }
-                  >
-                    <div className="flex items-start gap-4">
-                      <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl border border-border bg-surface text-base font-bold text-primary">
-                        {job.companies?.logo_url ? (
-                          <img src={job.companies.logo_url} alt={displayCompanyName || ""} className="h-full w-full object-cover" />
                         ) : (
-                          initials
-                        )}
-                      </div>
-                      <div>
-                        <h2 className="flex flex-wrap items-center gap-x-2 gap-y-1 text-lg font-semibold text-foreground">
-                          {displayCompanyName || "Confidential employer"}
-                          {showVerifiedBadge ? <VerifiedBadge /> : null}
-                        </h2>
-                        {job.companies?.industry || job.companies?.primary_city ? (
                           <p className="text-sm text-muted-foreground">
-                            {[job.companies?.industry, job.companies?.primary_city].filter(Boolean).join(" · ")}
+                            No specific skills listed — employer is open to candidates with relevant
+                            aptitude.
                           </p>
-                        ) : null}
+                        )}
+                        {(job.preferred_skills?.length || 0) > 0 && (
+                          <div className="mt-4">
+                            <p className="mb-2 text-xs font-semibold text-muted-foreground">
+                              Nice to have
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              {job.preferred_skills!.map((s) => (
+                                <span
+                                  key={s}
+                                  className="inline-flex items-center rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-foreground/80"
+                                >
+                                  {s}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </Block>
+
+                      {((job.required_documents?.length ?? 0) > 0 ||
+                        (job.language_requirements?.length ?? 0) > 0) && (
+                        <Block title="Application requirements">
+                          <div className="space-y-3">
+                            {(job.required_documents?.length ?? 0) > 0 && (
+                              <div>
+                                <p className="mb-1.5 text-xs font-medium text-muted-foreground">
+                                  Keep ready
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                  {job.required_documents!.map((d) => (
+                                    <Pill key={d}>{d}</Pill>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {(job.language_requirements?.length ?? 0) > 0 && (
+                              <div>
+                                <p className="mb-1.5 text-xs font-medium text-muted-foreground">
+                                  Languages
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                  {job.language_requirements!.map((l) => (
+                                    <Pill key={l.language}>
+                                      {l.language} —{" "}
+                                      {LANGUAGE_LEVELS.find((x) => x.id === l.level)?.label ??
+                                        l.level}
+                                    </Pill>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </Block>
+                      )}
+
+                      <Block title="Shift & work schedule">
+                        <div className="grid gap-3 sm:grid-cols-3">
+                          <ShiftCard
+                            icon={shiftIcon(job.shift)}
+                            label="Shift"
+                            value={job.shift ? `${job.shift}` : "Flexible"}
+                          />
+                          <ShiftCard
+                            icon={Clock}
+                            label="Job type"
+                            value={jobTypeLabel(job.job_type)}
+                          />
+                          <ShiftCard
+                            icon={MapPin}
+                            label="Work mode"
+                            value={workModeLabel(job.work_mode)}
+                          />
+                          {job.gender_pref ? (
+                            <ShiftCard
+                              icon={Users}
+                              label="Gender"
+                              value={
+                                GENDERS.find((g) => g.id === job.gender_pref)?.label ??
+                                job.gender_pref
+                              }
+                            />
+                          ) : null}
+                          {(job.working_weekdays?.length ?? 0) > 0 ? (
+                            <ShiftCard
+                              icon={Calendar}
+                              label="Working days"
+                              value={WEEKDAYS.filter((d) => job.working_weekdays!.includes(d.id))
+                                .map((d) => d.label.slice(0, 3))
+                                .join(", ")}
+                            />
+                          ) : null}
+                        </div>
+                      </Block>
+
+                      <Block title="Benefits & perks">
+                        {(job.perks?.length || 0) > 0 || job.fixed_pay || job.incentives_text ? (
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            {job.fixed_pay ? (
+                              <Benefit icon={Wallet} text="Fixed monthly pay" />
+                            ) : null}
+                            {job.incentives_text ? (
+                              <Benefit
+                                icon={Sparkles}
+                                text={`Incentives: ${job.incentives_text}`}
+                              />
+                            ) : null}
+                            {(job.perks || []).map((p) => (
+                              <Benefit key={p} icon={Gift} text={p} />
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">
+                            No additional benefits listed.
+                          </p>
+                        )}
+                      </Block>
+
+                      {job.walkin && (
+                        <Block title="Walk-in details">
+                          <p className="flex items-start gap-2 rounded-lg border border-amber/30 bg-amber/5 p-3 text-sm text-foreground/80">
+                            <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-amber" />
+                            {job.walkin_details ||
+                              "Walk-in interview available. Contact employer for details."}
+                          </p>
+                        </Block>
+                      )}
+
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4 text-xs text-muted-foreground">
+                        <span>Job ID: {job.id.slice(0, 8).toUpperCase()}</span>
+                        <button
+                          type="button"
+                          onClick={() => setReportOpen(true)}
+                          className="inline-flex items-center gap-1.5 transition hover:text-destructive"
+                        >
+                          <Flag className="h-3.5 w-3.5" /> Report this job
+                        </button>
                       </div>
                     </div>
-                    <p className="text-sm leading-6 text-foreground/80">
-                      {job.hiring_for_company?.trim()
-                        ? // A consultancy's own "about" text describes the consultancy, not
-                          // the client company whose name is shown here — skip straight to
-                          // the generic line rather than show a mismatched bio.
-                          `${displayCompanyName} is hiring on JobsKart. Apply now to hear back directly from the recruiter.`
-                        : job.companies?.about ||
-                          job.companies?.description ||
-                          `${displayCompanyName || "This employer"} is hiring on JobsKart. Apply now to hear back directly from the recruiter.`}
-                    </p>
-                    {!employerView && (job.hiring_contact_phone || job.hiring_contact_email) ? (
-                      <div className="flex flex-wrap gap-2 border-t border-border pt-4">
-                        {job.hiring_contact_phone ? (
-                          <a
-                            href={`tel:${job.hiring_contact_phone}`}
-                            className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-semibold text-foreground hover:bg-surface"
-                          >
-                            <Phone className="h-4 w-4" /> Call
-                          </a>
-                        ) : null}
-                        {job.hiring_contact_email ? (
-                          <a
-                            href={`mailto:${job.hiring_contact_email}`}
-                            className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-semibold text-foreground hover:bg-surface"
-                          >
-                            <Mail className="h-4 w-4" /> Email
-                          </a>
-                        ) : null}
-                        {job.hiring_contact_phone && whatsappDigits(job.hiring_contact_phone) ? (
-                          <button
-                            type="button"
-                            onClick={() => setWhatsappOpen(true)}
-                            className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-semibold text-foreground hover:bg-surface"
-                          >
-                            <MessageCircle className="h-4 w-4" /> WhatsApp
-                          </button>
-                        ) : null}
+                  ) : (
+                    <div
+                      className={
+                        embedded
+                          ? "space-y-4 rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)] sm:p-6"
+                          : "space-y-4"
+                      }
+                    >
+                      <div className="flex items-start gap-4">
+                        <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl border border-border bg-surface text-base font-bold text-primary">
+                          {job.companies?.logo_url ? (
+                            <img
+                              src={job.companies.logo_url}
+                              alt={displayCompanyName || ""}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            initials
+                          )}
+                        </div>
+                        <div>
+                          <h2 className="flex flex-wrap items-center gap-x-2 gap-y-1 text-lg font-semibold text-foreground">
+                            {displayCompanyName || "Confidential employer"}
+                            {showVerifiedBadge ? <VerifiedBadge /> : null}
+                          </h2>
+                          {job.companies?.industry || job.companies?.primary_city ? (
+                            <p className="text-sm text-muted-foreground">
+                              {[job.companies?.industry, job.companies?.primary_city]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </p>
+                          ) : null}
+                        </div>
                       </div>
-                    ) : null}
-                  </div>
-                )}
+                      <p className="text-sm leading-6 text-foreground/80">
+                        {job.hiring_for_company?.trim()
+                          ? // A consultancy's own "about" text describes the consultancy, not
+                            // the client company whose name is shown here — skip straight to
+                            // the generic line rather than show a mismatched bio.
+                            `${displayCompanyName} is hiring on JobsKart. Apply now to hear back directly from the recruiter.`
+                          : job.companies?.about ||
+                            job.companies?.description ||
+                            `${displayCompanyName || "This employer"} is hiring on JobsKart. Apply now to hear back directly from the recruiter.`}
+                      </p>
+                      {!employerView && (job.hiring_contact_phone || job.hiring_contact_email) ? (
+                        <div className="flex flex-wrap gap-2 border-t border-border pt-4">
+                          {job.hiring_contact_phone ? (
+                            <a
+                              href={`tel:${job.hiring_contact_phone}`}
+                              className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-semibold text-foreground hover:bg-surface"
+                            >
+                              <Phone className="h-4 w-4" /> Call
+                            </a>
+                          ) : null}
+                          {job.hiring_contact_email ? (
+                            <a
+                              href={`mailto:${job.hiring_contact_email}`}
+                              className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-semibold text-foreground hover:bg-surface"
+                            >
+                              <Mail className="h-4 w-4" /> Email
+                            </a>
+                          ) : null}
+                          {job.hiring_contact_phone && whatsappDigits(job.hiring_contact_phone) ? (
+                            <button
+                              type="button"
+                              onClick={() => setWhatsappOpen(true)}
+                              className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-semibold text-foreground hover:bg-surface"
+                            >
+                              <MessageCircle className="h-4 w-4" /> WhatsApp
+                            </button>
+                          ) : null}
+                        </div>
+                      ) : null}
+                      <div className="border-t border-border pt-4 text-xs text-muted-foreground">
+                        <button
+                          type="button"
+                          onClick={() => setReportCompanyOpen(true)}
+                          className="inline-flex items-center gap-1.5 transition hover:text-destructive"
+                        >
+                          <Flag className="h-3.5 w-3.5" /> Report this company
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </BlockCardCtx.Provider>
               </div>
             </div>
 
             {!employerView && similar.length > 0 && (
               <section className="mt-8">
-                <h2 className="mb-3 text-lg font-bold text-foreground">Similar jobs you may like</h2>
+                <h2 className="mb-3 text-lg font-bold text-foreground">
+                  Similar jobs you may like
+                </h2>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {similar.map((s) => (
                     <JobCard key={s.id} job={s} detailBasePath={basePath} />
@@ -943,9 +1076,21 @@ export function JobDetailPage({
                   Quick summary
                 </p>
                 <div className={`mt-3 text-sm ${embedded ? "space-y-4" : "space-y-3"}`}>
-                  <Side icon={IndianRupee} label="Salary" value={formatSalary(job.min_salary, job.max_salary, job.salary_period || "monthly")} />
+                  <Side
+                    icon={IndianRupee}
+                    label="Salary"
+                    value={formatSalary(
+                      job.min_salary,
+                      job.max_salary,
+                      job.salary_period || "monthly",
+                    )}
+                  />
                   <Side icon={MapPin} label="Location" value={location || "India"} />
-                  <Side icon={Briefcase} label="Type" value={`${jobTypeLabel(job.job_type)} · ${workModeLabel(job.work_mode)}`} />
+                  <Side
+                    icon={Briefcase}
+                    label="Type"
+                    value={`${jobTypeLabel(job.job_type)} · ${workModeLabel(job.work_mode)}`}
+                  />
                   <Side icon={GraduationCap} label="Education" value={job.education || "Any"} />
                   <Side icon={Users} label="Openings" value={`${job.openings ?? 1}`} />
                 </div>
@@ -959,7 +1104,8 @@ export function JobDetailPage({
                     </span>
                     {appliedInfo && (
                       <span className="text-[10px] font-normal opacity-90">
-                        Applied {formatAppliedDate(appliedInfo.created_at)} · {appliedStatusLabel(appliedInfo.status)}
+                        Applied {formatAppliedDate(appliedInfo.created_at)} ·{" "}
+                        {appliedStatusLabel(appliedInfo.status)}
                       </span>
                     )}
                   </Link>
@@ -995,15 +1141,25 @@ export function JobDetailPage({
                   </button>
                 </div>
                 <button
-                  onClick={() => downloadJdPdf({
-                    title: job.title,
-                    company: displayCompanyName,
-                    city: job.city || undefined,
-                    jobType: job.job_type?.replace("_", " ") || undefined,
-                    workMode: job.work_mode || undefined,
-                    salary: formatSalary(job.min_salary, job.max_salary, job.salary_period || "monthly"),
-                    html: job.description_html || (job.description ? `<p>${job.description.replace(/\n/g, "<br/>")}</p>` : ""),
-                  })}
+                  onClick={() =>
+                    downloadJdPdf({
+                      title: job.title,
+                      company: displayCompanyName,
+                      city: job.city || undefined,
+                      jobType: job.job_type?.replace("_", " ") || undefined,
+                      workMode: job.work_mode || undefined,
+                      salary: formatSalary(
+                        job.min_salary,
+                        job.max_salary,
+                        job.salary_period || "monthly",
+                      ),
+                      html:
+                        job.description_html ||
+                        (job.description
+                          ? `<p>${job.description.replace(/\n/g, "<br/>")}</p>`
+                          : ""),
+                    })
+                  }
                   className="mt-2 inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-card text-sm font-medium text-foreground hover:bg-surface"
                 >
                   <Download className="h-4 w-4" /> Download JD (PDF)
@@ -1017,15 +1173,30 @@ export function JobDetailPage({
                     : "rounded-2xl border border-border bg-gradient-to-br from-primary-light to-card p-5"
                 }
               >
-                <p className={embedded ? "text-base font-bold text-foreground" : "text-sm font-semibold text-foreground"}>
+                <p
+                  className={
+                    embedded
+                      ? "text-base font-bold text-foreground"
+                      : "text-sm font-semibold text-foreground"
+                  }
+                >
                   Tips to get hired faster
                 </p>
                 <ul
                   className={`mt-2 text-foreground/80 ${embedded ? "space-y-2.5 text-sm" : "space-y-1.5 text-xs"}`}
                 >
-                  <li className="flex gap-2"><CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" /> Complete your profile to 100%</li>
-                  <li className="flex gap-2"><CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" /> Upload an updated resume</li>
-                  <li className="flex gap-2"><CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" /> Apply within 24 hours of posting</li>
+                  <li className="flex gap-2">
+                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" /> Complete
+                    your profile to 100%
+                  </li>
+                  <li className="flex gap-2">
+                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" /> Upload an
+                    updated resume
+                  </li>
+                  <li className="flex gap-2">
+                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" /> Apply
+                    within 24 hours of posting
+                  </li>
                 </ul>
               </div>
             </div>
@@ -1122,8 +1293,13 @@ export function JobDetailPage({
         />
       )}
 
+      {job && <ReportJobDialog jobId={job.id} open={reportOpen} onOpenChange={setReportOpen} />}
       {job && (
-        <ReportJobDialog jobId={job.id} open={reportOpen} onOpenChange={setReportOpen} />
+        <ReportCompanyDialog
+          companyId={job.company_id}
+          open={reportCompanyOpen}
+          onOpenChange={setReportCompanyOpen}
+        />
       )}
 
       {!embedded && <Footer />}
@@ -1172,16 +1348,33 @@ function Block({ title, children }: { title: string; children: React.ReactNode }
     );
   return (
     <div>
-      <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">{title}</h3>
+      <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+        {title}
+      </h3>
       {children}
     </div>
   );
 }
-function Pill({ children, tone = "default" }: { children: React.ReactNode; tone?: "default" | "success" }) {
-  const cls = tone === "success" ? "bg-success-light text-success" : "bg-surface text-foreground/80";
+function Pill({
+  children,
+  tone = "default",
+}: {
+  children: React.ReactNode;
+  tone?: "default" | "success";
+}) {
+  const cls =
+    tone === "success" ? "bg-success-light text-success" : "bg-surface text-foreground/80";
   return <span className={`rounded-full px-3 py-1 text-xs font-medium ${cls}`}>{children}</span>;
 }
-function Req({ icon: Icon, label, value }: { icon: typeof IndianRupee; label: string; value: string }) {
+function Req({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: typeof IndianRupee;
+  label: string;
+  value: string;
+}) {
   return (
     <li className="flex items-start gap-2">
       <Icon className="mt-0.5 h-4 w-4 text-primary" />
@@ -1192,27 +1385,49 @@ function Req({ icon: Icon, label, value }: { icon: typeof IndianRupee; label: st
     </li>
   );
 }
-function ReqCard({ icon: Icon, label, value, hint }: { icon: typeof IndianRupee; label: string; value: string; hint?: string }) {
+function ReqCard({
+  icon: Icon,
+  label,
+  value,
+  hint,
+}: {
+  icon: typeof IndianRupee;
+  label: string;
+  value: string;
+  hint?: string;
+}) {
   return (
     <div className="flex items-start gap-3 rounded-xl border border-border bg-card p-3.5 transition-colors hover:border-primary/30 hover:bg-primary-light/30">
       <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary-light text-primary">
         <Icon className="h-4.5 w-4.5" />
       </div>
       <div className="min-w-0">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+        <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+          {label}
+        </p>
         <p className="text-sm font-semibold text-foreground">{value}</p>
         {hint ? <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p> : null}
       </div>
     </div>
   );
 }
-function ShiftCard({ icon: Icon, label, value }: { icon: typeof IndianRupee; label: string; value: string }) {
+function ShiftCard({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: typeof IndianRupee;
+  label: string;
+  value: string;
+}) {
   return (
     <div className="rounded-xl border border-border bg-gradient-to-br from-card to-surface p-3 text-center">
       <div className="mx-auto mb-2 grid h-10 w-10 place-items-center rounded-full bg-primary-light text-primary">
         <Icon className="h-5 w-5" />
       </div>
-      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </p>
       <p className="mt-0.5 text-sm font-semibold capitalize text-foreground">{value}</p>
     </div>
   );
@@ -1233,7 +1448,11 @@ function shiftIcon(shift: string | null) {
   return Clock;
 }
 function formatAppliedDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  return new Date(iso).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 const APPLIED_STATUS_LABELS: Record<string, string> = {
   applied: "Applied",
@@ -1246,7 +1465,15 @@ const APPLIED_STATUS_LABELS: Record<string, string> = {
 function appliedStatusLabel(status: string) {
   return APPLIED_STATUS_LABELS[status] || status;
 }
-function Side({ icon: Icon, label, value }: { icon: typeof IndianRupee; label: string; value: string }) {
+function Side({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: typeof IndianRupee;
+  label: string;
+  value: string;
+}) {
   return (
     <div className="flex items-start gap-2">
       <Icon className="mt-0.5 h-4 w-4 shrink-0 text-primary" />

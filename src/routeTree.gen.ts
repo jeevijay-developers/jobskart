@@ -36,6 +36,7 @@ import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AdminMastersRouteImport } from './routes/admin/masters'
 import { Route as AdminPlansRouteImport } from './routes/admin/plans'
 import { Route as AdminQuizzesRouteImport } from './routes/admin/quizzes'
+import { Route as AdminReportsRouteImport } from './routes/admin/reports'
 import { Route as AdminResumesRouteImport } from './routes/admin/resumes'
 import { Route as AdminSiteContentRouteImport } from './routes/admin/site-content'
 import { Route as AdminTestimonialsRouteImport } from './routes/admin/testimonials'
@@ -243,6 +244,11 @@ const AdminPlansRoute = AdminPlansRouteImport.update({
 const AdminQuizzesRoute = AdminQuizzesRouteImport.update({
   id: '/quizzes',
   path: '/quizzes',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminReportsRoute = AdminReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
   getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminResumesRoute = AdminResumesRouteImport.update({
@@ -683,6 +689,7 @@ export interface FileRoutesByFullPath {
   '/admin/masters': typeof AdminMastersRoute
   '/admin/plans': typeof AdminPlansRoute
   '/admin/quizzes': typeof AdminQuizzesRoute
+  '/admin/reports': typeof AdminReportsRoute
   '/admin/resumes': typeof AdminResumesRoute
   '/admin/site-content': typeof AdminSiteContentRoute
   '/admin/testimonials': typeof AdminTestimonialsRoute
@@ -782,6 +789,7 @@ export interface FileRoutesByTo {
   '/admin/masters': typeof AdminMastersRoute
   '/admin/plans': typeof AdminPlansRoute
   '/admin/quizzes': typeof AdminQuizzesRoute
+  '/admin/reports': typeof AdminReportsRoute
   '/admin/resumes': typeof AdminResumesRoute
   '/admin/site-content': typeof AdminSiteContentRoute
   '/admin/testimonials': typeof AdminTestimonialsRoute
@@ -884,6 +892,7 @@ export interface FileRoutesById {
   '/admin/masters': typeof AdminMastersRoute
   '/admin/plans': typeof AdminPlansRoute
   '/admin/quizzes': typeof AdminQuizzesRoute
+  '/admin/reports': typeof AdminReportsRoute
   '/admin/resumes': typeof AdminResumesRoute
   '/admin/site-content': typeof AdminSiteContentRoute
   '/admin/testimonials': typeof AdminTestimonialsRoute
@@ -986,6 +995,7 @@ export interface FileRouteTypes {
     | '/admin/masters'
     | '/admin/plans'
     | '/admin/quizzes'
+    | '/admin/reports'
     | '/admin/resumes'
     | '/admin/site-content'
     | '/admin/testimonials'
@@ -1085,6 +1095,7 @@ export interface FileRouteTypes {
     | '/admin/masters'
     | '/admin/plans'
     | '/admin/quizzes'
+    | '/admin/reports'
     | '/admin/resumes'
     | '/admin/site-content'
     | '/admin/testimonials'
@@ -1186,6 +1197,7 @@ export interface FileRouteTypes {
     | '/admin/masters'
     | '/admin/plans'
     | '/admin/quizzes'
+    | '/admin/reports'
     | '/admin/resumes'
     | '/admin/site-content'
     | '/admin/testimonials'
@@ -1485,6 +1497,13 @@ declare module '@tanstack/react-router' {
       path: '/quizzes'
       fullPath: '/admin/quizzes'
       preLoaderRoute: typeof AdminQuizzesRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/reports': {
+      id: '/admin/reports'
+      path: '/reports'
+      fullPath: '/admin/reports'
+      preLoaderRoute: typeof AdminReportsRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/admin/resumes': {
@@ -2165,6 +2184,7 @@ interface AdminRouteRouteChildren {
   AdminMastersRoute: typeof AdminMastersRoute
   AdminPlansRoute: typeof AdminPlansRoute
   AdminQuizzesRoute: typeof AdminQuizzesRoute
+  AdminReportsRoute: typeof AdminReportsRoute
   AdminResumesRoute: typeof AdminResumesRoute
   AdminSiteContentRoute: typeof AdminSiteContentRoute
   AdminTestimonialsRoute: typeof AdminTestimonialsRoute
@@ -2188,6 +2208,7 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminMastersRoute: AdminMastersRoute,
   AdminPlansRoute: AdminPlansRoute,
   AdminQuizzesRoute: AdminQuizzesRoute,
+  AdminReportsRoute: AdminReportsRoute,
   AdminResumesRoute: AdminResumesRoute,
   AdminSiteContentRoute: AdminSiteContentRoute,
   AdminTestimonialsRoute: AdminTestimonialsRoute,

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { CheckCircle2, Loader2, Flag } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -40,6 +41,23 @@ export function ReportJobDialog({
   const [details, setDetails] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const navigate = useNavigate();
+
+  // Checked at open time, not just at submit — matches the Apply/Save
+  // convention elsewhere on the job page (redirect to /auth) instead of
+  // letting someone fill out the whole form before discovering they must
+  // sign in.
+  useEffect(() => {
+    if (!open) return;
+    (async () => {
+      const { data } = await supabase.auth.getUser();
+      if (!data.user) {
+        onOpenChange(false);
+        navigate({ to: "/auth", search: { tab: "candidate" } });
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const reset = () => {
     setReason("");
@@ -103,7 +121,8 @@ export function ReportJobDialog({
             <div>
               <h3 className="text-lg font-semibold text-foreground">Report received</h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                Our trust &amp; safety team will review this job within 24 hours. You may be contacted for more details.
+                Our trust &amp; safety team will review this job within 24 hours. You may be
+                contacted for more details.
               </p>
             </div>
             <Button onClick={() => onOpenChange(false)} className="w-full">
@@ -140,7 +159,9 @@ export function ReportJobDialog({
 
               <ConditionalField visible={reason !== ""}>
                 <OptionalSection
-                  title={reason === "other" ? "Additional details (required)" : "Additional details"}
+                  title={
+                    reason === "other" ? "Additional details (required)" : "Additional details"
+                  }
                   summary="Optional — helps us investigate"
                   badge={details.trim() ? 1 : 0}
                   hasValues={reason === "other"}
@@ -162,9 +183,15 @@ export function ReportJobDialog({
               <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
                 Cancel
               </Button>
-              <Button onClick={handleSubmit} disabled={submitting || !reason} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              <Button
+                onClick={handleSubmit}
+                disabled={submitting || !reason}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
                 {submitting ? (
-                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting…</>
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting…
+                  </>
                 ) : (
                   "Submit report"
                 )}
