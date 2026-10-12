@@ -17,6 +17,7 @@ import {
   LogOut,
   Menu,
   MessageCircle,
+  ListChecks,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -51,6 +52,7 @@ const nav = [
   { to: "/admin/credits", label: "Credits", icon: Coins },
   { to: "/admin/resumes", label: "Resumes", icon: FileText },
   { to: "/admin/whatsapp", label: "WhatsApp", icon: MessageCircle },
+  { to: "/admin/quizzes", label: "Skill Quizzes", icon: ListChecks },
 ] as const;
 
 function NavList({ onNavigate }: { onNavigate?: () => void }) {

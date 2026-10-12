@@ -14,6 +14,7 @@ import {
   MapPin,
   Mic,
   MoreVertical,
+  ShieldCheck,
   Sparkles,
   Users,
   Zap,
@@ -151,6 +152,20 @@ function TagBadge({ tag }: { tag: string }) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-600">
         <Zap className="h-3 w-3" /> Active
+      </span>
+    );
+  }
+  if (tag.startsWith("Skill Verified")) {
+    // "Skill Verified: Sales" -> badge shows "Sales Verified"; the candidate's
+    // raw quiz score is never part of this tag or shown to the recruiter —
+    // see compute_candidate_match() / 20261013100000_skill_quiz.sql.
+    const category = tag.split(":")[1]?.trim();
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded-full bg-primary-light px-2 py-0.5 text-[10px] font-bold text-primary"
+        title="Passed JobsKart's free role-skill quiz for this category"
+      >
+        <ShieldCheck className="h-3 w-3" /> {category ? `${category} Verified` : "Skill Verified"}
       </span>
     );
   }

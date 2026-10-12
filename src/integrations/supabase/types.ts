@@ -1440,6 +1440,47 @@ export type Database = {
         }
         Relationships: []
       }
+      candidate_quiz_attempts: {
+        Row: {
+          answers: Json
+          category: string
+          created_at: string
+          id: string
+          passed: boolean
+          question_set_id: string
+          score: number
+          user_id: string
+        }
+        Insert: {
+          answers: Json
+          category: string
+          created_at?: string
+          id?: string
+          passed: boolean
+          question_set_id: string
+          score: number
+          user_id: string
+        }
+        Update: {
+          answers?: Json
+          category?: string
+          created_at?: string
+          id?: string
+          passed?: boolean
+          question_set_id?: string
+          score?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_quiz_attempts_question_set_id_fkey"
+            columns: ["question_set_id"]
+            isOneToOne: false
+            referencedRelation: "skill_quiz_question_sets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidate_unlocks: {
         Row: {
           candidate_user_id: string
@@ -4507,6 +4548,7 @@ export type Database = {
           free_whatsapp_cap_per_post: number
           free_whatsapp_rajasthan_only: boolean
           id: number
+          skill_quiz_cooldown_days: number
           spam_jobs_per_hour: number
           tier_prices: Json
           unlocks_per_job: number
@@ -4533,6 +4575,7 @@ export type Database = {
           free_whatsapp_cap_per_post?: number
           free_whatsapp_rajasthan_only?: boolean
           id?: number
+          skill_quiz_cooldown_days?: number
           spam_jobs_per_hour?: number
           tier_prices?: Json
           unlocks_per_job?: number
@@ -4559,6 +4602,7 @@ export type Database = {
           free_whatsapp_cap_per_post?: number
           free_whatsapp_rajasthan_only?: boolean
           id?: number
+          skill_quiz_cooldown_days?: number
           spam_jobs_per_hour?: number
           tier_prices?: Json
           unlocks_per_job?: number
@@ -5123,6 +5167,39 @@ export type Database = {
         }
         Relationships: []
       }
+      skill_quiz_question_sets: {
+        Row: {
+          category: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          pass_mark: number
+          questions: Json
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          pass_mark?: number
+          questions?: Json
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          pass_mark?: number
+          questions?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       skills_master: {
         Row: {
           created_at: string
@@ -5488,6 +5565,15 @@ export type Database = {
         Args: { _id: string; _notes: string; _status: string }
         Returns: undefined
       }
+      admin_upsert_skill_quiz: {
+        Args: {
+          _category: string
+          _is_active: boolean
+          _pass_mark: number
+          _questions: Json
+        }
+        Returns: string
+      }
       apply_boost: { Args: { _days?: number; _job_id: string }; Returns: Json }
       apply_credit_delta: {
         Args: {
@@ -5774,6 +5860,7 @@ export type Database = {
           _posted_after?: string
           _q?: string
           _shift?: string
+          _sort?: string
           _vehicle?: boolean
           _verified_only?: boolean
           _work_mode?: string
@@ -5947,6 +6034,54 @@ export type Database = {
           score: number
         }[]
       }
+      get_employer_job_responses: {
+        Args: {
+          _company_id: string
+          _job_id: string
+          _limit?: number
+          _offset?: number
+          _query?: string
+          _status?: string
+        }
+        Returns: {
+          available_from: string
+          avatar_url: string
+          candidate_id: string
+          city: string
+          cover_note: string
+          created_at: string
+          email: string
+          expected_salary: number
+          full_name: string
+          id: string
+          job_title: string
+          mobile: string
+          status: string
+          total_count: number
+        }[]
+      }
+      get_employer_response_jobs: {
+        Args: {
+          _company_id: string
+          _include_closed?: boolean
+          _query?: string
+          _status?: string
+        }
+        Returns: {
+          applicant_count: number
+          job_created_at: string
+          job_id: string
+          job_status: string
+          job_title: string
+        }[]
+      }
+      get_employer_response_status_counts: {
+        Args: { _company_id: string; _job_id?: string; _query?: string }
+        Returns: {
+          n: number
+          status: string
+        }[]
+      }
       get_invite_by_token: {
         Args: { _token: string }
         Returns: {
@@ -6073,6 +6208,7 @@ export type Database = {
         }
         Returns: Json
       }
+      get_skill_quiz: { Args: { _category: string }; Returns: Json }
       get_unlocked_candidate_contact: {
         Args: { _candidate_user_id: string; _company_id: string }
         Returns: {
@@ -6621,6 +6757,8 @@ export type Database = {
         Returns: undefined
       }
       should_send_whatsapp: { Args: { _user_id: string }; Returns: boolean }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
       slugify: { Args: { _text: string }; Returns: string }
       start_interview_prep_session: {
         Args: {
@@ -6636,6 +6774,10 @@ export type Database = {
       }
       submit_certification_exam: {
         Args: { _answers: Json; _certification_id: string }
+        Returns: Json
+      }
+      submit_skill_quiz: {
+        Args: { _answers: Json; _category: string }
         Returns: Json
       }
       suggest_skills_for_roles: {

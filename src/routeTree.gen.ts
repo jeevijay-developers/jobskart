@@ -34,6 +34,7 @@ import { Route as AdminLearningRouteImport } from './routes/admin/learning'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AdminMastersRouteImport } from './routes/admin/masters'
 import { Route as AdminPlansRouteImport } from './routes/admin/plans'
+import { Route as AdminQuizzesRouteImport } from './routes/admin/quizzes'
 import { Route as AdminResumesRouteImport } from './routes/admin/resumes'
 import { Route as AdminSiteContentRouteImport } from './routes/admin/site-content'
 import { Route as AdminTestimonialsRouteImport } from './routes/admin/testimonials'
@@ -89,6 +90,7 @@ import { Route as AuthenticatedCandidateInterviewPrepIndexRouteImport } from './
 import { Route as AuthenticatedCandidateInterviewPrepSessionIdRouteImport } from './routes/_authenticated/candidate/interview-prep.$sessionId'
 import { Route as AuthenticatedCandidateJobsJobIdRouteImport } from './routes/_authenticated/candidate/jobs.$jobId'
 import { Route as AuthenticatedCandidateLearningCornerSlugRouteImport } from './routes/_authenticated/candidate/learning-corner.$slug'
+import { Route as AuthenticatedCandidateQuizCategoryRouteImport } from './routes/_authenticated/candidate/quiz.$category'
 import { Route as AuthenticatedEmployerCrmAutomationRouteImport } from './routes/_authenticated/employer/crm.automation'
 import { Route as AuthenticatedEmployerJobsBulkRouteImport } from './routes/_authenticated/employer/jobs.bulk'
 import { Route as AuthenticatedEmployerJobsNewRouteImport } from './routes/_authenticated/employer/jobs.new'
@@ -230,6 +232,11 @@ const AdminMastersRoute = AdminMastersRouteImport.update({
 const AdminPlansRoute = AdminPlansRouteImport.update({
   id: '/plans',
   path: '/plans',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminQuizzesRoute = AdminQuizzesRouteImport.update({
+  id: '/quizzes',
+  path: '/quizzes',
   getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminResumesRoute = AdminResumesRouteImport.update({
@@ -541,6 +548,12 @@ const AuthenticatedCandidateLearningCornerSlugRoute =
     path: '/learning-corner/$slug',
     getParentRoute: () => AuthenticatedCandidateRouteRoute,
   } as any)
+const AuthenticatedCandidateQuizCategoryRoute =
+  AuthenticatedCandidateQuizCategoryRouteImport.update({
+    id: '/quiz/$category',
+    path: '/quiz/$category',
+    getParentRoute: () => AuthenticatedCandidateRouteRoute,
+  } as any)
 const AuthenticatedEmployerCrmAutomationRoute =
   AuthenticatedEmployerCrmAutomationRouteImport.update({
     id: '/automation',
@@ -662,6 +675,7 @@ export interface FileRoutesByFullPath {
   '/admin/login': typeof AdminLoginRoute
   '/admin/masters': typeof AdminMastersRoute
   '/admin/plans': typeof AdminPlansRoute
+  '/admin/quizzes': typeof AdminQuizzesRoute
   '/admin/resumes': typeof AdminResumesRoute
   '/admin/site-content': typeof AdminSiteContentRoute
   '/admin/testimonials': typeof AdminTestimonialsRoute
@@ -717,6 +731,7 @@ export interface FileRoutesByFullPath {
   '/candidate/interview-prep/$sessionId': typeof AuthenticatedCandidateInterviewPrepSessionIdRoute
   '/candidate/jobs/$jobId': typeof AuthenticatedCandidateJobsJobIdRoute
   '/candidate/learning-corner/$slug': typeof AuthenticatedCandidateLearningCornerSlugRoute
+  '/candidate/quiz/$category': typeof AuthenticatedCandidateQuizCategoryRoute
   '/employer/crm/automation': typeof AuthenticatedEmployerCrmAutomationRoute
   '/employer/jobs/bulk': typeof AuthenticatedEmployerJobsBulkRoute
   '/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
@@ -758,6 +773,7 @@ export interface FileRoutesByTo {
   '/admin/login': typeof AdminLoginRoute
   '/admin/masters': typeof AdminMastersRoute
   '/admin/plans': typeof AdminPlansRoute
+  '/admin/quizzes': typeof AdminQuizzesRoute
   '/admin/resumes': typeof AdminResumesRoute
   '/admin/site-content': typeof AdminSiteContentRoute
   '/admin/testimonials': typeof AdminTestimonialsRoute
@@ -813,6 +829,7 @@ export interface FileRoutesByTo {
   '/candidate/interview-prep/$sessionId': typeof AuthenticatedCandidateInterviewPrepSessionIdRoute
   '/candidate/jobs/$jobId': typeof AuthenticatedCandidateJobsJobIdRoute
   '/candidate/learning-corner/$slug': typeof AuthenticatedCandidateLearningCornerSlugRoute
+  '/candidate/quiz/$category': typeof AuthenticatedCandidateQuizCategoryRoute
   '/employer/crm/automation': typeof AuthenticatedEmployerCrmAutomationRoute
   '/employer/jobs/bulk': typeof AuthenticatedEmployerJobsBulkRoute
   '/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
@@ -857,6 +874,7 @@ export interface FileRoutesById {
   '/admin/login': typeof AdminLoginRoute
   '/admin/masters': typeof AdminMastersRoute
   '/admin/plans': typeof AdminPlansRoute
+  '/admin/quizzes': typeof AdminQuizzesRoute
   '/admin/resumes': typeof AdminResumesRoute
   '/admin/site-content': typeof AdminSiteContentRoute
   '/admin/testimonials': typeof AdminTestimonialsRoute
@@ -912,6 +930,7 @@ export interface FileRoutesById {
   '/_authenticated/candidate/interview-prep/$sessionId': typeof AuthenticatedCandidateInterviewPrepSessionIdRoute
   '/_authenticated/candidate/jobs/$jobId': typeof AuthenticatedCandidateJobsJobIdRoute
   '/_authenticated/candidate/learning-corner/$slug': typeof AuthenticatedCandidateLearningCornerSlugRoute
+  '/_authenticated/candidate/quiz/$category': typeof AuthenticatedCandidateQuizCategoryRoute
   '/_authenticated/employer/crm/automation': typeof AuthenticatedEmployerCrmAutomationRoute
   '/_authenticated/employer/jobs/bulk': typeof AuthenticatedEmployerJobsBulkRoute
   '/_authenticated/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
@@ -956,6 +975,7 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/admin/masters'
     | '/admin/plans'
+    | '/admin/quizzes'
     | '/admin/resumes'
     | '/admin/site-content'
     | '/admin/testimonials'
@@ -1011,6 +1031,7 @@ export interface FileRouteTypes {
     | '/candidate/interview-prep/$sessionId'
     | '/candidate/jobs/$jobId'
     | '/candidate/learning-corner/$slug'
+    | '/candidate/quiz/$category'
     | '/employer/crm/automation'
     | '/employer/jobs/bulk'
     | '/employer/jobs/new'
@@ -1052,6 +1073,7 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/admin/masters'
     | '/admin/plans'
+    | '/admin/quizzes'
     | '/admin/resumes'
     | '/admin/site-content'
     | '/admin/testimonials'
@@ -1107,6 +1129,7 @@ export interface FileRouteTypes {
     | '/candidate/interview-prep/$sessionId'
     | '/candidate/jobs/$jobId'
     | '/candidate/learning-corner/$slug'
+    | '/candidate/quiz/$category'
     | '/employer/crm/automation'
     | '/employer/jobs/bulk'
     | '/employer/jobs/new'
@@ -1150,6 +1173,7 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/admin/masters'
     | '/admin/plans'
+    | '/admin/quizzes'
     | '/admin/resumes'
     | '/admin/site-content'
     | '/admin/testimonials'
@@ -1205,6 +1229,7 @@ export interface FileRouteTypes {
     | '/_authenticated/candidate/interview-prep/$sessionId'
     | '/_authenticated/candidate/jobs/$jobId'
     | '/_authenticated/candidate/learning-corner/$slug'
+    | '/_authenticated/candidate/quiz/$category'
     | '/_authenticated/employer/crm/automation'
     | '/_authenticated/employer/jobs/bulk'
     | '/_authenticated/employer/jobs/new'
@@ -1434,6 +1459,13 @@ declare module '@tanstack/react-router' {
       path: '/plans'
       fullPath: '/admin/plans'
       preLoaderRoute: typeof AdminPlansRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/quizzes': {
+      id: '/admin/quizzes'
+      path: '/quizzes'
+      fullPath: '/admin/quizzes'
+      preLoaderRoute: typeof AdminQuizzesRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/admin/resumes': {
@@ -1821,6 +1853,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCandidateLearningCornerSlugRouteImport
       parentRoute: typeof AuthenticatedCandidateRouteRoute
     }
+    '/_authenticated/candidate/quiz/$category': {
+      id: '/_authenticated/candidate/quiz/$category'
+      path: '/quiz/$category'
+      fullPath: '/candidate/quiz/$category'
+      preLoaderRoute: typeof AuthenticatedCandidateQuizCategoryRouteImport
+      parentRoute: typeof AuthenticatedCandidateRouteRoute
+    }
     '/_authenticated/employer/crm/automation': {
       id: '/_authenticated/employer/crm/automation'
       path: '/automation'
@@ -1952,6 +1991,7 @@ interface AuthenticatedCandidateRouteRouteChildren {
   AuthenticatedCandidateInterviewPrepSessionIdRoute: typeof AuthenticatedCandidateInterviewPrepSessionIdRoute
   AuthenticatedCandidateJobsJobIdRoute: typeof AuthenticatedCandidateJobsJobIdRoute
   AuthenticatedCandidateLearningCornerSlugRoute: typeof AuthenticatedCandidateLearningCornerSlugRoute
+  AuthenticatedCandidateQuizCategoryRoute: typeof AuthenticatedCandidateQuizCategoryRoute
   AuthenticatedCandidateInterviewPrepIndexRoute: typeof AuthenticatedCandidateInterviewPrepIndexRoute
   AuthenticatedCandidateLearningCertificationSlugRoute: typeof AuthenticatedCandidateLearningCertificationSlugRoute
   AuthenticatedCandidateLearningCourseSlugRoute: typeof AuthenticatedCandidateLearningCourseSlugRoute
@@ -1983,6 +2023,8 @@ const AuthenticatedCandidateRouteRouteChildren: AuthenticatedCandidateRouteRoute
     AuthenticatedCandidateJobsJobIdRoute: AuthenticatedCandidateJobsJobIdRoute,
     AuthenticatedCandidateLearningCornerSlugRoute:
       AuthenticatedCandidateLearningCornerSlugRoute,
+    AuthenticatedCandidateQuizCategoryRoute:
+      AuthenticatedCandidateQuizCategoryRoute,
     AuthenticatedCandidateInterviewPrepIndexRoute:
       AuthenticatedCandidateInterviewPrepIndexRoute,
     AuthenticatedCandidateLearningCertificationSlugRoute:
@@ -2102,6 +2144,7 @@ interface AdminRouteRouteChildren {
   AdminLoginRoute: typeof AdminLoginRoute
   AdminMastersRoute: typeof AdminMastersRoute
   AdminPlansRoute: typeof AdminPlansRoute
+  AdminQuizzesRoute: typeof AdminQuizzesRoute
   AdminResumesRoute: typeof AdminResumesRoute
   AdminSiteContentRoute: typeof AdminSiteContentRoute
   AdminTestimonialsRoute: typeof AdminTestimonialsRoute
@@ -2123,6 +2166,7 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminLoginRoute: AdminLoginRoute,
   AdminMastersRoute: AdminMastersRoute,
   AdminPlansRoute: AdminPlansRoute,
+  AdminQuizzesRoute: AdminQuizzesRoute,
   AdminResumesRoute: AdminResumesRoute,
   AdminSiteContentRoute: AdminSiteContentRoute,
   AdminTestimonialsRoute: AdminTestimonialsRoute,
