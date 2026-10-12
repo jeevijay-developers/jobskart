@@ -202,7 +202,7 @@ function Page() {
                   size="sm"
                   variant="outline"
                   onClick={() => mTog.mutate({ jobId: j.id, featured: !j.is_featured })}
-                  disabled={mTog.isPending}
+                  disabled={mTog.isPending && mTog.variables?.jobId === j.id}
                   className="gap-1.5 max-sm:h-11 max-sm:flex-1"
                 >
                   <Star
@@ -211,16 +211,18 @@ function Page() {
                   />
                   {j.is_featured ? "Unfeature" : "Feature"}
                 </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => mClose.mutate(j.id)}
-                  disabled={mClose.isPending}
-                  className="max-sm:h-11 max-sm:flex-1"
-                >
-                  Close
-                </Button>
+                {j.status !== "closed" && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => mClose.mutate(j.id)}
+                    disabled={mClose.isPending && mClose.variables === j.id}
+                    className="max-sm:h-11 max-sm:flex-1"
+                  >
+                    Close
+                  </Button>
+                )}
               </div>
             </div>
           ))
