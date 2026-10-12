@@ -7,7 +7,7 @@ import { z } from "zod";
 import { CandidateShell } from "@/components/candidate/CandidateShell";
 import { supabase } from "@/integrations/supabase/client";
 import { timeAgo, formatSalary } from "@/lib/format";
-import { InterviewInfo, type Interview } from "@/components/candidate/InterviewInfo";
+import type { Interview } from "@/components/candidate/InterviewInfo";
 import { ViewApplicationDialog } from "@/components/candidate/ViewApplicationDialog";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { FollowUpDialog } from "@/components/candidate/FollowUpDialog";
@@ -381,22 +381,6 @@ function ApplicationsPage() {
                     </span>
                   </span>
                 </label>
-              )}
-
-              {a.interviews && a.interviews.length > 0 && (
-                <div className="mt-4 space-y-2 border-t border-border pt-4">
-                  <p className="text-xs font-semibold uppercase text-muted-foreground">
-                    {a.interviews.length > 1 ? "Interviews" : "Interview"}
-                  </p>
-                  {[...a.interviews]
-                    .sort(
-                      (x, y) =>
-                        new Date(x.scheduled_at).getTime() - new Date(y.scheduled_at).getTime(),
-                    )
-                    .map((iv) => (
-                      <InterviewInfo key={iv.id} interview={iv} />
-                    ))}
-                </div>
               )}
             </div>
           ))}

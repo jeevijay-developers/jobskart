@@ -5,8 +5,7 @@
 import type { ComponentType } from "react";
 import type { ResumeSchema } from "../schema";
 import { ClassicAtsResume } from "./classicAts";
-import { ModernResume } from "./modern";
-import { PracticalResume, ProfessionalResume, TechnicalResume } from "./roleResume";
+import { ModernResume, PracticalResume, ProfessionalResume, TechnicalResume } from "./variantResume";
 
 export type ResumeTemplateComponent = ComponentType<{ resume: ResumeSchema }>;
 

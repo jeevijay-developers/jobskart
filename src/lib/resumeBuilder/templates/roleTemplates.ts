@@ -130,13 +130,13 @@ interface RoleTemplateConfig {
 }
 
 const ROLE_TEMPLATE_CONFIG: Record<string, RoleTemplateConfig> = {
-  professional: {
+  modern: {
     order: [
       "summary",
-      "education",
-      "experience",
-      "custom",
       "skills",
+      "experience",
+      "education",
+      "custom",
       "certifications",
       "languages",
       "links",
@@ -144,22 +144,43 @@ const ROLE_TEMPLATE_CONFIG: Record<string, RoleTemplateConfig> = {
     ],
     titles: {},
   },
-  practical: {
+  professional: {
     order: [
       "summary",
-      "skills",
-      "certifications",
-      "experience",
       "education",
-      "languages",
+      "skills",
+      "experience",
+      "certifications",
       "custom",
+      "languages",
       "links",
       "hobbies",
     ],
     titles: {
+      summary: "Professional Summary",
       skills: "Key Skills",
-      certifications: "Licences & Certifications",
+      experience: "Professional Experience",
+      certifications: "Certifications & Achievements",
+    },
+  },
+  practical: {
+    order: [
+      "summary",
+      "skills",
+      "experience",
+      "education",
+      "certifications",
+      "custom",
+      "languages",
+      "links",
+      "hobbies",
+    ],
+    titles: {
+      summary: "Professional Summary",
+      skills: "Key Skills",
       experience: "Work Experience",
+      certifications: "Licences & Certifications",
+      languages: "Additional Information",
     },
   },
   technical: {
@@ -167,14 +188,14 @@ const ROLE_TEMPLATE_CONFIG: Record<string, RoleTemplateConfig> = {
       "summary",
       "skills",
       "experience",
-      "certifications",
       "custom",
       "education",
+      "certifications",
       "languages",
       "links",
       "hobbies",
     ],
-    titles: { skills: "Technical Skills", certifications: "Training & Certifications" },
+    titles: { skills: "Technical Skills", experience: "Work Experience" },
   },
 };
 
