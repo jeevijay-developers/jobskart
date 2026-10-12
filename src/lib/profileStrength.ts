@@ -19,6 +19,8 @@ export type StrengthInput = {
   highest_qualification?: string | null;
   interested_roles?: string[] | null;
   whatsapp_opt_in?: boolean | null;
+  /** Has at least one passed attempt in candidate_quiz_attempts (any category). */
+  quiz_verified?: boolean;
 };
 
 export function computeProfileStrength(i: StrengthInput): number {
@@ -43,6 +45,7 @@ export function computeProfileStrength(i: StrengthInput): number {
   if ((i.languages_count ?? 0) > 0) s += 5;
   if (i.kyc_verified) s += 5;
   if (i.whatsapp_opt_in) s += 2;
+  if (i.quiz_verified) s += 5;
   return Math.min(s, 100);
 }
 

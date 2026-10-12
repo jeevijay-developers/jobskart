@@ -12,7 +12,9 @@ import {
   Lock,
   Mail,
   MapPin,
+  Mic,
   MoreVertical,
+  ShieldCheck,
   Sparkles,
   Users,
   Zap,
@@ -150,6 +152,20 @@ function TagBadge({ tag }: { tag: string }) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-600">
         <Zap className="h-3 w-3" /> Active
+      </span>
+    );
+  }
+  if (tag.startsWith("Skill Verified")) {
+    // "Skill Verified: Sales" -> badge shows "Sales Verified"; the candidate's
+    // raw quiz score is never part of this tag or shown to the recruiter —
+    // see compute_candidate_match() / 20261013100000_skill_quiz.sql.
+    const category = tag.split(":")[1]?.trim();
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded-full bg-primary-light px-2 py-0.5 text-[10px] font-bold text-primary"
+        title="Passed JobsKart's free role-skill quiz for this category"
+      >
+        <ShieldCheck className="h-3 w-3" /> {category ? `${category} Verified` : "Skill Verified"}
       </span>
     );
   }
@@ -489,6 +505,12 @@ function ApplicantsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [scheduling, setScheduling] = useState<Application | null>(null);
   const [ranked, setRanked] = useState<Record<string, { score: number; tags: string[] }>>({});
+  // Applicants whose candidate attached an Interview Card (badge + optional filter only —
+  // it never changes ranking, and not having a card is never held against a candidate).
+  const [cardBadges, setCardBadges] = useState<
+    Record<string, { band: "needs_work" | "developing" | "strong" | null }>
+  >({});
+  const [cardOnly, setCardOnly] = useState(false);
 
   // Source switcher
   const [source, setSource] = useState<Source>(
@@ -620,6 +642,28 @@ function ApplicantsPage() {
         }
         setRanked(map);
       });
+    // get_job_interview_card_badges isn't in the generated types until they're regenerated
+    (
+      supabase as unknown as {
+        rpc: (
+          fn: string,
+          args: Record<string, unknown>,
+        ) => PromiseLike<{
+          data: Array<{
+            application_id: string;
+            summary_band: "needs_work" | "developing" | "strong" | null;
+          }> | null;
+          error: unknown;
+        }>;
+      }
+    )
+      .rpc("get_job_interview_card_badges", { _job_id: jobId })
+      .then(({ data, error }) => {
+      if (error) return; // the badge is an extra; never block the applicant list
+      setCardBadges(
+        Object.fromEntries((data ?? []).map((r) => [r.application_id, { band: r.summary_band }])),
+      );
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobId]);
 
@@ -745,7 +789,8 @@ function ApplicantsPage() {
   }, [apps]);
 
   const visible = useMemo(() => {
-    const filtered = tab === "all" ? apps : apps.filter((a) => a.status === tab);
+    const byTab = tab === "all" ? apps : apps.filter((a) => a.status === tab);
+    const filtered = cardOnly ? byTab.filter((a) => !!cardBadges[a.id]) : byTab;
     if (sortOrder === "match")
       return [...filtered].sort(
         (a, b) => (ranked[b.id]?.score ?? -1) - (ranked[a.id]?.score ?? -1),
@@ -755,7 +800,7 @@ function ApplicantsPage() {
       return sortOrder === "newest" ? -diff : diff;
     });
     return sorted;
-  }, [apps, tab, sortOrder, ranked]);
+  }, [apps, tab, sortOrder, ranked, cardOnly, cardBadges]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -905,6 +950,19 @@ function ApplicantsPage() {
                   </div>
                 )}
                 <div className="flex items-center gap-2">
+                  {Object.keys(cardBadges).length > 0 && (
+                    <button
+                      onClick={() => setCardOnly((v) => !v)}
+                      aria-pressed={cardOnly}
+                      className={`inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold ${
+                        cardOnly
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border bg-card hover:bg-surface"
+                      }`}
+                    >
+                      <Mic className="h-3.5 w-3.5" /> Interview Card ({Object.keys(cardBadges).length})
+                    </button>
+                  )}
                   <button
                     onClick={() => setBoardView((v) => !v)}
                     className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold hover:bg-surface"
@@ -1029,6 +1087,7 @@ function ApplicantsPage() {
                           onView={() => setReviewing(a)}
                           matchScore={ranked[a.id]?.score}
                           tags={ranked[a.id]?.tags}
+                          interviewCard={cardBadges[a.id] ?? null}
                         />
                       ))}
                     </div>
@@ -1149,6 +1208,7 @@ function ApplicantsPage() {
           onStatusChange={(status) => updateStatus([reviewing.id], status)}
           companyId={job.company_id}
           jobId={jobId}
+          hasInterviewCard={!!cardBadges[reviewing.id]}
         />
       )}
 

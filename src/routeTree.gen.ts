@@ -24,6 +24,7 @@ import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } fr
 import { Route as AuthenticatedCandidateRouteRouteImport } from './routes/_authenticated/candidate/route'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminBannersRouteImport } from './routes/admin/banners'
+import { Route as AdminCandidatesRouteImport } from './routes/admin/candidates'
 import { Route as AdminCompaniesRouteImport } from './routes/admin/companies'
 import { Route as AdminContentRouteImport } from './routes/admin/content'
 import { Route as AdminCreditsRouteImport } from './routes/admin/credits'
@@ -34,6 +35,7 @@ import { Route as AdminLearningRouteImport } from './routes/admin/learning'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AdminMastersRouteImport } from './routes/admin/masters'
 import { Route as AdminPlansRouteImport } from './routes/admin/plans'
+import { Route as AdminQuizzesRouteImport } from './routes/admin/quizzes'
 import { Route as AdminResumesRouteImport } from './routes/admin/resumes'
 import { Route as AdminSiteContentRouteImport } from './routes/admin/site-content'
 import { Route as AdminTestimonialsRouteImport } from './routes/admin/testimonials'
@@ -57,6 +59,7 @@ import { Route as AuthenticatedCandidateApplicationsRouteImport } from './routes
 import { Route as AuthenticatedCandidateBrowseRouteImport } from './routes/_authenticated/candidate/browse'
 import { Route as AuthenticatedCandidateDashboardRouteImport } from './routes/_authenticated/candidate/dashboard'
 import { Route as AuthenticatedCandidateDocumentsRouteImport } from './routes/_authenticated/candidate/documents'
+import { Route as AuthenticatedCandidateInterviewCardRouteImport } from './routes/_authenticated/candidate/interview-card'
 import { Route as AuthenticatedCandidateLearningRouteImport } from './routes/_authenticated/candidate/learning'
 import { Route as AuthenticatedCandidateNotificationsRouteImport } from './routes/_authenticated/candidate/notifications'
 import { Route as AuthenticatedCandidateProfileRouteImport } from './routes/_authenticated/candidate/profile'
@@ -88,6 +91,7 @@ import { Route as AuthenticatedCandidateInterviewPrepIndexRouteImport } from './
 import { Route as AuthenticatedCandidateInterviewPrepSessionIdRouteImport } from './routes/_authenticated/candidate/interview-prep.$sessionId'
 import { Route as AuthenticatedCandidateJobsJobIdRouteImport } from './routes/_authenticated/candidate/jobs.$jobId'
 import { Route as AuthenticatedCandidateLearningCornerSlugRouteImport } from './routes/_authenticated/candidate/learning-corner.$slug'
+import { Route as AuthenticatedCandidateQuizCategoryRouteImport } from './routes/_authenticated/candidate/quiz.$category'
 import { Route as AuthenticatedEmployerCrmAutomationRouteImport } from './routes/_authenticated/employer/crm.automation'
 import { Route as AuthenticatedEmployerJobsBulkRouteImport } from './routes/_authenticated/employer/jobs.bulk'
 import { Route as AuthenticatedEmployerJobsNewRouteImport } from './routes/_authenticated/employer/jobs.new'
@@ -181,6 +185,11 @@ const AdminBannersRoute = AdminBannersRouteImport.update({
   path: '/banners',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminCandidatesRoute = AdminCandidatesRouteImport.update({
+  id: '/candidates',
+  path: '/candidates',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const AdminCompaniesRoute = AdminCompaniesRouteImport.update({
   id: '/companies',
   path: '/companies',
@@ -229,6 +238,11 @@ const AdminMastersRoute = AdminMastersRouteImport.update({
 const AdminPlansRoute = AdminPlansRouteImport.update({
   id: '/plans',
   path: '/plans',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminQuizzesRoute = AdminQuizzesRouteImport.update({
+  id: '/quizzes',
+  path: '/quizzes',
   getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminResumesRoute = AdminResumesRouteImport.update({
@@ -349,6 +363,12 @@ const AuthenticatedCandidateDocumentsRoute =
   AuthenticatedCandidateDocumentsRouteImport.update({
     id: '/documents',
     path: '/documents',
+    getParentRoute: () => AuthenticatedCandidateRouteRoute,
+  } as any)
+const AuthenticatedCandidateInterviewCardRoute =
+  AuthenticatedCandidateInterviewCardRouteImport.update({
+    id: '/interview-card',
+    path: '/interview-card',
     getParentRoute: () => AuthenticatedCandidateRouteRoute,
   } as any)
 const AuthenticatedCandidateLearningRoute =
@@ -534,6 +554,12 @@ const AuthenticatedCandidateLearningCornerSlugRoute =
     path: '/learning-corner/$slug',
     getParentRoute: () => AuthenticatedCandidateRouteRoute,
   } as any)
+const AuthenticatedCandidateQuizCategoryRoute =
+  AuthenticatedCandidateQuizCategoryRouteImport.update({
+    id: '/quiz/$category',
+    path: '/quiz/$category',
+    getParentRoute: () => AuthenticatedCandidateRouteRoute,
+  } as any)
 const AuthenticatedEmployerCrmAutomationRoute =
   AuthenticatedEmployerCrmAutomationRouteImport.update({
     id: '/automation',
@@ -645,6 +671,7 @@ export interface FileRoutesByFullPath {
   '/candidate': typeof AuthenticatedCandidateRouteRouteWithChildren
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/banners': typeof AdminBannersRoute
+  '/admin/candidates': typeof AdminCandidatesRoute
   '/admin/companies': typeof AdminCompaniesRoute
   '/admin/content': typeof AdminContentRoute
   '/admin/credits': typeof AdminCreditsRoute
@@ -655,6 +682,7 @@ export interface FileRoutesByFullPath {
   '/admin/login': typeof AdminLoginRoute
   '/admin/masters': typeof AdminMastersRoute
   '/admin/plans': typeof AdminPlansRoute
+  '/admin/quizzes': typeof AdminQuizzesRoute
   '/admin/resumes': typeof AdminResumesRoute
   '/admin/site-content': typeof AdminSiteContentRoute
   '/admin/testimonials': typeof AdminTestimonialsRoute
@@ -679,6 +707,7 @@ export interface FileRoutesByFullPath {
   '/candidate/browse': typeof AuthenticatedCandidateBrowseRoute
   '/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
   '/candidate/documents': typeof AuthenticatedCandidateDocumentsRoute
+  '/candidate/interview-card': typeof AuthenticatedCandidateInterviewCardRoute
   '/candidate/learning': typeof AuthenticatedCandidateLearningRoute
   '/candidate/notifications': typeof AuthenticatedCandidateNotificationsRoute
   '/candidate/profile': typeof AuthenticatedCandidateProfileRoute
@@ -709,6 +738,7 @@ export interface FileRoutesByFullPath {
   '/candidate/interview-prep/$sessionId': typeof AuthenticatedCandidateInterviewPrepSessionIdRoute
   '/candidate/jobs/$jobId': typeof AuthenticatedCandidateJobsJobIdRoute
   '/candidate/learning-corner/$slug': typeof AuthenticatedCandidateLearningCornerSlugRoute
+  '/candidate/quiz/$category': typeof AuthenticatedCandidateQuizCategoryRoute
   '/employer/crm/automation': typeof AuthenticatedEmployerCrmAutomationRoute
   '/employer/jobs/bulk': typeof AuthenticatedEmployerJobsBulkRoute
   '/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
@@ -740,6 +770,7 @@ export interface FileRoutesByTo {
   '/candidate': typeof AuthenticatedCandidateRouteRouteWithChildren
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/banners': typeof AdminBannersRoute
+  '/admin/candidates': typeof AdminCandidatesRoute
   '/admin/companies': typeof AdminCompaniesRoute
   '/admin/content': typeof AdminContentRoute
   '/admin/credits': typeof AdminCreditsRoute
@@ -750,6 +781,7 @@ export interface FileRoutesByTo {
   '/admin/login': typeof AdminLoginRoute
   '/admin/masters': typeof AdminMastersRoute
   '/admin/plans': typeof AdminPlansRoute
+  '/admin/quizzes': typeof AdminQuizzesRoute
   '/admin/resumes': typeof AdminResumesRoute
   '/admin/site-content': typeof AdminSiteContentRoute
   '/admin/testimonials': typeof AdminTestimonialsRoute
@@ -774,6 +806,7 @@ export interface FileRoutesByTo {
   '/candidate/browse': typeof AuthenticatedCandidateBrowseRoute
   '/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
   '/candidate/documents': typeof AuthenticatedCandidateDocumentsRoute
+  '/candidate/interview-card': typeof AuthenticatedCandidateInterviewCardRoute
   '/candidate/learning': typeof AuthenticatedCandidateLearningRoute
   '/candidate/notifications': typeof AuthenticatedCandidateNotificationsRoute
   '/candidate/profile': typeof AuthenticatedCandidateProfileRoute
@@ -804,6 +837,7 @@ export interface FileRoutesByTo {
   '/candidate/interview-prep/$sessionId': typeof AuthenticatedCandidateInterviewPrepSessionIdRoute
   '/candidate/jobs/$jobId': typeof AuthenticatedCandidateJobsJobIdRoute
   '/candidate/learning-corner/$slug': typeof AuthenticatedCandidateLearningCornerSlugRoute
+  '/candidate/quiz/$category': typeof AuthenticatedCandidateQuizCategoryRoute
   '/employer/crm/automation': typeof AuthenticatedEmployerCrmAutomationRoute
   '/employer/jobs/bulk': typeof AuthenticatedEmployerJobsBulkRoute
   '/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
@@ -838,6 +872,7 @@ export interface FileRoutesById {
   '/_authenticated/candidate': typeof AuthenticatedCandidateRouteRouteWithChildren
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/banners': typeof AdminBannersRoute
+  '/admin/candidates': typeof AdminCandidatesRoute
   '/admin/companies': typeof AdminCompaniesRoute
   '/admin/content': typeof AdminContentRoute
   '/admin/credits': typeof AdminCreditsRoute
@@ -848,6 +883,7 @@ export interface FileRoutesById {
   '/admin/login': typeof AdminLoginRoute
   '/admin/masters': typeof AdminMastersRoute
   '/admin/plans': typeof AdminPlansRoute
+  '/admin/quizzes': typeof AdminQuizzesRoute
   '/admin/resumes': typeof AdminResumesRoute
   '/admin/site-content': typeof AdminSiteContentRoute
   '/admin/testimonials': typeof AdminTestimonialsRoute
@@ -872,6 +908,7 @@ export interface FileRoutesById {
   '/_authenticated/candidate/browse': typeof AuthenticatedCandidateBrowseRoute
   '/_authenticated/candidate/dashboard': typeof AuthenticatedCandidateDashboardRoute
   '/_authenticated/candidate/documents': typeof AuthenticatedCandidateDocumentsRoute
+  '/_authenticated/candidate/interview-card': typeof AuthenticatedCandidateInterviewCardRoute
   '/_authenticated/candidate/learning': typeof AuthenticatedCandidateLearningRoute
   '/_authenticated/candidate/notifications': typeof AuthenticatedCandidateNotificationsRoute
   '/_authenticated/candidate/profile': typeof AuthenticatedCandidateProfileRoute
@@ -902,6 +939,7 @@ export interface FileRoutesById {
   '/_authenticated/candidate/interview-prep/$sessionId': typeof AuthenticatedCandidateInterviewPrepSessionIdRoute
   '/_authenticated/candidate/jobs/$jobId': typeof AuthenticatedCandidateJobsJobIdRoute
   '/_authenticated/candidate/learning-corner/$slug': typeof AuthenticatedCandidateLearningCornerSlugRoute
+  '/_authenticated/candidate/quiz/$category': typeof AuthenticatedCandidateQuizCategoryRoute
   '/_authenticated/employer/crm/automation': typeof AuthenticatedEmployerCrmAutomationRoute
   '/_authenticated/employer/jobs/bulk': typeof AuthenticatedEmployerJobsBulkRoute
   '/_authenticated/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
@@ -936,6 +974,7 @@ export interface FileRouteTypes {
     | '/candidate'
     | '/.well-known/oauth-protected-resource'
     | '/admin/banners'
+    | '/admin/candidates'
     | '/admin/companies'
     | '/admin/content'
     | '/admin/credits'
@@ -946,6 +985,7 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/admin/masters'
     | '/admin/plans'
+    | '/admin/quizzes'
     | '/admin/resumes'
     | '/admin/site-content'
     | '/admin/testimonials'
@@ -970,6 +1010,7 @@ export interface FileRouteTypes {
     | '/candidate/browse'
     | '/candidate/dashboard'
     | '/candidate/documents'
+    | '/candidate/interview-card'
     | '/candidate/learning'
     | '/candidate/notifications'
     | '/candidate/profile'
@@ -1000,6 +1041,7 @@ export interface FileRouteTypes {
     | '/candidate/interview-prep/$sessionId'
     | '/candidate/jobs/$jobId'
     | '/candidate/learning-corner/$slug'
+    | '/candidate/quiz/$category'
     | '/employer/crm/automation'
     | '/employer/jobs/bulk'
     | '/employer/jobs/new'
@@ -1031,6 +1073,7 @@ export interface FileRouteTypes {
     | '/candidate'
     | '/.well-known/oauth-protected-resource'
     | '/admin/banners'
+    | '/admin/candidates'
     | '/admin/companies'
     | '/admin/content'
     | '/admin/credits'
@@ -1041,6 +1084,7 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/admin/masters'
     | '/admin/plans'
+    | '/admin/quizzes'
     | '/admin/resumes'
     | '/admin/site-content'
     | '/admin/testimonials'
@@ -1065,6 +1109,7 @@ export interface FileRouteTypes {
     | '/candidate/browse'
     | '/candidate/dashboard'
     | '/candidate/documents'
+    | '/candidate/interview-card'
     | '/candidate/learning'
     | '/candidate/notifications'
     | '/candidate/profile'
@@ -1095,6 +1140,7 @@ export interface FileRouteTypes {
     | '/candidate/interview-prep/$sessionId'
     | '/candidate/jobs/$jobId'
     | '/candidate/learning-corner/$slug'
+    | '/candidate/quiz/$category'
     | '/employer/crm/automation'
     | '/employer/jobs/bulk'
     | '/employer/jobs/new'
@@ -1128,6 +1174,7 @@ export interface FileRouteTypes {
     | '/_authenticated/candidate'
     | '/.well-known/oauth-protected-resource'
     | '/admin/banners'
+    | '/admin/candidates'
     | '/admin/companies'
     | '/admin/content'
     | '/admin/credits'
@@ -1138,6 +1185,7 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/admin/masters'
     | '/admin/plans'
+    | '/admin/quizzes'
     | '/admin/resumes'
     | '/admin/site-content'
     | '/admin/testimonials'
@@ -1162,6 +1210,7 @@ export interface FileRouteTypes {
     | '/_authenticated/candidate/browse'
     | '/_authenticated/candidate/dashboard'
     | '/_authenticated/candidate/documents'
+    | '/_authenticated/candidate/interview-card'
     | '/_authenticated/candidate/learning'
     | '/_authenticated/candidate/notifications'
     | '/_authenticated/candidate/profile'
@@ -1192,6 +1241,7 @@ export interface FileRouteTypes {
     | '/_authenticated/candidate/interview-prep/$sessionId'
     | '/_authenticated/candidate/jobs/$jobId'
     | '/_authenticated/candidate/learning-corner/$slug'
+    | '/_authenticated/candidate/quiz/$category'
     | '/_authenticated/employer/crm/automation'
     | '/_authenticated/employer/jobs/bulk'
     | '/_authenticated/employer/jobs/new'
@@ -1353,6 +1403,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminBannersRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/candidates': {
+      id: '/admin/candidates'
+      path: '/candidates'
+      fullPath: '/admin/candidates'
+      preLoaderRoute: typeof AdminCandidatesRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/companies': {
       id: '/admin/companies'
       path: '/companies'
@@ -1421,6 +1478,13 @@ declare module '@tanstack/react-router' {
       path: '/plans'
       fullPath: '/admin/plans'
       preLoaderRoute: typeof AdminPlansRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/quizzes': {
+      id: '/admin/quizzes'
+      path: '/quizzes'
+      fullPath: '/admin/quizzes'
+      preLoaderRoute: typeof AdminQuizzesRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/admin/resumes': {
@@ -1582,6 +1646,13 @@ declare module '@tanstack/react-router' {
       path: '/documents'
       fullPath: '/candidate/documents'
       preLoaderRoute: typeof AuthenticatedCandidateDocumentsRouteImport
+      parentRoute: typeof AuthenticatedCandidateRouteRoute
+    }
+    '/_authenticated/candidate/interview-card': {
+      id: '/_authenticated/candidate/interview-card'
+      path: '/interview-card'
+      fullPath: '/candidate/interview-card'
+      preLoaderRoute: typeof AuthenticatedCandidateInterviewCardRouteImport
       parentRoute: typeof AuthenticatedCandidateRouteRoute
     }
     '/_authenticated/candidate/learning': {
@@ -1801,6 +1872,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCandidateLearningCornerSlugRouteImport
       parentRoute: typeof AuthenticatedCandidateRouteRoute
     }
+    '/_authenticated/candidate/quiz/$category': {
+      id: '/_authenticated/candidate/quiz/$category'
+      path: '/quiz/$category'
+      fullPath: '/candidate/quiz/$category'
+      preLoaderRoute: typeof AuthenticatedCandidateQuizCategoryRouteImport
+      parentRoute: typeof AuthenticatedCandidateRouteRoute
+    }
     '/_authenticated/employer/crm/automation': {
       id: '/_authenticated/employer/crm/automation'
       path: '/automation'
@@ -1922,6 +2000,7 @@ interface AuthenticatedCandidateRouteRouteChildren {
   AuthenticatedCandidateBrowseRoute: typeof AuthenticatedCandidateBrowseRoute
   AuthenticatedCandidateDashboardRoute: typeof AuthenticatedCandidateDashboardRoute
   AuthenticatedCandidateDocumentsRoute: typeof AuthenticatedCandidateDocumentsRoute
+  AuthenticatedCandidateInterviewCardRoute: typeof AuthenticatedCandidateInterviewCardRoute
   AuthenticatedCandidateLearningRoute: typeof AuthenticatedCandidateLearningRoute
   AuthenticatedCandidateNotificationsRoute: typeof AuthenticatedCandidateNotificationsRoute
   AuthenticatedCandidateProfileRoute: typeof AuthenticatedCandidateProfileRoute
@@ -1931,6 +2010,7 @@ interface AuthenticatedCandidateRouteRouteChildren {
   AuthenticatedCandidateInterviewPrepSessionIdRoute: typeof AuthenticatedCandidateInterviewPrepSessionIdRoute
   AuthenticatedCandidateJobsJobIdRoute: typeof AuthenticatedCandidateJobsJobIdRoute
   AuthenticatedCandidateLearningCornerSlugRoute: typeof AuthenticatedCandidateLearningCornerSlugRoute
+  AuthenticatedCandidateQuizCategoryRoute: typeof AuthenticatedCandidateQuizCategoryRoute
   AuthenticatedCandidateInterviewPrepIndexRoute: typeof AuthenticatedCandidateInterviewPrepIndexRoute
   AuthenticatedCandidateLearningCertificationSlugRoute: typeof AuthenticatedCandidateLearningCertificationSlugRoute
   AuthenticatedCandidateLearningCourseSlugRoute: typeof AuthenticatedCandidateLearningCourseSlugRoute
@@ -1947,6 +2027,8 @@ const AuthenticatedCandidateRouteRouteChildren: AuthenticatedCandidateRouteRoute
     AuthenticatedCandidateBrowseRoute: AuthenticatedCandidateBrowseRoute,
     AuthenticatedCandidateDashboardRoute: AuthenticatedCandidateDashboardRoute,
     AuthenticatedCandidateDocumentsRoute: AuthenticatedCandidateDocumentsRoute,
+    AuthenticatedCandidateInterviewCardRoute:
+      AuthenticatedCandidateInterviewCardRoute,
     AuthenticatedCandidateLearningRoute: AuthenticatedCandidateLearningRoute,
     AuthenticatedCandidateNotificationsRoute:
       AuthenticatedCandidateNotificationsRoute,
@@ -1960,6 +2042,8 @@ const AuthenticatedCandidateRouteRouteChildren: AuthenticatedCandidateRouteRoute
     AuthenticatedCandidateJobsJobIdRoute: AuthenticatedCandidateJobsJobIdRoute,
     AuthenticatedCandidateLearningCornerSlugRoute:
       AuthenticatedCandidateLearningCornerSlugRoute,
+    AuthenticatedCandidateQuizCategoryRoute:
+      AuthenticatedCandidateQuizCategoryRoute,
     AuthenticatedCandidateInterviewPrepIndexRoute:
       AuthenticatedCandidateInterviewPrepIndexRoute,
     AuthenticatedCandidateLearningCertificationSlugRoute:
@@ -2069,6 +2153,7 @@ const AuthenticatedRouteRouteWithChildren =
 
 interface AdminRouteRouteChildren {
   AdminBannersRoute: typeof AdminBannersRoute
+  AdminCandidatesRoute: typeof AdminCandidatesRoute
   AdminCompaniesRoute: typeof AdminCompaniesRoute
   AdminContentRoute: typeof AdminContentRoute
   AdminCreditsRoute: typeof AdminCreditsRoute
@@ -2079,6 +2164,7 @@ interface AdminRouteRouteChildren {
   AdminLoginRoute: typeof AdminLoginRoute
   AdminMastersRoute: typeof AdminMastersRoute
   AdminPlansRoute: typeof AdminPlansRoute
+  AdminQuizzesRoute: typeof AdminQuizzesRoute
   AdminResumesRoute: typeof AdminResumesRoute
   AdminSiteContentRoute: typeof AdminSiteContentRoute
   AdminTestimonialsRoute: typeof AdminTestimonialsRoute
@@ -2090,6 +2176,7 @@ interface AdminRouteRouteChildren {
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminBannersRoute: AdminBannersRoute,
+  AdminCandidatesRoute: AdminCandidatesRoute,
   AdminCompaniesRoute: AdminCompaniesRoute,
   AdminContentRoute: AdminContentRoute,
   AdminCreditsRoute: AdminCreditsRoute,
@@ -2100,6 +2187,7 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminLoginRoute: AdminLoginRoute,
   AdminMastersRoute: AdminMastersRoute,
   AdminPlansRoute: AdminPlansRoute,
+  AdminQuizzesRoute: AdminQuizzesRoute,
   AdminResumesRoute: AdminResumesRoute,
   AdminSiteContentRoute: AdminSiteContentRoute,
   AdminTestimonialsRoute: AdminTestimonialsRoute,

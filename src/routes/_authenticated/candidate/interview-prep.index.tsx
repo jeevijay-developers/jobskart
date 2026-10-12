@@ -7,6 +7,7 @@ import {
   BookmarkCheck,
   ChevronDown,
   EyeOff,
+  IdCard,
   Loader2,
   Lock,
   MessageSquareText,
@@ -202,11 +203,25 @@ function InterviewPrepHome() {
       <p className="mb-6 flex items-start gap-2 rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
         <Lock className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
         <span>
-          Your practice is private. Employers never see your answers, feedback or readiness, and it
-          doesn't affect your applications. Feedback is AI coaching and may be imperfect — it does
-          not predict whether you'll be hired.
+          Your practice is private. Employers never see your practice answers, feedback or
+          readiness, and it doesn't affect your applications. Feedback is AI coaching and may be
+          imperfect — it does not predict whether you'll be hired.
         </span>
       </p>
+
+      <Link
+        to="/candidate/interview-card"
+        className="mb-6 flex items-start gap-3 rounded-xl border border-primary/30 bg-primary-light/40 p-4 text-sm hover:bg-primary-light/60"
+      >
+        <IdCard className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+        <span>
+          <span className="block font-semibold text-foreground">Interview Card</span>
+          <span className="text-muted-foreground">
+            Want to stand out? Record a short voice interview once and choose which applications to
+            attach it to. It's separate from practice, and only you decide who sees it.
+          </span>
+        </span>
+      </Link>
 
       {loading ? (
         <div className="grid place-items-center rounded-xl border border-border bg-card p-12">

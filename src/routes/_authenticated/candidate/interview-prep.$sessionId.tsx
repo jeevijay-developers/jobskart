@@ -146,6 +146,12 @@ function PrepSessionPage() {
   const [mode, setMode] = useState<"type" | "speak">("type");
   const [voiceSec, setVoiceSec] = useState<number | null>(null);
   const [transcriptNotice, setTranscriptNotice] = useState(false);
+  // The exact transcript text as returned by speech-to-text, so an edit afterwards can be
+  // told apart from the untouched transcript. If the candidate changes so much as a word,
+  // the answer is no longer a faithful voice answer, so it must stop being tagged "voice"
+  // (see onChange below) — otherwise it would be judged as spoken and carry a stale
+  // duration/pace/filler count from the original recording.
+  const voiceTranscriptRef = useRef<string | null>(null);
   // Shared between "read question aloud" and "read my answer aloud" — both are
   // plain client-side speechSynthesis, so one rate control covers both.
   const [speechRate, setSpeechRate] = useState(1);
@@ -182,14 +188,28 @@ function PrepSessionPage() {
   }, [fetchSession, sessionId]);
 
   useEffect(() => {
-    void refresh().then((d) => {
-      if (d?.session.status === "completed") setView("results");
-      else if (d) {
-        const firstOpen = d.questions.findIndex((q) => q.state === "pending");
-        if (d.questions.some((q) => q.state !== "pending")) {
-          setIdx(Math.max(firstOpen, 0));
-          setView("practice");
+    void refresh().then(async (d) => {
+      if (d?.session.status === "completed") {
+        setView("results");
+        return;
+      }
+      if (!d) return;
+      const firstOpen = d.questions.findIndex((q) => q.state === "pending");
+      if (firstOpen === -1 && d.questions.length > 0) {
+        // Every question is already answered or skipped, but the session itself was
+        // never finished (e.g. the tab closed right after the last answer). Land on
+        // results, not question 1 — otherwise it looks like an invitation to answer
+        // an already-answered question again, creating a second, redundant attempt.
+        try {
+          await finish({ data: { sessionId } });
+        } catch {
+          /* results still viewable */
         }
+        await refresh();
+        setView("results");
+      } else if (d.questions.some((q) => q.state !== "pending")) {
+        setIdx(Math.max(firstOpen, 0));
+        setView("practice");
       }
     });
   }, [refresh]);
@@ -252,6 +272,7 @@ function PrepSessionPage() {
     setMode("type");
     setVoiceSec(null);
     setTranscriptNotice(false);
+    voiceTranscriptRef.current = null;
   };
 
   const ttsLang = session.language === "hi" ? "hi-IN" : "en-IN";
@@ -281,8 +302,15 @@ function PrepSessionPage() {
     if (skipCurrent && q) {
       try {
         await skip({ data: { sessionQuestionId: q.id } });
-      } catch {
-        /* non-blocking */
+      } catch (e) {
+        // Still move on locally — being stuck on a question the candidate chose to skip
+        // would be worse — but let them know the question stays "not answered" in their
+        // results rather than "skipped", since the server-side update didn't land.
+        toast.error(
+          e instanceof Error
+            ? `Moved on, but couldn't record the skip: ${e.message}`
+            : "Moved on, but couldn't record the skip.",
+        );
       }
     }
     setResult(null);
@@ -564,6 +592,7 @@ function PrepSessionPage() {
                     onTranscript={(t, sec, audioUrl) => {
                       setText(t);
                       setVoiceSec(sec);
+                      voiceTranscriptRef.current = t;
                       setTranscriptNotice(true);
                       setHint(null);
                       setMode("type");
@@ -594,7 +623,15 @@ function PrepSessionPage() {
                 onChange={(e) => {
                   const v = e.target.value.slice(0, MAX_ANSWER_CHARS);
                   setText(v);
+                  // Clear (only) the voice tag — not the text the candidate just typed — the
+                  // moment it stops matching the raw transcript, so a hand-edited answer is
+                  // submitted (and judged) as typed, never as a stale voice recording.
                   if (!v.trim()) resetVoice();
+                  else if (voiceSec !== null && v !== voiceTranscriptRef.current) {
+                    setVoiceSec(null);
+                    setTranscriptNotice(false);
+                    voiceTranscriptRef.current = null;
+                  }
                 }}
                 rows={8}
                 placeholder="Type your answer as you would say it in the interview…"

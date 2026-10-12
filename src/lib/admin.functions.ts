@@ -118,6 +118,41 @@ export const adminListCompanies = createServerFn({ method: "POST" })
     return { rows: rows ?? [] };
   });
 
+// Users linked to one company (employer_members) with their profile details. Admin-only.
+export const adminListCompanyEmployees = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((d: { companyId: string }) => d)
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: members, error } = await supabaseAdmin
+      .from("employer_members")
+      .select("user_id, role, status")
+      .eq("company_id", data.companyId)
+      .order("created_at", { ascending: true });
+    if (error) throw new Error(error.message);
+    const ids = (members ?? []).map((m) => m.user_id as string);
+    const { data: profs, error: pErr } = ids.length
+      ? await supabaseAdmin.from("profiles").select("id, full_name, email, mobile, status").in("id", ids)
+      : { data: [], error: null };
+    if (pErr) throw new Error(pErr.message);
+    const byId = new Map((profs ?? []).map((p) => [p.id as string, p]));
+    return {
+      rows: (members ?? []).map((m) => {
+        const p = byId.get(m.user_id as string);
+        return {
+          user_id: m.user_id as string,
+          role: m.role as string,
+          member_status: (m.status as string | null) ?? "active",
+          full_name: (p?.full_name as string | null) ?? null,
+          email: (p?.email as string | null) ?? null,
+          mobile: (p?.mobile as string | null) ?? null,
+          account_status: (p?.status as string | null) ?? null,
+        };
+      }),
+    };
+  });
+
 export const adminSetCompanyVerification = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((d: { companyId: string; status: "verified" | "pending" | "rejected" }) => d)

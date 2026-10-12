@@ -6,6 +6,8 @@
 // for Generate & Save / Download, where it's rendered once on demand.
 import { buildResumeDomStyles } from "./buildDomStyles";
 import { DomResumeSections } from "./DomResumeSections";
+import { DomVariantResume } from "./DomVariantResume";
+import { getVariant } from "./variants";
 import { getTemplateTheme } from "./theme";
 import {
   DIAGONAL_ANGLE,
@@ -32,6 +34,7 @@ const PAGE_MAX_WIDTH = 794;
 
 export function DomResumeTemplate({ resume }: { resume: ResumeSchema }) {
   const theme = getTemplateTheme(resume.templateId);
+  const variant = getVariant(resume.templateId); // designed templates; Classic ATS keeps the path below
   const s = buildResumeDomStyles(theme, resume.layout);
   const contactLine = [resume.contact?.mobile, resume.contact?.email, resume.contact?.city]
     .filter(Boolean)
@@ -75,7 +78,9 @@ export function DomResumeTemplate({ resume }: { resume: ResumeSchema }) {
           JOBSKART
         </span>
       </div>
-      {theme.bandHeader ? (
+      {variant ? (
+        <DomVariantResume resume={resume} spec={variant} />
+      ) : theme.bandHeader ? (
         <div style={s.header}>
           <p style={s.name}>{resume.candidateName || "Resume"}</p>
           {contactLine ? <p style={{ ...s.contact, margin: 0 }}>{contactLine}</p> : null}
@@ -86,7 +91,7 @@ export function DomResumeTemplate({ resume }: { resume: ResumeSchema }) {
           {contactLine ? <p style={{ ...s.contact, margin: 0 }}>{contactLine}</p> : null}
         </>
       )}
-      <DomResumeSections sections={resume.sections} s={s} />
+      {variant ? null : <DomResumeSections sections={resume.sections} s={s} />}
       <p style={{ margin: "14px 0 0", textAlign: "right", fontSize: 8.5, color: "#9CA3AF", fontFamily: "Helvetica, Arial, sans-serif" }}>
         <span style={{ fontWeight: 700, color: "#1A55BD" }}>JobsKart</span>
         {WATERMARK_TEXT.slice("JobsKart".length)}

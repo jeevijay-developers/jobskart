@@ -27,6 +27,7 @@ import { ApplicationFormFields } from "@/components/candidate/ApplicationFormFie
 import { Badge } from "@/components/ui/badge";
 import { formatExperience, formatSalary, jobTypeLabel, workModeLabel } from "@/lib/format";
 import { randomId } from "@/lib/utils";
+import { setApplicationCardShare } from "@/lib/interview-card.functions";
 
 type Props = {
   open: boolean;
@@ -79,6 +80,24 @@ export function ApplyDialog({ open, onClose, userId, job, onApplied }: Props) {
   const [preview, setPreview] = useState<DocPreview | null>(null);
   const [previewingKey, setPreviewingKey] = useState<string | null>(null);
   const versionPdfUrl = useServerFn(getResumeVersionPdfUrl);
+  const shareCard = useServerFn(setApplicationCardShare);
+  // Interview Card: only offered when the candidate has a published card. Off by default —
+  // sharing is always a deliberate, per-application choice.
+  const [hasCard, setHasCard] = useState(false);
+  const [attachCard, setAttachCard] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setAttachCard(false);
+    supabase
+      // interview_cards isn't in the generated types until they're regenerated
+      .from("interview_cards" as never)
+      .select("id")
+      .eq("candidate_id", userId)
+      .eq("status", "published")
+      .maybeSingle()
+      .then(({ data }) => setHasCard(!!data));
+  }, [open, userId]);
 
   useEffect(() => {
     if (!open) return;
@@ -231,6 +250,19 @@ export function ApplyDialog({ open, onClose, userId, job, onApplied }: Props) {
           throw new Error("You don't have permission to apply. Please sign in again.");
         }
         throw new Error(error.message || "Could not submit your application.");
+      }
+
+      if (attachCard) {
+        try {
+          await shareCard({ data: { applicationId, share: true } });
+        } catch (e) {
+          // The application itself succeeded; sharing can be retried later, so don't undo it.
+          toast.warning(
+            e instanceof Error
+              ? `Applied, but your Interview Card wasn't attached: ${e.message}`
+              : "Applied, but your Interview Card wasn't attached.",
+          );
+        }
       }
 
       toast.success("Application submitted! The employer will review your profile.");
@@ -608,6 +640,26 @@ export function ApplyDialog({ open, onClose, userId, job, onApplied }: Props) {
                     e.currentTarget.value = "";
                   }}
                 />
+
+                {hasCard && (
+                  <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-primary/30 bg-primary-light/40 p-3">
+                    <input
+                      type="checkbox"
+                      checked={attachCard}
+                      onChange={(e) => setAttachCard(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 accent-primary"
+                    />
+                    <span className="text-sm">
+                      <span className="block font-semibold text-foreground">
+                        Attach my Interview Card
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        This employer can listen to the answers you chose to include. You can remove
+                        it from this application later.
+                      </span>
+                    </span>
+                  </label>
+                )}
 
                 <div className="rounded-lg border border-success/20 bg-success-light/40 p-3 text-xs text-foreground/80">
                   <p className="flex items-start gap-2">

@@ -1,16 +1,18 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Briefcase, Eye, Loader2, MapPin, MessageCircle } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { z } from "zod";
 import { CandidateShell } from "@/components/candidate/CandidateShell";
 import { supabase } from "@/integrations/supabase/client";
 import { timeAgo, formatSalary } from "@/lib/format";
-import { InterviewInfo, type Interview } from "@/components/candidate/InterviewInfo";
+import type { Interview } from "@/components/candidate/InterviewInfo";
 import { ViewApplicationDialog } from "@/components/candidate/ViewApplicationDialog";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { FollowUpDialog } from "@/components/candidate/FollowUpDialog";
 import { NotificationContextBanner } from "@/components/candidate/NotificationContextBanner";
+import { setApplicationCardShare } from "@/lib/interview-card.functions";
 
 const TOP_TABS = ["all", "shortlisted", "interview"] as const;
 type TopTab = (typeof TOP_TABS)[number];
@@ -125,6 +127,45 @@ function ApplicationsPage() {
   useEffect(() => {
     load();
   }, []);
+
+  // Interview Card: which applications the candidate's published card is attached to.
+  const [card, setCard] = useState<{ published: boolean; shared: Set<string>; busyId: string | null }>(
+    { published: false, shared: new Set(), busyId: null },
+  );
+  const shareCard = useServerFn(setApplicationCardShare);
+  useEffect(() => {
+    if (!userId) return;
+    // interview_cards / interview_card_shares aren't in the generated types until regenerated
+    const db = supabase as unknown as {
+      from: (t: string) => any; // eslint-disable-line @typescript-eslint/no-explicit-any
+    };
+    Promise.all([
+      db.from("interview_cards").select("id").eq("candidate_id", userId).eq("status", "published").maybeSingle(),
+      db.from("interview_card_shares").select("application_id").eq("candidate_id", userId).is("revoked_at", null),
+    ]).then(([c, s]) =>
+      setCard((prev) => ({
+        ...prev,
+        published: !!c.data,
+        shared: new Set(((s.data ?? []) as Array<{ application_id: string }>).map((r) => r.application_id)),
+      })),
+    );
+  }, [userId]);
+  const toggleCardShare = async (applicationId: string, share: boolean) => {
+    setCard((p) => ({ ...p, busyId: applicationId }));
+    try {
+      await shareCard({ data: { applicationId, share } });
+      setCard((p) => {
+        const shared = new Set(p.shared);
+        if (share) shared.add(applicationId);
+        else shared.delete(applicationId);
+        return { ...p, shared, busyId: null };
+      });
+      toast.success(share ? "Interview Card attached." : "Interview Card removed from this application.");
+    } catch (e) {
+      setCard((p) => ({ ...p, busyId: null }));
+      toast.error(e instanceof Error ? e.message : "Couldn't update. Please try again.");
+    }
+  };
 
   // Once the highlighted application has loaded, make sure it's visible:
   // "All" always shows every status (see counts comment below), so jumping
@@ -322,20 +363,24 @@ function ApplicationsPage() {
                 </div>
               </div>
 
-              {a.interviews && a.interviews.length > 0 && (
-                <div className="mt-4 space-y-2 border-t border-border pt-4">
-                  <p className="text-xs font-semibold uppercase text-muted-foreground">
-                    {a.interviews.length > 1 ? "Interviews" : "Interview"}
-                  </p>
-                  {[...a.interviews]
-                    .sort(
-                      (x, y) =>
-                        new Date(x.scheduled_at).getTime() - new Date(y.scheduled_at).getTime(),
-                    )
-                    .map((iv) => (
-                      <InterviewInfo key={iv.id} interview={iv} />
-                    ))}
-                </div>
+              {card.published && a.status !== "withdrawn" && (
+                <label className="mt-4 flex cursor-pointer items-center gap-2 border-t border-border pt-4 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={card.shared.has(a.id)}
+                    disabled={card.busyId === a.id}
+                    onChange={(e) => toggleCardShare(a.id, e.target.checked)}
+                    className="h-4 w-4 accent-primary"
+                  />
+                  <span>
+                    <span className="font-medium text-foreground">Interview Card attached</span>
+                    <span className="ml-1 text-xs text-muted-foreground">
+                      {card.shared.has(a.id)
+                        ? "This employer can listen to your included answers. Untick to remove access."
+                        : "Tick to let this employer listen to your included answers."}
+                    </span>
+                  </span>
+                </label>
               )}
             </div>
           ))}

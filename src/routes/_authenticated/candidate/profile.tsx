@@ -21,6 +21,7 @@ import type { ParsedResumePayload } from "@/lib/resume.functions";
 import { SalaryPicker, type SalaryChoiceKind } from "@/components/candidate/SalaryPicker";
 import { EducationNudge } from "@/components/candidate/EducationNudge";
 import { embedCandidateProfile } from "@/lib/embeddings.functions";
+import { SkillQuizCard } from "@/components/candidate/SkillQuizCard";
 
 export const Route = createFileRoute("/_authenticated/candidate/profile")({
   head: () => ({ meta: [{ title: "My Profile · JobsKart" }] }),
@@ -65,6 +66,7 @@ function ProfilePage() {
   const [open, setOpen] = useState<null | "personal" | "headline" | "career" | "experience" | "education" | "skills" | "languages" | "resume" | "kyc" | "avatar">(null);
   const [email, setEmail] = useState<string | null>(null);
   const [counts, setCounts] = useState({ applications: 0, interviews: 0, saved: 0 });
+  const [quizVerified, setQuizVerified] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = async () => {
@@ -74,7 +76,7 @@ function ProfilePage() {
       const u = sess.session?.user.id;
       if (!u) return;
       setUid(u);
-      const [{ data: pr }, { data: cpRaw }, { data: ex }, { data: ed }, { data: lg }, { data: docs }, apps, ivs, saved] = await Promise.all([
+      const [{ data: pr }, { data: cpRaw }, { data: ex }, { data: ed }, { data: lg }, { data: docs }, apps, ivs, saved, quizPass] = await Promise.all([
         supabase.from("profiles").select("full_name, mobile, city, state, avatar_url, email").eq("id", u).maybeSingle(),
         supabase.from("candidate_profiles").select("*").eq("user_id", u).maybeSingle(),
         supabase.from("candidate_experiences").select("*").eq("user_id", u).order("start_date", { ascending: false }),
@@ -92,6 +94,11 @@ function ProfilePage() {
         supabase.from("applications").select("id", { count: "exact", head: true }).eq("candidate_id", u),
         supabase.from("interviews").select("id", { count: "exact", head: true }).eq("candidate_id", u),
         supabase.from("saved_jobs").select("id", { count: "exact", head: true }).eq("user_id", u),
+        supabase
+          .from("candidate_quiz_attempts")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", u)
+          .eq("passed", true),
       ]);
 
       // Every candidate account is seeded with a candidate_profiles row by the
@@ -118,6 +125,7 @@ function ProfilePage() {
       setEducations((ed || []).map((e) => ({ ...e, board_or_university: e.board_or_university || "", institute: e.institute || "", year_of_passing: e.year_of_passing ?? "", marks: e.marks || "" })) as Edu[]);
       setLanguages((lg || []) as Lang[]);
       setCounts({ applications: apps.count ?? 0, interviews: ivs.count ?? 0, saved: saved.count ?? 0 });
+      setQuizVerified((quizPass.count ?? 0) > 0);
     } catch (err) {
       console.error("Failed to load profile:", err);
       setLoadError(err instanceof Error ? err.message : "Something went wrong loading your profile.");
@@ -139,8 +147,9 @@ function ProfilePage() {
       resume_url: c.resume_url, experiences_count: experiences.length,
       education_count: educations.length, languages_count: languages.length,
       kyc_verified: c.kyc_status === "verified",
+      quiz_verified: quizVerified,
     };
-  }, [p, c, experiences, educations, languages]);
+  }, [p, c, experiences, educations, languages, quizVerified]);
 
   const strength = useMemo(
     () => (strengthInput ? computeProfileStrength(strengthInput) : 0),
@@ -631,6 +640,8 @@ function ProfilePage() {
               </button>
             </div>
           </div>
+
+          <SkillQuizCard lastRole={c.last_role} interestedRoles={c.interested_roles} />
 
           {/* Career preferences */}
           <div id="career" data-section="career" className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">

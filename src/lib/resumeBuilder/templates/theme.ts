@@ -90,7 +90,7 @@ export const PROFESSIONAL_THEME: BaseTheme = {
   sectionGap: 14,
   sectionTitleSize: 10.5,
   sectionTitleSpacing: 1.2,
-  defaultLayout: { ...COMMON_DEFAULTS, fontFamily: "times", sectionHeaderStyle: "underline", accentColor: "#1E3A5F" },
+  defaultLayout: { ...COMMON_DEFAULTS, sectionHeaderStyle: "underline", accentColor: "#1E3A5F" },
 };
 
 export const PRACTICAL_THEME: BaseTheme = {
@@ -99,7 +99,7 @@ export const PRACTICAL_THEME: BaseTheme = {
   sectionGap: 12,
   sectionTitleSize: 11,
   sectionTitleSpacing: 1,
-  defaultLayout: { ...COMMON_DEFAULTS, baseFontSize: 11.5, sectionHeaderStyle: "colored", accentColor: "#15803D" },
+  defaultLayout: { ...COMMON_DEFAULTS, sectionHeaderStyle: "colored", accentColor: "#0B5C7D" },
 };
 
 export const TECHNICAL_THEME: BaseTheme = {
@@ -110,7 +110,6 @@ export const TECHNICAL_THEME: BaseTheme = {
   sectionTitleSpacing: 1.2,
   defaultLayout: {
     ...COMMON_DEFAULTS,
-    marginPreset: "compact",
     baseFontSize: 10,
     sectionHeaderStyle: "underline",
     accentColor: "#0F766E",

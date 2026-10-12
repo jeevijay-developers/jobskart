@@ -55,27 +55,36 @@ export type Feedback = z.infer<typeof FeedbackSchema>;
 export type Framework = { name?: string; steps?: string[] };
 
 export const MIN_ANSWER_WORDS = 12;
+// Logistics ("Are you okay with shifts?") and "your questions for us" answers are
+// often genuinely short and complete ("Yes, I can join immediately.") — the
+// general minimum would reject valid answers and leave Skip (which discards the
+// answer) as the only way forward. Every other category keeps the full minimum.
+export const MIN_ANSWER_WORDS_BY_CATEGORY: Record<string, number> = {
+  logistics: 4,
+  ask_employer: 6,
+};
 export const MAX_ANSWER_CHARS = 4000;
 
 export const wordCount = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
 
-/** Checks that run before (and independently of) any AI call. */
+/**
+ * Checks that run before (and independently of) any AI call.
+ * Deliberately length-only: a "did you describe something you did" check used to also run
+ * for behavioural answers, but it matched only the English words "I"/"we"/"my", so every
+ * Hindi or Hinglish answer (e.g. "मैंने" / "maine") failed it, and it also rejected valid
+ * English answers that avoid those words ("Handled the complaint by..."). Missing STAR
+ * parts are coached, not blocked — see STAR_HINTS in fallbackFeedback and the AI prompt.
+ */
 export function checkAnswer(
   answer: string,
   category: string,
 ): { ok: true } | { ok: false; reason: string } {
   const words = wordCount(answer);
-  if (words < MIN_ANSWER_WORDS) {
+  const min = MIN_ANSWER_WORDS_BY_CATEGORY[category] ?? MIN_ANSWER_WORDS;
+  if (words < min) {
     return {
       ok: false,
-      reason: `Your answer is very short (${words} word${words === 1 ? "" : "s"}). Aim for at least ${MIN_ANSWER_WORDS} words — a couple of sentences with an example — so we can give useful feedback.`,
-    };
-  }
-  if (category === "behavioural" && !/\b(i|we|my)\b/i.test(answer)) {
-    return {
-      ok: false,
-      reason:
-        "Behavioural questions ask about something you did. Describe a real situation using “I” — what you did and what happened.",
+      reason: `Your answer is very short (${words} word${words === 1 ? "" : "s"}). Aim for at least ${min} words so we can give useful feedback.`,
     };
   }
   return { ok: true };
@@ -184,7 +193,8 @@ function fallbackFeedbackGeneric(answer: string, framework: Framework): Feedback
   const developed = words >= 40;
 
   const lengthBand: Band = words >= 60 ? "strong" : developed ? "developing" : "needs_work";
-  const evidenceBand: Band = hasNumbers && developed ? "strong" : developed ? "developing" : "needs_work";
+  const evidenceBand: Band =
+    hasNumbers && developed ? "strong" : developed ? "developing" : "needs_work";
 
   return {
     criteria: [
