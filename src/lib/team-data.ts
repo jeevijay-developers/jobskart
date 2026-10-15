@@ -24,6 +24,11 @@ export type TeamMember = {
   role: "super_admin" | "hr_admin" | "recruiter";
   company_roles: { key: string; name: string; scope: string; is_locked: boolean } | null;
   profiles: { full_name: string | null; email: string | null } | null;
+  /** The email the invite was actually sent to (accept_invite() lets any signed-in account accept a
+   * token, so this can differ from profiles.email — e.g. a mobile-OTP account whose profile email is
+   * an auto-generated `m<mobile>@jobskart.app` placeholder, not anything the admin typed). Null for
+   * members added outside the invite flow (e.g. the company creator). */
+  invited_email: string | null;
 };
 
 export type TeamInvite = {
@@ -75,7 +80,7 @@ const MEMBER_SELECT =
   "user_id, role, role_id, reports_to, status, revoked_at, extra_permissions, revoked_permissions, company_roles(key, name, scope, is_locked), profiles:profiles!employer_members_user_id_profiles_fkey(full_name, email)";
 
 export async function fetchTeam(companyId: string) {
-  const [active, revoked, invites] = await Promise.all([
+  const [active, revoked, invites, accepted] = await Promise.all([
     supabase
       .from("employer_members")
       .select(MEMBER_SELECT)
@@ -92,12 +97,35 @@ export async function fetchTeam(companyId: string) {
       .eq("company_id", companyId)
       .is("accepted_at", null)
       .order("created_at", { ascending: false }),
+    // accept_invite() lets any signed-in account accept a token, so the member row's profile email
+    // can be an unrelated placeholder — look up what the invite was actually sent to, per accepter,
+    // so the UI can show that instead (see TeamMember.invited_email).
+    supabase
+      .from("employer_invites")
+      .select("email, accepted_by")
+      .eq("company_id", companyId)
+      .not("accepted_by", "is", null)
+      .order("accepted_at", { ascending: false }),
   ]);
-  const err = active.error ?? revoked.error ?? invites.error;
+  const err = active.error ?? revoked.error ?? invites.error ?? accepted.error;
   if (err) throw new Error(err.message);
+
+  // Most recent accepted invite per user wins (e.g. revoke -> re-invite -> accept again).
+  const invitedEmailByUser = new Map<string, string>();
+  for (const row of accepted.data ?? []) {
+    if (row.accepted_by && !invitedEmailByUser.has(row.accepted_by)) {
+      invitedEmailByUser.set(row.accepted_by, row.email);
+    }
+  }
+  const withInvitedEmail = (rows: unknown[]) =>
+    (rows as TeamMember[]).map((m) => ({
+      ...m,
+      invited_email: invitedEmailByUser.get(m.user_id) ?? null,
+    }));
+
   return {
-    members: (active.data ?? []) as unknown as TeamMember[],
-    revoked: (revoked.data ?? []) as unknown as TeamMember[],
+    members: withInvitedEmail(active.data ?? []),
+    revoked: withInvitedEmail(revoked.data ?? []),
     invites: (invites.data ?? []) as unknown as TeamInvite[],
   };
 }

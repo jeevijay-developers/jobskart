@@ -27,7 +27,7 @@ import { emailSchema } from "@/lib/validators";
 import { mapTeamError, whatsappShareUrl } from "@/lib/team-permissions";
 import type { TeamInvite, TeamMember } from "@/lib/team-data";
 import { PermissionMatrix } from "./PermissionMatrix";
-import { nameOf, type TeamContext } from "./types";
+import { hasIdentityMismatch, nameOf, type TeamContext } from "./types";
 
 function inviteUrl(token: string) {
   return typeof window === "undefined" ? "" : `${window.location.origin}/invite/${token}`;
@@ -469,6 +469,14 @@ export function MembersTab({ ctx }: { ctx: TeamContext }) {
                     {customised && (
                       <span className="rounded-full bg-warning-light px-2 py-0.5 text-[11px] text-warning">
                         Customised
+                      </span>
+                    )}
+                    {hasIdentityMismatch(m) && (
+                      <span
+                        className="rounded-full bg-warning-light px-2 py-0.5 text-[11px] text-warning"
+                        title={`Invited as ${m.invited_email}, but signed in with ${m.profiles?.email}`}
+                      >
+                        Accepted with a different email
                       </span>
                     )}
                     {m.reports_to && (

@@ -20,7 +20,10 @@ const ACCESS_OPTIONS: Array<{ value: Access; label: string }> = [
   { value: "owner", label: "Co-owner — manages the job" },
 ];
 
-const nameOf = (m: TeamMember) => m.profiles?.full_name || m.profiles?.email || "Unnamed";
+// profiles.email can be an account placeholder unrelated to what was typed into the invite (see
+// TeamMember.invited_email) — prefer the invited address when there's no real name to show.
+const nameOf = (m: TeamMember) =>
+  m.profiles?.full_name || m.invited_email || m.profiles?.email || "Unnamed";
 
 export function ShareJobDialog({
   job,
