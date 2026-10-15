@@ -462,6 +462,60 @@ function buildFieldsFromForm(
 const HISTORY_COLUMNS =
   "title, category, industry, job_type, work_mode, city, pay_type, min_salary, max_salary, avg_incentive_monthly, experience_bucket, min_experience_years, max_experience_years, skills, perks, shift, working_weekdays, english_level";
 
+// ── Unsaved-draft persistence (create flow only) ─────────────────────────────
+// The wizard's state lives in memory, so a refresh used to wipe it. It is mirrored to localStorage,
+// scoped per signed-in user + company, and restored during the existing setup load (before the wizard
+// renders). It is cleared when the job is saved/published or the recruiter discards it. Nothing is
+// ever auto-published: a restored draft only refills the form.
+const WIZARD_DRAFT_VERSION = 1;
+const WIZARD_DRAFT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const wizardDraftKey = (userId: string, companyId: string) =>
+  `jobskart:job-wizard-draft:v${WIZARD_DRAFT_VERSION}:${userId}:${companyId}`;
+
+type WizardDraft = {
+  v: number;
+  savedAt: number;
+  step: number;
+  form: Form;
+  dirty: string[];
+  jdDirty: boolean;
+  tier: JobTier;
+  postingForClient: boolean;
+  showArea: boolean;
+};
+
+function readWizardDraft(key: string): WizardDraft | null {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const d = JSON.parse(raw) as WizardDraft;
+    if (!d || d.v !== WIZARD_DRAFT_VERSION || !d.form || Date.now() - d.savedAt > WIZARD_DRAFT_TTL_MS) {
+      localStorage.removeItem(key);
+      return null;
+    }
+    return d;
+  } catch {
+    return null;
+  }
+}
+
+function writeWizardDraft(key: string, draft: WizardDraft) {
+  try {
+    localStorage.setItem(key, JSON.stringify(draft));
+  } catch {
+    // Storage full/blocked: autosave is best-effort and must never break the wizard.
+  }
+}
+
+function clearWizardDraft(key: string | null) {
+  if (!key) return;
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function JobWizard({ editJobId }: { editJobId?: string }) {
   const nav = useNavigate();
   const [step, setStep] = useState(0);
@@ -499,6 +553,13 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
   const [matchedHistoryTitle, setMatchedHistoryTitle] = useState<string | null>(null);
   const [jdDirty, setJdDirty] = useState(false);
   const [showArea, setShowArea] = useState(false);
+  // Autosave plumbing: the storage key (set once the user + company are known), whether a stored
+  // draft was restored on load, and the latest snapshot for the flush-on-leave handler.
+  const [draftKey, setDraftKey] = useState<string | null>(null);
+  const [draftRestored, setDraftRestored] = useState(false);
+  const draftKeyRef = useRef<string | null>(null);
+  const stillEditingRef = useRef(true);
+  draftKeyRef.current = draftKey;
   const dirtyRef = useRef(dirty);
   dirtyRef.current = dirty;
   // The JD is edited in place (contentEditable). jdEditorHtml tracks the last HTML the
@@ -594,6 +655,25 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
             .order("created_at", { ascending: false })
             .limit(10);
           if (!histErr && hist) setHistory(hist as unknown as CompanyHistoryJob[]);
+
+          // Restore an unsaved draft from a previous refresh/navigation. Applied here, before the
+          // setup flag below flips, so the wizard never renders an empty form first.
+          const key = wizardDraftKey(user.user.id, chosen.company_id);
+          const saved = readWizardDraft(key);
+          if (saved) {
+            const restoredForm: Form = { ...initialForm, ...saved.form };
+            setForm(restoredForm);
+            // Like edit mode: every restored field counts as confirmed, so inference never
+            // overwrites what the recruiter had already entered.
+            setDirty(new Set([...Object.keys(restoredForm), ...(saved.dirty ?? [])]));
+            setJdDirty(Boolean(saved.jdDirty));
+            setTier(saved.tier ?? "classic");
+            setPostingForClient(Boolean(saved.postingForClient));
+            setShowArea(Boolean(saved.showArea));
+            setStep(Math.min(3, Math.max(0, Number(saved.step) || 0)));
+            setDraftRestored(true);
+          }
+          setDraftKey(key);
         }
       } catch (e) {
         setSetupError(e instanceof Error ? e.message : "Could not load your company setup.");
@@ -614,6 +694,67 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
       }
     })();
   }, [companyId, runGetEntitlements]);
+
+  // Debounced autosave of the whole wizard (create flow only). Skipped while the form is still the
+  // untouched initial one so merely opening the page never stores anything.
+  const draftSnapshot = useMemo<WizardDraft>(
+    () => ({
+      v: WIZARD_DRAFT_VERSION,
+      savedAt: Date.now(),
+      step,
+      form,
+      dirty: Array.from(dirty),
+      jdDirty,
+      tier,
+      postingForClient,
+      showArea,
+    }),
+    [step, form, dirty, jdDirty, tier, postingForClient, showArea],
+  );
+  const draftSnapshotRef = useRef(draftSnapshot);
+  draftSnapshotRef.current = draftSnapshot;
+  const hasDraftContent = form.title.trim() !== "" || step > 0 || dirty.size > 0;
+  useEffect(() => {
+    if (editJobId || companyLoading || !draftKey || !hasDraftContent) return;
+    const t = setTimeout(() => {
+      if (stillEditingRef.current) writeWizardDraft(draftKey, { ...draftSnapshot, savedAt: Date.now() });
+    }, 500);
+    return () => clearTimeout(t);
+  }, [draftSnapshot, draftKey, editJobId, companyLoading, hasDraftContent]);
+
+  // Flush immediately when the page is hidden/closed so the last keystrokes survive a refresh.
+  useEffect(() => {
+    if (editJobId) return;
+    const flush = () => {
+      const key = draftKeyRef.current;
+      if (key && stillEditingRef.current) {
+        writeWizardDraft(key, { ...draftSnapshotRef.current, savedAt: Date.now() });
+      }
+    };
+    const onHide = () => document.visibilityState === "hidden" && flush();
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", onHide);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", onHide);
+    };
+  }, [editJobId]);
+
+  const discardDraft = () => {
+    clearWizardDraft(draftKey);
+    stillEditingRef.current = true;
+    setForm(initialForm);
+    setDirty(new Set());
+    setJdDirty(false);
+    setTier("classic");
+    setPostingForClient(false);
+    setShowArea(false);
+    setInferSources({});
+    setMatchedHistoryTitle(null);
+    setStep(0);
+    setDraftRestored(false);
+    toast.success("Draft discarded. Starting a new job.");
+  };
 
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -884,6 +1025,10 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
         return;
       }
       const jobId = (data as { id: string }).id;
+      // The job now exists in the database (as a draft row), so the local copy must go — otherwise a
+      // refresh would offer to recreate it and produce a duplicate.
+      stillEditingRef.current = false;
+      clearWizardDraft(draftKey);
 
       if (asDraft) {
         toast.success("Saved as draft.");
@@ -1084,6 +1229,21 @@ export function JobWizard({ editJobId }: { editJobId?: string }) {
                 })}
               </div>
             </div>
+
+            {draftRestored && !editJobId && (
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-primary/20 bg-primary-light/40 px-3 py-2 text-xs text-foreground">
+                <span>We restored your unsaved job draft.</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm("Discard this draft and start a new job?")) discardDraft();
+                  }}
+                  className="font-semibold text-primary hover:underline"
+                >
+                  Discard draft
+                </button>
+              </div>
+            )}
 
             <JobQualityMeter
               score={qualityScore}
