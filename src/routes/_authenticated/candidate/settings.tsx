@@ -17,7 +17,7 @@ function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [signOutOpen, setSignOutOpen] = useState(false);
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
-  const [email, setEmail] = useState<string | null>(null);
+  const [mobile, setMobile] = useState<string | null>(null);
   const [prefs, setPrefs] = useState({
     email_alerts: true,
     whatsapp_alerts: false,
@@ -42,12 +42,12 @@ function SettingsPage() {
           .select("notification_prefs")
           .eq("user_id", uid)
           .maybeSingle(),
-        supabase.from("profiles").select("email").eq("id", uid).maybeSingle(),
+        supabase.from("profiles").select("mobile").eq("id", uid).maybeSingle(),
       ]);
       const p = (data as { notification_prefs?: typeof prefs } | null)?.notification_prefs;
       if (p) setPrefs({ ...prefs, ...p });
       whatsappAlertsSavedRef.current = p?.whatsapp_alerts ?? false;
-      setEmail((profileRow as { email?: string | null } | null)?.email ?? null);
+      setMobile((profileRow as { mobile?: string | null } | null)?.mobile ?? null);
       setLoading(false);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -185,7 +185,7 @@ function SettingsPage() {
       <DeleteAccountDialog
         open={deleteAccountOpen}
         onOpenChange={setDeleteAccountOpen}
-        email={email}
+        mobile={mobile}
       />
     </CandidateShell>
   );
