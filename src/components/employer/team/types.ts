@@ -5,7 +5,7 @@ import type {
   SeatStatus,
   TeamInvite,
   TeamMember,
-} from "@/lib/team.client";
+} from "@/lib/team-data";
 
 /** Everything the three Team tabs share; assembled once by the page. */
 export type TeamContext = {

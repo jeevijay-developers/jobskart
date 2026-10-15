@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { mapTeamError } from "@/lib/team-permissions";
-import { fetchTeam, type TeamMember } from "@/lib/team.client";
+import { fetchTeam, type TeamMember } from "@/lib/team-data";
 
 type Access = "viewer" | "editor" | "owner";
 const ACCESS_OPTIONS: Array<{ value: Access; label: string }> = [

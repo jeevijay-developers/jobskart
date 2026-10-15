@@ -21,7 +21,7 @@ import {
   type SeatStatus,
   type TeamInvite,
   type TeamMember,
-} from "@/lib/team.client";
+} from "@/lib/team-data";
 
 type TeamTab = "members" | "roles" | "credits";
 const TABS: Array<{ id: TeamTab; label: string; icon: typeof Users }> = [
