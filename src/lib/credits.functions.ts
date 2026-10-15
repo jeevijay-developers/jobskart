@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { spendableBalance, type BenefitType, type SummaryLike } from "@/lib/team-permissions";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function assertCompanyMember(supabase: any, userId: string, companyId: string) {
@@ -13,6 +14,28 @@ export async function assertCompanyMember(supabase: any, userId: string, company
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) throw new Error("You don't have access to this company.");
+}
+
+// Credits, orders and invoices are only readable with a credits/billing permission. The database
+// enforces the same rule through RLS; this gives a clean message before any query runs.
+const CREDIT_VIEW_PERMISSIONS = ["credits.view_all", "billing.view", "credits.purchase"];
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function assertCompanyPermission(supabase: any, companyId: string, anyOf: string[]) {
+  const { data, error } = await supabase.rpc("my_permissions", { _company_id: companyId });
+  if (error) throw new Error(error.message);
+  const held = (data ?? []) as string[];
+  if (!anyOf.some((p) => held.includes(p))) {
+    throw new Error("You don't have permission to view credits and billing for this company.");
+  }
+}
+
+/** What the caller can spend for one benefit, honouring pooled vs per-member credit mode. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function getSpendableBalance(supabase: any, companyId: string, benefit: BenefitType): Promise<number> {
+  const { data, error } = await supabase.rpc("credit_summary", { _company_id: companyId });
+  if (error) throw new Error(error.message);
+  return spendableBalance(data as SummaryLike, benefit);
 }
 
 // ---------------- listPacks ----------------
@@ -32,7 +55,7 @@ export const getCompanyWallet = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => z.object({ companyId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    await assertCompanyMember(context.supabase, context.userId, data.companyId);
+    await assertCompanyPermission(context.supabase, data.companyId, CREDIT_VIEW_PERMISSIONS);
     const { data: wallet } = await context.supabase
       .from("employer_credit_wallets")
       .select("job_post_balance, contact_balance, boost_balance, updated_at")
@@ -232,7 +255,7 @@ export const listCompanyInvoices = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => z.object({ companyId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    await assertCompanyMember(context.supabase, context.userId, data.companyId);
+    await assertCompanyPermission(context.supabase, data.companyId, CREDIT_VIEW_PERMISSIONS);
     const { data: rows, error } = await context.supabase
       .from("invoices")
       .select(
@@ -316,9 +339,9 @@ export const unlockCandidateContact = createServerFn({ method: "POST" })
         ),
       },
       alreadyUnlocked: !!result?.already_unlocked,
-      // `balance_after` from unlock_candidate() is specifically the contact
-      // pool now (see Phase 1's named-balance split).
-      contactBalance: result?.balance_after ?? 0,
+      // What THIS member can spend now: in per-member credit mode the wallet total
+      // (balance_after) is the company's, not theirs, so it must not be shown.
+      contactBalance: await getSpendableBalance(context.supabase, data.companyId, "contact"),
       source: result?.source ?? "credits",
       allowanceLeft: result?.allowance_left ?? null,
     };
@@ -437,7 +460,7 @@ export const getUnlockState = createServerFn({ method: "POST" })
     await assertCompanyMember(context.supabase, context.userId, data.companyId);
 
     const nowIso = new Date().toISOString();
-    const [{ data: jobs }, { data: wallet }] = await Promise.all([
+    const [{ data: jobs }, contactBalance] = await Promise.all([
       context.supabase
         .from("jobs")
         .select("id, title")
@@ -445,11 +468,7 @@ export const getUnlockState = createServerFn({ method: "POST" })
         .eq("status", "active")
         .or(`expires_at.is.null,expires_at.gt.${nowIso}`)
         .order("created_at", { ascending: false }),
-      context.supabase
-        .from("employer_credit_wallets")
-        .select("contact_balance")
-        .eq("company_id", data.companyId)
-        .maybeSingle(),
+      getSpendableBalance(context.supabase, data.companyId, "contact"),
     ]);
 
     const jobIds = (jobs ?? []).map((j) => j.id);
@@ -464,7 +483,7 @@ export const getUnlockState = createServerFn({ method: "POST" })
     return {
       // This function is specifically the candidate-database unlock flow, so
       // it only ever needed the contact pool.
-      contactBalance: wallet?.contact_balance ?? 0,
+      contactBalance,
       jobs: (jobs ?? []).map((j) => {
         const a = allowanceByJob.get(j.id);
         return {

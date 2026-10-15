@@ -1807,12 +1807,14 @@ export type Database = {
       companies: {
         Row: {
           about: string | null
+          access_mode: string
           allow_brand_display: boolean
           business_email: string | null
           company_type: Database["public"]["Enums"]["company_type"] | null
           cover_url: string | null
           created_at: string
           created_by: string | null
+          credit_mode: string
           description: string | null
           founded_year: number | null
           gst_number: string | null
@@ -1822,6 +1824,7 @@ export type Database = {
           is_consultant: boolean
           is_verified: boolean
           logo_url: string | null
+          low_credit_threshold: number
           name: string
           onboarding_completed: boolean
           pan_number: string | null
@@ -1838,12 +1841,14 @@ export type Database = {
         }
         Insert: {
           about?: string | null
+          access_mode?: string
           allow_brand_display?: boolean
           business_email?: string | null
           company_type?: Database["public"]["Enums"]["company_type"] | null
           cover_url?: string | null
           created_at?: string
           created_by?: string | null
+          credit_mode?: string
           description?: string | null
           founded_year?: number | null
           gst_number?: string | null
@@ -1853,6 +1858,7 @@ export type Database = {
           is_consultant?: boolean
           is_verified?: boolean
           logo_url?: string | null
+          low_credit_threshold?: number
           name: string
           onboarding_completed?: boolean
           pan_number?: string | null
@@ -1869,12 +1875,14 @@ export type Database = {
         }
         Update: {
           about?: string | null
+          access_mode?: string
           allow_brand_display?: boolean
           business_email?: string | null
           company_type?: Database["public"]["Enums"]["company_type"] | null
           cover_url?: string | null
           created_at?: string
           created_by?: string | null
+          credit_mode?: string
           description?: string | null
           founded_year?: number | null
           gst_number?: string | null
@@ -1884,6 +1892,7 @@ export type Database = {
           is_consultant?: boolean
           is_verified?: boolean
           logo_url?: string | null
+          low_credit_threshold?: number
           name?: string
           onboarding_completed?: boolean
           pan_number?: string | null
@@ -2089,6 +2098,89 @@ export type Database = {
             columns: ["plan_id"]
             isOneToOne: false
             referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_role_permissions: {
+        Row: {
+          permission_key: string
+          role_id: string
+        }
+        Insert: {
+          permission_key: string
+          role_id: string
+        }
+        Update: {
+          permission_key?: string
+          role_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_role_permissions_permission_key_fkey"
+            columns: ["permission_key"]
+            isOneToOne: false
+            referencedRelation: "permission_catalog"
+            referencedColumns: ["key"]
+          },
+          {
+            foreignKeyName: "company_role_permissions_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "company_roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_roles: {
+        Row: {
+          base_role: Database["public"]["Enums"]["employer_role"]
+          company_id: string | null
+          created_at: string
+          created_by: string | null
+          description: string
+          id: string
+          is_locked: boolean
+          is_system: boolean
+          key: string
+          name: string
+          scope: string
+          updated_at: string
+        }
+        Insert: {
+          base_role?: Database["public"]["Enums"]["employer_role"]
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          id?: string
+          is_locked?: boolean
+          is_system?: boolean
+          key: string
+          name: string
+          scope?: string
+          updated_at?: string
+        }
+        Update: {
+          base_role?: Database["public"]["Enums"]["employer_role"]
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          id?: string
+          is_locked?: boolean
+          is_system?: boolean
+          key?: string
+          name?: string
+          scope?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_roles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -2459,6 +2551,106 @@ export type Database = {
         }
         Relationships: []
       }
+      credit_requests: {
+        Row: {
+          benefit_type: Database["public"]["Enums"]["benefit_type"]
+          company_id: string
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          id: string
+          qty: number
+          reason: string
+          requester: string
+          routed_to: string | null
+          status: string
+        }
+        Insert: {
+          benefit_type: Database["public"]["Enums"]["benefit_type"]
+          company_id: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          id?: string
+          qty: number
+          reason?: string
+          requester: string
+          routed_to?: string | null
+          status?: string
+        }
+        Update: {
+          benefit_type?: Database["public"]["Enums"]["benefit_type"]
+          company_id?: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          id?: string
+          qty?: number
+          reason?: string
+          requester?: string
+          routed_to?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_requests_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      credit_topup_rules: {
+        Row: {
+          active: boolean
+          benefit_type: Database["public"]["Enums"]["benefit_type"]
+          cadence: string
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          next_run_at: string
+          target_balance: number
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          benefit_type: Database["public"]["Enums"]["benefit_type"]
+          cadence: string
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          next_run_at: string
+          target_balance: number
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          benefit_type?: Database["public"]["Enums"]["benefit_type"]
+          cadence?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          next_run_at?: string
+          target_balance?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_topup_rules_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       credit_transactions: {
         Row: {
           balance_after: number
@@ -2677,6 +2869,7 @@ export type Database = {
           id: string
           invited_by: string
           role: Database["public"]["Enums"]["employer_role"]
+          role_id: string | null
           token: string
         }
         Insert: {
@@ -2689,6 +2882,7 @@ export type Database = {
           id?: string
           invited_by: string
           role?: Database["public"]["Enums"]["employer_role"]
+          role_id?: string | null
           token?: string
         }
         Update: {
@@ -2701,6 +2895,7 @@ export type Database = {
           id?: string
           invited_by?: string
           role?: Database["public"]["Enums"]["employer_role"]
+          role_id?: string | null
           token?: string
         }
         Relationships: [
@@ -2711,16 +2906,27 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "employer_invites_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "company_roles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       employer_members: {
         Row: {
           company_id: string
           created_at: string
+          extra_permissions: string[]
           id: string
+          reports_to: string | null
           revoked_at: string | null
           revoked_by: string | null
+          revoked_permissions: string[]
           role: Database["public"]["Enums"]["employer_role"]
+          role_id: string | null
           status: string
           user_id: string
           whatsapp_number: string | null
@@ -2729,10 +2935,14 @@ export type Database = {
         Insert: {
           company_id: string
           created_at?: string
+          extra_permissions?: string[]
           id?: string
+          reports_to?: string | null
           revoked_at?: string | null
           revoked_by?: string | null
+          revoked_permissions?: string[]
           role?: Database["public"]["Enums"]["employer_role"]
+          role_id?: string | null
           status?: string
           user_id: string
           whatsapp_number?: string | null
@@ -2741,10 +2951,14 @@ export type Database = {
         Update: {
           company_id?: string
           created_at?: string
+          extra_permissions?: string[]
           id?: string
+          reports_to?: string | null
           revoked_at?: string | null
           revoked_by?: string | null
+          revoked_permissions?: string[]
           role?: Database["public"]["Enums"]["employer_role"]
+          role_id?: string | null
           status?: string
           user_id?: string
           whatsapp_number?: string | null
@@ -2756,6 +2970,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employer_members_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "company_roles"
             referencedColumns: ["id"]
           },
           {
@@ -2917,6 +3138,238 @@ export type Database = {
           is_active?: boolean
           name?: string
           slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      interview_card_consent: {
+        Row: {
+          candidate_id: string
+          consented_at: string
+          version: number
+        }
+        Insert: {
+          candidate_id: string
+          consented_at?: string
+          version: number
+        }
+        Update: {
+          candidate_id?: string
+          consented_at?: string
+          version?: number
+        }
+        Relationships: []
+      }
+      interview_card_items: {
+        Row: {
+          answered_at: string | null
+          audio_path: string | null
+          candidate_id: string
+          card_id: string
+          category: string
+          duration_sec: number | null
+          feedback: Json | null
+          feedback_language: string | null
+          feedback_source: string | null
+          id: string
+          include: boolean
+          position: number
+          prompt_version: string | null
+          question_text: string
+          rubric_version: number | null
+          state: string
+          takes: number
+          template_id: string | null
+          transcript: string | null
+          voice_metrics: Json | null
+        }
+        Insert: {
+          answered_at?: string | null
+          audio_path?: string | null
+          candidate_id: string
+          card_id: string
+          category: string
+          duration_sec?: number | null
+          feedback?: Json | null
+          feedback_language?: string | null
+          feedback_source?: string | null
+          id?: string
+          include?: boolean
+          position: number
+          prompt_version?: string | null
+          question_text: string
+          rubric_version?: number | null
+          state?: string
+          takes?: number
+          template_id?: string | null
+          transcript?: string | null
+          voice_metrics?: Json | null
+        }
+        Update: {
+          answered_at?: string | null
+          audio_path?: string | null
+          candidate_id?: string
+          card_id?: string
+          category?: string
+          duration_sec?: number | null
+          feedback?: Json | null
+          feedback_language?: string | null
+          feedback_source?: string | null
+          id?: string
+          include?: boolean
+          position?: number
+          prompt_version?: string | null
+          question_text?: string
+          rubric_version?: number | null
+          state?: string
+          takes?: number
+          template_id?: string | null
+          transcript?: string | null
+          voice_metrics?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_card_items_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "interview_cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_card_items_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "interview_prep_question_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interview_card_shares: {
+        Row: {
+          application_id: string
+          candidate_id: string
+          card_id: string
+          revoked_at: string | null
+          shared_at: string
+        }
+        Insert: {
+          application_id: string
+          candidate_id: string
+          card_id: string
+          revoked_at?: string | null
+          shared_at?: string
+        }
+        Update: {
+          application_id?: string
+          candidate_id?: string
+          card_id?: string
+          revoked_at?: string | null
+          shared_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_card_shares_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: true
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_card_shares_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "interview_cards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interview_card_views: {
+        Row: {
+          application_id: string
+          candidate_id: string
+          card_id: string
+          company_id: string
+          id: string
+          viewed_at: string
+          viewer_id: string | null
+        }
+        Insert: {
+          application_id: string
+          candidate_id: string
+          card_id: string
+          company_id: string
+          id?: string
+          viewed_at?: string
+          viewer_id?: string | null
+        }
+        Update: {
+          application_id?: string
+          candidate_id?: string
+          card_id?: string
+          company_id?: string
+          id?: string
+          viewed_at?: string
+          viewer_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_card_views_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_card_views_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "interview_cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_card_views_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interview_cards: {
+        Row: {
+          candidate_id: string
+          created_at: string
+          id: string
+          language: string
+          published_at: string | null
+          question_set_version: number
+          role_title: string
+          status: string
+          summary_band: string | null
+          updated_at: string
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string
+          id?: string
+          language?: string
+          published_at?: string | null
+          question_set_version?: number
+          role_title: string
+          status?: string
+          summary_band?: string | null
+          updated_at?: string
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string
+          id?: string
+          language?: string
+          published_at?: string | null
+          question_set_version?: number
+          role_title?: string
+          status?: string
+          summary_band?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -3830,6 +4283,38 @@ export type Database = {
           },
         ]
       }
+      job_members: {
+        Row: {
+          access: string
+          added_by: string | null
+          created_at: string
+          job_id: string
+          user_id: string
+        }
+        Insert: {
+          access?: string
+          added_by?: string | null
+          created_at?: string
+          job_id: string
+          user_id: string
+        }
+        Update: {
+          access?: string
+          added_by?: string | null
+          created_at?: string
+          job_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_members_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_purge_reminders: {
         Row: {
           job_id: string
@@ -4440,6 +4925,88 @@ export type Database = {
         }
         Relationships: []
       }
+      member_credit_allocations: {
+        Row: {
+          balance: number
+          benefit_type: Database["public"]["Enums"]["benefit_type"]
+          company_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance?: number
+          benefit_type: Database["public"]["Enums"]["benefit_type"]
+          company_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance?: number
+          benefit_type?: Database["public"]["Enums"]["benefit_type"]
+          company_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_credit_allocations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      member_credit_ledger: {
+        Row: {
+          actor: string | null
+          benefit_type: Database["public"]["Enums"]["benefit_type"]
+          company_id: string
+          created_at: string
+          event: string
+          from_user: string | null
+          id: string
+          idem_key: string | null
+          qty: number
+          reference: Json
+          to_user: string | null
+        }
+        Insert: {
+          actor?: string | null
+          benefit_type: Database["public"]["Enums"]["benefit_type"]
+          company_id: string
+          created_at?: string
+          event: string
+          from_user?: string | null
+          id?: string
+          idem_key?: string | null
+          qty: number
+          reference?: Json
+          to_user?: string | null
+        }
+        Update: {
+          actor?: string | null
+          benefit_type?: Database["public"]["Enums"]["benefit_type"]
+          company_id?: string
+          created_at?: string
+          event?: string
+          from_user?: string | null
+          id?: string
+          idem_key?: string | null
+          qty?: number
+          reference?: Json
+          to_user?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_credit_ledger_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           application_id: string | null
@@ -4523,6 +5090,33 @@ export type Database = {
           otp_hash?: string
           verified?: boolean
           verified_at?: string | null
+        }
+        Relationships: []
+      }
+      permission_catalog: {
+        Row: {
+          description: string
+          grp: string
+          is_sensitive: boolean
+          key: string
+          label: string
+          sort_order: number
+        }
+        Insert: {
+          description?: string
+          grp: string
+          is_sensitive?: boolean
+          key: string
+          label: string
+          sort_order?: number
+        }
+        Update: {
+          description?: string
+          grp?: string
+          is_sensitive?: boolean
+          key?: string
+          label?: string
+          sort_order?: number
         }
         Relationships: []
       }
@@ -5534,6 +6128,8 @@ export type Database = {
       }
     }
     Functions: {
+      _card_item_score: { Args: { _fb: Json }; Returns: number }
+      _card_summary_band: { Args: { _card_id: string }; Returns: string }
       accept_invite: { Args: { _token: string }; Returns: string }
       activate_company_plan: {
         Args: { _actor: string; _company_id: string; _plan_id: string }
@@ -5546,6 +6142,7 @@ export type Database = {
         }
         Returns: Json
       }
+      active_owner_count: { Args: { _company_id: string }; Returns: number }
       admin_grant_company_benefit: {
         Args: {
           _benefit_type: Database["public"]["Enums"]["benefit_type"]
@@ -5574,6 +6171,16 @@ export type Database = {
         }
         Returns: string
       }
+      allocate_member_credits: {
+        Args: {
+          _benefit: Database["public"]["Enums"]["benefit_type"]
+          _company_id: string
+          _idem?: string
+          _qty: number
+          _to_user: string
+        }
+        Returns: undefined
+      }
       apply_boost: { Args: { _days?: number; _job_id: string }; Returns: Json }
       apply_credit_delta: {
         Args: {
@@ -5585,6 +6192,14 @@ export type Database = {
           _reference?: Json
         }
         Returns: number
+      }
+      assert_can_grant: {
+        Args: { _caller: string; _company_id: string; _perms: string[] }
+        Returns: undefined
+      }
+      assert_seat_available: {
+        Args: { _company_id: string; _count_pending: boolean }
+        Returns: undefined
       }
       assert_whatsapp_post_cap: {
         Args: { _candidate_user_id: string; _job_id: string }
@@ -5612,6 +6227,10 @@ export type Database = {
           wallet_balance: number
         }[]
       }
+      benefit_spend_permission: {
+        Args: { _benefit: Database["public"]["Enums"]["benefit_type"] }
+        Returns: string
+      }
       boost_alert_reach: {
         Args: { _blocks: number; _job_id: string }
         Returns: Json
@@ -5621,6 +6240,18 @@ export type Database = {
         Returns: string
       }
       can_access_job_responses: { Args: { _job_id: string }; Returns: boolean }
+      can_bootstrap_company_membership: {
+        Args: { _company_id: string; _user_id: string }
+        Returns: boolean
+      }
+      can_view_company_credits: {
+        Args: { _company_id: string; _user_id: string }
+        Returns: boolean
+      }
+      cancel_credit_request: {
+        Args: { _request_id: string }
+        Returns: undefined
+      }
       cancel_employer_invite: {
         Args: { _company_id: string; _invite_id: string }
         Returns: undefined
@@ -5701,6 +6332,12 @@ export type Database = {
           rules_max: number
         }[]
       }
+      company_has_custom_roles: {
+        Args: { _company_id: string }
+        Returns: boolean
+      }
+      company_seat_limit: { Args: { _company_id: string }; Returns: number }
+      company_team_settings: { Args: { _company_id: string }; Returns: Json }
       compute_candidate_match: {
         Args: {
           _candidate_user_id: string
@@ -5732,6 +6369,17 @@ export type Database = {
         Args: { _actor: string; _certification_id: string }
         Returns: Json
       }
+      create_company_role: {
+        Args: {
+          _company_id: string
+          _copy_from?: string
+          _description: string
+          _name: string
+          _permissions: string[]
+          _scope?: string
+        }
+        Returns: string
+      }
       create_company_with_owner: {
         Args: {
           _about: string
@@ -5753,10 +6401,28 @@ export type Database = {
         Args: { _actor: string; _company_id: string; _pack_id: string }
         Returns: Json
       }
+      create_employer_invite: {
+        Args: { _company_id: string; _email: string; _role_id: string }
+        Returns: Json
+      }
       create_plan_order: {
         Args: { _actor: string; _company_id: string; _plan_id: string }
         Returns: Json
       }
+      credit_allocation_overview: {
+        Args: { _company_id: string }
+        Returns: {
+          balance: number
+          benefit_type: Database["public"]["Enums"]["benefit_type"]
+          email: string
+          full_name: string
+          reports_to: string
+          role_name: string
+          spent_30d: number
+          user_id: string
+        }[]
+      }
+      credit_summary: { Args: { _company_id: string }; Returns: Json }
       crm_admin_update_settings: {
         Args: { _outcome_hours: Json; _weights: Json }
         Returns: undefined
@@ -5835,9 +6501,33 @@ export type Database = {
       }
       crm_tick_automation: { Args: { _batch?: number }; Returns: Json }
       current_financial_year: { Args: never; Returns: string }
+      decide_credit_request: {
+        Args: { _approve: boolean; _note?: string; _request_id: string }
+        Returns: undefined
+      }
+      delegate_member_credits: {
+        Args: {
+          _benefit: Database["public"]["Enums"]["benefit_type"]
+          _company_id: string
+          _idem?: string
+          _qty: number
+          _to_user: string
+        }
+        Returns: undefined
+      }
+      delete_company_role: {
+        Args: { _company_id: string; _role_id: string }
+        Returns: undefined
+      }
+      delete_my_interview_card: { Args: never; Returns: string[] }
+      delete_topup_rule: { Args: { _rule_id: string }; Returns: undefined }
       dismiss_recommended_candidate: {
         Args: { _candidate_user_id: string; _job_id: string }
         Returns: undefined
+      }
+      employer_job_access: {
+        Args: { _job_id: string; _need: string; _user_id: string }
+        Returns: boolean
       }
       enable_whatsapp_alerts: { Args: never; Returns: undefined }
       enqueue_recommended_jobs_nudges: { Args: never; Returns: number }
@@ -5977,6 +6667,10 @@ export type Database = {
           expires_at: string
         }[]
       }
+      get_applicant_interview_card: {
+        Args: { _application_id: string }
+        Returns: Json
+      }
       get_certification_exam: {
         Args: { _certification_id: string }
         Returns: Json
@@ -6102,7 +6796,24 @@ export type Database = {
           total_matched: number
         }[]
       }
+      get_job_interview_card_badges: {
+        Args: { _job_id: string }
+        Returns: {
+          answered_count: number
+          application_id: string
+          language: string
+          summary_band: string
+        }[]
+      }
       get_lesson_content: { Args: { _lesson_id: string }; Returns: Json }
+      get_my_interview_card_views: {
+        Args: never
+        Returns: {
+          company_name: string
+          job_title: string
+          viewed_at: string
+        }[]
+      }
       get_public_candidate: {
         Args: { _slug: string }
         Returns: {
@@ -6247,6 +6958,10 @@ export type Database = {
         Args: { _company_id: string; _user_id: string }
         Returns: boolean
       }
+      has_company_permission: {
+        Args: { _company_id: string; _perm: string; _user_id: string }
+        Returns: boolean
+      }
       has_company_role: {
         Args: {
           _company_id: string
@@ -6269,6 +6984,14 @@ export type Database = {
       }
       is_company_on_free_plan: {
         Args: { _company_id: string }
+        Returns: boolean
+      }
+      is_company_owner: {
+        Args: { _company_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_in_subtree: {
+        Args: { _company_id: string; _manager: string; _user: string }
         Returns: boolean
       }
       issue_credit_pack_invoice: {
@@ -6351,6 +7074,38 @@ export type Database = {
         }
         Returns: undefined
       }
+      member_credit_movements: {
+        Args: { _company_id: string; _days?: number }
+        Returns: {
+          actor_name: string
+          benefit_type: Database["public"]["Enums"]["benefit_type"]
+          created_at: string
+          event: string
+          from_name: string
+          qty: number
+          reference: Json
+          to_name: string
+        }[]
+      }
+      member_permissions: {
+        Args: { _company_id: string; _user_id: string }
+        Returns: string[]
+      }
+      move_member_credits: {
+        Args: {
+          _actor: string
+          _benefit: Database["public"]["Enums"]["benefit_type"]
+          _company_id: string
+          _event: string
+          _from: string
+          _idem?: string
+          _qty: number
+          _ref?: Json
+          _to: string
+        }
+        Returns: undefined
+      }
+      my_permissions: { Args: { _company_id: string }; Returns: string[] }
       next_invoice_number: { Args: never; Returns: string }
       normalize_candidate_skills: {
         Args: { _skills: string[] }
@@ -6358,7 +7113,15 @@ export type Database = {
       }
       normalize_phone_e164: { Args: { _phone: string }; Returns: string }
       plan_alert_deliveries: { Args: { _job_id: string }; Returns: number }
+      pool_available: {
+        Args: {
+          _benefit: Database["public"]["Enums"]["benefit_type"]
+          _company_id: string
+        }
+        Returns: number
+      }
       process_job_expiry_batch: { Args: never; Returns: Json }
+      publish_interview_card: { Args: never; Returns: string }
       purge_expired_responses: { Args: never; Returns: Json }
       reactivate_member: {
         Args: {
@@ -6367,6 +7130,20 @@ export type Database = {
           _user_id: string
         }
         Returns: undefined
+      }
+      reassign_member_jobs: {
+        Args: { _company_id: string; _from_user: string; _to_user: string }
+        Returns: number
+      }
+      reclaim_member_credits: {
+        Args: {
+          _benefit: Database["public"]["Enums"]["benefit_type"]
+          _company_id: string
+          _from_user: string
+          _idem?: string
+          _qty?: number
+        }
+        Returns: number
       }
       recommend_jobs_for_candidate: {
         Args: {
@@ -6621,6 +7398,15 @@ export type Database = {
           token: string
         }[]
       }
+      request_member_credits: {
+        Args: {
+          _benefit: Database["public"]["Enums"]["benefit_type"]
+          _company_id: string
+          _qty: number
+          _reason?: string
+        }
+        Returns: string
+      }
       reschedule_video_interview: {
         Args: {
           _actor?: string
@@ -6718,6 +7504,7 @@ export type Database = {
       }
       role_category: { Args: { _role: string }; Returns: string }
       run_benefit_reconciliation_check: { Args: never; Returns: number }
+      run_credit_topups: { Args: never; Returns: number }
       search_candidates_for_company: {
         Args: {
           _cities?: string[]
@@ -6748,18 +7535,73 @@ export type Database = {
         }[]
       }
       send_interview_prep_reminders: { Args: never; Returns: number }
+      set_access_mode: {
+        Args: { _company_id: string; _mode: string }
+        Returns: undefined
+      }
+      set_application_card_share: {
+        Args: { _application_id: string; _share: boolean }
+        Returns: undefined
+      }
+      set_card_item_included: {
+        Args: { _include: boolean; _item_id: string }
+        Returns: undefined
+      }
+      set_credit_mode: {
+        Args: { _company_id: string; _mode: string }
+        Returns: undefined
+      }
       set_job_auto_renew: {
         Args: { _enabled: boolean; _job_id: string }
+        Returns: undefined
+      }
+      set_low_credit_threshold: {
+        Args: { _company_id: string; _threshold: number }
+        Returns: undefined
+      }
+      set_member_manager: {
+        Args: { _company_id: string; _manager_id: string; _user_id: string }
+        Returns: undefined
+      }
+      set_member_permissions: {
+        Args: {
+          _company_id: string
+          _extra: string[]
+          _revoked: string[]
+          _user_id: string
+        }
+        Returns: undefined
+      }
+      set_member_role: {
+        Args: { _company_id: string; _role_id: string; _user_id: string }
         Returns: undefined
       }
       set_my_employer_whatsapp: {
         Args: { _company_id: string; _number: string; _opt_in: boolean }
         Returns: undefined
       }
+      set_topup_rule: {
+        Args: {
+          _benefit: Database["public"]["Enums"]["benefit_type"]
+          _cadence: string
+          _company_id: string
+          _target: number
+          _user_id: string
+        }
+        Returns: string
+      }
+      share_job: {
+        Args: { _access?: string; _job_id: string; _user_id: string }
+        Returns: undefined
+      }
       should_send_whatsapp: { Args: { _user_id: string }; Returns: boolean }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       slugify: { Args: { _text: string }; Returns: string }
+      start_interview_card: {
+        Args: { _language?: string; _role_title: string }
+        Returns: string
+      }
       start_interview_prep_session: {
         Args: {
           _categories?: string[]
@@ -6787,10 +7629,15 @@ export type Database = {
           uses: number
         }[]
       }
+      sweep_member_credits: {
+        Args: { _actor: string; _company_id: string; _user_id: string }
+        Returns: undefined
+      }
       switch_company_plan_to_basic: {
         Args: { _actor: string; _company_id: string }
         Returns: undefined
       }
+      team_seat_status: { Args: { _company_id: string }; Returns: Json }
       unlock_candidate: {
         Args: {
           _actor?: string
@@ -6804,6 +7651,10 @@ export type Database = {
           balance_after: number
           source: string
         }[]
+      }
+      unshare_job: {
+        Args: { _job_id: string; _user_id: string }
+        Returns: undefined
       }
       update_application_status: {
         Args: {
@@ -6822,6 +7673,17 @@ export type Database = {
       }
       update_candidate_skills_embedding: {
         Args: { _embedding: string; _input_hash?: string; _model?: string }
+        Returns: undefined
+      }
+      update_company_role: {
+        Args: {
+          _company_id: string
+          _description: string
+          _name: string
+          _permissions: string[]
+          _role_id: string
+          _scope: string
+        }
         Returns: undefined
       }
       update_job_description_embedding: {
@@ -6860,6 +7722,13 @@ export type Database = {
         Returns: undefined
       }
       user_companies: { Args: { _user_id: string }; Returns: string[] }
+      wallet_balance: {
+        Args: {
+          _benefit: Database["public"]["Enums"]["benefit_type"]
+          _company_id: string
+        }
+        Returns: number
+      }
     }
     Enums: {
       app_platform_role: "super_admin"

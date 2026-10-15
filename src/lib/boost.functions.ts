@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { getSpendableBalance } from "@/lib/credits.functions";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function assertCompanyMember(supabase: any, userId: string, companyId: string) {
@@ -27,6 +28,9 @@ const BOOST_ERROR_MESSAGES: Record<string, string> = {
   boost_active: "This job already has a boost running. You can boost again once it ends.",
   invalid_boost_days: "Choose a boost duration between 1 and 30 days.",
   no_credits: "Not enough credits to boost this job. Buy more credits to continue.",
+  member_balance_insufficient:
+    "You've used all the boost credits allocated to you. Request more from your manager or an admin in Team > Credits.",
+  pool_insufficient: "The company credit pool doesn't have enough boost credits.",
 };
 
 export function mapBoostError(message: string): string {
@@ -70,12 +74,8 @@ export const getBoostOverview = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertCompanyMember(context.supabase, context.userId, data.companyId);
 
-    const [walletRes, settingsRes, boostsRes, entitlementsRes] = await Promise.all([
-      context.supabase
-        .from("employer_credit_wallets")
-        .select("boost_balance")
-        .eq("company_id", data.companyId)
-        .maybeSingle(),
+    const [boostBalance, settingsRes, boostsRes, entitlementsRes] = await Promise.all([
+      getSpendableBalance(context.supabase, data.companyId, "boost"),
       context.supabase.from("boost_settings").select("*").eq("id", 1).maybeSingle(),
       context.supabase
         .from("job_boosts")
@@ -109,7 +109,7 @@ export const getBoostOverview = createServerFn({ method: "POST" })
 
     const settings = settingsRes.data;
     return {
-      balance: walletRes.data?.boost_balance ?? 0,
+      balance: boostBalance,
       // null means "unlimited pool" (plan limit -1); a number is the exact
       // remaining count this month; 0 means no plan pool applies/is left.
       monthlyPoolRemaining,

@@ -5,6 +5,8 @@ export type EmployerRole = "super_admin" | "hr_admin" | "recruiter";
 export type EmployerMembership = {
   company_id: string;
   role: EmployerRole;
+  role_id: string | null;
+  company_roles: { key: string; name: string; scope: string; is_locked: boolean } | null;
   companies: {
     id: string;
     name: string;
@@ -21,7 +23,7 @@ export async function fetchMyCompanies(userId: string): Promise<EmployerMembersh
   const { data, error } = await supabase
     .from("employer_members")
     .select(
-      "company_id, role, companies (id, name, slug, logo_url, verification_status, industry, size, hq_city)",
+      "company_id, role, role_id, company_roles (key, name, scope, is_locked), companies (id, name, slug, logo_url, verification_status, industry, size, hq_city)",
     )
     .eq("user_id", userId)
     .eq("status", "active");
@@ -45,9 +47,11 @@ export type EmployerRoleSnapshot = {
   userId: string | null;
   membership: EmployerMembership | null;
   accessMessage: string | null;
+  /** Effective permission keys from my_permissions(); null until loaded (UI falls back to the legacy role map). */
+  permissions?: string[] | null;
 };
 
-const ROLE_CACHE_KEY = "jobskart.employerRoleCache.v1";
+const ROLE_CACHE_KEY = "jobskart.employerRoleCache.v2";
 
 /** In-memory + localStorage snapshot of the last-known employer role, read by useEmployerRole(). */
 export function getCachedEmployerRole(): EmployerRoleSnapshot | null {
@@ -77,42 +81,4 @@ export function clearCachedEmployerRole() {
   } catch {
     /* ignore */
   }
-}
-
-export function canEditCompany(role: EmployerRole | null) {
-  return role === "super_admin" || role === "hr_admin";
-}
-
-export function isSuperAdmin(role: EmployerRole | null) {
-  return role === "super_admin";
-}
-
-export function isHrAdmin(role: EmployerRole | null) {
-  return role === "hr_admin";
-}
-
-export function isRecruiter(role: EmployerRole | null) {
-  return role === "recruiter";
-}
-
-export function canManageBilling(role: EmployerRole | null) {
-  // Credits/plan management is open to every company role — recruiter and
-  // hr_admin can buy credit packs and switch plans, same as super_admin.
-  return role !== null;
-}
-
-export function canManageTeamMembers(role: EmployerRole | null) {
-  return role === "super_admin";
-}
-
-export function canInviteMembers(role: EmployerRole | null) {
-  return role === "super_admin" || role === "hr_admin";
-}
-
-export function canManageVerification(role: EmployerRole | null) {
-  return role === "super_admin" || role === "hr_admin";
-}
-
-export function canViewReports(role: EmployerRole | null) {
-  return role === "super_admin" || role === "hr_admin";
 }

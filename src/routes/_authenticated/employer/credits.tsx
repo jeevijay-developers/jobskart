@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
   Check,
@@ -9,9 +9,11 @@ import {
   Loader2,
   ShieldCheck,
   Sparkles,
+  ShieldAlert,
 } from "lucide-react";
 import { toast } from "sonner";
 import { EmployerShell } from "@/components/employer/EmployerShell";
+import { RoleGate } from "@/components/employer/RoleGate";
 import { useEmployerRole } from "@/hooks/use-employer-role";
 import {
   AlertDialog,
@@ -152,7 +154,7 @@ type Invoice = {
 };
 
 function CreditsPage() {
-  const { canManageBilling, loading: roleLoading } = useEmployerRole();
+  const { canViewCredits, canPurchaseCredits, canManagePlan, loading: roleLoading } = useEmployerRole();
   const [active, setActive] = useState<EmployerMembership | null>(null);
   const [loading, setLoading] = useState(true);
   const [jobPostBalance, setJobPostBalance] = useState(0);
@@ -199,13 +201,19 @@ function CreditsPage() {
       const pl = await listPlans();
       setPlans(pl as Plan[]);
       if (chosen) {
-        const w = await getCompanyWallet({ data: { companyId: chosen.company_id } });
-        setJobPostBalance(w.jobPostBalance);
-        setContactBalance(w.contactBalance);
-        setBoostBalance(w.boostBalance);
-        setTxns(w.transactions as Txn[]);
-        void refreshBenefitExpiry(chosen.company_id);
-        void refreshLedger(chosen.company_id);
+        // Members without a credits/billing permission are turned away by the server (and RLS);
+        // the page then shows the "restricted" state instead of failing.
+        try {
+          const w = await getCompanyWallet({ data: { companyId: chosen.company_id } });
+          setJobPostBalance(w.jobPostBalance);
+          setContactBalance(w.contactBalance);
+          setBoostBalance(w.boostBalance);
+          setTxns(w.transactions as Txn[]);
+          void refreshBenefitExpiry(chosen.company_id);
+          void refreshLedger(chosen.company_id);
+        } catch {
+          /* restricted: handled by the canViewCredits gate below */
+        }
         try {
           const inv = await listCompanyInvoices({ data: { companyId: chosen.company_id } });
           setInvoices(inv as Invoice[]);
@@ -441,6 +449,33 @@ function CreditsPage() {
     );
   }
 
+  if (!canViewCredits) {
+    return (
+      <EmployerShell title="Credits & usage">
+        <RoleGate
+          allowed={false}
+          fallback={
+            <div className="rounded-2xl border border-border bg-card p-10 text-center shadow-[var(--shadow-card)]">
+              <ShieldAlert className="mx-auto h-10 w-10 text-muted-foreground" />
+              <h2 className="mt-3 text-lg font-bold">Credits and billing are restricted</h2>
+              <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+                Your role doesn't include access to company credits, orders or invoices. You can still see your own
+                balance and request more from your manager.
+              </p>
+              <Link
+                to="/employer/team"
+                search={{ tab: "credits" }}
+                className="mt-5 inline-flex h-10 items-center justify-center rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark"
+              >
+                Open my credits
+              </Link>
+            </div>
+          }
+        />
+      </EmployerShell>
+    );
+  }
+
   return (
     <EmployerShell
       title="Credits & usage"
@@ -597,7 +632,7 @@ function CreditsPage() {
                   >
                     Current plan
                   </button>
-                ) : !canManageBilling ? (
+                ) : !canManagePlan ? (
                   <p className="mt-4 rounded-lg bg-surface px-3 py-2 text-center text-xs text-muted-foreground">
                     Ask your admin to change the plan
                   </p>
@@ -707,7 +742,7 @@ function CreditsPage() {
                       ₹{formatInr(withGst(p.price_inr))} incl. 18% GST
                     </p>
                   </div>
-                  {canManageBilling ? (
+                  {canPurchaseCredits ? (
                     <button
                       onClick={() => handleBuy(p)}
                       disabled={buyingId !== null}

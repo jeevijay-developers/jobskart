@@ -16,17 +16,16 @@ import {
   Settings,
 } from "lucide-react";
 
-export type EmployerNavMinRole = "super_admin" | "hr_admin";
-
 // Shared between EmployerShell (desktop sidebar + bottom-tab "More" sheet)
 // and Navbar (mobile hamburger drawer for employer sessions) so both
 // surfaces list the same destinations instead of drifting apart.
-// `minRole` hides the link for roles below it — see useEmployerRole().
+// `permission` hides the link unless the member holds that permission — see useEmployerRole().can().
 export const EMPLOYER_NAV_LINKS: Array<{
   to: string;
   label: string;
   icon: typeof LayoutDashboard;
-  minRole?: EmployerNavMinRole;
+  /** Visible when the member holds this permission (or any of them, if a list). */
+  permission?: string | string[];
 }> = [
   { to: "/employer/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/employer/jobs", label: "Jobs", icon: Briefcase },
@@ -36,12 +35,17 @@ export const EMPLOYER_NAV_LINKS: Array<{
   { to: "/employer/interviews", label: "Interviews", icon: CalendarCheck },
   { to: "/employer/database", label: "Database", icon: Database },
   { to: "/employer/jobs/bulk", label: "Bulk post", icon: FileSpreadsheet },
-  { to: "/employer/verification", label: "Verification", icon: BadgeCheck, minRole: "hr_admin" },
-  { to: "/employer/reports", label: "Reports", icon: BarChart3, minRole: "hr_admin" },
+  { to: "/employer/verification", label: "Verification", icon: BadgeCheck, permission: "verification.manage" },
+  { to: "/employer/reports", label: "Reports", icon: BarChart3, permission: "reports.view" },
   { to: "/employer/activity", label: "Activity", icon: Activity },
-  { to: "/employer/credits", label: "Credits", icon: Coins },
+  {
+    to: "/employer/credits",
+    label: "Credits",
+    icon: Coins,
+    permission: ["credits.purchase", "billing.view", "credits.view_all"],
+  },
   { to: "/employer/company", label: "Company", icon: Building2 },
-  { to: "/employer/team", label: "Team", icon: Users, minRole: "hr_admin" },
+  { to: "/employer/team", label: "Team", icon: Users, permission: "team.view" },
   { to: "/employer/settings", label: "Settings", icon: Settings },
 ];
 
@@ -65,12 +69,11 @@ export function isEmployerNavItemActive(pathname: string, to: string): boolean {
 }
 
 export function isEmployerNavVisible(
-  minRole: EmployerNavMinRole | undefined,
-  role: "super_admin" | "hr_admin" | "recruiter" | null,
+  permission: string | string[] | undefined,
+  can: (permission: string) => boolean,
 ) {
-  if (!minRole) return true;
-  if (minRole === "super_admin") return role === "super_admin";
-  return role === "super_admin" || role === "hr_admin";
+  if (!permission) return true;
+  return Array.isArray(permission) ? permission.some(can) : can(permission);
 }
 
 // Dashboard/Jobs/Responses/Interviews sit in EmployerShell's mobile bottom tab

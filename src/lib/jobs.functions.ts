@@ -15,6 +15,9 @@ const TIER_ERROR_MESSAGES: Record<string, string> = {
   live_jobs_max_reached: "You've reached your plan's live job limit. Close a job or upgrade to post more.",
   classic_plus_not_available: "Classic+ is only available on the Unlimited plan.",
   no_credits: "Not enough credits for this job tier. Buy more credits to continue.",
+  member_balance_insufficient:
+    "You've used all the credits allocated to you. Request more from your manager or an admin in Team > Credits.",
+  pool_insufficient: "The company credit pool doesn't have enough credits for this job tier.",
 };
 
 export function mapTierError(message: string): string {

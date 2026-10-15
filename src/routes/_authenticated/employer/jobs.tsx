@@ -2,11 +2,13 @@ import { createFileRoute, Link, Outlet, useLocation, useNavigate } from "@tansta
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
-  Briefcase, CalendarClock, ChevronDown, ChevronRight, Copy, Eye, Filter, MoreVertical, Pause, Pencil, Play, Plus, RefreshCw, Rocket, Search, Trash2, Users,
+  Briefcase, CalendarClock, ChevronDown, ChevronRight, Copy, Eye, Filter, MoreVertical, Pause, Pencil, Play, Plus, RefreshCw, Rocket, Search, Share2, Trash2, Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { EmployerShell } from "@/components/employer/EmployerShell";
 import { BoostJobModal } from "@/components/employer/BoostJobModal";
+import { ShareJobDialog } from "@/components/employer/ShareJobDialog";
+import { useEmployerRole } from "@/hooks/use-employer-role";
 import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -141,6 +143,8 @@ function EmployerJobsList() {
   // zeros, which the modal must not mistake for "this company has no credits".
   const [boostOverviewLoaded, setBoostOverviewLoaded] = useState(false);
   const [boostTarget, setBoostTarget] = useState<Job | null>(null);
+  const [shareTarget, setShareTarget] = useState<Job | null>(null);
+  const { can } = useEmployerRole();
   const loadBoostOverview = async (companyId: string) => {
     try {
       const overview = await runGetBoostOverview({ data: { companyId } });
@@ -530,6 +534,15 @@ function EmployerJobsList() {
                         <Rocket className="h-3.5 w-3.5" />
                       </button>
                     )}
+                    {can("jobs.edit") && (
+                      <button
+                        onClick={() => setShareTarget(j)}
+                        title="Share with a teammate"
+                        className="hidden h-7 w-7 shrink-0 place-items-center rounded-lg border border-border bg-card text-foreground hover:bg-surface sm:grid"
+                      >
+                        <Share2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                     <button onClick={() => duplicate(j.id)} title="Duplicate" className="hidden h-7 w-7 shrink-0 place-items-center rounded-lg border border-border bg-card text-foreground hover:bg-surface sm:grid">
                       <Copy className="h-3.5 w-3.5" />
                     </button>
@@ -583,6 +596,11 @@ function EmployerJobsList() {
                             title={!expiry.entitlement.enabled ? "Auto-renew is a paid-plan feature" : undefined}
                           >
                             <CalendarClock className="mr-2 h-3.5 w-3.5" /> Auto-renew: {expiry.jobs[j.id]?.auto_renew ? "On" : "Off"}
+                          </DropdownMenuItem>
+                        )}
+                        {can("jobs.edit") && (
+                          <DropdownMenuItem onClick={() => setShareTarget(j)}>
+                            <Share2 className="mr-2 h-3.5 w-3.5" /> Share
                           </DropdownMenuItem>
                         )}
                         <DropdownMenuItem onClick={() => duplicate(j.id)}>
@@ -667,6 +685,12 @@ function EmployerJobsList() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ShareJobDialog
+        job={shareTarget ? { id: shareTarget.id, title: shareTarget.title } : null}
+        companyId={cid}
+        onClose={() => setShareTarget(null)}
+      />
 
       {boostTarget && (
         <BoostJobModal
