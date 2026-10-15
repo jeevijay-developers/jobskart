@@ -27,11 +27,14 @@ import {
   isEmployerNavVisible,
 } from "@/lib/employer-nav";
 import { useEmployerRole } from "@/hooks/use-employer-role";
+import { spendableBalance, type SummaryLike } from "@/lib/team-permissions";
 import { useEmployerInboxUnread } from "@/hooks/use-employer-inbox-unread";
 
 export function CreditChip() {
-  const { canManageBilling } = useEmployerRole();
+  const { canPurchaseCredits } = useEmployerRole();
   const [balance, setBalance] = useState<number | null>(null);
+  // Per-member credit mode: show what this person can actually spend, not the company wallet.
+  const [personal, setPersonal] = useState(false);
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -44,12 +47,12 @@ export function CreditChip() {
           cid = ms[0]?.company_id ?? null;
         }
         if (!cid) return;
-        const { data } = await supabase
-          .from("employer_credit_wallets")
-          .select("job_post_balance")
-          .eq("company_id", cid)
-          .maybeSingle();
-        if (!cancelled) setBalance(data?.job_post_balance ?? 0);
+        // credit_summary decides what this member may see: the shared balance, or only their own reservation.
+        const { data: summary } = await supabase.rpc("credit_summary", { _company_id: cid });
+        const s = summary as unknown as SummaryLike | null;
+        if (!s || cancelled) return;
+        setPersonal(s.mode === "allocated" && !s.can_pool_spend);
+        setBalance(spendableBalance(s, "job_post"));
       } catch {
         /* ignore */
       }
@@ -64,9 +67,11 @@ export function CreditChip() {
   return (
     <div className="w-full">
       <div className="flex items-center justify-between gap-3 text-xs">
-        <span className="font-medium text-muted-foreground">Job Post Credits</span>
+        <span className="font-medium text-muted-foreground">
+          {personal ? "Your Job Post Credits" : "Job Post Credits"}
+        </span>
         <span className="shrink-0 font-semibold text-foreground tabular-nums">
-          {balance} / {creditCapacity}
+          {personal ? balance : `${balance} / ${creditCapacity}`}
         </span>
       </div>
       <div
@@ -82,7 +87,15 @@ export function CreditChip() {
           style={{ width: `${creditProgress}%` }}
         />
       </div>
-      {canManageBilling ? (
+      {personal ? (
+        <Link
+          to="/employer/team"
+          search={{ tab: "credits" }}
+          className="mt-3 flex h-9 w-full items-center justify-center rounded-lg border border-primary/30 bg-card px-3 text-xs font-semibold text-primary transition-colors hover:border-primary hover:bg-primary-light"
+        >
+          Request more credits →
+        </Link>
+      ) : canPurchaseCredits ? (
         <Link
           to="/employer/credits"
           className="mt-3 flex h-9 w-full items-center justify-center rounded-lg border border-primary/30 bg-card px-3 text-xs font-semibold text-primary transition-colors hover:border-primary hover:bg-primary-light"
@@ -117,10 +130,10 @@ export function EmployerShell({
 }) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const { role, companyId } = useEmployerRole();
-  const visibleNav = nav.filter((item) => isEmployerNavVisible(item.minRole, role));
+  const { can, companyId } = useEmployerRole();
+  const visibleNav = nav.filter((item) => isEmployerNavVisible(item.permission, can));
   const visibleOverflow = EMPLOYER_OVERFLOW_LINKS.filter((item) =>
-    isEmployerNavVisible(item.minRole, role),
+    isEmployerNavVisible(item.permission, can),
   );
   const primary = EMPLOYER_PRIMARY_LINKS;
   const unreadInbox = useEmployerInboxUnread(companyId);

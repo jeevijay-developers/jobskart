@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
+import { creditSpendMessage } from "@/lib/team-permissions";
 import { useServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import {
@@ -349,7 +350,7 @@ function DatabasePage() {
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to send invitation";
-      toast.error(msg.includes("no_credits") ? "Out of credits. Buy a pack to invite." : msg);
+      toast.error(creditSpendMessage(msg, "invite"));
     } finally {
       setInvitingId(null);
     }
@@ -408,7 +409,7 @@ function DatabasePage() {
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Unlock failed.";
-      toast.error(msg.includes("no_credits") ? "Out of credits. Buy a pack to unlock." : msg);
+      toast.error(creditSpendMessage(msg, "unlock"));
     } finally {
       setUnlockingId(null);
     }
