@@ -25,7 +25,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { emailSchema } from "@/lib/validators";
 import { mapTeamError, whatsappShareUrl } from "@/lib/team-permissions";
-import type { TeamInvite, TeamMember } from "@/lib/team.client";
+import type { TeamInvite, TeamMember } from "@/lib/team-data";
 import { PermissionMatrix } from "./PermissionMatrix";
 import { nameOf, type TeamContext } from "./types";
 

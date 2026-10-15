@@ -31,7 +31,7 @@ import {
   type AllocationRow,
   type CreditRequest,
   type CreditSummary,
-} from "@/lib/team.client";
+} from "@/lib/team-data";
 import type { TeamContext } from "./types";
 
 type Action =

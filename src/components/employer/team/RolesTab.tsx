@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { mapTeamError, missingForGrant, permissionDiff } from "@/lib/team-permissions";
-import type { RoleRow } from "@/lib/team.client";
+import type { RoleRow } from "@/lib/team-data";
 import { PermissionMatrix } from "./PermissionMatrix";
 import type { TeamContext } from "./types";
 
