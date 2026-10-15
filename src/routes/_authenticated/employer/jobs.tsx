@@ -2,7 +2,7 @@ import { createFileRoute, Link, Outlet, useLocation, useNavigate } from "@tansta
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
-  Briefcase, CalendarClock, ChevronDown, ChevronRight, Copy, Eye, Filter, MoreVertical, Pause, Pencil, Play, Plus, RefreshCw, Rocket, Search, Share2, Trash2, Users,
+  Briefcase, CalendarClock, ChevronDown, ChevronRight, Copy, Eye, FileSpreadsheet, Filter, MoreVertical, Pause, Pencil, Play, Plus, RefreshCw, Rocket, Search, Share2, Trash2, Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { EmployerShell } from "@/components/employer/EmployerShell";
@@ -370,12 +370,20 @@ function EmployerJobsList() {
             </button>
           </div>
         ) : (
-          <Link
-            to="/employer/jobs/new"
-            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground hover:bg-primary-dark sm:hidden"
-          >
-            <Plus className="h-4 w-4" /> Post a job
-          </Link>
+          <div className="flex items-center gap-2 sm:hidden">
+            <Link
+              to="/employer/jobs/bulk"
+              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-primary px-3 text-sm font-semibold text-primary hover:bg-primary-light"
+            >
+              <FileSpreadsheet className="h-4 w-4" /> Bulk post
+            </Link>
+            <Link
+              to="/employer/jobs/new"
+              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground hover:bg-primary-dark"
+            >
+              <Plus className="h-4 w-4" /> Post a job
+            </Link>
+          </div>
         )
       }
     >
@@ -437,8 +445,14 @@ function EmployerJobsList() {
 
         {/* Desktop only: Post a job now lives in this controls row, aligned with Search and All status, instead of beside the "Jobs" heading. */}
         <Link
+          to="/employer/jobs/bulk"
+          className="ml-auto hidden h-9 shrink-0 items-center gap-1.5 rounded-lg border border-primary px-3 text-xs font-semibold text-primary hover:bg-primary-light sm:inline-flex"
+        >
+          <FileSpreadsheet className="h-4 w-4" /> Bulk post
+        </Link>
+        <Link
           to="/employer/jobs/new"
-          className="ml-auto hidden h-9 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary-dark sm:inline-flex"
+          className="hidden h-9 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary-dark sm:inline-flex"
         >
           <Plus className="h-4 w-4" /> Post a job
         </Link>

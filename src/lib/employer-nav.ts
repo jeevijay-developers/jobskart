@@ -11,7 +11,6 @@ import {
   BarChart3,
   Coins,
   CalendarCheck,
-  FileSpreadsheet,
   BadgeCheck,
   Settings,
 } from "lucide-react";
@@ -34,7 +33,6 @@ export const EMPLOYER_NAV_LINKS: Array<{
   { to: "/employer/inbox", label: "Inbox", icon: MessageSquare },
   { to: "/employer/interviews", label: "Interviews", icon: CalendarCheck },
   { to: "/employer/database", label: "Database", icon: Database },
-  { to: "/employer/jobs/bulk", label: "Bulk post", icon: FileSpreadsheet },
   { to: "/employer/verification", label: "Verification", icon: BadgeCheck, permission: "verification.manage" },
   { to: "/employer/reports", label: "Reports", icon: BarChart3, permission: "reports.view" },
   { to: "/employer/activity", label: "Activity", icon: Activity },

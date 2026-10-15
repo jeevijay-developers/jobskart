@@ -131,25 +131,80 @@ export const confirmAccountDeletion = createServerFn({ method: "POST" })
     );
     if (claimError) throw new Error(claimError.message);
 
-    // Storage isn't covered by the DB's ON DELETE CASCADE from auth.users —
-    // best-effort cleanup so a storage hiccup never blocks the actual
-    // deletion (CLAUDE.md: no third-party failure blocks a core flow).
-    for (const bucket of ["avatars", "candidate-docs"] as const) {
-      try {
-        const { data: files } = await supabaseAdmin.storage.from(bucket).list(userId as string);
-        if (files?.length) {
-          await supabaseAdmin.storage
-            .from(bucket)
-            .remove(files.map((f) => `${userId as string}/${f.name}`));
-        }
-      } catch (e) {
-        console.error(`[account-deletion] storage cleanup failed for ${bucket}:`, e);
+    await deleteCandidateAccount(userId as string);
+    return { ok: true };
+  });
+
+// Shared by the emailed-link flow and the mobile-OTP flow below.
+async function deleteCandidateAccount(userId: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  // Storage isn't covered by the DB's ON DELETE CASCADE from auth.users —
+  // best-effort cleanup so a storage hiccup never blocks the actual
+  // deletion (CLAUDE.md: no third-party failure blocks a core flow).
+  for (const bucket of ["avatars", "candidate-docs"] as const) {
+    try {
+      const { data: files } = await supabaseAdmin.storage.from(bucket).list(userId);
+      if (files?.length) {
+        await supabaseAdmin.storage.from(bucket).remove(files.map((f) => `${userId}/${f.name}`));
+      }
+    } catch (e) {
+      console.error(`[account-deletion] storage cleanup failed for ${bucket}:`, e);
+    }
+  }
+
+  const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
+  if (deleteError) throw new Error(deleteError.message);
+}
+
+// ── Delete account via an OTP sent to the registered mobile ─────────────────
+// ACCOUNT_DELETION_OTP_MODE=bypass (default, until Msg91 + DLT approval): no SMS is sent and any
+// 6-digit code is accepted. Set it to "sms" to send a real OTP (send-otp edge function) and verify
+// it (verify-otp). The mobile is always read server-side from the caller's own profile.
+const deletionOtpMode = () => (process.env.ACCOUNT_DELETION_OTP_MODE === "sms" ? "sms" : "bypass");
+
+async function ownMobile(userId: string): Promise<string> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await supabaseAdmin.from("profiles").select("mobile").eq("id", userId).maybeSingle();
+  const digits = ((data?.mobile as string | null) ?? "").replace(/\D/g, "").slice(-10);
+  if (!/^[6-9]\d{9}$/.test(digits)) {
+    throw new Error("Add a mobile number to your profile before deleting your account.");
+  }
+  return digits;
+}
+
+export const requestAccountDeletionOtp = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const mobile = await ownMobile(context.userId);
+    const mode = deletionOtpMode();
+    if (mode === "sms") {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { error } = await supabaseAdmin.functions.invoke("send-otp", {
+        body: { mobile, channel: "sms", user_type: "candidate" },
+      });
+      if (error) throw new Error("Couldn't send the OTP. Please try again.");
+    }
+    return { mode, maskedMobile: `+91 ${"•".repeat(6)}${mobile.slice(-4)}` };
+  });
+
+export const deleteAccountWithOtp = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: { otp: string }) =>
+    z.object({ otp: z.string().regex(/^\d{6}$/, "Enter the 6-digit OTP") }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const mobile = await ownMobile(context.userId);
+    if (deletionOtpMode() === "sms") {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: res, error } = await supabaseAdmin.functions.invoke("verify-otp", {
+        body: { mobile, otp: data.otp, channel: "sms" },
+      });
+      if (error || !(res as { success?: boolean } | null)?.success) {
+        throw new Error("Invalid or expired OTP.");
       }
     }
-
-    const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId as string);
-    if (deleteError) throw new Error(deleteError.message);
-
+    await deleteCandidateAccount(context.userId);
     return { ok: true };
   });
 

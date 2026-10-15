@@ -1809,6 +1809,7 @@ export type Database = {
           about: string | null
           access_mode: string
           allow_brand_display: boolean
+          banned_at: string | null
           business_email: string | null
           company_type: Database["public"]["Enums"]["company_type"] | null
           cover_url: string | null
@@ -1843,6 +1844,7 @@ export type Database = {
           about?: string | null
           access_mode?: string
           allow_brand_display?: boolean
+          banned_at?: string | null
           business_email?: string | null
           company_type?: Database["public"]["Enums"]["company_type"] | null
           cover_url?: string | null
@@ -1877,6 +1879,7 @@ export type Database = {
           about?: string | null
           access_mode?: string
           allow_brand_display?: boolean
+          banned_at?: string | null
           business_email?: string | null
           company_type?: Database["public"]["Enums"]["company_type"] | null
           cover_url?: string | null
@@ -2098,6 +2101,53 @@ export type Database = {
             columns: ["plan_id"]
             isOneToOne: false
             referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_reports: {
+        Row: {
+          company_id: string
+          created_at: string
+          details: string | null
+          id: string
+          reason: string
+          reporter_id: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          reason: string
+          reporter_id?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          reason?: string
+          reporter_id?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_reports_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -4378,6 +4428,8 @@ export type Database = {
           job_id: string
           reason: string
           reporter_id: string | null
+          resolved_at: string | null
+          resolved_by: string | null
           status: string
           updated_at: string
         }
@@ -4388,6 +4440,8 @@ export type Database = {
           job_id: string
           reason: string
           reporter_id?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
           status?: string
           updated_at?: string
         }
@@ -4398,6 +4452,8 @@ export type Database = {
           job_id?: string
           reason?: string
           reporter_id?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
           status?: string
           updated_at?: string
         }
@@ -4549,6 +4605,8 @@ export type Database = {
           auto_renew: boolean
           auto_shortlist_threshold: number | null
           avg_incentive_monthly: number | null
+          banned_at: string | null
+          banned_by_company_ban: boolean
           boosted_until: string | null
           category: string | null
           certifications: string[] | null
@@ -4571,6 +4629,7 @@ export type Database = {
           experience_bucket: string | null
           expires_at: string | null
           fixed_pay: boolean | null
+          flagged_at: string | null
           gender_pref: string | null
           hiring_contact_email: string | null
           hiring_contact_mode: string | null
@@ -4630,6 +4689,7 @@ export type Database = {
           specialisation: string | null
           state: string | null
           status: Database["public"]["Enums"]["job_status"]
+          status_before_ban: Database["public"]["Enums"]["job_status"] | null
           tier: Database["public"]["Enums"]["job_tier"]
           tier_source: string | null
           title: string
@@ -4648,6 +4708,8 @@ export type Database = {
           auto_renew?: boolean
           auto_shortlist_threshold?: number | null
           avg_incentive_monthly?: number | null
+          banned_at?: string | null
+          banned_by_company_ban?: boolean
           boosted_until?: string | null
           category?: string | null
           certifications?: string[] | null
@@ -4670,6 +4732,7 @@ export type Database = {
           experience_bucket?: string | null
           expires_at?: string | null
           fixed_pay?: boolean | null
+          flagged_at?: string | null
           gender_pref?: string | null
           hiring_contact_email?: string | null
           hiring_contact_mode?: string | null
@@ -4729,6 +4792,7 @@ export type Database = {
           specialisation?: string | null
           state?: string | null
           status?: Database["public"]["Enums"]["job_status"]
+          status_before_ban?: Database["public"]["Enums"]["job_status"] | null
           tier?: Database["public"]["Enums"]["job_tier"]
           tier_source?: string | null
           title: string
@@ -4747,6 +4811,8 @@ export type Database = {
           auto_renew?: boolean
           auto_shortlist_threshold?: number | null
           avg_incentive_monthly?: number | null
+          banned_at?: string | null
+          banned_by_company_ban?: boolean
           boosted_until?: string | null
           category?: string | null
           certifications?: string[] | null
@@ -4769,6 +4835,7 @@ export type Database = {
           experience_bucket?: string | null
           expires_at?: string | null
           fixed_pay?: boolean | null
+          flagged_at?: string | null
           gender_pref?: string | null
           hiring_contact_email?: string | null
           hiring_contact_mode?: string | null
@@ -4828,6 +4895,7 @@ export type Database = {
           specialisation?: string | null
           state?: string | null
           status?: Database["public"]["Enums"]["job_status"]
+          status_before_ban?: Database["public"]["Enums"]["job_status"] | null
           tier?: Database["public"]["Enums"]["job_tier"]
           tier_source?: string | null
           title?: string
@@ -6156,6 +6224,22 @@ export type Database = {
       admin_launch_state: { Args: { _state: string }; Returns: number }
       admin_refund_job_post_credit: {
         Args: { _job_id: string; _reason: string }
+        Returns: Json
+      }
+      admin_resolve_company_report: {
+        Args: { _action: string; _actor: string; _report_id: string }
+        Returns: Json
+      }
+      admin_resolve_job_report: {
+        Args: { _action: string; _actor: string; _report_id: string }
+        Returns: Json
+      }
+      admin_reverse_company_report: {
+        Args: { _actor: string; _report_id: string }
+        Returns: Json
+      }
+      admin_reverse_job_report: {
+        Args: { _actor: string; _report_id: string }
         Returns: Json
       }
       admin_set_verification: {

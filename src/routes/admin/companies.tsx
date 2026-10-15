@@ -3,11 +3,12 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { CheckCircle2, Download, MapPin, XCircle } from "lucide-react";
+import { CheckCircle2, Download, MapPin, Users, XCircle } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { CompanyEmployeesDialog } from "@/components/admin/CompanyEmployeesDialog";
 import { Pagination } from "@/components/site/Pagination";
 import { adminListCompanies, adminSetCompanyVerification } from "@/lib/admin.functions";
 
@@ -150,6 +151,7 @@ function Page() {
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<StatusTab>("all");
   const [page, setPage] = useState(1);
+  const [employeesOf, setEmployeesOf] = useState<{ id: string; name: string } | null>(null);
   const list = useServerFn(adminListCompanies);
   const setV = useServerFn(adminSetCompanyVerification);
   const qc = useQueryClient();
@@ -312,6 +314,15 @@ function Page() {
                     </div>
                     <div role="cell">{statusBadge(c.verification_status)}</div>
                     <div role="cell" className="flex items-center justify-end gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setEmployeesOf({ id: c.id, name: c.name })}
+                        className="gap-1.5"
+                      >
+                        <Users className="h-3.5 w-3.5" /> Employees
+                      </Button>
                       <ActionButtons
                         status={c.verification_status}
                         busy={mut.isPending}
@@ -342,6 +353,15 @@ function Page() {
                     <span className="truncate">{c.hq_city || "—"}</span>
                   </div>
                   <div className="mt-3 flex gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setEmployeesOf({ id: c.id, name: c.name })}
+                      className="gap-1.5"
+                    >
+                      <Users className="h-3.5 w-3.5" /> Employees
+                    </Button>
                     <ActionButtons
                       status={c.verification_status}
                       busy={mut.isPending}
@@ -366,6 +386,7 @@ function Page() {
           className="mt-6 max-sm:flex-nowrap max-sm:gap-0.5 max-sm:overflow-x-auto max-sm:[&_button]:min-w-7 max-sm:[&_button]:px-1.5 max-sm:[&_button]:text-xs max-sm:[&_span]:px-0.5"
         />
       ) : null}
+      <CompanyEmployeesDialog company={employeesOf} onClose={() => setEmployeesOf(null)} />
     </AdminShell>
   );
 }

@@ -63,7 +63,13 @@ export const adminLoginWithPassword = createServerFn({ method: "POST" })
 
 export const adminListUsers = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((d: { search?: string; userType?: "candidate" | "employer" | "all"; status?: "active" | "suspended" | "all" }) => d)
+  .validator(
+    (d: {
+      search?: string;
+      userType?: "candidate" | "employer" | "all";
+      status?: "active" | "suspended" | "all";
+    }) => d,
+  )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -89,7 +95,10 @@ export const adminSetUserStatus = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.from("profiles").update({ status: data.status }).eq("id", data.userId);
+    const { error } = await supabaseAdmin
+      .from("profiles")
+      .update({ status: data.status })
+      .eq("id", data.userId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -111,11 +120,53 @@ export const adminListCompanies = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    let q = supabaseAdmin.from("companies").select("*").order("created_at", { ascending: false }).limit(200);
+    let q = supabaseAdmin
+      .from("companies")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(200);
     if (data.search) q = q.ilike("name", `%${data.search}%`);
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
     return { rows: rows ?? [] };
+  });
+
+// Users linked to one company (employer_members) with their profile details. Admin-only.
+export const adminListCompanyEmployees = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((d: { companyId: string }) => d)
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: members, error } = await supabaseAdmin
+      .from("employer_members")
+      .select("user_id, role, status")
+      .eq("company_id", data.companyId)
+      .order("created_at", { ascending: true });
+    if (error) throw new Error(error.message);
+    const ids = (members ?? []).map((m) => m.user_id as string);
+    const { data: profs, error: pErr } = ids.length
+      ? await supabaseAdmin
+          .from("profiles")
+          .select("id, full_name, email, mobile, status")
+          .in("id", ids)
+      : { data: [], error: null };
+    if (pErr) throw new Error(pErr.message);
+    const byId = new Map((profs ?? []).map((p) => [p.id as string, p]));
+    return {
+      rows: (members ?? []).map((m) => {
+        const p = byId.get(m.user_id as string);
+        return {
+          user_id: m.user_id as string,
+          role: m.role as string,
+          member_status: (m.status as string | null) ?? "active",
+          full_name: (p?.full_name as string | null) ?? null,
+          email: (p?.email as string | null) ?? null,
+          mobile: (p?.mobile as string | null) ?? null,
+          account_status: (p?.status as string | null) ?? null,
+        };
+      }),
+    };
   });
 
 export const adminSetCompanyVerification = createServerFn({ method: "POST" })
@@ -124,7 +175,10 @@ export const adminSetCompanyVerification = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.from("companies").update({ verification_status: data.status }).eq("id", data.companyId);
+    const { error } = await supabaseAdmin
+      .from("companies")
+      .update({ verification_status: data.status })
+      .eq("id", data.companyId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -137,7 +191,9 @@ export const adminListJobs = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     let q = supabaseAdmin
       .from("jobs")
-      .select("id, title, status, is_featured, applications_count, created_at, company_id, companies(name)")
+      .select(
+        "id, title, status, is_featured, applications_count, created_at, company_id, companies(name)",
+      )
       .order("created_at", { ascending: false })
       .limit(200);
     if (data.search) q = q.ilike("title", `%${data.search}%`);
@@ -152,7 +208,10 @@ export const adminToggleJobFeatured = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.from("jobs").update({ is_featured: data.featured }).eq("id", data.jobId);
+    const { error } = await supabaseAdmin
+      .from("jobs")
+      .update({ is_featured: data.featured })
+      .eq("id", data.jobId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -163,7 +222,150 @@ export const adminCloseJob = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.from("jobs").update({ status: "closed" }).eq("id", data.jobId);
+    const { error } = await supabaseAdmin
+      .from("jobs")
+      .update({ status: "closed" })
+      .eq("id", data.jobId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+type JobReportRow = {
+  id: string;
+  job_id: string;
+  reporter_id: string | null;
+  reason: string;
+  details: string | null;
+  status: string;
+  created_at: string;
+  resolved_at: string | null;
+  jobs: { title: string; company_id: string; companies: { name: string } | null } | null;
+};
+type CompanyReportRow = {
+  id: string;
+  company_id: string;
+  reporter_id: string | null;
+  reason: string;
+  details: string | null;
+  status: string;
+  created_at: string;
+  resolved_at: string | null;
+  companies: { name: string } | null;
+};
+type Reporter = { id: string; full_name: string | null; email: string | null };
+
+export const adminListReports = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((d: { status?: string }) => d)
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    let jobQ = supabaseAdmin
+      .from("job_reports" as never)
+      .select(
+        "id, job_id, reporter_id, reason, details, status, created_at, resolved_at, jobs(title, company_id, companies(name))",
+      )
+      .order("created_at", { ascending: false })
+      .limit(200);
+    let companyQ = supabaseAdmin
+      .from("company_reports" as never)
+      .select(
+        "id, company_id, reporter_id, reason, details, status, created_at, resolved_at, companies(name)",
+      )
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (data.status) {
+      jobQ = jobQ.eq("status", data.status);
+      companyQ = companyQ.eq("status", data.status);
+    }
+
+    const [{ data: jobData, error: jobErr }, { data: companyData, error: companyErr }] =
+      await Promise.all([jobQ, companyQ]);
+    if (jobErr) throw new Error(jobErr.message);
+    if (companyErr) throw new Error(companyErr.message);
+    const jobRows = (jobData ?? []) as unknown as JobReportRow[];
+    const companyRows = (companyData ?? []) as unknown as CompanyReportRow[];
+
+    const reporterIds = [
+      ...new Set([...jobRows, ...companyRows].map((r) => r.reporter_id).filter(Boolean)),
+    ] as string[];
+    const { data: reporters } = reporterIds.length
+      ? await supabaseAdmin.from("profiles").select("id, full_name, email").in("id", reporterIds)
+      : { data: [] as Reporter[] };
+    const reporterMap = new Map((reporters ?? []).map((r) => [r.id, r as Reporter]));
+
+    const jobs = jobRows.map((r) => ({
+      id: r.id,
+      type: "job" as const,
+      reason: r.reason,
+      details: r.details,
+      status: r.status,
+      createdAt: r.created_at,
+      resolvedAt: r.resolved_at,
+      reporter: reporterMap.get(r.reporter_id ?? "") ?? null,
+      targetId: r.job_id,
+      targetTitle: r.jobs?.title ?? "Unknown job",
+      companyName: r.jobs?.companies?.name ?? null,
+    }));
+    const companies = companyRows.map((r) => ({
+      id: r.id,
+      type: "company" as const,
+      reason: r.reason,
+      details: r.details,
+      status: r.status,
+      createdAt: r.created_at,
+      resolvedAt: r.resolved_at,
+      reporter: reporterMap.get(r.reporter_id ?? "") ?? null,
+      targetId: r.company_id,
+      targetTitle: r.companies?.name ?? "Unknown company",
+      companyName: null as string | null,
+    }));
+
+    return { rows: [...jobs, ...companies].sort((a, b) => b.createdAt.localeCompare(a.createdAt)) };
+  });
+
+export const adminResolveReport = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator(
+    (d: {
+      reportId: string;
+      reportType: "job" | "company";
+      action: "dismissed" | "flagged" | "banned";
+    }) => d,
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const rpcName =
+      data.reportType === "job" ? "admin_resolve_job_report" : "admin_resolve_company_report";
+    const { error } = await supabaseAdmin.rpc(
+      rpcName as never,
+      {
+        _report_id: data.reportId,
+        _action: data.action,
+        _actor: context.userId,
+      } as never,
+    );
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const adminReverseReport = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((d: { reportId: string; reportType: "job" | "company" }) => d)
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const rpcName =
+      data.reportType === "job" ? "admin_reverse_job_report" : "admin_reverse_company_report";
+    const { error } = await supabaseAdmin.rpc(
+      rpcName as never,
+      {
+        _report_id: data.reportId,
+        _actor: context.userId,
+      } as never,
+    );
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -217,7 +419,10 @@ export const adminListResumes = createServerFn({ method: "POST" })
     const rowsIn = merged.slice(0, 200);
 
     const ids = [...new Set(rowsIn.map((r) => r.user_id))];
-    const profileById = new Map<string, { full_name: string | null; mobile: string | null; email: string | null }>();
+    const profileById = new Map<
+      string,
+      { full_name: string | null; mobile: string | null; email: string | null }
+    >();
     for (let i = 0; i < ids.length; i += 100) {
       const { data: ps, error: pErr } = await supabaseAdmin
         .from("profiles")
@@ -231,8 +436,11 @@ export const adminListResumes = createServerFn({ method: "POST" })
     const paths = rowsIn.map((r) => r.file_path);
     const viewByPath = new Map<string, string>();
     if (paths.length) {
-      const { data: viewUrls } = await supabaseAdmin.storage.from("candidate-docs").createSignedUrls(paths, 3600);
-      for (const u of viewUrls ?? []) if (u.path && u.signedUrl) viewByPath.set(u.path, u.signedUrl);
+      const { data: viewUrls } = await supabaseAdmin.storage
+        .from("candidate-docs")
+        .createSignedUrls(paths, 3600);
+      for (const u of viewUrls ?? [])
+        if (u.path && u.signedUrl) viewByPath.set(u.path, u.signedUrl);
     }
     const rows = [];
     for (const r of rowsIn) {
