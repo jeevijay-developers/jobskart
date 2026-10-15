@@ -17,12 +17,30 @@ export type JsonRecord = Record<string, string | number | boolean | null>;
 // Static badge class map — all strings must be written in full so Tailwind JIT
 // can detect them at build time (dynamic template strings are NOT scanned).
 const OUTCOME_TONE_MAP: Record<string, { bg: string; text: string }> = {
-  connected_interested:     { bg: "bg-emerald-100 dark:bg-emerald-900/40", text: "text-emerald-700 dark:text-emerald-300" },
-  connected_neutral:        { bg: "bg-blue-100 dark:bg-blue-900/40",       text: "text-blue-700 dark:text-blue-300" },
-  connected_not_interested: { bg: "bg-slate-100 dark:bg-slate-800",        text: "text-slate-500 dark:text-slate-400" },
-  no_answer:                { bg: "bg-amber-100 dark:bg-amber-900/40",     text: "text-amber-700 dark:text-amber-400" },
-  switched_off:             { bg: "bg-amber-100 dark:bg-amber-900/40",     text: "text-amber-700 dark:text-amber-400" },
-  wrong_number:             { bg: "bg-slate-100 dark:bg-slate-800",        text: "text-slate-500 dark:text-slate-400" },
+  connected_interested: {
+    bg: "bg-emerald-100 dark:bg-emerald-900/40",
+    text: "text-emerald-700 dark:text-emerald-300",
+  },
+  connected_neutral: {
+    bg: "bg-blue-100 dark:bg-blue-900/40",
+    text: "text-blue-700 dark:text-blue-300",
+  },
+  connected_not_interested: {
+    bg: "bg-slate-100 dark:bg-slate-800",
+    text: "text-slate-500 dark:text-slate-400",
+  },
+  no_answer: {
+    bg: "bg-amber-100 dark:bg-amber-900/40",
+    text: "text-amber-700 dark:text-amber-400",
+  },
+  switched_off: {
+    bg: "bg-amber-100 dark:bg-amber-900/40",
+    text: "text-amber-700 dark:text-amber-400",
+  },
+  wrong_number: {
+    bg: "bg-slate-100 dark:bg-slate-800",
+    text: "text-slate-500 dark:text-slate-400",
+  },
 };
 
 /** Returns a combined Tailwind class string for a call outcome badge. */
@@ -32,14 +50,13 @@ export function getOutcomeBadgeClass(outcomeId: string): string {
 }
 
 export const CALL_OUTCOMES: { id: CallOutcome; label: string }[] = [
-  { id: "connected_interested",     label: "Interested" },
-  { id: "connected_neutral",        label: "Connected" },
+  { id: "connected_interested", label: "Interested" },
+  { id: "connected_neutral", label: "Connected" },
   { id: "connected_not_interested", label: "Not interested" },
-  { id: "no_answer",                label: "No answer" },
-  { id: "switched_off",             label: "Switched off" },
-  { id: "wrong_number",             label: "Wrong number" },
+  { id: "no_answer", label: "No answer" },
+  { id: "switched_off", label: "Switched off" },
+  { id: "wrong_number", label: "Wrong number" },
 ];
-
 
 // Stable error codes raised by the CRM RPCs in
 // supabase/migrations/20260929090000_employer_crm_automation.sql (plus the
@@ -48,10 +65,8 @@ const CRM_ERROR_MESSAGES: Record<string, string> = {
   not_a_member: "You don't have access to this company's CRM.",
   insufficient_role: "Only company admins can manage automation rules.",
   application_not_found: "This application could not be found.",
-  contact_not_unlocked:
-    "Unlock this candidate's contact details before logging calls.",
-  rule_limit_reached:
-    "Your plan's automation rule limit is reached — pause a rule or upgrade.",
+  contact_not_unlocked: "Unlock this candidate's contact details before logging calls.",
+  rule_limit_reached: "Your plan's automation rule limit is reached — pause a rule or upgrade.",
   automation_disabled: "Automation is not available on your plan.",
   task_not_found: "This follow-up task could not be found.",
   rule_not_found: "This automation rule could not be found.",
@@ -59,6 +74,7 @@ const CRM_ERROR_MESSAGES: Record<string, string> = {
   insufficient_permissions_or_invalid_transition:
     "Some candidates can't move to that status (hired/rejected are final).",
   invalid_status: "That status is not allowed.",
+  lead_not_found: "This lead could not be found.",
 };
 
 export function mapCrmError(message: string): string {
@@ -76,14 +92,7 @@ export const moveStage = createServerFn({ method: "POST" })
     z
       .object({
         applicationIds: z.array(uuid).min(1),
-        status: z.enum([
-          "applied",
-          "shortlisted",
-          "interview",
-          "hired",
-          "rejected",
-          "withdrawn",
-        ]),
+        status: z.enum(["applied", "shortlisted", "interview", "hired", "rejected", "withdrawn"]),
       })
       .parse(input),
   )
@@ -136,9 +145,7 @@ export const logCall = createServerFn({ method: "POST" })
 
 export const getCalls = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((input: unknown) =>
-    z.object({ companyId: uuid, candidateId: uuid }).parse(input),
-  )
+  .validator((input: unknown) => z.object({ companyId: uuid, candidateId: uuid }).parse(input))
   .handler(async ({ data, context }) => {
     const { data: rows, error } = await context.supabase
       .from("call_logs")
@@ -175,6 +182,9 @@ export const saveTask = createServerFn({ method: "POST" })
         body: z.string().max(2000).nullish(),
         priority: z.number().int().min(0).max(2).optional(),
         assigneeId: uuid.nullish(),
+        taskType: z
+          .enum(["call", "interview_followup", "send_message", "check_application", "other"])
+          .optional(),
       })
       .parse(input),
   )
@@ -190,7 +200,8 @@ export const saveTask = createServerFn({ method: "POST" })
       _body: data.body ?? undefined,
       _priority: data.priority ?? 1,
       _assignee_id: data.assigneeId ?? undefined,
-    });
+      _task_type: data.taskType ?? "call",
+    } as never);
     if (error) throw new Error(error.message);
     return { id: id as string };
   });
@@ -223,23 +234,39 @@ export const getTasks = createServerFn({ method: "POST" })
       .object({
         companyId: uuid,
         view: z.enum(["due", "overdue", "open", "all"]).default("due"),
+        // Range mode (used by the Follow-up Calendar): when from/to are
+        // given, they take over windowing entirely and `view` is ignored —
+        // existing `view`-only callers are unaffected.
+        from: z.string().datetime().optional(),
+        to: z.string().datetime().optional(),
+        status: z.enum(["open", "done", "snoozed", "cancelled", "all"]).optional(),
+        search: z.string().max(140).optional(),
       })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
     const now = new Date().toISOString();
+    const ranged = !!(data.from && data.to);
     let qy = context.supabase
       .from("follow_up_tasks")
       .select(
-        "id, title, body, priority, due_at, status, source, application_id, job_id, candidate_id, assignee_id, profiles!candidate_id (full_name, avatar_url)",
+        "id, title, body, priority, due_at, status, source, application_id, job_id, candidate_id, assignee_id, task_type, profiles!candidate_id (full_name, avatar_url)" as never,
       )
       .eq("company_id", data.companyId)
       .order("due_at", { ascending: true })
-      .limit(100);
-    if (data.view !== "all") qy = qy.eq("status", "open");
-    if (data.view === "due")
-      qy = qy.gte("due_at", now).lte("due_at", new Date(Date.now() + 86_400_000).toISOString());
-    if (data.view === "overdue") qy = qy.lt("due_at", now);
+      .limit(ranged ? 500 : 100);
+
+    if (ranged) {
+      qy = qy.gte("due_at", data.from!).lt("due_at", data.to!);
+      if (data.status && data.status !== "all") qy = qy.eq("status", data.status);
+      if (data.search) qy = qy.ilike("title", `%${data.search}%`);
+    } else {
+      if (data.view !== "all") qy = qy.eq("status", "open");
+      if (data.view === "due")
+        qy = qy.gte("due_at", now).lte("due_at", new Date(Date.now() + 86_400_000).toISOString());
+      if (data.view === "overdue") qy = qy.lt("due_at", now);
+    }
+
     const { data: rows, error } = await qy;
     if (error) throw new Error(error.message);
     return rows as unknown as {
@@ -254,6 +281,7 @@ export const getTasks = createServerFn({ method: "POST" })
       job_id: string | null;
       candidate_id: string;
       assignee_id: string | null;
+      task_type: string;
       profiles: { full_name: string | null; avatar_url: string | null } | null;
     }[];
   });
@@ -313,16 +341,47 @@ export const getLeads = createServerFn({ method: "POST" })
     return rows as Database["public"]["Functions"]["get_crm_leads"]["Returns"];
   });
 
+export const updateLeadStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z
+      .object({
+        companyId: uuid,
+        candidateUserId: uuid,
+        status: z.enum([
+          "new",
+          "contacted",
+          "interested",
+          "follow_up_required",
+          "not_interested",
+          "unreachable",
+        ]),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.rpc(
+      "update_lead_status" as never,
+      {
+        _company_id: data.companyId,
+        _candidate_user_id: data.candidateUserId,
+        _status: data.status,
+      } as never,
+    );
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 export const getNextBestActions = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) =>
     z.object({ companyId: uuid, limit: z.number().int().min(1).max(20).optional() }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { data: rows, error } = await context.supabase.rpc(
-      "get_crm_next_best_actions",
-      { _company_id: data.companyId, _limit: data.limit ?? 8 },
-    );
+    const { data: rows, error } = await context.supabase.rpc("get_crm_next_best_actions", {
+      _company_id: data.companyId,
+      _limit: data.limit ?? 8,
+    });
     if (error) throw new Error(error.message);
     return rows as Database["public"]["Functions"]["get_crm_next_best_actions"]["Returns"];
   });
@@ -333,7 +392,9 @@ export const getRules = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: rows, error } = await context.supabase
       .from("automation_rules")
-      .select("id, name, trigger, conditions, action, action_payload, enabled, cooldown_hours, max_fires_per_lead, created_at")
+      .select(
+        "id, name, trigger, conditions, action, action_payload, enabled, cooldown_hours, max_fires_per_lead, created_at",
+      )
       .eq("company_id", data.companyId)
       .order("created_at", { ascending: true });
     if (error) throw new Error(error.message);
@@ -370,7 +431,12 @@ export const saveRule = createServerFn({ method: "POST" })
         ruleId: uuid.nullish(),
         conditions: z.record(z.string(), z.unknown()).optional(),
         actionPayload: z.record(z.string(), z.unknown()).optional(),
-        cooldownHours: z.number().int().min(0).max(24 * 30).optional(),
+        cooldownHours: z
+          .number()
+          .int()
+          .min(0)
+          .max(24 * 30)
+          .optional(),
         maxFiresPerLead: z.number().int().min(1).max(20).optional(),
       })
       .parse(input),
@@ -421,10 +487,9 @@ export const getEntitlement = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => z.object({ companyId: uuid }).parse(input))
   .handler(async ({ data, context }) => {
-    const { data: rows, error } = await context.supabase.rpc(
-      "company_crm_entitlement",
-      { _company_id: data.companyId },
-    );
+    const { data: rows, error } = await context.supabase.rpc("company_crm_entitlement", {
+      _company_id: data.companyId,
+    });
     if (error) throw new Error(error.message);
     const ent = (rows as { automation_enabled: boolean; rules_max: number }[] | null)?.[0];
     return { enabled: ent?.automation_enabled ?? false, rulesMax: ent?.rules_max ?? 0 };
