@@ -2,11 +2,16 @@ import { Link } from "@tanstack/react-router";
 import { formatDistanceToNow } from "date-fns";
 import {
   Activity,
+  Bot,
   Briefcase,
+  CheckCircle2,
   Clock,
   Coins,
   FileEdit,
+  ListTodo,
   Mail,
+  PhoneCall,
+  Power,
   RefreshCw,
   ShieldCheck,
   Unlock,
@@ -14,6 +19,7 @@ import {
   UserPlus,
   Users,
   XCircle,
+  Zap,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -46,6 +52,13 @@ const ICONS: Record<string, { icon: LucideIcon; tone: string }> = {
   "team.removed": { icon: XCircle, tone: "bg-surface text-muted-foreground" },
   "team.revoked": { icon: XCircle, tone: "bg-destructive-light text-destructive" },
   "team.reactivated": { icon: RefreshCw, tone: "bg-success-light text-success" },
+  crm_call_logged: { icon: PhoneCall, tone: "bg-primary-light text-primary" },
+  crm_task_created: { icon: ListTodo, tone: "bg-primary-light text-primary" },
+  crm_task_completed: { icon: CheckCircle2, tone: "bg-success-light text-success" },
+  crm_task_snoozed: { icon: Clock, tone: "bg-warning-light text-warning" },
+  crm_rule_saved: { icon: Bot, tone: "bg-primary-light text-primary" },
+  crm_rule_toggled: { icon: Power, tone: "bg-surface text-muted-foreground" },
+  crm_automation_fired: { icon: Zap, tone: "bg-success-light text-success" },
 };
 
 function iconFor(kind: string) {
@@ -101,12 +114,16 @@ export function ActivityFeed({
         const actor = actorLabel(it.actor);
         const body = (
           <div className="relative flex min-w-0 gap-3">
-            <span className={`relative z-10 grid h-8 w-8 shrink-0 place-items-center rounded-full ring-4 ring-card ${tone}`}>
+            <span
+              className={`relative z-10 grid h-8 w-8 shrink-0 place-items-center rounded-full ring-4 ring-card ${tone}`}
+            >
               <Icon className="h-4 w-4" />
             </span>
             <div className="min-w-0 flex-1 pt-1">
               <p className="truncate text-sm font-semibold text-foreground">{it.title}</p>
-              {it.body && <p className="mt-0.5 truncate text-xs text-muted-foreground">{it.body}</p>}
+              {it.body && (
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">{it.body}</p>
+              )}
               <p className="mt-0.5 text-[10px] uppercase tracking-wider text-muted-foreground/80">
                 {formatDistanceToNow(new Date(it.created_at), { addSuffix: true })}
                 {actor && (

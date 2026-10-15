@@ -93,7 +93,8 @@ import { Route as AuthenticatedCandidateInterviewPrepSessionIdRouteImport } from
 import { Route as AuthenticatedCandidateJobsJobIdRouteImport } from './routes/_authenticated/candidate/jobs.$jobId'
 import { Route as AuthenticatedCandidateLearningCornerSlugRouteImport } from './routes/_authenticated/candidate/learning-corner.$slug'
 import { Route as AuthenticatedCandidateQuizCategoryRouteImport } from './routes/_authenticated/candidate/quiz.$category'
-import { Route as AuthenticatedEmployerCrmAutomationRouteImport } from './routes/_authenticated/employer/crm.automation'
+import { Route as AuthenticatedEmployerCrmAutomationRouteImport } from './routes/_authenticated/employer/crm_.automation'
+import { Route as AuthenticatedEmployerCrmFollowUpsRouteImport } from './routes/_authenticated/employer/crm_.follow-ups'
 import { Route as AuthenticatedEmployerJobsBulkRouteImport } from './routes/_authenticated/employer/jobs.bulk'
 import { Route as AuthenticatedEmployerJobsNewRouteImport } from './routes/_authenticated/employer/jobs.new'
 import { Route as AuthenticatedEmployerLearningCornerSlugRouteImport } from './routes/_authenticated/employer/learning-corner.$slug'
@@ -568,9 +569,15 @@ const AuthenticatedCandidateQuizCategoryRoute =
   } as any)
 const AuthenticatedEmployerCrmAutomationRoute =
   AuthenticatedEmployerCrmAutomationRouteImport.update({
-    id: '/automation',
-    path: '/automation',
-    getParentRoute: () => AuthenticatedEmployerCrmRoute,
+    id: '/employer/crm_/automation',
+    path: '/employer/crm/automation',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedEmployerCrmFollowUpsRoute =
+  AuthenticatedEmployerCrmFollowUpsRouteImport.update({
+    id: '/employer/crm_/follow-ups',
+    path: '/employer/crm/follow-ups',
+    getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedEmployerJobsBulkRoute =
   AuthenticatedEmployerJobsBulkRouteImport.update({
@@ -724,7 +731,7 @@ export interface FileRoutesByFullPath {
   '/employer/activity': typeof AuthenticatedEmployerActivityRoute
   '/employer/company': typeof AuthenticatedEmployerCompanyRoute
   '/employer/credits': typeof AuthenticatedEmployerCreditsRoute
-  '/employer/crm': typeof AuthenticatedEmployerCrmRouteWithChildren
+  '/employer/crm': typeof AuthenticatedEmployerCrmRoute
   '/employer/dashboard': typeof AuthenticatedEmployerDashboardRoute
   '/employer/database': typeof AuthenticatedEmployerDatabaseRoute
   '/employer/inbox': typeof AuthenticatedEmployerInboxRoute
@@ -747,6 +754,7 @@ export interface FileRoutesByFullPath {
   '/candidate/learning-corner/$slug': typeof AuthenticatedCandidateLearningCornerSlugRoute
   '/candidate/quiz/$category': typeof AuthenticatedCandidateQuizCategoryRoute
   '/employer/crm/automation': typeof AuthenticatedEmployerCrmAutomationRoute
+  '/employer/crm/follow-ups': typeof AuthenticatedEmployerCrmFollowUpsRoute
   '/employer/jobs/bulk': typeof AuthenticatedEmployerJobsBulkRoute
   '/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
   '/employer/learning-corner/$slug': typeof AuthenticatedEmployerLearningCornerSlugRoute
@@ -824,7 +832,7 @@ export interface FileRoutesByTo {
   '/employer/activity': typeof AuthenticatedEmployerActivityRoute
   '/employer/company': typeof AuthenticatedEmployerCompanyRoute
   '/employer/credits': typeof AuthenticatedEmployerCreditsRoute
-  '/employer/crm': typeof AuthenticatedEmployerCrmRouteWithChildren
+  '/employer/crm': typeof AuthenticatedEmployerCrmRoute
   '/employer/dashboard': typeof AuthenticatedEmployerDashboardRoute
   '/employer/database': typeof AuthenticatedEmployerDatabaseRoute
   '/employer/inbox': typeof AuthenticatedEmployerInboxRoute
@@ -847,6 +855,7 @@ export interface FileRoutesByTo {
   '/candidate/learning-corner/$slug': typeof AuthenticatedCandidateLearningCornerSlugRoute
   '/candidate/quiz/$category': typeof AuthenticatedCandidateQuizCategoryRoute
   '/employer/crm/automation': typeof AuthenticatedEmployerCrmAutomationRoute
+  '/employer/crm/follow-ups': typeof AuthenticatedEmployerCrmFollowUpsRoute
   '/employer/jobs/bulk': typeof AuthenticatedEmployerJobsBulkRoute
   '/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
   '/employer/learning-corner/$slug': typeof AuthenticatedEmployerLearningCornerSlugRoute
@@ -927,7 +936,7 @@ export interface FileRoutesById {
   '/_authenticated/employer/activity': typeof AuthenticatedEmployerActivityRoute
   '/_authenticated/employer/company': typeof AuthenticatedEmployerCompanyRoute
   '/_authenticated/employer/credits': typeof AuthenticatedEmployerCreditsRoute
-  '/_authenticated/employer/crm': typeof AuthenticatedEmployerCrmRouteWithChildren
+  '/_authenticated/employer/crm': typeof AuthenticatedEmployerCrmRoute
   '/_authenticated/employer/dashboard': typeof AuthenticatedEmployerDashboardRoute
   '/_authenticated/employer/database': typeof AuthenticatedEmployerDatabaseRoute
   '/_authenticated/employer/inbox': typeof AuthenticatedEmployerInboxRoute
@@ -949,7 +958,8 @@ export interface FileRoutesById {
   '/_authenticated/candidate/jobs/$jobId': typeof AuthenticatedCandidateJobsJobIdRoute
   '/_authenticated/candidate/learning-corner/$slug': typeof AuthenticatedCandidateLearningCornerSlugRoute
   '/_authenticated/candidate/quiz/$category': typeof AuthenticatedCandidateQuizCategoryRoute
-  '/_authenticated/employer/crm/automation': typeof AuthenticatedEmployerCrmAutomationRoute
+  '/_authenticated/employer/crm_/automation': typeof AuthenticatedEmployerCrmAutomationRoute
+  '/_authenticated/employer/crm_/follow-ups': typeof AuthenticatedEmployerCrmFollowUpsRoute
   '/_authenticated/employer/jobs/bulk': typeof AuthenticatedEmployerJobsBulkRoute
   '/_authenticated/employer/jobs/new': typeof AuthenticatedEmployerJobsNewRoute
   '/_authenticated/employer/learning-corner/$slug': typeof AuthenticatedEmployerLearningCornerSlugRoute
@@ -1053,6 +1063,7 @@ export interface FileRouteTypes {
     | '/candidate/learning-corner/$slug'
     | '/candidate/quiz/$category'
     | '/employer/crm/automation'
+    | '/employer/crm/follow-ups'
     | '/employer/jobs/bulk'
     | '/employer/jobs/new'
     | '/employer/learning-corner/$slug'
@@ -1153,6 +1164,7 @@ export interface FileRouteTypes {
     | '/candidate/learning-corner/$slug'
     | '/candidate/quiz/$category'
     | '/employer/crm/automation'
+    | '/employer/crm/follow-ups'
     | '/employer/jobs/bulk'
     | '/employer/jobs/new'
     | '/employer/learning-corner/$slug'
@@ -1254,7 +1266,8 @@ export interface FileRouteTypes {
     | '/_authenticated/candidate/jobs/$jobId'
     | '/_authenticated/candidate/learning-corner/$slug'
     | '/_authenticated/candidate/quiz/$category'
-    | '/_authenticated/employer/crm/automation'
+    | '/_authenticated/employer/crm_/automation'
+    | '/_authenticated/employer/crm_/follow-ups'
     | '/_authenticated/employer/jobs/bulk'
     | '/_authenticated/employer/jobs/new'
     | '/_authenticated/employer/learning-corner/$slug'
@@ -1898,12 +1911,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCandidateQuizCategoryRouteImport
       parentRoute: typeof AuthenticatedCandidateRouteRoute
     }
-    '/_authenticated/employer/crm/automation': {
-      id: '/_authenticated/employer/crm/automation'
-      path: '/automation'
+    '/_authenticated/employer/crm_/automation': {
+      id: '/_authenticated/employer/crm_/automation'
+      path: '/employer/crm/automation'
       fullPath: '/employer/crm/automation'
       preLoaderRoute: typeof AuthenticatedEmployerCrmAutomationRouteImport
-      parentRoute: typeof AuthenticatedEmployerCrmRoute
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/employer/crm_/follow-ups': {
+      id: '/_authenticated/employer/crm_/follow-ups'
+      path: '/employer/crm/follow-ups'
+      fullPath: '/employer/crm/follow-ups'
+      preLoaderRoute: typeof AuthenticatedEmployerCrmFollowUpsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/employer/jobs/bulk': {
       id: '/_authenticated/employer/jobs/bulk'
@@ -2082,21 +2102,6 @@ const AuthenticatedCandidateRouteRouteWithChildren =
     AuthenticatedCandidateRouteRouteChildren,
   )
 
-interface AuthenticatedEmployerCrmRouteChildren {
-  AuthenticatedEmployerCrmAutomationRoute: typeof AuthenticatedEmployerCrmAutomationRoute
-}
-
-const AuthenticatedEmployerCrmRouteChildren: AuthenticatedEmployerCrmRouteChildren =
-  {
-    AuthenticatedEmployerCrmAutomationRoute:
-      AuthenticatedEmployerCrmAutomationRoute,
-  }
-
-const AuthenticatedEmployerCrmRouteWithChildren =
-  AuthenticatedEmployerCrmRoute._addFileChildren(
-    AuthenticatedEmployerCrmRouteChildren,
-  )
-
 interface AuthenticatedEmployerJobsRouteChildren {
   AuthenticatedEmployerJobsBulkRoute: typeof AuthenticatedEmployerJobsBulkRoute
   AuthenticatedEmployerJobsNewRoute: typeof AuthenticatedEmployerJobsNewRoute
@@ -2127,7 +2132,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedEmployerActivityRoute: typeof AuthenticatedEmployerActivityRoute
   AuthenticatedEmployerCompanyRoute: typeof AuthenticatedEmployerCompanyRoute
   AuthenticatedEmployerCreditsRoute: typeof AuthenticatedEmployerCreditsRoute
-  AuthenticatedEmployerCrmRoute: typeof AuthenticatedEmployerCrmRouteWithChildren
+  AuthenticatedEmployerCrmRoute: typeof AuthenticatedEmployerCrmRoute
   AuthenticatedEmployerDashboardRoute: typeof AuthenticatedEmployerDashboardRoute
   AuthenticatedEmployerDatabaseRoute: typeof AuthenticatedEmployerDatabaseRoute
   AuthenticatedEmployerInboxRoute: typeof AuthenticatedEmployerInboxRoute
@@ -2140,6 +2145,8 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedEmployerVerificationRoute: typeof AuthenticatedEmployerVerificationRoute
   AuthenticatedOnboardingCandidateRoute: typeof AuthenticatedOnboardingCandidateRoute
   AuthenticatedOnboardingEmployerRoute: typeof AuthenticatedOnboardingEmployerRoute
+  AuthenticatedEmployerCrmAutomationRoute: typeof AuthenticatedEmployerCrmAutomationRoute
+  AuthenticatedEmployerCrmFollowUpsRoute: typeof AuthenticatedEmployerCrmFollowUpsRoute
   AuthenticatedEmployerLearningCornerSlugRoute: typeof AuthenticatedEmployerLearningCornerSlugRoute
 }
 
@@ -2149,7 +2156,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedEmployerActivityRoute: AuthenticatedEmployerActivityRoute,
   AuthenticatedEmployerCompanyRoute: AuthenticatedEmployerCompanyRoute,
   AuthenticatedEmployerCreditsRoute: AuthenticatedEmployerCreditsRoute,
-  AuthenticatedEmployerCrmRoute: AuthenticatedEmployerCrmRouteWithChildren,
+  AuthenticatedEmployerCrmRoute: AuthenticatedEmployerCrmRoute,
   AuthenticatedEmployerDashboardRoute: AuthenticatedEmployerDashboardRoute,
   AuthenticatedEmployerDatabaseRoute: AuthenticatedEmployerDatabaseRoute,
   AuthenticatedEmployerInboxRoute: AuthenticatedEmployerInboxRoute,
@@ -2163,6 +2170,10 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedEmployerVerificationRoute,
   AuthenticatedOnboardingCandidateRoute: AuthenticatedOnboardingCandidateRoute,
   AuthenticatedOnboardingEmployerRoute: AuthenticatedOnboardingEmployerRoute,
+  AuthenticatedEmployerCrmAutomationRoute:
+    AuthenticatedEmployerCrmAutomationRoute,
+  AuthenticatedEmployerCrmFollowUpsRoute:
+    AuthenticatedEmployerCrmFollowUpsRoute,
   AuthenticatedEmployerLearningCornerSlugRoute:
     AuthenticatedEmployerLearningCornerSlugRoute,
 }

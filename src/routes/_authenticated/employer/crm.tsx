@@ -1,12 +1,9 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
   CalendarClock,
-  CheckCircle2,
-  Clock,
   ExternalLink,
-  ListTodo,
   PhoneCall,
   RefreshCw,
   Search,
@@ -19,6 +16,23 @@ import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { EmployerShell } from "@/components/employer/EmployerShell";
 import { CallLogDrawer } from "@/components/employer/CallLogDrawer";
+import { ApplicantStatusMenu } from "@/components/employer/ApplicantStatusMenu";
+import { LeadStatusMenu } from "@/components/employer/LeadStatusMenu";
+import {
+  ApplicantReviewPanel,
+  type ReviewApplicant,
+} from "@/components/employer/ApplicantReviewPanel";
+import { ScheduleInterviewModal } from "@/components/employer/ScheduleInterviewModal";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { ThemedListDropdown } from "@/components/ui/themed-form-controls";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchMyCompanies, getActiveCompanyId } from "@/lib/employer";
@@ -28,11 +42,13 @@ import {
   getNextBestActions,
   getOutcomeBadgeClass,
   getTaskCounts,
-  getTasks,
   mapCrmError,
-  setTaskStatus,
+  moveStage,
+  updateLeadStatus,
+  type ApplicationStatus,
 } from "@/lib/crm.functions";
 import { applicantStatusLabel } from "@/lib/applicantStatus";
+import { leadStatusLabel } from "@/lib/leadStatus";
 
 export const Route = createFileRoute("/_authenticated/employer/crm")({
   head: () => ({ meta: [{ title: "CRM · JobsKart Employer" }] }),
@@ -58,21 +74,6 @@ type Lead = {
   open_tasks: number;
   next_follow_up_at: string | null;
   total_count: number;
-};
-
-type TaskItem = {
-  id: string;
-  title: string;
-  body: string | null;
-  priority: number;
-  due_at: string;
-  status: "open" | "done" | "snoozed" | "cancelled";
-  source: string;
-  application_id: string | null;
-  job_id: string | null;
-  candidate_id: string;
-  assignee_id: string | null;
-  profiles: { full_name: string | null; avatar_url: string | null } | null;
 };
 
 type BestAction = {
@@ -135,18 +136,26 @@ function CrmHubPage() {
   const [bestActions, setBestActions] = useState<BestAction[]>([]);
   const [loadingActions, setLoadingActions] = useState(false);
 
-  // Follow-up tasks panel state
-  const [tasks, setTasks] = useState<TaskItem[]>([]);
-  const [taskFilter, setTaskFilter] = useState<"due" | "overdue" | "all">("due");
-  const [loadingTasks, setLoadingTasks] = useState(false);
-
   const [calling, setCalling] = useState<Lead | null>(null);
+  const [updatingLeadId, setUpdatingLeadId] = useState<string | null>(null);
+  const [pendingStatus, setPendingStatus] = useState<{
+    lead: Lead;
+    status: ApplicationStatus;
+  } | null>(null);
+  const [pendingBusy, setPendingBusy] = useState(false);
+  const [scheduling, setScheduling] = useState<{
+    applicationId: string;
+    candidateName: string | null;
+  } | null>(null);
+  const [reviewing, setReviewing] = useState<ReviewApplicant | null>(null);
+  const [reviewingLead, setReviewingLead] = useState<Lead | null>(null);
+  const [reviewingHasApplication, setReviewingHasApplication] = useState(false);
 
   const fetchLeads = useServerFn(getLeads);
   const fetchTaskCounts = useServerFn(getTaskCounts);
-  const fetchTasks = useServerFn(getTasks);
-  const updateTaskStatus = useServerFn(setTaskStatus);
   const fetchNextBestActions = useServerFn(getNextBestActions);
+  const move = useServerFn(moveStage);
+  const updateLeadStatusFn = useServerFn(updateLeadStatus);
 
   useEffect(() => {
     (async () => {
@@ -218,19 +227,6 @@ function CrmHubPage() {
     }
   };
 
-  const loadTasksList = async () => {
-    if (!cid) return;
-    setLoadingTasks(true);
-    try {
-      const res = await fetchTasks({ data: { companyId: cid, view: taskFilter } });
-      setTasks((res as TaskItem[]) || []);
-    } catch (e) {
-      // ignore silently or show toast
-    } finally {
-      setLoadingTasks(false);
-    }
-  };
-
   const loadActions = async () => {
     if (!cid) return;
     setLoadingActions(true);
@@ -248,40 +244,186 @@ function CrmHubPage() {
     if (cid) {
       loadLeads(0);
       loadKpis();
-      loadTasksList();
       loadActions();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cid, jobFilter, sourceFilter, stageFilter, contactedFilter]);
 
-  useEffect(() => {
-    if (cid) {
-      loadTasksList();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cid, taskFilter]);
-
-  const handleCompleteTask = async (taskId: string) => {
+  // A lead's status can only change when it has a real application to write
+  // it to — get_crm_leads returns a genuine NULL application_id for
+  // unlock-only leads, never a fake one, so this mirrors that directly.
+  const applyStatusChange = async (lead: Lead, status: ApplicationStatus) => {
+    if (!lead.application_id) return;
+    setUpdatingLeadId(lead.candidate_id);
     try {
-      await updateTaskStatus({ data: { taskId, status: "done" } });
-      toast.success("Task completed");
-      loadTasksList();
+      await move({ data: { applicationIds: [lead.application_id], status } });
+      toast.success(`Marked as ${applicantStatusLabel(status)}`);
+      loadLeads(offset);
       loadKpis();
+      setReviewingLead((prev) =>
+        prev && prev.candidate_id === lead.candidate_id ? { ...prev, stage: status } : prev,
+      );
+      setReviewing((prev) =>
+        prev && prev.candidate_id === lead.candidate_id ? { ...prev, status } : prev,
+      );
     } catch (e) {
-      toast.error(mapCrmError(e instanceof Error ? e.message : "Couldn't complete task"));
+      toast.error(mapCrmError(e instanceof Error ? e.message : "Couldn't update status"));
+    } finally {
+      setUpdatingLeadId(null);
     }
   };
 
-  const handleSnoozeTask = async (taskId: string) => {
-    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-    try {
-      await updateTaskStatus({ data: { taskId, status: "snoozed", newDueAt: tomorrow } });
-      toast.success("Task snoozed by 24h");
-      loadTasksList();
-      loadKpis();
-    } catch (e) {
-      toast.error(mapCrmError(e instanceof Error ? e.message : "Couldn't snooze task"));
+  const handleStatusChange = (lead: Lead, status: string) => {
+    if (!lead.application_id) return;
+    if (status === "interview") {
+      setScheduling({ applicationId: lead.application_id, candidateName: lead.full_name });
+      return;
     }
+    if (status === "hired" || status === "rejected") {
+      setPendingStatus({ lead, status: status as ApplicationStatus });
+      return;
+    }
+    applyStatusChange(lead, status as ApplicationStatus);
+  };
+
+  const confirmPendingStatus = async () => {
+    if (!pendingStatus) return;
+    setPendingBusy(true);
+    await applyStatusChange(pendingStatus.lead, pendingStatus.status);
+    setPendingBusy(false);
+    setPendingStatus(null);
+  };
+
+  // Unlocked leads with no application have nothing in `applications` to
+  // write a status to — this updates candidate_unlocks.lead_status instead,
+  // a separate record from the application-status workflow above.
+  const handleLeadStatusChange = async (lead: Lead, status: string) => {
+    if (!cid || lead.application_id) return;
+    setUpdatingLeadId(lead.candidate_id);
+    try {
+      await updateLeadStatusFn({
+        data: { companyId: cid, candidateUserId: lead.candidate_id, status: status as never },
+      });
+      toast.success(`Marked as ${leadStatusLabel(status)}`);
+      loadLeads(offset);
+    } catch (e) {
+      toast.error(mapCrmError(e instanceof Error ? e.message : "Couldn't update lead status"));
+    } finally {
+      setUpdatingLeadId(null);
+    }
+  };
+
+  // Opens the shared ApplicantReviewPanel for a CRM lead — same
+  // synthetic-then-patched pattern database.tsx's openProfile() already
+  // proves works for both application-backed and unlock-only candidates,
+  // simplified here since get_crm_leads already gives us the exact
+  // application_id (no need to guess the most recent application).
+  const openCandidateProfile = (lead: Lead) => {
+    setReviewingLead(lead);
+    setReviewingHasApplication(false);
+    setReviewing({
+      id: lead.application_id ?? lead.candidate_id,
+      candidate_id: lead.candidate_id,
+      status: lead.stage,
+      created_at: lead.applied_at ?? lead.unlocked_at ?? new Date().toISOString(),
+      cover_note: null,
+      expected_salary: null,
+      available_from: null,
+      profiles: { full_name: lead.full_name, email: null, mobile: null, city: lead.city },
+      candidate_profiles: {
+        profile_slug: null,
+        headline: lead.headline,
+        last_role: null,
+        skills: null,
+        whatsapp_available: false,
+      },
+    });
+
+    if (cid) {
+      supabase
+        .rpc("get_unlocked_candidate_contact", {
+          _company_id: cid,
+          _candidate_user_id: lead.candidate_id,
+        })
+        .then(({ data }) => {
+          const contact = (
+            data as Array<{ mobile: string | null; email: string | null }> | null
+          )?.[0];
+          if (!contact) return;
+          setReviewing((prev) =>
+            prev && prev.candidate_id === lead.candidate_id
+              ? {
+                  ...prev,
+                  profiles: {
+                    ...prev.profiles,
+                    mobile: contact.mobile,
+                    email: contact.email,
+                  } as ReviewApplicant["profiles"],
+                  candidate_profiles: {
+                    ...prev.candidate_profiles,
+                    whatsapp_available: true,
+                  } as ReviewApplicant["candidate_profiles"],
+                }
+              : prev,
+          );
+        });
+    }
+
+    supabase
+      .from("candidate_profiles")
+      .select("profile_slug, headline, last_role, skills")
+      .eq("user_id", lead.candidate_id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!data) return;
+        setReviewing((prev) =>
+          prev && prev.candidate_id === lead.candidate_id
+            ? {
+                ...prev,
+                candidate_profiles: {
+                  ...prev.candidate_profiles,
+                  profile_slug: data.profile_slug,
+                  headline: data.headline,
+                  last_role: data.last_role,
+                  skills: data.skills,
+                } as ReviewApplicant["candidate_profiles"],
+              }
+            : prev,
+        );
+      });
+
+    if (lead.application_id) {
+      supabase
+        .from("applications")
+        .select("id, status, created_at, cover_note, expected_salary, available_from")
+        .eq("id", lead.application_id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (!data) return;
+          setReviewingHasApplication(true);
+          setReviewing((prev) =>
+            prev && prev.candidate_id === lead.candidate_id
+              ? {
+                  ...prev,
+                  id: data.id,
+                  status: data.status,
+                  created_at: data.created_at,
+                  cover_note: data.cover_note,
+                  expected_salary: data.expected_salary,
+                  available_from: data.available_from,
+                }
+              : prev,
+          );
+        });
+    }
+  };
+
+  const handleReviewStatusChange = (status: string) => {
+    if (!reviewingLead || !reviewingHasApplication) {
+      toast.info("This candidate hasn't applied to a job at your company yet.");
+      return;
+    }
+    handleStatusChange(reviewingLead, status);
   };
 
   const kpis = useMemo(
@@ -292,9 +434,24 @@ function CrmHubPage() {
         value: counts.overdue,
         colorClass: counts.overdue > 0 ? "text-destructive" : "text-foreground",
       },
-      { icon: CalendarClock, label: "Due today", value: counts.dueToday, colorClass: "text-amber-600 dark:text-amber-400" },
-      { icon: UserPlus, label: "Uncontacted leads", value: uncontacted, colorClass: "text-primary" },
-      { icon: Users, label: "Hires (7 days)", value: hiresWeek, colorClass: "text-emerald-600 dark:text-emerald-400" },
+      {
+        icon: CalendarClock,
+        label: "Due today",
+        value: counts.dueToday,
+        colorClass: "text-amber-600 dark:text-amber-400",
+      },
+      {
+        icon: UserPlus,
+        label: "Uncontacted leads",
+        value: uncontacted,
+        colorClass: "text-primary",
+      },
+      {
+        icon: Users,
+        label: "Hires (7 days)",
+        value: hiresWeek,
+        colorClass: "text-emerald-600 dark:text-emerald-400",
+      },
     ],
     [counts, uncontacted, hiresWeek],
   );
@@ -305,18 +462,11 @@ function CrmHubPage() {
       subtitle="Every lead across your jobs — calls, follow-ups and pipeline in one place."
       actions={
         <div className="flex flex-wrap gap-2">
-          <Link
-            to="/employer/crm/automation"
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold hover:bg-surface transition-colors"
-          >
-            <Zap className="h-3.5 w-3.5 text-primary" /> Automation
-          </Link>
           <button
             type="button"
             onClick={() => {
               loadLeads(offset);
               loadKpis();
-              loadTasksList();
               loadActions();
             }}
             className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold hover:bg-surface transition-colors"
@@ -348,7 +498,9 @@ function CrmHubPage() {
             <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-primary">
               <Sparkles className="h-4 w-4" /> Next Best Actions
             </h3>
-            <span className="text-[11px] font-medium text-muted-foreground">High priority queue</span>
+            <span className="text-[11px] font-medium text-muted-foreground">
+              High priority queue
+            </span>
           </div>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {bestActions.map((act, i) => (
@@ -361,9 +513,13 @@ function CrmHubPage() {
                     <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary capitalize">
                       {act.kind.replace(/_/g, " ")}
                     </span>
-                    <span className="text-[10px] font-bold text-muted-foreground">Score {act.score}</span>
+                    <span className="text-[10px] font-bold text-muted-foreground">
+                      Score {act.score}
+                    </span>
                   </div>
-                  <p className="mt-1 line-clamp-2 text-xs text-foreground font-medium">{act.reason}</p>
+                  <p className="mt-1 line-clamp-2 text-xs text-foreground font-medium">
+                    {act.reason}
+                  </p>
                 </div>
                 <button
                   type="button"
@@ -403,91 +559,6 @@ function CrmHubPage() {
           </div>
         </section>
       )}
-
-      {/* Follow-up Tasks Section */}
-      <section className="mb-4 rounded-xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
-          <h2 className="flex items-center gap-2 text-sm font-bold">
-            <ListTodo className="h-4 w-4 text-primary" /> Follow-Up Tasks
-            <span className="rounded-full bg-surface px-2 py-0.5 text-xs font-bold tabular-nums text-muted-foreground">
-              {tasks.length}
-            </span>
-          </h2>
-          <div className="flex gap-1.5">
-            {(["due", "overdue", "all"] as const).map((v) => (
-              <button
-                key={v}
-                type="button"
-                onClick={() => setTaskFilter(v)}
-                className={`rounded-lg px-2.5 py-1 text-xs font-semibold capitalize transition-colors ${
-                  taskFilter === v
-                    ? "bg-primary text-primary-foreground"
-                    : "border border-border bg-card text-muted-foreground hover:bg-surface"
-                }`}
-              >
-                {v}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {loadingTasks ? (
-          <div className="space-y-2 py-2">
-            {[0, 1].map((i) => (
-              <div key={i} className="h-12 animate-pulse rounded-lg bg-surface" />
-            ))}
-          </div>
-        ) : tasks.length === 0 ? (
-          <p className="py-4 text-center text-xs text-muted-foreground">
-            No {taskFilter} tasks found.
-          </p>
-        ) : (
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {tasks.map((t) => {
-              const isOverdue = new Date(t.due_at) < new Date();
-              return (
-                <div
-                  key={t.id}
-                  className="flex flex-col justify-between rounded-lg border border-border bg-surface/50 p-3"
-                >
-                  <div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="truncate text-xs font-bold text-foreground">
-                        {t.profiles?.full_name ?? "Candidate"}
-                      </span>
-                      <span
-                        className={`text-[10px] font-semibold ${
-                          isOverdue ? "text-destructive" : "text-muted-foreground"
-                        }`}
-                      >
-                        {formatDistanceToNow(new Date(t.due_at), { addSuffix: true })}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-xs text-foreground/90 font-medium">{t.title}</p>
-                    {t.body && <p className="mt-0.5 text-[11px] text-muted-foreground">{t.body}</p>}
-                  </div>
-                  <div className="mt-3 flex items-center justify-end gap-1.5 pt-2 border-t border-border/50">
-                    <button
-                      type="button"
-                      onClick={() => handleSnoozeTask(t.id)}
-                      className="inline-flex h-7 items-center gap-1 rounded border border-border bg-card px-2 text-[11px] font-semibold text-muted-foreground hover:bg-surface"
-                    >
-                      <Clock className="h-3 w-3" /> Snooze 24h
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleCompleteTask(t.id)}
-                      className="inline-flex h-7 items-center gap-1 rounded bg-emerald-600 px-2 text-[11px] font-semibold text-white hover:bg-emerald-700"
-                    >
-                      <CheckCircle2 className="h-3 w-3" /> Done
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
 
       {/* Filters */}
       <section className="mb-4 grid gap-2 rounded-xl border border-border bg-card p-3 shadow-[var(--shadow-card)] sm:grid-cols-2 lg:grid-cols-4">
@@ -585,21 +656,34 @@ function CrmHubPage() {
                     const followUpOverdue =
                       l.next_follow_up_at && new Date(l.next_follow_up_at) < new Date();
                     return (
-                      <tr key={l.candidate_id} className="border-b border-border/60 last:border-0 hover:bg-surface/50 transition-colors">
+                      <tr
+                        key={l.candidate_id}
+                        className="border-b border-border/60 last:border-0 hover:bg-surface/50 transition-colors"
+                      >
                         <td className="px-4 py-3">
-                          <div className="flex items-center gap-2.5">
+                          <button
+                            type="button"
+                            onClick={() => openCandidateProfile(l)}
+                            className="flex items-center gap-2.5 text-left"
+                          >
                             <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary-light text-xs font-bold text-primary">
-                              {(l.full_name ?? "?").split(" ").slice(0, 2).map((n) => n[0]).join("").toUpperCase()}
+                              {(l.full_name ?? "?")
+                                .split(" ")
+                                .slice(0, 2)
+                                .map((n) => n[0])
+                                .join("")
+                                .toUpperCase()}
                             </div>
                             <div className="min-w-0">
-                              <p className="truncate font-semibold text-foreground">
+                              <p className="truncate font-semibold text-foreground hover:underline">
                                 {l.full_name ?? "Candidate"}
                               </p>
                               <p className="truncate text-xs text-muted-foreground">
-                                {[l.headline, l.city, l.job_title].filter(Boolean).join(" · ") || "—"}
+                                {[l.headline, l.city, l.job_title].filter(Boolean).join(" · ") ||
+                                  "—"}
                               </p>
                             </div>
-                          </div>
+                          </button>
                         </td>
                         <td className="px-4 py-3">
                           <SourceBadge source={l.source} />
@@ -617,7 +701,9 @@ function CrmHubPage() {
                         <td className="px-4 py-3 text-xs">
                           {l.last_call_at ? (
                             <span className="flex flex-col gap-0.5">
-                              <span className={`inline-block w-fit rounded-full px-2 py-0.5 text-[10px] font-bold ${getOutcomeBadgeClass(l.last_outcome ?? "")}`}>
+                              <span
+                                className={`inline-block w-fit rounded-full px-2 py-0.5 text-[10px] font-bold ${getOutcomeBadgeClass(l.last_outcome ?? "")}`}
+                              >
                                 {lastOutcome?.label ?? l.last_outcome}
                               </span>
                               <span className="text-muted-foreground">
@@ -627,7 +713,9 @@ function CrmHubPage() {
                           ) : l.contacted ? (
                             <span className="text-muted-foreground">Contacted</span>
                           ) : (
-                            <span className="font-semibold text-amber-600 dark:text-amber-400">Not called yet</span>
+                            <span className="font-semibold text-amber-600 dark:text-amber-400">
+                              Not called yet
+                            </span>
                           )}
                         </td>
                         <td className="px-4 py-3 text-xs">
@@ -635,7 +723,9 @@ function CrmHubPage() {
                             <span
                               className={`font-semibold ${followUpOverdue ? "text-destructive" : "text-foreground/80"}`}
                             >
-                              {formatDistanceToNow(new Date(l.next_follow_up_at), { addSuffix: true })}
+                              {formatDistanceToNow(new Date(l.next_follow_up_at), {
+                                addSuffix: true,
+                              })}
                             </span>
                           ) : (
                             <span className="text-muted-foreground">—</span>
@@ -650,14 +740,43 @@ function CrmHubPage() {
                             >
                               <PhoneCall className="h-3.5 w-3.5" /> Log call
                             </button>
-                            {l.job_id && l.application_id && (
-                              <Link
-                                to="/employer/jobs/$jobId/applicants"
-                                params={{ jobId: l.job_id }}
-                                className="inline-flex h-8 items-center rounded-lg border border-border bg-card px-2.5 text-xs font-semibold hover:bg-surface transition-colors"
-                              >
-                                Pipeline
-                              </Link>
+                            {l.application_id ? (
+                              // Applicant / Applied + Unlocked: the authoritative
+                              // application-status workflow, same as /employer/responses.
+                              l.stage === "hired" || l.stage === "rejected" ? (
+                                // update_application_status() rejects any transition out of a
+                                // terminal state (hired/rejected) — disabled up front instead of
+                                // letting the recruiter pick an option that will always fail.
+                                <span
+                                  title={`${applicantStatusLabel(l.stage)} is final and can't be changed here`}
+                                  className="inline-flex h-8 cursor-not-allowed items-center rounded-lg border border-border bg-surface px-2.5 text-xs font-semibold text-muted-foreground"
+                                >
+                                  {applicantStatusLabel(l.stage)}
+                                </span>
+                              ) : (
+                                <ApplicantStatusMenu
+                                  value={l.stage}
+                                  onChange={(status) => handleStatusChange(l, status)}
+                                  className={
+                                    updatingLeadId === l.candidate_id
+                                      ? "pointer-events-none opacity-60"
+                                      : ""
+                                  }
+                                />
+                              )
+                            ) : (
+                              // Unlocked, no application yet: a separate lead-engagement
+                              // status tracked on candidate_unlocks.lead_status, never
+                              // written to the applications table.
+                              <LeadStatusMenu
+                                value={l.stage}
+                                onChange={(status) => handleLeadStatusChange(l, status)}
+                                className={
+                                  updatingLeadId === l.candidate_id
+                                    ? "pointer-events-none opacity-60"
+                                    : ""
+                                }
+                              />
                             )}
                           </div>
                         </td>
@@ -709,12 +828,64 @@ function CrmHubPage() {
           onLogged={() => {
             loadLeads(offset);
             loadKpis();
-            loadTasksList();
             loadActions();
           }}
+        />
+      )}
+
+      {scheduling && cid && (
+        <ScheduleInterviewModal
+          open
+          onOpenChange={(v) => !v && setScheduling(null)}
+          companyId={cid}
+          applicationId={scheduling.applicationId}
+          candidateName={scheduling.candidateName}
+          onScheduled={() => {
+            setScheduling(null);
+            loadLeads(offset);
+            loadKpis();
+          }}
+        />
+      )}
+
+      <AlertDialog
+        open={!!pendingStatus}
+        onOpenChange={(o) => {
+          if (!o) setPendingStatus(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Move {pendingStatus?.lead.full_name || "this candidate"} to{" "}
+              {pendingStatus ? applicantStatusLabel(pendingStatus.status) : ""}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This updates the candidate's application status right away. You can change it again
+              later if needed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={pendingBusy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmPendingStatus} disabled={pendingBusy}>
+              {pendingBusy ? "Updating…" : "Confirm"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {reviewing && cid && (
+        <ApplicantReviewPanel
+          applicant={reviewing}
+          onClose={() => {
+            setReviewing(null);
+            setReviewingLead(null);
+          }}
+          onStatusChange={handleReviewStatusChange}
+          companyId={cid}
+          jobId={reviewingLead?.job_id ?? null}
         />
       )}
     </EmployerShell>
   );
 }
-

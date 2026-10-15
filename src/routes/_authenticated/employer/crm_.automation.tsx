@@ -31,9 +31,7 @@ import {
   saveRule,
 } from "@/lib/crm.functions";
 
-export const Route = createFileRoute(
-  "/_authenticated/employer/crm/automation",
-)({
+export const Route = createFileRoute("/_authenticated/employer/crm_/automation")({
   head: () => ({ meta: [{ title: "CRM Automation · JobsKart Employer" }] }),
   component: CrmAutomationPage,
 });
@@ -65,6 +63,17 @@ type Run = {
   candidate_id: string | null;
   application_id: string | null;
   automation_rules: { name: string } | null;
+};
+
+// Mirrors crm_rule_candidates()'s own defaults (COALESCE((_conditions->>'hours')::int, ...)
+// in supabase/migrations/20260929090000_employer_crm_automation.sql) so the form's
+// starting value matches what the engine would use if conditions were left empty.
+const TRIGGER_DEFAULT_HOURS: Record<Rule["trigger"], number> = {
+  application_uncontacted_h: 24,
+  call_no_answer: 4,
+  stage_stalled_h: 72,
+  task_overdue_h: 24,
+  unlock_unused_h: 48,
 };
 
 function triggerLabel(t: string) {
@@ -111,10 +120,19 @@ function CrmAutomationPage() {
 
   // New rule form states
   const [ruleName, setRuleName] = useState("");
-  const [trigger, setTrigger] = useState<Rule["trigger"]>(
-    "application_uncontacted_h",
-  );
+  const [trigger, setTrigger] = useState<Rule["trigger"]>("application_uncontacted_h");
   const [action, setAction] = useState<Rule["action"]>("create_task");
+  const [thresholdHours, setThresholdHours] = useState(
+    TRIGGER_DEFAULT_HOURS.application_uncontacted_h,
+  );
+  const [cooldownHours, setCooldownHours] = useState(24);
+  const [maxFiresPerLead, setMaxFiresPerLead] = useState(3);
+  const [taskTitle, setTaskTitle] = useState("");
+  const [taskHoursUntilDue, setTaskHoursUntilDue] = useState(24);
+  const [taskPriority, setTaskPriority] = useState(1);
+  const [moveToStatus, setMoveToStatus] = useState<"applied" | "shortlisted" | "interview">(
+    "shortlisted",
+  );
 
   const fetchEntitlement = useServerFn(getEntitlement);
   const fetchRules = useServerFn(getRules);
@@ -153,11 +171,7 @@ function CrmAutomationPage() {
         setRuns(runList as Run[]);
       }
     } catch (e) {
-      toast.error(
-        mapCrmError(
-          e instanceof Error ? e.message : "Failed to load automations",
-        ),
-      );
+      toast.error(mapCrmError(e instanceof Error ? e.message : "Failed to load automations"));
     } finally {
       setLoading(false);
     }
@@ -188,15 +202,23 @@ function CrmAutomationPage() {
       toast.success(rule.enabled ? "Rule paused" : "Rule active");
       loadData();
     } catch (e) {
-      toast.error(
-        mapCrmError(e instanceof Error ? e.message : "Couldn't update rule"),
-      );
+      toast.error(mapCrmError(e instanceof Error ? e.message : "Couldn't update rule"));
     }
   };
 
   const handleCreateRule = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!cid || !ruleName.trim()) return;
+    const actionPayload: Record<string, unknown> =
+      action === "create_task"
+        ? {
+            title: taskTitle.trim() || undefined,
+            hours_until_due: taskHoursUntilDue,
+            priority: taskPriority,
+          }
+        : action === "move_stage"
+          ? { to_status: moveToStatus }
+          : {};
     try {
       await saveRuleFn({
         data: {
@@ -205,19 +227,25 @@ function CrmAutomationPage() {
           trigger,
           action,
           enabled: true,
-          cooldownHours: 24,
-          maxFiresPerLead: 3,
+          conditions: { hours: thresholdHours },
+          actionPayload,
+          cooldownHours,
+          maxFiresPerLead,
         },
       });
       toast.success("Automation rule created");
       setRuleName("");
+      setTaskTitle("");
       setCreating(false);
       loadData();
     } catch (err) {
-      toast.error(
-        mapCrmError(err instanceof Error ? err.message : "Failed to save rule"),
-      );
+      toast.error(mapCrmError(err instanceof Error ? err.message : "Failed to save rule"));
     }
+  };
+
+  const handleTriggerChange = (t: Rule["trigger"]) => {
+    setTrigger(t);
+    setThresholdHours(TRIGGER_DEFAULT_HOURS[t]);
   };
 
   const handleApplyDefaults = async () => {
@@ -227,11 +255,7 @@ function CrmAutomationPage() {
       toast.success("Default CRM rules initialized");
       loadData();
     } catch (err) {
-      toast.error(
-        mapCrmError(
-          err instanceof Error ? err.message : "Failed to add default rules",
-        ),
-      );
+      toast.error(mapCrmError(err instanceof Error ? err.message : "Failed to add default rules"));
     }
   };
 
@@ -276,12 +300,10 @@ function CrmAutomationPage() {
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
             <Lock className="h-7 w-7" />
           </div>
-          <h2 className="mt-4 text-lg font-bold text-foreground">
-            CRM Automation Not Available
-          </h2>
+          <h2 className="mt-4 text-lg font-bold text-foreground">CRM Automation Not Available</h2>
           <p className="mt-1.5 max-w-md text-sm text-muted-foreground">
-            Automated workflows, lead triggers, and scheduled follow-ups require
-            an upgraded company hiring plan.
+            Automated workflows, lead triggers, and scheduled follow-ups require an upgraded company
+            hiring plan.
           </p>
           <Link
             to="/employer/credits"
@@ -299,8 +321,7 @@ function CrmAutomationPage() {
                 Active Rules ({rules.length}/{entitlement?.rulesMax ?? 5})
               </h2>
               <p className="text-xs text-muted-foreground">
-                Automations execute in the background via event triggers and cron
-                schedules.
+                Automations execute in the background via event triggers and cron schedules.
               </p>
             </div>
             <div className="flex gap-2">
@@ -316,7 +337,7 @@ function CrmAutomationPage() {
               <button
                 type="button"
                 onClick={() => setCreating(!creating)}
-                disabled={(rules.length >= (entitlement?.rulesMax ?? 5)) && !creating}
+                disabled={rules.length >= (entitlement?.rulesMax ?? 5) && !creating}
                 className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-50 transition-colors"
               >
                 <Plus className="h-3.5 w-3.5" /> {creating ? "Cancel" : "Add Rule"}
@@ -330,9 +351,7 @@ function CrmAutomationPage() {
               onSubmit={handleCreateRule}
               className="rounded-2xl border border-primary/20 bg-card p-5 shadow-sm space-y-4"
             >
-              <h3 className="text-sm font-bold text-foreground">
-                New Automation Rule
-              </h3>
+              <h3 className="text-sm font-bold text-foreground">New Automation Rule</h3>
               <div className="grid gap-3 sm:grid-cols-3">
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-muted-foreground">
@@ -354,12 +373,10 @@ function CrmAutomationPage() {
                   </label>
                   <select
                     value={trigger}
-                    onChange={(e) => setTrigger(e.target.value as Rule["trigger"])}
+                    onChange={(e) => handleTriggerChange(e.target.value as Rule["trigger"])}
                     className="form-input h-10 w-full text-sm"
                   >
-                    <option value="application_uncontacted_h">
-                      Uncontacted for 24 hours
-                    </option>
+                    <option value="application_uncontacted_h">Uncontacted for 24 hours</option>
                     <option value="call_no_answer">Call missed / no answer</option>
                     <option value="stage_stalled_h">Stage stalled 48 hours</option>
                     <option value="task_overdue_h">Task overdue</option>
@@ -381,6 +398,115 @@ function CrmAutomationPage() {
                   </select>
                 </div>
               </div>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-muted-foreground">
+                    Threshold (hours)
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={24 * 30}
+                    value={thresholdHours}
+                    onChange={(e) => setThresholdHours(Number(e.target.value))}
+                    className="form-input h-10 w-full text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-muted-foreground">
+                    Cooldown (hours)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={24 * 30}
+                    value={cooldownHours}
+                    onChange={(e) => setCooldownHours(Number(e.target.value))}
+                    className="form-input h-10 w-full text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-muted-foreground">
+                    Max fires per lead
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={20}
+                    value={maxFiresPerLead}
+                    onChange={(e) => setMaxFiresPerLead(Number(e.target.value))}
+                    className="form-input h-10 w-full text-sm"
+                  />
+                </div>
+              </div>
+
+              {action === "create_task" && (
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-muted-foreground">
+                      Task title
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={140}
+                      placeholder="Follow up"
+                      value={taskTitle}
+                      onChange={(e) => setTaskTitle(e.target.value)}
+                      className="form-input h-10 w-full text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-muted-foreground">
+                      Due in (hours)
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={24 * 30}
+                      value={taskHoursUntilDue}
+                      onChange={(e) => setTaskHoursUntilDue(Number(e.target.value))}
+                      className="form-input h-10 w-full text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-muted-foreground">
+                      Priority
+                    </label>
+                    <select
+                      value={taskPriority}
+                      onChange={(e) => setTaskPriority(Number(e.target.value))}
+                      className="form-input h-10 w-full text-sm"
+                    >
+                      <option value={0}>Low</option>
+                      <option value={1}>Medium</option>
+                      <option value={2}>High</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {action === "move_stage" && (
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-muted-foreground">
+                      Move to stage
+                    </label>
+                    <select
+                      value={moveToStatus}
+                      onChange={(e) =>
+                        setMoveToStatus(e.target.value as "applied" | "shortlisted" | "interview")
+                      }
+                      className="form-input h-10 w-full text-sm"
+                    >
+                      <option value="applied">Applied</option>
+                      <option value="shortlisted">Shortlisted</option>
+                      <option value="interview">Interview</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
               <div className="flex justify-end gap-2">
                 <button
                   type="button"
@@ -404,9 +530,7 @@ function CrmAutomationPage() {
             {rules.length === 0 ? (
               <div className="rounded-xl border border-dashed border-border p-8 text-center">
                 <Bot className="mx-auto mb-2 h-6 w-6 text-muted-foreground" />
-                <p className="text-sm font-semibold text-foreground">
-                  No automation rules yet
-                </p>
+                <p className="text-sm font-semibold text-foreground">No automation rules yet</p>
                 <p className="mt-1 text-xs text-muted-foreground">
                   Click 'Initialize Default Rules' or create a custom one above.
                 </p>
@@ -424,9 +548,7 @@ function CrmAutomationPage() {
                           r.enabled ? "bg-emerald-500" : "bg-muted-foreground/40"
                         }`}
                       />
-                      <h4 className="font-semibold text-sm text-foreground">
-                        {r.name}
-                      </h4>
+                      <h4 className="font-semibold text-sm text-foreground">{r.name}</h4>
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                       <span className="font-medium text-foreground/80">Trigger:</span>{" "}

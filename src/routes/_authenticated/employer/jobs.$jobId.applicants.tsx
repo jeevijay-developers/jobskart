@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { creditSpendMessage } from "@/lib/team-permissions";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -38,11 +38,12 @@ import { APPLICANT_STATUSES, applicantStatusLabel } from "@/lib/applicantStatus"
 import { mapCrmError, moveStage, type ApplicationStatus } from "@/lib/crm.functions";
 import { inviteCandidateToApply, unlockCandidateContact } from "@/lib/credits.functions";
 
-type ApplicantsSearch = { source?: "applied" | "recommended" };
+type ApplicantsSearch = { source?: "applied" | "recommended"; applicationId?: string };
 
 export const Route = createFileRoute("/_authenticated/employer/jobs/$jobId/applicants")({
   validateSearch: (search: Record<string, unknown>): ApplicantsSearch => ({
     source: search.source === "recommended" ? "recommended" : undefined,
+    applicationId: typeof search.applicationId === "string" ? search.applicationId : undefined,
   }),
   head: () => ({ meta: [{ title: "Applicants · JobsKart" }] }),
   // Remount per job: this route stays mounted across job-to-job navigation
@@ -491,7 +492,7 @@ function BoardCard({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 function ApplicantsPage() {
   const { jobId } = Route.useParams();
-  const { source: sourceParam } = Route.useSearch();
+  const { source: sourceParam, applicationId: deepLinkApplicationId } = Route.useSearch();
   const [job, setJob] = useState<{ title: string; status: string; company_id: string } | null>(
     null,
   );
@@ -505,6 +506,18 @@ function ApplicantsPage() {
   const [boardView, setBoardView] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [scheduling, setScheduling] = useState<Application | null>(null);
+  // Deep-link from CRM's "Open in Pipeline" (?applicationId=...): auto-open
+  // that specific applicant's review panel once `apps` has loaded, instead
+  // of leaving the recruiter on the generic board/list. Guarded so it only
+  // fires once per page load — switching tabs/filters afterward shouldn't
+  // keep re-opening it.
+  const deepLinkTried = useRef(false);
+  useEffect(() => {
+    if (deepLinkTried.current || !deepLinkApplicationId || apps.length === 0) return;
+    deepLinkTried.current = true;
+    const match = apps.find((a) => a.id === deepLinkApplicationId);
+    if (match) setReviewing(match);
+  }, [apps, deepLinkApplicationId]);
   const [ranked, setRanked] = useState<Record<string, { score: number; tags: string[] }>>({});
   // Applicants whose candidate attached an Interview Card (badge + optional filter only —
   // it never changes ranking, and not having a card is never held against a candidate).
@@ -660,11 +673,11 @@ function ApplicantsPage() {
     )
       .rpc("get_job_interview_card_badges", { _job_id: jobId })
       .then(({ data, error }) => {
-      if (error) return; // the badge is an extra; never block the applicant list
-      setCardBadges(
-        Object.fromEntries((data ?? []).map((r) => [r.application_id, { band: r.summary_band }])),
-      );
-    });
+        if (error) return; // the badge is an extra; never block the applicant list
+        setCardBadges(
+          Object.fromEntries((data ?? []).map((r) => [r.application_id, { band: r.summary_band }])),
+        );
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobId]);
 
@@ -961,7 +974,8 @@ function ApplicantsPage() {
                           : "border-border bg-card hover:bg-surface"
                       }`}
                     >
-                      <Mic className="h-3.5 w-3.5" /> Interview Card ({Object.keys(cardBadges).length})
+                      <Mic className="h-3.5 w-3.5" /> Interview Card (
+                      {Object.keys(cardBadges).length})
                     </button>
                   )}
                   <button

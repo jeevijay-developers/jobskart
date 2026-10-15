@@ -453,6 +453,8 @@ function ResponsesPage() {
     data: jobGroups = [],
     isLoading: jobGroupsLoading,
     isFetching: jobGroupsFetching,
+    isError: jobGroupsError,
+    error: jobGroupsErrorObj,
     refetch: refetchJobGroups,
   } = useQuery({
     queryKey: ["employer-responses-jobs", cid, statusFilter, nameQueryDebounced],
@@ -467,6 +469,16 @@ function ResponsesPage() {
         },
       }),
   });
+
+  // TEMP DIAGNOSTIC (Responses "Couldn't load responses" investigation) —
+  // browser console only, logs the exact client-visible error object React
+  // Query ended up with for this query. Remove once root-caused.
+  useEffect(() => {
+    if (jobGroupsError) {
+      // eslint-disable-next-line no-console
+      console.error("[diag] employer-responses-jobs query errored:", jobGroupsErrorObj);
+    }
+  }, [jobGroupsError, jobGroupsErrorObj]);
 
   const visibleJobGroups = useMemo(
     () => (jobFilter ? jobGroups.filter((j) => j.job_id === jobFilter) : jobGroups),
@@ -817,7 +829,24 @@ function ResponsesPage() {
 
       {tab === "inbox" ? (
         <>
-          {loading && jobGroups.length === 0 ? (
+          {jobGroupsError ? (
+            <div className="rounded-2xl border border-dashed border-destructive/40 bg-destructive-light p-10 text-center">
+              <AlertTriangle className="mx-auto mb-2 h-6 w-6 text-destructive" />
+              <p className="text-sm font-semibold text-destructive">Couldn't load responses.</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {jobGroupsErrorObj instanceof Error
+                  ? jobGroupsErrorObj.message
+                  : "Something went wrong."}
+              </p>
+              <button
+                type="button"
+                onClick={() => refetchJobGroups()}
+                className="mt-3 inline-flex h-8 items-center rounded-lg border border-border bg-card px-3 text-xs font-semibold hover:bg-surface"
+              >
+                Try again
+              </button>
+            </div>
+          ) : loading && jobGroups.length === 0 ? (
             <div className="grid gap-3">
               <div className="h-48 animate-pulse rounded-2xl bg-card" />
               <div className="h-48 animate-pulse rounded-2xl bg-card" />
