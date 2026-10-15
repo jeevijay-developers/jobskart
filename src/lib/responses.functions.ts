@@ -37,6 +37,18 @@ export const getResponseJobs = createServerFn({ method: "POST" })
         _include_closed: data.includeClosed ?? false,
       } as never,
     );
+    // TEMP DIAGNOSTIC (Responses "Couldn't load responses" investigation) —
+    // server-side console only, no candidate PII (row count/shape, not row
+    // contents). Remove once root-caused.
+    const diagRows = rows as unknown as unknown[] | null;
+    console.log("[diag:get_employer_response_jobs]", {
+      error: error
+        ? { code: error.code, message: error.message, details: error.details, hint: error.hint }
+        : null,
+      rowCount: Array.isArray(diagRows) ? diagRows.length : diagRows,
+      sampleRowShape:
+        Array.isArray(diagRows) && diagRows[0] ? Object.keys(diagRows[0] as object) : null,
+    });
     if (error) throw new Error(error.message);
     return (rows ?? []) as unknown as ResponseJobRow[];
   });
@@ -85,6 +97,17 @@ export const getJobResponses = createServerFn({ method: "POST" })
         _offset: data.offset ?? 0,
       } as never,
     );
+    // TEMP DIAGNOSTIC — see getResponseJobs above. Remove once root-caused.
+    const diagRows = rows as unknown as unknown[] | null;
+    console.log("[diag:get_employer_job_responses]", {
+      jobId: data.jobId,
+      error: error
+        ? { code: error.code, message: error.message, details: error.details, hint: error.hint }
+        : null,
+      rowCount: Array.isArray(diagRows) ? diagRows.length : diagRows,
+      sampleRowShape:
+        Array.isArray(diagRows) && diagRows[0] ? Object.keys(diagRows[0] as object) : null,
+    });
     if (error) throw new Error(error.message);
     return (rows ?? []) as unknown as ResponseApplicantRow[];
   });
@@ -112,6 +135,14 @@ export const getResponseStatusCounts = createServerFn({ method: "POST" })
         _query: data.query ?? undefined,
       } as never,
     );
+    // TEMP DIAGNOSTIC — see getResponseJobs above. Remove once root-caused.
+    const diagRows = rows as unknown as unknown[] | null;
+    console.log("[diag:get_employer_response_status_counts]", {
+      error: error
+        ? { code: error.code, message: error.message, details: error.details, hint: error.hint }
+        : null,
+      rowCount: Array.isArray(diagRows) ? diagRows.length : diagRows,
+    });
     if (error) throw new Error(error.message);
     const counts: Record<string, number> = { all: 0 };
     for (const row of (rows ?? []) as { status: string; n: number }[]) {
